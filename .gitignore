@@ -1,0 +1,78 @@
+# Virtual Environment
+venv/
+env/
+.venv/
+.env/
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+
+# Log Files
+*.log
+file_operations.log
+quality_log_*.csv
+people_scores*.csv
+
+# Image Processing Working Directories
+crop/
+cropped/
+temp/
+back_files_*/
+1100/
+1101/
+boobs_*/
+character_group_*/
+face_group_*/
+Reviewed/
+Hailey/
+
+# Image and Data Files
+*.png
+*.jpg
+*.jpeg
+*.yaml
+*.yml
+*.csv
+*.pt
+
+# Markdown Documentation (except README)
+IMAGE_PROCESSING_WORKFLOW*.md
+face_grouping_comparison.md
+workflow*.md
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
