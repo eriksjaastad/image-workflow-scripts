@@ -15,9 +15,15 @@ __pycache__/
 
 # Log Files
 *.log
-file_operations.log
+file_operations*.log
 quality_log_*.csv
 people_scores*.csv
+
+# Cache and Temporary Files
+.cache/
+thumbnails/
+temp_*
+*_temp*
 
 # Image Processing Working Directories
 crop/
@@ -31,6 +37,8 @@ character_group_*/
 face_group_*/
 Reviewed/
 Hailey/
+tattersail-*/
+00_*/
 
 # Image and Data Files
 *.png

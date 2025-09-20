@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Face Grouper (Step 2 of Workflow)
+Face Grouper (Step 3 of Workflow)
 =================================
 Uses FaceNet embeddings to group similar faces into 5 clusters for easier review.
 Moves PNG+YAML file pairs together while preserving all original filenames.
@@ -10,17 +10,16 @@ USAGE:
 Activate virtual environment first:
   source venv/bin/activate
 
-Run on directories containing individual images (after version selection):
-  python scripts/02_face_grouper.py "Reviewed"
-  python scripts/02_face_grouper.py "KIARA"
+Run on directories containing individual images (after character sorting):
+  python scripts/03_face_grouper.py "character_group_1"
+  python scripts/03_face_grouper.py "00_Asian"
 
 WORKFLOW POSITION:
 ------------------
-Step 1: Image Version Selection → scripts/01_image_version_selector.py
-Step 2: Face Grouping → THIS SCRIPT (scripts/02_face_grouper.py)
-Step 3: Manual Sorting → scripts/03_character_sorter.py
-Step 4: Pair Comparison → scripts/04_pair_comparator.py
-Step 5: Final Cropping → scripts/05_crop_tool.py
+Step 1: Image Version Selection → scripts/01_web_image_selector.py
+Step 2: Character Sorting → scripts/02_web_character_sorter.py
+Step 3: Face Grouping → THIS SCRIPT (scripts/03_face_grouper.py)
+Step 4: Final Cropping → scripts/04_batch_crop_tool.py
 
 OUTPUT STRUCTURE:
 -----------------
