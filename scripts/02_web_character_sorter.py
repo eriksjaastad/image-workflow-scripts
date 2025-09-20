@@ -1644,6 +1644,64 @@ VIEWPORT_TEMPLATE = """
     .btn-delete:hover {
       background: #ff5252;
     }
+
+    /* Row-level button styles */
+    .row-container {
+      margin-bottom: 1rem;
+    }
+
+    .row-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .btn-row {
+      padding: 0.2rem 0.8rem;
+      height: 24px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border: 1px solid;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-width: 32px;
+    }
+
+    .btn-row-group1 {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    .btn-row-group1:hover {
+      background: #5b9cff;
+      border-color: #5b9cff;
+    }
+
+    .btn-row-group2 {
+      background: var(--success);
+      border-color: var(--success);
+      color: white;
+    }
+
+    .btn-row-group2:hover {
+      background: #6bc56d;
+      border-color: #6bc56d;
+    }
+
+    .btn-row-group3 {
+      background: var(--warning);
+      border-color: var(--warning);
+      color: white;
+    }
+
+    .btn-row-group3:hover {
+      background: #ffec99;
+      border-color: #ffec99;
+      color: #333;
+    }
     
     .loading {
       opacity: 0.5;
@@ -1667,8 +1725,14 @@ VIEWPORT_TEMPLATE = """
       </div>
       
       {% for row in image_rows %}
-      <div class="image-row" data-row-id="{{ row.id }}">
-        {% for image in row.images %}
+      <div class="row-container">
+        <div class="row-buttons">
+          <button class="btn-row btn-row-group1" onclick="selectRowAction({{ row.id }}, 'group1')">G1</button>
+          <button class="btn-row btn-row-group2" onclick="selectRowAction({{ row.id }}, 'group2')">G2</button>
+          <button class="btn-row btn-row-group3" onclick="selectRowAction({{ row.id }}, 'group3')">G3</button>
+        </div>
+        <div class="image-row" data-row-id="{{ row.id }}">
+          {% for image in row.images %}
         <div class="image-item" data-global-index="{{ image.global_index }}">
           <div class="image-container">
             <img src="/image/{{ image.global_index }}" alt="{{ image.name }}" loading="lazy" onclick="selectAction({{ image.global_index }}, 'delete')">
@@ -1689,6 +1753,7 @@ VIEWPORT_TEMPLATE = """
           </div>
         </div>
         {% endfor %}
+        </div>
       </div>
       {% endfor %}
     </div>
@@ -1769,6 +1834,32 @@ VIEWPORT_TEMPLATE = """
         row.classList.add('in-batch');
         row.classList.remove('reviewed');
       }
+      
+      updateBatchInfo();
+    }
+
+    function selectRowAction(rowId, action) {
+      const row = document.querySelector(`[data-row-id="${rowId}"]`);
+      const imageItems = row.querySelectorAll('[data-global-index]');
+      
+      // Apply action to all images in the row that don't already have a selection
+      imageItems.forEach(imageItem => {
+        const globalIndex = imageItem.dataset.globalIndex;
+        
+        // Only apply if no previous decision exists (individual selections override row selections)
+        if (!imageDecisions.hasOwnProperty(globalIndex)) {
+          // Remove previous selection classes
+          imageItem.classList.remove('selected-group1', 'selected-group2', 'selected-group3', 'selected-crop', 'selected-delete');
+          
+          // Add new selection
+          imageItem.classList.add(`selected-${action}`);
+          imageDecisions[globalIndex] = action;
+        }
+      });
+      
+      // Update row state
+      row.classList.add('reviewed');
+      row.classList.remove('in-batch');
       
       updateBatchInfo();
     }

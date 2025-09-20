@@ -5,9 +5,9 @@ Enhanced Batch Crop Tool - 3-Image Interactive Cropping
 A batch-processing version of the crop tool for maximum efficiency:
 - Process 3 images at once in side-by-side layout
 - Individual crop rectangles for each image
-- Intuitive hotkey system (1-Q-A, 2-W-S, 3-E-D)
+- Intuitive hotkey system (W-S-X, E-D-C, R-F-V)
 - Batch submission reduces overhead dramatically
-- Maintains precision with improved matplotlib handles
+- Large, easy-to-grab handles with generous click zones
 
 USAGE:
 ------
@@ -21,17 +21,18 @@ Run on directories containing images:
 
 CONTROLS:
 ---------
-Image 1: [1] Skip  [Q] Delete  [A] Reset crop
-Image 2: [2] Skip  [W] Delete  [S] Reset crop  
-Image 3: [3] Skip  [E] Delete  [D] Reset crop
+Image 1: [W] Skip  [S] Delete  [X] Reset crop
+Image 2: [E] Skip  [D] Delete  [C] Reset crop  
+Image 3: [R] Skip  [F] Delete  [V] Reset crop
 
-Global: [Enter] Submit Batch  [Space] Toggle Aspect Ratio  [Esc] Quit
+Global: [Enter] Submit Batch  [Space] Toggle Aspect Ratio  [Q] Quit
 
 FEATURES:
 ---------
 • 3-image side-by-side layout for batch processing
 • Individual RectangleSelector for each image
-• Enhanced handles (24px markers, 30px grab range)
+• Clean outlined crop rectangles (transparent fill, no visual clutter)
+• Large outlined handles (48px markers, 120px grab range) for easy interaction
 • Dynamic aspect ratio (uses each image's natural ratio) or global override
 • Aspect ratio lock/unlock with [Space] - constrains crops to maintain proportions
 • Batch submission processes all 3 at once
@@ -44,6 +45,25 @@ FEATURES:
 import argparse
 import sys
 from pathlib import Path
+
+# Set matplotlib backend before importing pyplot
+import matplotlib
+
+# Disable toolbar before setting backend
+matplotlib.rcParams['toolbar'] = 'None'
+
+# Try to use Qt5Agg first (PyQt5), fall back to Agg
+try:
+    matplotlib.use('Qt5Agg', force=True)
+    print("[*] Using Qt5Agg backend (PyQt5) - full interactivity available")
+    backend_interactive = True
+except Exception as e:
+    print(f"[!] Qt5Agg backend failed: {e}")
+    matplotlib.use('Agg', force=True)
+    print("[!] Using Agg backend - limited interactivity")
+    print("[!] For full interactive features, ensure PyQt5 is properly installed")
+    backend_interactive = False
+
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.widgets import RectangleSelector
@@ -100,15 +120,25 @@ class BatchCropTool:
         
     def setup_display(self):
         """Setup the matplotlib figure with 3 subplots optimized for screen space"""
+        # Disable toolbar globally before creating figure
+        import matplotlib
+        matplotlib.rcParams['toolbar'] = 'None'
+        
         if self.fig:
             plt.close(self.fig)
             
         # Get screen dimensions and calculate optimal figure size
-        import tkinter as tk
-        root = tk.Tk()
-        screen_width = root.winfo_screenwidth()
-        screen_height = root.winfo_screenheight()
-        root.destroy()
+        try:
+            import tkinter as tk
+            root = tk.Tk()
+            screen_width = root.winfo_screenwidth()
+            screen_height = root.winfo_screenheight()
+            root.destroy()
+        except ImportError:
+            # Fallback to reasonable defaults when tkinter is not available
+            print("[!] tkinter not available, using default screen dimensions")
+            screen_width = 1920  # Common default
+            screen_height = 1080
         
         # Calculate optimal figure size (use 90% of screen, account for OS bars)
         max_width = screen_width * 0.9 / 100  # Convert pixels to inches (approx 100 DPI)
@@ -118,8 +148,37 @@ class BatchCropTool:
         self.fig, self.axes = plt.subplots(1, 3, figsize=(max_width, max_height))
         self.fig.suptitle("", fontsize=14, y=0.98)  # Higher title position
         
-        # Minimize spacing between subplots to maximize image space
-        self.fig.subplots_adjust(left=0.02, right=0.98, top=0.92, bottom=0.08, wspace=0.05)
+        # Hide the matplotlib toolbar completely
+        try:
+            # Multiple approaches to disable toolbar
+            self.fig.canvas.toolbar_visible = False
+            if hasattr(self.fig.canvas, 'toolbar'):
+                self.fig.canvas.toolbar = None
+            # Set matplotlib to not show toolbar globally
+            import matplotlib
+            matplotlib.rcParams['toolbar'] = 'None'
+        except:
+            pass
+        
+        # Minimize spacing between subplots to maximize image space - tighter layout
+        self.fig.subplots_adjust(left=0.01, right=0.99, top=0.96, bottom=0.04, wspace=0.03)
+        
+        # Disable matplotlib's default key bindings to prevent conflicts
+        if hasattr(self.fig.canvas, 'toolbar') and self.fig.canvas.toolbar:
+            self.fig.canvas.toolbar = None  # Remove toolbar shortcuts
+        
+        # Disable specific matplotlib shortcuts
+        try:
+            # Remove matplotlib's default 's' save shortcut
+            if hasattr(plt.rcParams, 'keymap.save'):
+                plt.rcParams['keymap.save'] = []
+            # Remove other potentially conflicting shortcuts
+            conflicting_keys = ['keymap.save', 'keymap.quit', 'keymap.fullscreen', 'keymap.grid']
+            for key in conflicting_keys:
+                if key in plt.rcParams:
+                    plt.rcParams[key] = []
+        except:
+            pass  # Ignore if rcParams keys don't exist
         
         # Connect keyboard events
         self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
@@ -174,7 +233,7 @@ class BatchCropTool:
                 
                 # Display image with aspect ratio preserved, filling available space
                 ax.imshow(img_array, aspect='equal')
-                ax.set_title(f"Image {i+1}", fontsize=12, pad=5)  # Reduced padding
+                ax.set_title(f"Image {i+1}", fontsize=12)  # Reduced padding
                 ax.set_xticks([])
                 ax.set_yticks([])
                 
@@ -194,13 +253,27 @@ class BatchCropTool:
                     minspanx=5, minspany=5,
                     spancoords='pixels',
                     interactive=True,
-                    props=dict(facecolor='red', alpha=0.2),
-                    rectprops=dict(facecolor='red', alpha=0.2),
-                    handle_props=dict(markersize=24),  # Larger handles
-                    grab_range=30  # Larger grab range
+                    props=dict(facecolor='none', edgecolor='red', linewidth=2),  # Transparent fill with red outline
+                    drag_from_anywhere=False,  # Disable rotation/dragging from center
+                    use_data_coordinates=False,  # Use pixel coordinates, no rotation
+                    grab_range=120,  # Much larger grab range (4x bigger)
+                    handle_props=dict(markersize=48, markerfacecolor='none', markeredgecolor='red', markeredgewidth=3)  # Outlined handles only
                 )
                 
                 self.selectors[i] = selector
+                
+                # Set initial crop selection to full image using actual image dimensions
+                # The image is displayed with extents from 0 to width and 0 to height
+                selector.extents = (0, img_width, 0, img_height)
+                
+                # Initialize the crop coordinates for this image (full image)
+                self.image_states[i]['crop_coords'] = (0, 0, img_width, img_height)
+                self.image_states[i]['has_selection'] = True
+                
+                # Update the title to show the initial selection
+                aspect_str = f" [{image_aspect_ratio:.2f}:1]" if self.aspect_ratio_locked else ""
+                self.axes[i].set_title(f"Image {i+1}: {img_width}×{img_height}{aspect_str} [Full Image]", 
+                                     fontsize=10, color='green')
                 
             except Exception as e:
                 print(f"Error loading {png_path}: {e}")
@@ -213,41 +286,39 @@ class BatchCropTool:
             
         # If we have fewer than 3 images, adjust subplot layout for larger display
         if len(batch_files) == 1:
-            # Center single image with more space
-            self.fig.subplots_adjust(left=0.25, right=0.75, top=0.92, bottom=0.08)
+            # Center single image with more space - tighter layout
+            self.fig.subplots_adjust(left=0.2, right=0.8, top=0.96, bottom=0.04)
         elif len(batch_files) == 2:
-            # Center two images with more space each
-            self.fig.subplots_adjust(left=0.1, right=0.9, top=0.92, bottom=0.08, wspace=0.1)
+            # Center two images with more space each - tighter layout
+            self.fig.subplots_adjust(left=0.05, right=0.95, top=0.96, bottom=0.04, wspace=0.05)
             
-        # Update title
+        # Update title with controls in header
         remaining_images = len(self.png_files) - (start_idx)
-        title = f"Batch {self.current_batch + 1}/{self.total_batches} • {remaining_images} images remaining"
-        self.fig.suptitle(title, fontsize=14, y=0.95)
+        lock_str = "🔒" if self.aspect_ratio_locked else "🔓"
+        aspect_info = f" • [{lock_str} Space] Aspect Ratio" if self.aspect_ratio else ""
+        title = f"Batch {self.current_batch + 1}/{self.total_batches} • {remaining_images} images remaining • [Enter] Submit • [Q] Quit{aspect_info}"
+        self.fig.suptitle(title, fontsize=12, y=0.98)
         
         # Update control labels
         self.update_control_labels()
         
         # Force tight layout and redraw for maximum space utilization
-        plt.tight_layout(rect=[0, 0.05, 1, 0.95])  # Leave space for controls
+        plt.tight_layout(rect=[0, 0.02, 1, 0.98])  # Minimal space reservations
         plt.draw()
         
     def update_control_labels(self):
         """Update the control labels below each image"""
         controls = [
-            "[1] Skip  [Q] Delete  [A] Reset",
-            "[2] Skip  [W] Delete  [S] Reset", 
-            "[3] Skip  [E] Delete  [D] Reset"
+            "[W] Skip  [S] Delete  [X] Reset",
+            "[E] Skip  [D] Delete  [C] Reset", 
+            "[R] Skip  [F] Delete  [V] Reset"
         ]
         
         for i, (ax, control_text) in enumerate(zip(self.axes, controls)):
             if i < len(self.current_images):
-                ax.set_xlabel(control_text, fontsize=10, pad=5)
+                ax.set_xlabel(control_text, fontsize=10)
                 
-        # Add global controls at bottom
-        lock_str = "🔒" if self.aspect_ratio_locked else "🔓"
-        aspect_info = f" • [{lock_str} Space] Aspect Ratio" if self.aspect_ratio else ""
-        self.fig.text(0.5, 0.02, f"[Enter] Submit Batch  •  [Esc] Quit{aspect_info}", 
-                     ha='center', fontsize=12, weight='bold')
+        # Controls are now in the header - no bottom text needed
         
     def on_crop_select(self, eclick, erelease, image_idx):
         """Handle crop rectangle selection for a specific image"""
@@ -290,6 +361,10 @@ class BatchCropTool:
                 
                 # Ensure coordinates are integers
                 x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+                
+                # Update the selector to reflect the aspect ratio adjustment
+                self.selectors[image_idx].extents = (x1, x2, y1, y2)
+                plt.draw()  # Force visual update
         
         # Store crop coordinates
         self.image_states[image_idx]['crop_coords'] = (x1, y1, x2, y2)
@@ -310,7 +385,7 @@ class BatchCropTool:
             lock_str = " [🔓 Free]"
         
         self.axes[image_idx].set_title(f"Image {image_idx + 1}: {crop_width}×{crop_height}{aspect_str}{lock_str}", 
-                                       fontsize=10, color='green', pad=10)
+                                       fontsize=10, color='green')
         plt.draw()
         
         print(f"Image {image_idx + 1} crop selected: ({x1}, {y1}) to ({x2}, {y2})")
@@ -319,8 +394,19 @@ class BatchCropTool:
         """Handle keyboard input"""
         key = event.key.lower()
         
+        # Explicitly disable matplotlib's default save functionality
+        if key == 's' and (event.key == 'ctrl+s' or event.key == 'cmd+s'):
+            return  # Ignore save shortcuts
+        
+        # Disable any other matplotlib default shortcuts that might interfere
+        if key in ['ctrl+s', 'cmd+s']:
+            return
+        
         # Global controls
-        if key == 'escape':
+        if key == 'q':  # Q is now quit
+            self.quit()
+            return
+        elif key == 'escape':  # Keep escape as backup quit
             self.quit()
             return
         elif key == 'enter':
@@ -332,11 +418,11 @@ class BatchCropTool:
             print(f"Aspect ratio {lock_str}")
             return
             
-        # Image-specific controls
+        # Image-specific controls - WSX EDC RFV layout
         image_actions = {
-            '1': (0, 'skip'), 'q': (0, 'delete'), 'a': (0, 'reset'),
-            '2': (1, 'skip'), 'w': (1, 'delete'), 's': (1, 'reset'),
-            '3': (2, 'skip'), 'e': (2, 'delete'), 'd': (2, 'reset'),
+            'w': (0, 'skip'), 's': (0, 'delete'), 'x': (0, 'reset'),
+            'e': (1, 'skip'), 'd': (1, 'delete'), 'c': (1, 'reset'),
+            'r': (2, 'skip'), 'f': (2, 'delete'), 'v': (2, 'reset'),
         }
         
         if key in image_actions:
@@ -349,27 +435,32 @@ class BatchCropTool:
                     self.set_image_action(image_idx, action)
                     
     def reset_image_crop(self, image_idx):
-        """Reset the crop selection for a specific image"""
+        """Reset the crop selection for a specific image back to full image"""
         if image_idx >= len(self.current_images):
             return
             
-        # Clear the selection
+        # Get the original image dimensions
+        image_info = self.current_images[image_idx]
+        img = Image.open(image_info['path'])
+        img_width, img_height = img.size
+        
+        # Reset selector to full image
         if self.selectors[image_idx]:
-            # Clear the rectangle by setting it to empty
-            self.selectors[image_idx].set_visible(False)
-            self.selectors[image_idx].set_visible(True)
+            self.selectors[image_idx].extents = (0, img_width, 0, img_height)
             
-        # Reset state
-        self.image_states[image_idx]['crop_coords'] = None
-        self.image_states[image_idx]['has_selection'] = False
+        # Reset state to full image coordinates
+        self.image_states[image_idx]['crop_coords'] = (0, 0, img_width, img_height)
+        self.image_states[image_idx]['has_selection'] = True
         self.image_states[image_idx]['action'] = None
         
-        # Update title to show reset
-        self.axes[image_idx].set_title(f"Image {image_idx + 1} [RESET]", 
-                                       fontsize=12, color='blue', pad=10)
+        # Update title to show reset to full image
+        image_aspect_ratio = self.image_states[image_idx]['image_aspect_ratio']
+        aspect_str = f" [{image_aspect_ratio:.2f}:1]" if self.aspect_ratio_locked else ""
+        self.axes[image_idx].set_title(f"Image {image_idx + 1}: {img_width}×{img_height}{aspect_str} [RESET TO FULL]", 
+                                       fontsize=10, color='green')
         plt.draw()
         
-        print(f"Image {image_idx + 1} crop reset")
+        print(f"Image {image_idx + 1} crop reset to full image ({img_width}×{img_height})")
         
     def set_image_action(self, image_idx, action):
         """Set action (skip/delete) for a specific image"""
@@ -383,7 +474,7 @@ class BatchCropTool:
         action_text = action.upper()
         
         self.axes[image_idx].set_title(f"Image {image_idx + 1} [{action_text}]", 
-                                       fontsize=12, color=color, pad=10)
+                                       fontsize=12, color=color)
         plt.draw()
         
         print(f"Image {image_idx + 1} marked for {action}")
@@ -521,7 +612,7 @@ class BatchCropTool:
                  ha='center', va='center', fontsize=20, 
                  bbox=dict(boxstyle="round,pad=1", facecolor="lightgreen"))
         plt.axis('off')
-        plt.title("Batch Crop Tool - Complete", fontsize=16, pad=20)
+        plt.title("Batch Crop Tool - Complete", fontsize=16)
         plt.draw()
         
         print("\n🎉 All images processed! Batch cropping complete.")
@@ -538,10 +629,10 @@ class BatchCropTool:
         print(f"Found {len(self.png_files)} images")
         print(f"Will process in {self.total_batches} batches of up to 3 images each")
         print("\nControls:")
-        print("  Image 1: [1] Skip  [Q] Delete  [A] Reset")
-        print("  Image 2: [2] Skip  [W] Delete  [S] Reset") 
-        print("  Image 3: [3] Skip  [E] Delete  [D] Reset")
-        print("  Global:  [Enter] Submit Batch  [Space] Toggle Aspect Ratio  [Esc] Quit")
+        print("  Image 1: [W] Skip  [S] Delete  [X] Reset")
+        print("  Image 2: [E] Skip  [D] Delete  [C] Reset") 
+        print("  Image 3: [R] Skip  [F] Delete  [V] Reset")
+        print("  Global:  [Enter] Submit Batch  [Space] Toggle Aspect Ratio  [Q] Quit")
         
         if self.aspect_ratio:
             print(f"\n📐 Global aspect ratio override enabled: {self.aspect_ratio:.2f}:1 (locked by default)")

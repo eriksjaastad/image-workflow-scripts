@@ -26,6 +26,7 @@ temp_*
 *_temp*
 
 # Image Processing Working Directories
+_CONTENT/
 crop/
 cropped/
 temp/
