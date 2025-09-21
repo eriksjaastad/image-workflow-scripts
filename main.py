@@ -248,6 +248,15 @@ def run_pipeline(config: PipelineConfig) -> PipelineResult:
     crops: List[np.ndarray] = []
     metadata: List[Dict] = []
     total_faces = 0
+    newly_processed: List[str] = []
+
+    def finalize_state() -> None:
+        if not newly_processed:
+            return
+        state.processed_images.extend(newly_processed)
+        newly_processed.clear()
+        if config.resume:
+            state.save(state_path)
 
     with Progress(console=console) as progress:
         task_id = progress.add_task("Processing", total=len(images))
@@ -313,15 +322,14 @@ def run_pipeline(config: PipelineConfig) -> PipelineResult:
                                 "landmarks": {k: list(v) for k, v in det.landmarks.items()},
                             }
                         )
-            state.processed_images.append(rel_key)
+            newly_processed.append(rel_key)
             processed.add(rel_key)
-            if config.resume:
-                state.save(state_path)
 
     if config.detect_only:
         if paths.detections_json:
             ensure_dir(paths.detections_json.parent)
             save_json(detection_records, paths.detections_json)
+        finalize_state()
         elapsed = time.time() - start_time
         return PipelineResult(
             images_processed=len(images),
@@ -332,6 +340,7 @@ def run_pipeline(config: PipelineConfig) -> PipelineResult:
         )
 
     if not samples:
+        finalize_state()
         elapsed = time.time() - start_time
         return PipelineResult(
             images_processed=len(images),
@@ -356,6 +365,8 @@ def run_pipeline(config: PipelineConfig) -> PipelineResult:
     )
     cluster_result = cluster_faces(samples, cluster_config, existing)
     _write_clusters(cluster_result, crops, paths, config)
+
+    finalize_state()
 
     elapsed = time.time() - start_time
     if config.bench:
