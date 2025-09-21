@@ -1813,12 +1813,19 @@ VIEWPORT_TEMPLATE = """
       const imageItem = document.querySelector(`[data-global-index="${globalIndex}"]`);
       const row = imageItem.closest('.image-row');
       
-      // Remove previous selection classes
-      imageItem.classList.remove('selected-group1', 'selected-group2', 'selected-group3', 'selected-crop', 'selected-delete');
-      
-      // Add new selection (skip is implicit - no action needed)
-      imageItem.classList.add(`selected-${action}`);
-      imageDecisions[globalIndex] = action;
+      // Check if this action is already selected - if so, deselect it
+      if (imageItem.classList.contains(`selected-${action}`)) {
+        // Deselect - remove all selection classes and decision
+        imageItem.classList.remove('selected-group1', 'selected-group2', 'selected-group3', 'selected-crop', 'selected-delete');
+        delete imageDecisions[globalIndex];
+      } else {
+        // Remove previous selection classes
+        imageItem.classList.remove('selected-group1', 'selected-group2', 'selected-group3', 'selected-crop', 'selected-delete');
+        
+        // Add new selection (skip is implicit - no action needed)
+        imageItem.classList.add(`selected-${action}`);
+        imageDecisions[globalIndex] = action;
+      }
       
       // Update row state based on decisions made in this row
       const rowImages = row.querySelectorAll('[data-global-index]');
@@ -1842,20 +1849,39 @@ VIEWPORT_TEMPLATE = """
       const row = document.querySelector(`[data-row-id="${rowId}"]`);
       const imageItems = row.querySelectorAll('[data-global-index]');
       
-      // Apply action to all images in the row that don't already have a selection
-      imageItems.forEach(imageItem => {
+      // Check if most unselected images in this row already have this action
+      const unselectedImages = Array.from(imageItems).filter(imageItem => {
         const globalIndex = imageItem.dataset.globalIndex;
-        
-        // Only apply if no previous decision exists (individual selections override row selections)
-        if (!imageDecisions.hasOwnProperty(globalIndex)) {
+        return !imageDecisions.hasOwnProperty(globalIndex);
+      });
+      
+      const alreadySelectedWithAction = Array.from(imageItems).filter(imageItem => {
+        return imageItem.classList.contains(`selected-${action}`);
+      });
+      
+      // If more than half the row already has this action, toggle it off (deselect)
+      if (alreadySelectedWithAction.length > imageItems.length / 2) {
+        imageItems.forEach(imageItem => {
+          const globalIndex = imageItem.dataset.globalIndex;
+          if (imageItem.classList.contains(`selected-${action}`)) {
+            // Deselect this action
+            imageItem.classList.remove('selected-group1', 'selected-group2', 'selected-group3', 'selected-crop', 'selected-delete');
+            delete imageDecisions[globalIndex];
+          }
+        });
+      } else {
+        // Apply action to all images in the row that don't already have a selection
+        unselectedImages.forEach(imageItem => {
+          const globalIndex = imageItem.dataset.globalIndex;
+          
           // Remove previous selection classes
           imageItem.classList.remove('selected-group1', 'selected-group2', 'selected-group3', 'selected-crop', 'selected-delete');
           
           // Add new selection
           imageItem.classList.add(`selected-${action}`);
           imageDecisions[globalIndex] = action;
-        }
-      });
+        });
+      }
       
       // Update row state
       row.classList.add('reviewed');

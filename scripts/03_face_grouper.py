@@ -109,7 +109,9 @@ class FaceGrouper:
             
             # DeepFace returns a list of embeddings (one per detected face)
             if not embeddings or len(embeddings) == 0:
-                return None
+                # No faces detected by DeepFace, try OpenCV fallback
+                print(f"⚠️  No faces detected by DeepFace for {image_path.name}, trying OpenCV fallback...")
+                return self._enhanced_opencv_detection(image_path)
 
             # Use the first detected face (usually the largest/most prominent)
             first_result = embeddings[0]
@@ -313,7 +315,7 @@ def group_faces_into_clusters(face_data: List[Tuple[Path, np.ndarray]], n_cluste
     
     return clusters
 
-def move_files_to_groups(clusters: Dict[int, List[Path]], no_face_files: List[Path], source_dir: Path, tracker: FileTracker = None):
+def move_files_to_groups(clusters: Dict[int, List[Path]], no_face_files: List[Path], source_dir: Path, tracker: FileTracker = None, num_clusters: int = 5):
     """Move PNG+YAML files to their respective group directories."""
     moved_count = 0
     group_counts = {}
@@ -325,7 +327,7 @@ def move_files_to_groups(clusters: Dict[int, List[Path]], no_face_files: List[Pa
     
     # Create group directories at parent level (same level as normal_images)
     parent_dir = source_dir.parent
-    for group_id in range(1, 6):  # face_group_1 through face_group_5
+    for group_id in range(1, num_clusters + 1):  # face_group_1 through face_group_N
         group_dir = parent_dir / f"face_group_{group_id}"
         group_dir.mkdir(exist_ok=True)
     
@@ -335,8 +337,16 @@ def move_files_to_groups(clusters: Dict[int, List[Path]], no_face_files: List[Pa
     
     # Move clustered faces
     for cluster_id, image_paths in clusters.items():
-        group_dir = parent_dir / f"face_group_{cluster_id + 1}"
-        group_name = f"face_group_{cluster_id + 1}"
+        if cluster_id == 'noise':
+            # Handle DBSCAN outliers
+            group_dir = parent_dir / "face_group_outliers"
+            group_name = "face_group_outliers"
+            group_dir.mkdir(exist_ok=True)
+        else:
+            # Handle normal numeric clusters
+            group_dir = parent_dir / f"face_group_{cluster_id + 1}"
+            group_name = f"face_group_{cluster_id + 1}"
+        
         files_moved_to_group = []
         group_counts[group_name] = 0
         
@@ -515,12 +525,16 @@ def main():
     
     # Show cluster summary
     print(f"\n📊 Clustering Results:")
-    for group_id in sorted(clusters.keys()):
+    # Sort numeric keys first, then handle 'noise' key separately
+    numeric_keys = [k for k in clusters.keys() if isinstance(k, int)]
+    for group_id in sorted(numeric_keys):
         count = len(clusters[group_id])
-        if group_id == 'noise':
-            print(f"   • face_group_outliers: {count} images")
-        else:
-            print(f"   • face_group_{group_id + 1}: {count} images")
+        print(f"   • face_group_{group_id + 1}: {count} images")
+    
+    # Handle noise/outliers if they exist
+    if 'noise' in clusters:
+        count = len(clusters['noise'])
+        print(f"   • face_group_outliers: {count} images")
     print(f"   • face_group_not: {len(no_face_files)} images")
     
     # Ask for confirmation
@@ -540,13 +554,13 @@ def main():
     
     # Move files to groups
     print(f"\n📦 Moving files to face groups...")
-    moved_count, group_counts = move_files_to_groups(clusters, no_face_files, source_dir, tracker)
+    moved_count, group_counts = move_files_to_groups(clusters, no_face_files, source_dir, tracker, args.clusters)
     
     print(f"\n✅ Face grouping complete!")
     print(f"📊 Summary:")
     print(f"   • Total files processed: {total_files}")
     print(f"   • Files moved: {moved_count}")
-    print(f"   • Face groups created: 5")
+    print(f"   • Face groups created: {args.clusters}")
     print(f"   • Directory: {source_dir}")
     print(f"📈 Group breakdown:")
     for group_name, count in group_counts.items():
