@@ -316,6 +316,7 @@ def group_faces_into_clusters(face_data: List[Tuple[Path, np.ndarray]], n_cluste
 def move_files_to_groups(clusters: Dict[int, List[Path]], no_face_files: List[Path], source_dir: Path, tracker: FileTracker = None):
     """Move PNG+YAML files to their respective group directories."""
     moved_count = 0
+    group_counts = {}
     
     # Log initial state and start batch
     if tracker:
@@ -337,6 +338,7 @@ def move_files_to_groups(clusters: Dict[int, List[Path]], no_face_files: List[Pa
         group_dir = parent_dir / f"face_group_{cluster_id + 1}"
         group_name = f"face_group_{cluster_id + 1}"
         files_moved_to_group = []
+        group_counts[group_name] = 0
         
         for png_path in image_paths:
             # Move PNG file
@@ -344,6 +346,7 @@ def move_files_to_groups(clusters: Dict[int, List[Path]], no_face_files: List[Pa
                 target_png = group_dir / png_path.name
                 shutil.move(str(png_path), str(target_png))
                 moved_count += 1
+                group_counts[group_name] += 1
                 files_moved_to_group.append(png_path.name)
                 print(f"✓ Moved {png_path.name} → {group_name}")
                 
@@ -352,6 +355,7 @@ def move_files_to_groups(clusters: Dict[int, List[Path]], no_face_files: List[Pa
                 if yaml_path.exists():
                     target_yaml = group_dir / yaml_path.name
                     shutil.move(str(yaml_path), str(target_yaml))
+                    group_counts[group_name] += 1
                     files_moved_to_group.append(yaml_path.name)
                     print(f"✓ Moved {yaml_path.name} → {group_name}")
                     
@@ -370,12 +374,14 @@ def move_files_to_groups(clusters: Dict[int, List[Path]], no_face_files: List[Pa
             )
     
     # Move files with no detected faces
+    group_counts["face_group_not"] = 0
     no_face_files_moved = []
     for png_path in no_face_files:
         try:
             target_png = no_face_dir / png_path.name
             shutil.move(str(png_path), str(target_png))
             moved_count += 1
+            group_counts["face_group_not"] += 1
             no_face_files_moved.append(png_path.name)
             print(f"✓ Moved {png_path.name} → face_group_not")
             
@@ -384,6 +390,7 @@ def move_files_to_groups(clusters: Dict[int, List[Path]], no_face_files: List[Pa
             if yaml_path.exists():
                 target_yaml = no_face_dir / yaml_path.name
                 shutil.move(str(yaml_path), str(target_yaml))
+                group_counts["face_group_not"] += 1
                 no_face_files_moved.append(yaml_path.name)
                 print(f"✓ Moved {yaml_path.name} → face_group_not")
                 
@@ -411,7 +418,7 @@ def move_files_to_groups(clusters: Dict[int, List[Path]], no_face_files: List[Pa
         tracker.log_directory_state(str(source_dir), "After face grouping")
         tracker.log_batch_end(f"Moved {moved_count} files to face groups")
     
-    return moved_count
+    return moved_count, group_counts
 
 def main():
     parser = argparse.ArgumentParser(description='Group similar faces with tunable parameters')
@@ -533,7 +540,7 @@ def main():
     
     # Move files to groups
     print(f"\n📦 Moving files to face groups...")
-    moved_count = move_files_to_groups(clusters, no_face_files, source_dir, tracker)
+    moved_count, group_counts = move_files_to_groups(clusters, no_face_files, source_dir, tracker)
     
     print(f"\n✅ Face grouping complete!")
     print(f"📊 Summary:")
@@ -541,6 +548,9 @@ def main():
     print(f"   • Files moved: {moved_count}")
     print(f"   • Face groups created: 5")
     print(f"   • Directory: {source_dir}")
+    print(f"📈 Group breakdown:")
+    for group_name, count in group_counts.items():
+        print(f"   • {group_name}: {count} files")
 
 if __name__ == "__main__":
     main()
