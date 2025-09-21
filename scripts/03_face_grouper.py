@@ -110,9 +110,27 @@ class FaceGrouper:
             # DeepFace returns a list of embeddings (one per detected face)
             if not embeddings or len(embeddings) == 0:
                 return None
-            
+
             # Use the first detected face (usually the largest/most prominent)
-            embedding = np.array(embeddings[0]["embedding"])
+            first_result = embeddings[0]
+
+            # DeepFace has changed the embedding key name a few times between releases.
+            # Try the known options before giving up so we don't unnecessarily fall back
+            # to the OpenCV heuristic embedding (which is much less accurate).
+            embedding_vector = None
+            for key in ("embedding", "face_embedding", "vector"):
+                if key in first_result:
+                    embedding_vector = first_result[key]
+                    break
+
+            if embedding_vector is None:
+                raise KeyError("No embedding vector found in DeepFace response")
+
+            embedding = np.asarray(embedding_vector, dtype=np.float32)
+
+            # Flatten possible nested structures (just in case) so clustering works reliably
+            if embedding.ndim > 1:
+                embedding = embedding.flatten()
             
             return embedding
             
