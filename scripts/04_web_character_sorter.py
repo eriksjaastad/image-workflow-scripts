@@ -33,7 +33,7 @@ Run with similarity mapping for intelligent spatial layout:
   python scripts/02_face_grouper.py --images 00_white --emit-map
   
   # Then use similarity mapping in character sorter
-  python scripts/04_web_character_sorter.py "00_white" --similarity-map face_groups
+  python scripts/04_web_character_sorter.py face_groups/person_0001 --similarity-map face_groups
 
 WORKFLOW:
 ---------
@@ -42,7 +42,7 @@ WORKFLOW:
 3. Click Skip to move to next image without action
 4. Use Back to return to previous image
 5. The script will:
-   • Move chosen images (+ YAML files) to character_group_1/2/3/ directories
+   • Move chosen images (+ YAML files) to character_group_1/2/3/ directories in project root
    • Delete images using send2trash (recoverable)
    • Log all actions in FileTracker logs
 
@@ -351,9 +351,87 @@ def launch_browser(host: str, port: int):
     time.sleep(1.5)
     webbrowser.open(f"http://{host}:{port}")
 
+def detect_face_groups_context(folder: Path) -> dict:
+    """Detect context when working in face_groups structure."""
+    face_groups_root = folder.parent
+    person_dirs = sorted([d for d in face_groups_root.iterdir() 
+                         if d.is_dir() and d.name.startswith("person_")])
+    
+    current_index = next((i for i, d in enumerate(person_dirs) if d == folder), 0)
+    
+    return {
+        "is_face_groups": True,
+        "face_groups_root": face_groups_root,
+        "current_dir": folder.name,
+        "position": current_index + 1,
+        "total": len(person_dirs),
+        "person_dirs": person_dirs,
+        "current_index": current_index
+    }
+
+def find_next_person_directory(face_groups_info: dict) -> Optional[Path]:
+    """Find the next person directory with images."""
+    person_dirs = face_groups_info["person_dirs"]
+    current_index = face_groups_info["current_index"]
+    
+    # Look for next directory with images
+    for i in range(current_index + 1, len(person_dirs)):
+        next_dir = person_dirs[i]
+        if any(next_dir.glob("*.png")):  # Has images
+            return next_dir
+    
+    return None
+
+def clean_similarity_maps(folder: Path, similarity_map_dir: Path) -> bool:
+    """Clean similarity maps by removing references to deleted files."""
+    try:
+        import json
+        
+        # Get current images in directory
+        current_images = {img.name for img in folder.glob("*.png")}
+        
+        neighbors_file = similarity_map_dir / "neighbors.jsonl"
+        if not neighbors_file.exists():
+            return False
+        
+        # Clean neighbors.jsonl
+        cleaned_entries = []
+        with open(neighbors_file, 'r') as f:
+            for line in f:
+                entry = json.loads(line)
+                filename = entry.get("filename", "")
+                
+                # Keep entry if image still exists
+                if filename in current_images:
+                    # Clean the neighbors list - remove references to deleted files
+                    if "neighbors" in entry:
+                        entry["neighbors"] = [n for n in entry["neighbors"] 
+                                           if n.get("filename", "") in current_images]
+                    cleaned_entries.append(entry)
+        
+        # Write cleaned neighbors.jsonl
+        with open(neighbors_file, 'w') as f:
+            for entry in cleaned_entries:
+                f.write(json.dumps(entry) + '\n')
+        
+        info(f"Cleaned similarity maps - kept {len(cleaned_entries)} entries")
+        return True
+        
+    except Exception as e:
+        info(f"Failed to clean similarity maps: {e}")
+        return False
+
 def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Optional[Path] = None) -> Flask:
     """Create and configure the Flask app."""
     app = Flask(__name__)
+    
+    # Detect if we're working in face_groups structure
+    is_face_groups_mode = "face_groups" in str(folder) and folder.parent.name == "face_groups"
+    face_groups_info = None
+    
+    if is_face_groups_mode:
+        face_groups_info = detect_face_groups_context(folder)
+        info(f"Face Groups Mode: {face_groups_info['current_dir']} ({face_groups_info['position']}/{face_groups_info['total']})")
     
     # Scan for images
     images = scan_images(folder)
@@ -388,10 +466,11 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
     # Initialize FileTracker
     tracker = FileTracker("character_sorter")
     
-    # Set up target directories
-    character_group_1 = folder.parent / "character_group_1"
-    character_group_2 = folder.parent / "character_group_2"  
-    character_group_3 = folder.parent / "character_group_3"
+    # Set up target directories - always in project root
+    project_root = Path(__file__).parent.parent  # scripts/.. -> project root
+    character_group_1 = project_root / "character_group_1"
+    character_group_2 = project_root / "character_group_2"  
+    character_group_3 = project_root / "character_group_3"
     
     # Create directories if they don't exist
     for group_dir in [character_group_1, character_group_2, character_group_3]:
@@ -404,6 +483,9 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
     app.config["TRACKER"] = tracker
     app.config["FOLDER"] = folder
     app.config["HARD_DELETE"] = hard_delete
+    app.config["SIMILARITY_MAP_DIR"] = similarity_map_dir
+    app.config["IS_FACE_GROUPS_MODE"] = is_face_groups_mode
+    app.config["FACE_GROUPS_INFO"] = face_groups_info
     app.config["TARGET_DIRS"] = {
         "group1": character_group_1,
         "group2": character_group_2,
@@ -418,6 +500,16 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
         images = app.config["IMAGES"]
         
         if not images:
+            # Check for auto-advance in face groups mode
+            if app.config["IS_FACE_GROUPS_MODE"] and app.config["FACE_GROUPS_INFO"]:
+                next_dir = find_next_person_directory(app.config["FACE_GROUPS_INFO"])
+                if next_dir:
+                    return render_template_string(AUTO_ADVANCE_TEMPLATE, 
+                                                next_directory=next_dir.name,
+                                                current_dir=app.config["FACE_GROUPS_INFO"]["current_dir"],
+                                                position=app.config["FACE_GROUPS_INFO"]["position"],
+                                                total=app.config["FACE_GROUPS_INFO"]["total"])
+            
             return render_template_string(COMPLETION_TEMPLATE, 
                                         history=app.config["HISTORY"])
         
@@ -436,7 +528,10 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
             image_rows=image_rows,
             total_images=len(images),
             total_rows=len(image_rows),
-            folder_name=folder.name
+            folder_name=folder.name,
+            is_face_groups_mode=app.config["IS_FACE_GROUPS_MODE"],
+            face_groups_info=app.config["FACE_GROUPS_INFO"],
+            has_similarity_maps=app.config["SIMILARITY_MAP_DIR"] is not None
         )
     
     @app.route("/image/<int:global_index>")
@@ -667,6 +762,41 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
     def completion_page():
         """Show completion page when all images are processed."""
         return render_template_string(COMPLETION_TEMPLATE, history=app.config["HISTORY"])
+    
+    @app.route("/refresh-layout", methods=["POST"])
+    def refresh_layout():
+        """Clean similarity maps and refresh the layout."""
+        if not app.config["SIMILARITY_MAP_DIR"]:
+            return jsonify({"status": "error", "message": "No similarity maps available"}), 400
+        
+        folder = app.config["FOLDER"]
+        similarity_map_dir = app.config["SIMILARITY_MAP_DIR"]
+        
+        success = clean_similarity_maps(folder, similarity_map_dir)
+        
+        if success:
+            return jsonify({"status": "success", "message": "Layout refreshed successfully"})
+        else:
+            return jsonify({"status": "error", "message": "Failed to refresh layout"}), 500
+    
+    @app.route("/next-directory", methods=["POST"])
+    def next_directory():
+        """Get the next person directory for manual advance."""
+        if not app.config["IS_FACE_GROUPS_MODE"]:
+            return jsonify({"status": "error", "message": "Not in face groups mode"}), 400
+        
+        face_groups_info = app.config["FACE_GROUPS_INFO"]
+        next_dir = find_next_person_directory(face_groups_info)
+        
+        if next_dir:
+            return jsonify({
+                "status": "success", 
+                "next_directory": next_dir.name,
+                "current_position": face_groups_info["position"],
+                "total": face_groups_info["total"]
+            })
+        else:
+            return jsonify({"status": "complete", "message": "All directories processed"})
     
     return app
 
@@ -1627,6 +1757,39 @@ VIEWPORT_TEMPLATE = """
       transform: none;
     }
     
+    .btn-refresh, .btn-next {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-right: 0.5rem;
+    }
+    
+    .btn-refresh:hover {
+      background: #3a8ce6;
+      transform: translateY(-1px);
+    }
+    
+    .btn-next {
+      background: var(--success);
+    }
+    
+    .btn-next:hover {
+      background: #40c653;
+      transform: translateY(-1px);
+    }
+    
+    .face-groups-progress {
+      font-size: 0.9rem;
+      color: var(--accent);
+      font-weight: 500;
+    }
+    
     .image-row {
       display: flex;
       flex-wrap: wrap;
@@ -1828,9 +1991,22 @@ VIEWPORT_TEMPLATE = """
       <div class="header">
         <div class="progress-info">
           <span>{{ total_images }} images • {{ folder_name }}</span>
+          {% if is_face_groups_mode and face_groups_info %}
+          <span class="face-groups-progress">Directory {{ face_groups_info.position }}/{{ face_groups_info.total }}</span>
+          {% endif %}
           <span class="batch-info" id="batch-info">Review batch: 0 rows</span>
         </div>
         <div class="controls">
+          {% if is_face_groups_mode and has_similarity_maps %}
+          <button class="btn-refresh" id="refresh-layout" onclick="refreshLayout()">
+            🔄 Refresh Layout
+          </button>
+          {% endif %}
+          {% if is_face_groups_mode %}
+          <button class="btn-next" id="next-directory" onclick="skipToNextDirectory()">
+            ⏭️ Next Directory
+          </button>
+          {% endif %}
           <button class="btn-process" id="process-batch" onclick="processViewportBatch()" disabled>
             Process Current Batch
           </button>
@@ -2054,6 +2230,56 @@ VIEWPORT_TEMPLATE = """
     window.addEventListener('resize', updateViewportBatch);
     updateViewportBatch(); // Initial check
     
+    // Face Groups functions
+    async function refreshLayout() {
+      const refreshBtn = document.getElementById('refresh-layout');
+      const originalText = refreshBtn.innerHTML;
+      refreshBtn.innerHTML = '🔄 Refreshing...';
+      refreshBtn.disabled = true;
+      
+      try {
+        const response = await fetch('/refresh-layout', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'}
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+          // Reload page to get updated layout
+          window.location.reload();
+        } else {
+          alert('Failed to refresh layout: ' + result.message);
+        }
+      } catch (error) {
+        alert('Error refreshing layout: ' + error.message);
+      } finally {
+        refreshBtn.innerHTML = originalText;
+        refreshBtn.disabled = false;
+      }
+    }
+    
+    async function skipToNextDirectory() {
+      try {
+        const response = await fetch('/next-directory', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'}
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+          window.location.href = '../' + result.next_directory + '/';
+        } else if (result.status === 'complete') {
+          alert('All directories have been processed!');
+        } else {
+          alert('Error: ' + result.message);
+        }
+      } catch (error) {
+        alert('Error getting next directory: ' + error.message);
+      }
+    }
+    
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
       if (isLoading) return;
@@ -2062,6 +2288,102 @@ VIEWPORT_TEMPLATE = """
         processViewportBatch();
       }
     });
+  </script>
+</body>
+</html>
+"""
+
+AUTO_ADVANCE_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Auto-Advance to Next Directory</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #101014;
+      color: white;
+      text-align: center;
+      padding: 4rem;
+    }
+    .advance-container {
+      background: #181821;
+      padding: 2rem;
+      border-radius: 12px;
+      margin: 2rem auto;
+      max-width: 600px;
+    }
+    .progress {
+      background: #1f1f2c;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+    .advance-btn {
+      background: #4f9dff;
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      cursor: pointer;
+      margin: 0.5rem;
+    }
+    .advance-btn:hover {
+      background: #3a8ce6;
+    }
+    .countdown {
+      font-size: 2rem;
+      margin: 1rem 0;
+      color: #4f9dff;
+    }
+  </style>
+</head>
+<body>
+  <h1>✅ {{ current_dir }} Complete!</h1>
+  <div class="advance-container">
+    <div class="progress">
+      <h3>Progress: {{ position }}/{{ total }} directories</h3>
+      <p>All images in <strong>{{ current_dir }}</strong> have been processed.</p>
+    </div>
+    
+    <div class="countdown" id="countdown">5</div>
+    <p>Auto-advancing to <strong>{{ next_directory }}</strong> in <span id="countdown-text">5</span> seconds...</p>
+    
+    <button class="advance-btn" onclick="advanceNow()">Go Now</button>
+    <button class="advance-btn" onclick="stopAdvance()" style="background: #666;">Stay Here</button>
+  </div>
+
+  <script>
+    let countdown = 5;
+    const countdownEl = document.getElementById('countdown');
+    const countdownTextEl = document.getElementById('countdown-text');
+    let timer;
+
+    function updateCountdown() {
+      countdown--;
+      countdownEl.textContent = countdown;
+      countdownTextEl.textContent = countdown;
+      
+      if (countdown <= 0) {
+        advanceNow();
+      }
+    }
+
+    function advanceNow() {
+      clearInterval(timer);
+      window.location.href = '../{{ next_directory }}/';
+    }
+
+    function stopAdvance() {
+      clearInterval(timer);
+      countdownEl.textContent = '∞';
+      countdownTextEl.parentElement.innerHTML = '<p>Auto-advance stopped. <button class="advance-btn" onclick="advanceNow()">Go to {{ next_directory }}</button></p>';
+    }
+
+    // Start countdown
+    timer = setInterval(updateCountdown, 1000);
   </script>
 </body>
 </html>
