@@ -1,25 +1,45 @@
 #!/usr/bin/env python3
-# Hybrid person grouper for large AI image sets on Apple Silicon.
-# Pipeline:
-# 1) Face embeddings (InsightFace ArcFace / buffalo_l). If face conf < --face-min-score, skip.
-# 2) Fallback to person-reID (Torchreid OSNet) when no acceptable face.
-# 3) Agglomerative (cosine, COMPLETE) with auto threshold backoff.
-# 4) Merge close clusters (centroid cosine distance <= --merge-dist).
-# 5) Second pass: re-cluster UNKNOWNs a bit looser to pull out identities.
-# 6) Assign remaining UNKNOWNs to nearest centroid if distance <= --assign-threshold.
-# 7) Move image+YAML pairs together (or --dry-run to preview only).
-
 """
+Hybrid Face Grouper with Similarity Mapping (Step 2 of Workflow)
+================================================================
+Hybrid person grouper for large AI image sets on Apple Silicon.
+
+Pipeline:
+1) Face embeddings (InsightFace ArcFace / buffalo_l). If face conf < --face-min-score, skip.
+2) Fallback to person-reID (Torchreid OSNet) when no acceptable face.
+3) Agglomerative (cosine, COMPLETE) with auto threshold backoff.
+4) Merge close clusters (centroid cosine distance <= --merge-dist).
+5) Second pass: re-cluster UNKNOWNs a bit looser to pull out identities.
+6) Assign remaining UNKNOWNs to nearest centroid if distance <= --assign-threshold.
+7) Move image+YAML pairs together (or --dry-run to preview only).
+
+USAGE:
+------
+Activate virtual environment first:
+  source .venv311/bin/activate
+
+Run face grouping with similarity mapping:
+  python scripts/02_face_grouper.py --images 00_white --out ./face_groups \
+    --kmeans 7 --emit-map --map-topk 10 --map-threshold 0.22 --map-scope cluster
+
+WORKFLOW POSITION:
+------------------
+Step 1: Image Version Selection → scripts/01_web_image_selector.py
+Step 2: Face Grouping → THIS SCRIPT (scripts/02_face_grouper.py)
+Step 3: Similarity Analysis → scripts/03_similarity_viewer.py
+Step 4: Character Sorting → scripts/04_web_character_sorter.py
+Step 5: Final Cropping → scripts/05_batch_crop_tool.py
+Step 6: Basic Review → scripts/06_multi_directory_viewer.py
 
 How to use it (no renames, no UI changes)
 
 For your current K=7 result, just re-run with map output (it won’t change file placement):
 
-python hybrid_grouper.py --images 00_White --out ./out_k7_final \
+python scripts/02_face_grouper.py --images 00_white --out ./face_groups \
   --kmeans 7 --emit-map --map-topk 10 --map-threshold 0.22 --map-scope cluster
 
 
-You’ll get in out_k7_final/:
+You'll get in face_groups/:
 
 nodes.csv — index, label, filename
 

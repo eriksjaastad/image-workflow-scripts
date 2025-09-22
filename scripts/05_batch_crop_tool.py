@@ -15,9 +15,18 @@ Activate virtual environment first:
   source venv/bin/activate
 
 Run on directories containing images:
-  python scripts/04_batch_crop_tool.py crop/
-  python scripts/04_batch_crop_tool.py face_group_1
-  python scripts/04_batch_crop_tool.py crop/ --aspect-ratio 16:9
+  python scripts/05_batch_crop_tool.py crop/
+  python scripts/05_batch_crop_tool.py face_groups/person_0001/
+  python scripts/05_batch_crop_tool.py crop/ --aspect-ratio 16:9
+
+WORKFLOW POSITION:
+------------------
+Step 1: Image Version Selection → scripts/01_web_image_selector.py
+Step 2: Face Grouping → scripts/02_face_grouper.py
+Step 3: Similarity Analysis → scripts/03_similarity_viewer.py
+Step 4: Character Sorting → scripts/04_web_character_sorter.py
+Step 5: Final Cropping → scripts/05_batch_crop_tool.py
+Step 6: Basic Review → scripts/06_multi_directory_viewer.py
 
 CONTROLS:
 ---------

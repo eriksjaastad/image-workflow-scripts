@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Multi-Directory Image Viewer (Step 5 of Workflow)
+Multi-Directory Image Viewer (Step 6 of Workflow)
 =================================================
 Simple read-only viewer to quickly assess clustering results across multiple directories.
 Shows all images from subdirectories in a single page with directory separators.

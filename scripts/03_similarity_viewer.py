@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Enhanced Multi-Directory Image Viewer with Similarity Mapping (Step 6 of Workflow)
+Enhanced Multi-Directory Image Viewer with Similarity Mapping (Step 3 of Workflow)
 ==================================================================================
 Interactive viewer to assess clustering quality using similarity map data.
 Shows clustering results with similarity connections and quality indicators.
@@ -20,7 +20,7 @@ Step 2: Face Grouping → scripts/02_face_grouper.py
 Step 3: Similarity Analysis → THIS SCRIPT (scripts/03_similarity_viewer.py)
 Step 4: Character Sorting → scripts/04_web_character_sorter.py
 Step 5: Final Cropping → scripts/05_batch_crop_tool.py
-Step 6: Basic Clustering Review → scripts/06_multi_directory_viewer.py
+Step 6: Basic Review → scripts/06_multi_directory_viewer.py
 
 FEATURES:
 ---------
