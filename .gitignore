@@ -2,6 +2,7 @@
 venv/
 env/
 .venv/
+.venv311/
 .env/
 
 # Python Cache
@@ -24,6 +25,8 @@ people_scores*.csv
 thumbnails/
 temp_*
 *_temp*
+*_files.txt
+recover_images.py
 
 # Image Processing Working Directories
 _CONTENT/
@@ -36,6 +39,7 @@ back_files_*/
 boobs_*/
 character_group_*/
 face_group_*/
+face_groups/
 Reviewed/
 Hailey/
 tattersail-*/
