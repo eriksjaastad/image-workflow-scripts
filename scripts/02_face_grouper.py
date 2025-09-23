@@ -1,35 +1,41 @@
 #!/usr/bin/env python3
 """
-Hybrid Face Grouper with Similarity Mapping (Step 2 of Workflow)
-================================================================
-Hybrid person grouper for large AI image sets on Apple Silicon.
+Step 2: Hybrid Face Grouper with Similarity Mapping
+====================================================
+AI-powered person grouper using face recognition and person re-identification.
+Creates person directories and similarity maps for intelligent character sorting.
 
-Pipeline:
-1) Face embeddings (InsightFace ArcFace / buffalo_l). If face conf < --face-min-score, skip.
-2) Fallback to person-reID (Torchreid OSNet) when no acceptable face.
-3) Agglomerative (cosine, COMPLETE) with auto threshold backoff.
-4) Merge close clusters (centroid cosine distance <= --merge-dist).
-5) Second pass: re-cluster UNKNOWNs a bit looser to pull out identities.
-6) Assign remaining UNKNOWNs to nearest centroid if distance <= --assign-threshold.
-7) Move image+YAML pairs together (or --dry-run to preview only).
-
-USAGE:
-------
+VIRTUAL ENVIRONMENT:
+--------------------
 Activate virtual environment first:
   source .venv311/bin/activate
 
+USAGE:
+------
 Run face grouping with similarity mapping:
   python scripts/02_face_grouper.py --images 00_white --out ./face_groups \
     --kmeans 7 --emit-map --map-topk 10 --map-threshold 0.22 --map-scope cluster
+
+FEATURES:
+---------
+• Hybrid face + person-reID embeddings for robust grouping
+• InsightFace ArcFace for high-quality face recognition
+• TorchReID OSNet fallback for unclear/partial faces
+• Agglomerative clustering with automatic threshold adjustment
+• Similarity mapping for spatial layout in character sorter
+• Configurable clustering parameters (K-means or Agglomerative)
+• Comprehensive preview and dry-run capabilities
 
 WORKFLOW POSITION:
 ------------------
 Step 1: Image Version Selection → scripts/01_web_image_selector.py
 Step 2: Face Grouping → THIS SCRIPT (scripts/02_face_grouper.py)
-Step 3: Similarity Analysis → scripts/03_similarity_viewer.py
-Step 4: Character Sorting → scripts/04_web_character_sorter.py
-Step 5: Final Cropping → scripts/05_batch_crop_tool.py
-Step 6: Basic Review → scripts/06_multi_directory_viewer.py
+Step 3: Character Sorting → scripts/03_web_character_sorter.py (uses similarity maps from this step)
+Step 4: Final Cropping → scripts/04_batch_crop_tool.py
+Step 5: Basic Review → scripts/05_multi_directory_viewer.py
+
+🔍 OPTIONAL ANALYSIS TOOL:
+   scripts/util_similarity_viewer.py - Use between steps 2-3 to analyze face grouper results
 
 How to use it (no renames, no UI changes)
 

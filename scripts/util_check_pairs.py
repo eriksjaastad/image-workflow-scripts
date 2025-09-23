@@ -1,27 +1,30 @@
 #!/usr/bin/env python3
 """
-Cleanup Pairs - Orphaned Files Audit and Cleanup Tool
+Utility: Check Pairs - Orphaned Files Audit Tool
+=================================================
+Find and optionally clean up orphaned PNG/YAML files in directory trees.
+Identifies files missing their corresponding pair for data integrity.
 
-This script:
-1. Recursively finds all PNG and YAML files in the directory tree
-2. Generates a detailed report of orphaned files (PNGs without YAMLs, YAMLs without PNGs)
-3. Shows exactly where orphaned files are located, grouped by directory
-4. Asks for user confirmation before moving anything to trash
-5. Provides options to clean up, skip, or quit
+VIRTUAL ENVIRONMENT:
+--------------------
+Activate virtual environment first:
+  source .venv311/bin/activate
 
-Usage:
-    python scripts/util_check_pairs.py [directory]
-    python cleanup_pairs.py --recursive [directory]
+USAGE:
+------
+Audit file pairs in directories:
+  python scripts/util_check_pairs.py [directory]
+  python scripts/util_check_pairs.py --recursive .
+  python scripts/util_check_pairs.py --recursive face_groups
 
-Examples:
-    python cleanup_pairs.py ../Eleni_raw         # Single directory audit
-    python cleanup_pairs.py --recursive .       # Recursive audit from current directory
-    python cleanup_pairs.py --recursive         # Recursive audit from Eros Mate root
-
-The script will show a detailed report and ask:
-- 'y' or 'yes' to move orphaned files to trash
-- 'n' or 'no' to see the report only (no changes)
-- 'q' or 'quit' to exit without changes
+FEATURES:
+---------
+• Recursively scans directory trees for PNG/YAML files
+• Identifies orphaned files (PNG without YAML, YAML without PNG)
+• Detailed report grouped by directory
+• Optional cleanup with user confirmation
+• Safe deletion using send2trash (recoverable)
+• Comprehensive audit trail and statistics
 """
 
 import os

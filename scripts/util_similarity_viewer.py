@@ -1,31 +1,36 @@
 #!/usr/bin/env python3
 """
-Enhanced Multi-Directory Image Viewer with Similarity Mapping (Step 3 of Workflow)
-==================================================================================
-Interactive viewer to assess clustering quality using similarity map data.
-Shows clustering results with similarity connections and quality indicators.
+Utility: Similarity Viewer - Optional Analysis Tool
+====================================================
+READ-ONLY diagnostic tool for analyzing face grouper clustering results.
+Shows similarity connections and quality indicators between images.
 
-USAGE:
-------
+VIRTUAL ENVIRONMENT:
+--------------------
 Activate virtual environment first:
   source .venv311/bin/activate
 
+USAGE:
+------
 Run on clustering output with similarity maps:
-  python scripts/03_similarity_viewer.py face_groups
-
-WORKFLOW POSITION:
-------------------
-Step 1: Image Version Selection → scripts/01_web_image_selector.py
-Step 2: Face Grouping → scripts/02_face_grouper.py
-Step 3: Similarity Analysis → THIS SCRIPT (scripts/03_similarity_viewer.py)
-Step 4: Character Sorting → scripts/04_web_character_sorter.py
-Step 5: Final Cropping → scripts/05_batch_crop_tool.py
-Step 6: Basic Review → scripts/06_multi_directory_viewer.py
+  python scripts/util_similarity_viewer.py face_groups
 
 FEATURES:
 ---------
-- 8 images per row (compact thumbnails)
-- Click image → highlight its most similar neighbors
+• 8 images per row (compact thumbnails)
+• Click image → highlight its most similar neighbors
+• Color-coded similarity connections (green=same cluster, red=cross-cluster)
+• Similarity scores on hover
+• Cluster quality indicators
+• Interactive similarity exploration
+
+⚠️ IMPORTANT: This is an OPTIONAL utility, not a core workflow step!
+   Use between steps 2-3 to analyze face grouper results before manual sorting.
+
+RELATED WORKFLOW:
+-----------------
+Step 2: Face Grouping → scripts/02_face_grouper.py (creates similarity maps)
+Step 3: Character Sorting → scripts/03_web_character_sorter.py (uses similarity maps)
 - Color-coded similarity connections (green=same cluster, red=cross-cluster)
 - Similarity scores on hover
 - Cluster quality indicators

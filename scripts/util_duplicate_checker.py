@@ -1,9 +1,30 @@
 #!/usr/bin/env python3
 """
-Duplicate File Checker - Find exact duplicate files across directories
-====================================================================
-Checks for exact file duplicates by comparing file names (not content)
-across all directories in the workspace.
+Utility: Duplicate File Checker
+================================
+Find exact duplicate files across directories by comparing filenames.
+Useful for verifying file integrity after operations like face grouping.
+
+VIRTUAL ENVIRONMENT:
+--------------------
+Activate virtual environment first:
+  source .venv311/bin/activate
+
+USAGE:
+------
+Check for duplicates in project:
+  python scripts/util_duplicate_checker.py
+
+Check specific directory:
+  python scripts/util_duplicate_checker.py --root-dir face_groups
+
+FEATURES:
+---------
+• Scans all subdirectories recursively
+• Finds files with identical names (not content comparison)
+• Reports duplicate locations with full paths
+• Supports PNG and YAML file filtering
+• Clear summary statistics and actionable results
 """
 
 import argparse

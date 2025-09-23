@@ -30,6 +30,7 @@ recover_images.py
 
 # Image Processing Working Directories
 _CONTENT/
+XXX_CONTENT/
 crop/
 cropped/
 temp/

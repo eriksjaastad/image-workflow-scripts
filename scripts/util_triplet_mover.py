@@ -1,13 +1,29 @@
 #!/usr/bin/env python3
 """
-Triplet Mover - Find and move complete triplets to a new directory
-=================================================================
-Searches for sequences of:
-  stage1_generated.png
-  stage1.5_face_swapped.png  
-  stage2_upscaled.png
+Utility: Triplet Mover
+=======================
+Find and move complete triplets (stage1/stage1.5/stage2) to destination directory.
+Maintains file integrity by moving complete sets with their YAML metadata.
 
-And moves complete triplets (including YAML files) to the destination directory.
+VIRTUAL ENVIRONMENT:
+--------------------
+Activate virtual environment first:
+  source .venv311/bin/activate
+
+USAGE:
+------
+Move complete triplets to new directory:
+  python scripts/util_triplet_mover.py source_dir destination_dir
+  python scripts/util_triplet_mover.py ~/Downloads/raw_images triplets/
+
+FEATURES:
+---------
+• Detects complete triplet sequences (stage1→stage1.5→stage2)
+• Moves PNG files with corresponding YAML metadata
+• Creates destination directory if needed
+• Reports incomplete triplets for manual review
+• Safe file operations with progress tracking
+• Preserves timestamp and metadata information
 """
 
 import argparse

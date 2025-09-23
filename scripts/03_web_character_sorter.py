@@ -1,39 +1,35 @@
 #!/usr/bin/env python3
 """
-Web Character Sorter - Modern Browser Edition
-=============================================
+Step 3: Web Character Sorter - Modern Browser Edition
+======================================================
+Interactive web tool for sorting images into character groups.
+Features auto-advance between person directories and similarity-based layout.
 
-This modern web-based tool replaces the old Matplotlib window with a fast, 
-scrollable browser interface. Each image is presented individually so you
-can sort them into character groups by simply clicking action buttons.
+VIRTUAL ENVIRONMENT:
+--------------------
+Activate virtual environment first:
+  source .venv311/bin/activate
+
+USAGE:
+------
+Basic character sorting:
+  python scripts/03_web_character_sorter.py "Reviewed"
+  python scripts/03_web_character_sorter.py "crop"
+
+Enhanced sorting with similarity maps (RECOMMENDED after face grouper):
+  python scripts/03_web_character_sorter.py face_groups/person_0001 --similarity-map face_groups
 
 FEATURES:
 ---------
 • Modern browser interface with clickable action buttons
-• Fast performance with cached image loading
+• Auto-advance to next person directory (no server restarts!)
+• Similarity-based spatial layout for easier visual sorting
+• Row-level actions: bulk G1/G2/G3/Delete for 6-image rows
+• Individual image actions for fine-grained control
+• Smart map cleanup: refresh similarity data after deletions
+• Manual "Next Directory" button for early advancement
 • Integrated FileTracker logging for complete audit trail
 • Safe deletion with send2trash (recoverable from system trash)
-• Support for PNG and HEIF formats
-• Persistent review notes panel for classification guidelines
-
-USAGE:
-------
-Activate virtual environment first:
-  source venv/bin/activate
-
-Install additional dependencies (first time only):
-  pip install flask pillow
-
-Run on directories containing images (after character grouping):
-  python scripts/04_web_character_sorter.py "Reviewed"
-  python scripts/04_web_character_sorter.py "1100"
-
-Run with similarity mapping for intelligent spatial layout:
-  # First generate similarity maps with face grouper
-  python scripts/02_face_grouper.py --images 00_white --emit-map
-  
-  # Then use similarity mapping in character sorter
-  python scripts/04_web_character_sorter.py face_groups/person_0001 --similarity-map face_groups
 
 WORKFLOW:
 ---------
@@ -55,12 +51,16 @@ OPTIONAL FLAGS:
 
 WORKFLOW POSITION:
 ------------------
-1. Image Version Selection → scripts/01_web_image_selector.py
-2. Face Grouping → scripts/02_face_grouper.py
-3. Similarity Analysis → scripts/03_similarity_viewer.py
-4. Character Sorting → THIS SCRIPT (scripts/04_web_character_sorter.py)
-5. Final Cropping → scripts/05_batch_crop_tool.py
-6. Basic Review → scripts/06_multi_directory_viewer.py
+Step 1: Image Version Selection → scripts/01_web_image_selector.py
+Step 2: Face Grouping → scripts/02_face_grouper.py
+Step 3: Character Sorting → THIS SCRIPT (scripts/03_web_character_sorter.py)
+Step 4: Final Cropping → scripts/04_batch_crop_tool.py
+Step 5: Basic Review → scripts/05_multi_directory_viewer.py
+
+🔍 OPTIONAL ANALYSIS TOOL:
+   scripts/util_similarity_viewer.py - Use between steps 2-3 to analyze face grouper results
+
+⚠️ IMPORTANT: This script works best with similarity maps from step 2 face grouper!
 
 WHAT HAPPENS:
 -------------
@@ -502,13 +502,19 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
         if not images:
             # Check for auto-advance in face groups mode
             if app.config["IS_FACE_GROUPS_MODE"] and app.config["FACE_GROUPS_INFO"]:
+                print(f"DEBUG: Face groups mode detected, checking for next directory...")
                 next_dir = find_next_person_directory(app.config["FACE_GROUPS_INFO"])
                 if next_dir:
+                    print(f"DEBUG: Found next directory: {next_dir.name}")
                     return render_template_string(AUTO_ADVANCE_TEMPLATE, 
                                                 next_directory=next_dir.name,
                                                 current_dir=app.config["FACE_GROUPS_INFO"]["current_dir"],
                                                 position=app.config["FACE_GROUPS_INFO"]["position"],
                                                 total=app.config["FACE_GROUPS_INFO"]["total"])
+                else:
+                    print(f"DEBUG: No next directory found, showing completion")
+            else:
+                print(f"DEBUG: Not in face groups mode (IS_FACE_GROUPS_MODE: {app.config['IS_FACE_GROUPS_MODE']})")
             
             return render_template_string(COMPLETION_TEMPLATE, 
                                         history=app.config["HISTORY"])
@@ -756,6 +762,11 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
         app.config["IMAGES"] = images
         
         message = f"Processed {processed_count} images from viewport batch"
+        
+        # If no images remain, trigger page refresh to check for auto-advance
+        if len(images) == 0:
+            return jsonify({"status": "ok", "message": message, "remaining": 0, "refresh": True})
+        
         return jsonify({"status": "ok", "message": message, "remaining": len(images)})
     
     @app.route("/complete")
@@ -797,6 +808,59 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
             })
         else:
             return jsonify({"status": "complete", "message": "All directories processed"})
+    
+    @app.route("/switch-directory/<directory_name>")
+    def switch_directory(directory_name):
+        """Switch to a new person directory without restarting the server."""
+        if not app.config["IS_FACE_GROUPS_MODE"]:
+            return jsonify({"status": "error", "message": "Not in face groups mode"}), 400
+        
+        # Get the face groups root from current config
+        face_groups_info = app.config["FACE_GROUPS_INFO"]
+        face_groups_root = face_groups_info["face_groups_root"]
+        new_directory = face_groups_root / directory_name
+        
+        if not new_directory.exists():
+            return jsonify({"status": "error", "message": f"Directory {directory_name} not found"}), 404
+        
+        # Scan for images in new directory
+        new_images = scan_images(new_directory)
+        if not new_images:
+            return jsonify({"status": "error", "message": f"No images found in {directory_name}"}), 404
+        
+        # Apply similarity sorting if available
+        similarity_map_dir = app.config["SIMILARITY_MAP_DIR"]
+        if similarity_map_dir:
+            neighbors_data = load_similarity_neighbors(similarity_map_dir)
+            if neighbors_data:
+                new_images = similarity_sort_images(new_images, neighbors_data)
+        
+        # Update app config with new directory
+        new_face_groups_info = detect_face_groups_context(new_directory)
+        app.config["FOLDER"] = new_directory
+        app.config["IMAGES"] = new_images
+        app.config["FACE_GROUPS_INFO"] = new_face_groups_info
+        app.config["HISTORY"] = []  # Reset history for new directory
+        
+        # Group images into batches for grid display
+        IMAGES_PER_BATCH = 6
+        image_batches = []
+        for i in range(0, len(new_images), IMAGES_PER_BATCH):
+            batch = new_images[i:i + IMAGES_PER_BATCH]
+            image_batches.append({
+                'id': i // IMAGES_PER_BATCH,
+                'images': [{'index': j, 'path': img, 'name': img.name} for j, img in enumerate(batch)],
+                'start_index': i
+            })
+        app.config["IMAGE_BATCHES"] = image_batches
+        
+        return jsonify({
+            "status": "success", 
+            "message": f"Switched to {directory_name}",
+            "image_count": len(new_images),
+            "position": new_face_groups_info["position"],
+            "total": new_face_groups_info["total"]
+        })
     
     return app
 
@@ -1148,9 +1212,8 @@ MAIN_TEMPLATE = """
           }
           
           if (result.remaining === 0) {
-            // Show completion
-            await fetch('/complete', { method: 'POST' });
-            document.body.innerHTML = '<div style="text-align:center;padding:4rem;"><h1>✅ Character Sorting Complete!</h1><p>Server shutting down...</p></div>';
+            // Refresh page to trigger auto-advance check in face groups mode
+            window.location.reload();
           } else {
             // Update batch info before reload
             updateBatchInfo();
@@ -1201,7 +1264,12 @@ MAIN_TEMPLATE = """
           maxIndexReached = 0;
           
           if (result.remaining === 0) {
-            document.body.innerHTML = '<div style="text-align:center;padding:4rem;"><h1>✅ All Images Processed!</h1><p>Character sorting complete.</p></div>';
+            // Refresh page to trigger auto-advance check if in face groups mode
+            if (result.refresh) {
+              window.location.reload();
+            } else {
+              document.body.innerHTML = '<div style="text-align:center;padding:4rem;"><h1>✅ All Images Processed!</h1><p>Character sorting complete.</p></div>';
+            }
           } else {
             alert(`Batch processed! ${result.message}`);
             window.location.reload();
@@ -1618,8 +1686,8 @@ GRID_TEMPLATE = """
         
         if (result.status === 'ok') {
           if (result.remaining === 0) {
-            alert('All images processed! Character sorting complete.');
-            window.location.href = '/complete';
+            // Refresh page to trigger auto-advance check in face groups mode
+            window.location.reload();
           } else {
             alert(`Batch processed! ${result.message}. ${result.remaining} images remaining.`);
             batchDecisions = {};
@@ -1978,6 +2046,17 @@ VIEWPORT_TEMPLATE = """
       border-color: #ffec99;
       color: #333;
     }
+
+    .btn-row-delete {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: white;
+    }
+
+    .btn-row-delete:hover {
+      background: #ff6b6b;
+      border-color: #ff6b6b;
+    }
     
     .loading {
       opacity: 0.5;
@@ -2019,6 +2098,7 @@ VIEWPORT_TEMPLATE = """
           <button class="btn-row btn-row-group1" onclick="selectRowAction({{ row.id }}, 'group1')">G1</button>
           <button class="btn-row btn-row-group2" onclick="selectRowAction({{ row.id }}, 'group2')">G2</button>
           <button class="btn-row btn-row-group3" onclick="selectRowAction({{ row.id }}, 'group3')">G3</button>
+          <button class="btn-row btn-row-delete" onclick="selectRowAction({{ row.id }}, 'delete')">Del</button>
         </div>
         <div class="image-row" data-row-id="{{ row.id }}">
           {% for image in row.images %}
@@ -2206,8 +2286,8 @@ VIEWPORT_TEMPLATE = """
         
         if (result.status === 'ok') {
           if (result.remaining === 0) {
-            alert('All images processed! Character sorting complete.');
-            window.location.href = '/complete';
+            // Refresh page to trigger auto-advance check in face groups mode
+            window.location.reload();
           } else {
             alert(`Batch processed! ${result.message}. ${result.remaining} images remaining.`);
             // Clear decisions and reload page
@@ -2269,7 +2349,16 @@ VIEWPORT_TEMPLATE = """
         const result = await response.json();
         
         if (result.status === 'success') {
-          window.location.href = '../' + result.next_directory + '/';
+          // Switch to the next directory using the server route
+          const switchResponse = await fetch('/switch-directory/' + result.next_directory);
+          const switchResult = await switchResponse.json();
+          
+          if (switchResult.status === 'success') {
+            // Successfully switched directories, reload the page
+            window.location.reload();
+          } else {
+            alert('Error switching to next directory: ' + switchResult.message);
+          }
         } else if (result.status === 'complete') {
           alert('All directories have been processed!');
         } else {
@@ -2371,9 +2460,21 @@ AUTO_ADVANCE_TEMPLATE = """
       }
     }
 
-    function advanceNow() {
+    async function advanceNow() {
       clearInterval(timer);
-      window.location.href = '../{{ next_directory }}/';
+      try {
+        const response = await fetch('/switch-directory/{{ next_directory }}');
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+          // Successfully switched directories, reload the page
+          window.location.reload();
+        } else {
+          alert('Error switching directories: ' + result.message);
+        }
+      } catch (error) {
+        alert('Error advancing to next directory: ' + error.message);
+      }
     }
 
     function stopAdvance() {

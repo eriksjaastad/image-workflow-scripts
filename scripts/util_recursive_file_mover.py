@@ -1,28 +1,31 @@
 #!/usr/bin/env python3
 """
-Recursive File Mover Utility
-============================
+Utility: Recursive File Mover
+==============================
+Recursively move all image/YAML pairs from source to destination directory.
+Maintains file pair integrity with comprehensive logging and conflict handling.
 
-Recursively moves all image and YAML files from a source directory to a destination directory.
-Maintains image/YAML pairs and provides detailed logging.
+VIRTUAL ENVIRONMENT:
+--------------------
+Activate virtual environment first:
+  source .venv311/bin/activate
 
-Usage:
-    python scripts/util_recursive_file_mover.py <source_dir> <destination_dir>
+USAGE:
+------
+Move files between directories:
+  python scripts/util_recursive_file_mover.py {content} XXX_CONTENT
+  python scripts/util_recursive_file_mover.py ~/Downloads/output 00_white
+  python scripts/util_recursive_file_mover.py source_dir dest_dir --dry-run
 
-Examples:
-    # Move all files from face_groups to 00_white
-    python scripts/util_recursive_file_mover.py face_groups 00_white
-    
-    # Move all files from Downloads/output to 00_white  
-    python scripts/util_recursive_file_mover.py ~/Downloads/output 00_white
-
-Features:
-    • Recursively scans source directory for image/YAML pairs
-    • Moves files while maintaining pairs integrity
-    • Creates destination directory if it doesn't exist
-    • Provides detailed progress reporting
-    • Uses FileTracker for operation logging
-    • Handles name conflicts with automatic renaming
+FEATURES:
+---------
+• Recursively scans source directory for image/YAML pairs
+• Moves files while maintaining pairs integrity
+• Creates destination directory if it doesn't exist
+• Provides detailed progress reporting with tqdm
+• Uses FileTracker for comprehensive operation logging
+• Handles name conflicts with automatic renaming
+• Dry-run mode for safe preview of operations
 """
 
 import argparse

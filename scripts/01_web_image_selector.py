@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
-"""Web Image Selector - Modern Browser Edition (Step 1 of Workflow)
-===================================================================
+"""
+Step 1: Web Image Selector - Modern Browser Edition
+====================================================
+Modern web-based tool for selecting the best image from each triplet set.
+Replaces old Matplotlib interface with fast, scrollable browser interface.
 
-This modern web-based tool replaces the old Matplotlib window with a fast, 
-scrollable browser interface. Each triplet of related images is presented 
-on a single row so you can pick winners by simply clicking thumbnails.
+VIRTUAL ENVIRONMENT:
+--------------------
+Activate virtual environment first:
+  source .venv311/bin/activate
+
+USAGE:
+------
+Run on directories containing triplets (after quality filtering):
+  python scripts/01_web_image_selector.py XXX_CONTENT/
 
 FEATURES:
 ---------
@@ -16,19 +25,18 @@ FEATURES:
 • Safe deletion with send2trash (recoverable from system trash)
 • Support for PNG and HEIC/HEIF formats
 
-USAGE:
-------
-Activate virtual environment first:
-  source venv/bin/activate
+WORKFLOW POSITION:
+------------------
+Step 1: Image Version Selection → THIS SCRIPT (scripts/01_web_image_selector.py)
+Step 2: Face Grouping → scripts/02_face_grouper.py
+Step 3: Character Sorting → scripts/03_web_character_sorter.py (uses similarity maps from step 2)
+Step 4: Final Cropping → scripts/04_batch_crop_tool.py
+Step 5: Basic Review → scripts/05_multi_directory_viewer.py
 
-Install additional dependencies (first time only):
-  pip install flask pillow
+🔍 OPTIONAL ANALYSIS TOOL:
+   scripts/util_similarity_viewer.py - Use between steps 2-3 to analyze face grouper results
 
-Run on directories containing triplets (after quality filtering):
-  python scripts/01_web_image_selector.py "normal_images"
-  python scripts/01_web_image_selector.py "1100"
-
-WORKFLOW:
+HOW IT WORKS:
 ---------
 1. Click exactly one image in each row to keep it
 2. Leave a row untouched if you want all three images deleted
@@ -47,12 +55,12 @@ OPTIONAL FLAGS:
   --no-browser      Don't auto-launch browser
   --print-triplets  Show triplet groupings and exit (debug)
 
-WORKFLOW POSITION:
-------------------
-1. Image Version Selection → THIS SCRIPT (scripts/01_web_image_selector.py)
-2. Character Sorting → scripts/02_web_character_sorter.py
-3. Face Grouping → scripts/03_face_grouper.py
-4. Final Cropping → scripts/04_batch_crop_tool.py
+HOW IT WORKS:
+-------------
+1. Click exactly one image in each row to keep it
+2. Leave a row untouched if you want all three images deleted
+3. Optionally enable **Send to crop/** toggle to move winners to crop/ instead of Reviewed/
+4. Press **Finalize selections** when done
 
 WHAT HAPPENS:
 -------------

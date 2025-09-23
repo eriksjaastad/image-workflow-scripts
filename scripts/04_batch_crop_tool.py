@@ -1,32 +1,43 @@
 #!/usr/bin/env python3
 """
-Enhanced Batch Crop Tool - 3-Image Interactive Cropping
-======================================================
-A batch-processing version of the crop tool for maximum efficiency:
-- Process 3 images at once in side-by-side layout
-- Individual crop rectangles for each image
-- Intuitive hotkey system (W-S-X, E-D-C, R-F-V)
-- Batch submission reduces overhead dramatically
-- Large, easy-to-grab handles with generous click zones
+Step 4: Enhanced Batch Crop Tool - 3-Image Interactive Cropping
+================================================================
+Efficient batch processing tool for cropping character images.
+Process 3 images simultaneously with individual crop controls.
+
+VIRTUAL ENVIRONMENT:
+--------------------
+Activate virtual environment first:
+  source .venv311/bin/activate
 
 USAGE:
 ------
-Activate virtual environment first:
-  source venv/bin/activate
-
 Run on directories containing images:
-  python scripts/05_batch_crop_tool.py crop/
-  python scripts/05_batch_crop_tool.py face_groups/person_0001/
-  python scripts/05_batch_crop_tool.py crop/ --aspect-ratio 16:9
+  python scripts/04_batch_crop_tool.py crop/
+  python scripts/04_batch_crop_tool.py face_groups/person_0001/
+  python scripts/04_batch_crop_tool.py crop/ --aspect-ratio 16:9
+
+FEATURES:
+---------
+• Process 3 images at once in side-by-side layout
+• Individual crop rectangles for each image
+• Intuitive hotkey system (W-S-X, E-D-C, R-F-V)
+• Batch submission reduces overhead dramatically
+• Large, easy-to-grab handles with generous click zones
+• Configurable aspect ratios (1:1, 16:9, 4:3, free)
+• Real-time crop preview with zoom capabilities
+• Comprehensive progress tracking and statistics
 
 WORKFLOW POSITION:
 ------------------
 Step 1: Image Version Selection → scripts/01_web_image_selector.py
 Step 2: Face Grouping → scripts/02_face_grouper.py
-Step 3: Similarity Analysis → scripts/03_similarity_viewer.py
-Step 4: Character Sorting → scripts/04_web_character_sorter.py
-Step 5: Final Cropping → scripts/05_batch_crop_tool.py
-Step 6: Basic Review → scripts/06_multi_directory_viewer.py
+Step 3: Character Sorting → scripts/03_web_character_sorter.py
+Step 4: Final Cropping → THIS SCRIPT (scripts/04_batch_crop_tool.py)
+Step 5: Basic Review → scripts/05_multi_directory_viewer.py
+
+🔍 OPTIONAL ANALYSIS TOOL:
+   scripts/util_similarity_viewer.py - Use between steps 2-3 to analyze face grouper results
 
 CONTROLS:
 ---------
