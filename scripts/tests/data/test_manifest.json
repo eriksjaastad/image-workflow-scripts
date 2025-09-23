@@ -1,0 +1,4112 @@
+{
+  "source_directory": "XXX_CONTENT",
+  "total_files": 362,
+  "total_groups": 362,
+  "stage_distribution": {
+    "stage1": 121,
+    "stage1.5": 120,
+    "stage2": 120,
+    "stage3": 1
+  },
+  "group_types": {
+    "triplets": 0,
+    "pairs": 0,
+    "singletons": 362
+  },
+  "sample_groups": [
+    {
+      "timestamp": "20250803_074702",
+      "files": [
+        {
+          "filename": "20250803_074702_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_141108",
+      "files": [
+        {
+          "filename": "20250803_141108_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_111425",
+      "files": [
+        {
+          "filename": "20250803_111425_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_141057",
+      "files": [
+        {
+          "filename": "20250803_141057_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_110034",
+      "files": [
+        {
+          "filename": "20250803_110034_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_072057",
+      "files": [
+        {
+          "filename": "20250803_072057_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_141835",
+      "files": [
+        {
+          "filename": "20250803_141835_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_100858",
+      "files": [
+        {
+          "filename": "20250803_100858_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_142220",
+      "files": [
+        {
+          "filename": "20250803_142220_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_122723",
+      "files": [
+        {
+          "filename": "20250803_122723_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    }
+  ],
+  "groups": [
+    {
+      "timestamp": "20250803_074702",
+      "files": [
+        {
+          "filename": "20250803_074702_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_141108",
+      "files": [
+        {
+          "filename": "20250803_141108_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_111425",
+      "files": [
+        {
+          "filename": "20250803_111425_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_141057",
+      "files": [
+        {
+          "filename": "20250803_141057_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_110034",
+      "files": [
+        {
+          "filename": "20250803_110034_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_072057",
+      "files": [
+        {
+          "filename": "20250803_072057_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_141835",
+      "files": [
+        {
+          "filename": "20250803_141835_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_100858",
+      "files": [
+        {
+          "filename": "20250803_100858_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_142220",
+      "files": [
+        {
+          "filename": "20250803_142220_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_122723",
+      "files": [
+        {
+          "filename": "20250803_122723_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_140714",
+      "files": [
+        {
+          "filename": "20250803_140714_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_124242",
+      "files": [
+        {
+          "filename": "20250803_124242_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_142055",
+      "files": [
+        {
+          "filename": "20250803_142055_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_124937",
+      "files": [
+        {
+          "filename": "20250803_124937_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_115353",
+      "files": [
+        {
+          "filename": "20250803_115353_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_100828",
+      "files": [
+        {
+          "filename": "20250803_100828_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_105238",
+      "files": [
+        {
+          "filename": "20250803_105238_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_115104",
+      "files": [
+        {
+          "filename": "20250803_115104_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_131527",
+      "files": [
+        {
+          "filename": "20250803_131527_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_074733",
+      "files": [
+        {
+          "filename": "20250803_074733_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_090617",
+      "files": [
+        {
+          "filename": "20250803_090617_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_071000",
+      "files": [
+        {
+          "filename": "20250803_071000_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_123105",
+      "files": [
+        {
+          "filename": "20250803_123105_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_104047",
+      "files": [
+        {
+          "filename": "20250803_104047_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_125943",
+      "files": [
+        {
+          "filename": "20250803_125943_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_140744",
+      "files": [
+        {
+          "filename": "20250803_140744_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_122752",
+      "files": [
+        {
+          "filename": "20250803_122752_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_112152",
+      "files": [
+        {
+          "filename": "20250803_112152_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_132316",
+      "files": [
+        {
+          "filename": "20250803_132316_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_100011",
+      "files": [
+        {
+          "filename": "20250803_100011_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_111715",
+      "files": [
+        {
+          "filename": "20250803_111715_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_092504",
+      "files": [
+        {
+          "filename": "20250803_092504_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_130326",
+      "files": [
+        {
+          "filename": "20250803_130326_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_132242",
+      "files": [
+        {
+          "filename": "20250803_132242_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_134118",
+      "files": [
+        {
+          "filename": "20250803_134118_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_134411",
+      "files": [
+        {
+          "filename": "20250803_134411_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_140019",
+      "files": [
+        {
+          "filename": "20250803_140019_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_130450",
+      "files": [
+        {
+          "filename": "20250803_130450_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_070320",
+      "files": [
+        {
+          "filename": "20250803_070320_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_110727",
+      "files": [
+        {
+          "filename": "20250803_110727_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_114751",
+      "files": [
+        {
+          "filename": "20250803_114751_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_134533",
+      "files": [
+        {
+          "filename": "20250803_134533_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_112505",
+      "files": [
+        {
+          "filename": "20250803_112505_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_090304",
+      "files": [
+        {
+          "filename": "20250803_090304_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_102305",
+      "files": [
+        {
+          "filename": "20250803_102305_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_090144",
+      "files": [
+        {
+          "filename": "20250803_090144_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_105529",
+      "files": [
+        {
+          "filename": "20250803_105529_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_123900",
+      "files": [
+        {
+          "filename": "20250803_123900_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_141805",
+      "files": [
+        {
+          "filename": "20250803_141805_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_085855",
+      "files": [
+        {
+          "filename": "20250803_085855_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_083213",
+      "files": [
+        {
+          "filename": "20250803_083213_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_094643",
+      "files": [
+        {
+          "filename": "20250803_094643_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_142440",
+      "files": [
+        {
+          "filename": "20250803_142440_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_130036",
+      "files": [
+        {
+          "filename": "20250803_130036_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_113642",
+      "files": [
+        {
+          "filename": "20250803_113642_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_121302",
+      "files": [
+        {
+          "filename": "20250803_121302_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_085803",
+      "files": [
+        {
+          "filename": "20250803_085803_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_111810",
+      "files": [
+        {
+          "filename": "20250803_111810_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_103754",
+      "files": [
+        {
+          "filename": "20250803_103754_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_123355",
+      "files": [
+        {
+          "filename": "20250803_123355_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_110346",
+      "files": [
+        {
+          "filename": "20250803_110346_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_095405",
+      "files": [
+        {
+          "filename": "20250803_095405_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_065436",
+      "files": [
+        {
+          "filename": "20250803_065436_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_073215",
+      "files": [
+        {
+          "filename": "20250803_073215_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_110730",
+      "files": [
+        {
+          "filename": "20250803_110730_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_082458",
+      "files": [
+        {
+          "filename": "20250803_082458_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_141005",
+      "files": [
+        {
+          "filename": "20250803_141005_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_122410",
+      "files": [
+        {
+          "filename": "20250803_122410_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_101541",
+      "files": [
+        {
+          "filename": "20250803_101541_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_072411",
+      "files": [
+        {
+          "filename": "20250803_072411_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_113955",
+      "files": [
+        {
+          "filename": "20250803_113955_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_115133",
+      "files": [
+        {
+          "filename": "20250803_115133_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_103827",
+      "files": [
+        {
+          "filename": "20250803_103827_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_114627",
+      "files": [
+        {
+          "filename": "20250803_114627_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_135136",
+      "files": [
+        {
+          "filename": "20250803_135136_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_133643",
+      "files": [
+        {
+          "filename": "20250803_133643_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_113230",
+      "files": [
+        {
+          "filename": "20250803_113230_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_131214",
+      "files": [
+        {
+          "filename": "20250803_131214_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_073627",
+      "files": [
+        {
+          "filename": "20250803_073627_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_074349",
+      "files": [
+        {
+          "filename": "20250803_074349_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_093157",
+      "files": [
+        {
+          "filename": "20250803_093157_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_073847",
+      "files": [
+        {
+          "filename": "20250803_073847_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_102712",
+      "files": [
+        {
+          "filename": "20250803_102712_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_122630",
+      "files": [
+        {
+          "filename": "20250803_122630_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_103411",
+      "files": [
+        {
+          "filename": "20250803_103411_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_093556",
+      "files": [
+        {
+          "filename": "20250803_093556_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_135641",
+      "files": [
+        {
+          "filename": "20250803_135641_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_084823",
+      "files": [
+        {
+          "filename": "20250803_084823_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_093105",
+      "files": [
+        {
+          "filename": "20250803_093105_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_091624",
+      "files": [
+        {
+          "filename": "20250803_091624_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_121907",
+      "files": [
+        {
+          "filename": "20250803_121907_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_080057",
+      "files": [
+        {
+          "filename": "20250803_080057_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_095024",
+      "files": [
+        {
+          "filename": "20250803_095024_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_082953",
+      "files": [
+        {
+          "filename": "20250803_082953_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_134504",
+      "files": [
+        {
+          "filename": "20250803_134504_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_133736",
+      "files": [
+        {
+          "filename": "20250803_133736_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_115852",
+      "files": [
+        {
+          "filename": "20250803_115852_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_112030",
+      "files": [
+        {
+          "filename": "20250803_112030_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_094904",
+      "files": [
+        {
+          "filename": "20250803_094904_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_075335",
+      "files": [
+        {
+          "filename": "20250803_075335_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_120205",
+      "files": [
+        {
+          "filename": "20250803_120205_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_095750",
+      "files": [
+        {
+          "filename": "20250803_095750_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_120610",
+      "files": [
+        {
+          "filename": "20250803_120610_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_124212",
+      "files": [
+        {
+          "filename": "20250803_124212_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_105621",
+      "files": [
+        {
+          "filename": "20250803_105621_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_125006",
+      "files": [
+        {
+          "filename": "20250803_125006_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_100103",
+      "files": [
+        {
+          "filename": "20250803_100103_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_115445",
+      "files": [
+        {
+          "filename": "20250803_115445_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_132658",
+      "files": [
+        {
+          "filename": "20250803_132658_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_092055",
+      "files": [
+        {
+          "filename": "20250803_092055_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_113903",
+      "files": [
+        {
+          "filename": "20250803_113903_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_125723",
+      "files": [
+        {
+          "filename": "20250803_125723_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_121304",
+      "files": [
+        {
+          "filename": "20250803_121304_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_084323",
+      "files": [
+        {
+          "filename": "20250803_084323_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_132628",
+      "files": [
+        {
+          "filename": "20250803_132628_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_133805",
+      "files": [
+        {
+          "filename": "20250803_133805_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_085044",
+      "files": [
+        {
+          "filename": "20250803_085044_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_131052",
+      "files": [
+        {
+          "filename": "20250803_131052_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_120113",
+      "files": [
+        {
+          "filename": "20250803_120113_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_090236",
+      "files": [
+        {
+          "filename": "20250803_090236_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_094302",
+      "files": [
+        {
+          "filename": "20250803_094302_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_134916",
+      "files": [
+        {
+          "filename": "20250803_134916_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_081251",
+      "files": [
+        {
+          "filename": "20250803_081251_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_135954",
+      "files": [
+        {
+          "filename": "20250803_135954_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_134845",
+      "files": [
+        {
+          "filename": "20250803_134845_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_084438",
+      "files": [
+        {
+          "filename": "20250803_084438_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_141328",
+      "files": [
+        {
+          "filename": "20250803_141328_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_090903",
+      "files": [
+        {
+          "filename": "20250803_090903_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_110635",
+      "files": [
+        {
+          "filename": "20250803_110635_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_072522",
+      "files": [
+        {
+          "filename": "20250803_072522_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_072504",
+      "files": [
+        {
+          "filename": "20250803_072504_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_135611",
+      "files": [
+        {
+          "filename": "20250803_135611_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_073123",
+      "files": [
+        {
+          "filename": "20250803_073123_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_093537",
+      "files": [
+        {
+          "filename": "20250803_093537_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_120830",
+      "files": [
+        {
+          "filename": "20250803_120830_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_090642",
+      "files": [
+        {
+          "filename": "20250803_090642_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_080818",
+      "files": [
+        {
+          "filename": "20250803_080818_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_071522",
+      "files": [
+        {
+          "filename": "20250803_071522_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_121647",
+      "files": [
+        {
+          "filename": "20250803_121647_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_100736",
+      "files": [
+        {
+          "filename": "20250803_100736_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_104803",
+      "files": [
+        {
+          "filename": "20250803_104803_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_102933",
+      "files": [
+        {
+          "filename": "20250803_102933_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_085543",
+      "files": [
+        {
+          "filename": "20250803_085543_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_083938",
+      "files": [
+        {
+          "filename": "20250803_083938_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_131807",
+      "files": [
+        {
+          "filename": "20250803_131807_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_101448",
+      "files": [
+        {
+          "filename": "20250803_101448_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_102213",
+      "files": [
+        {
+          "filename": "20250803_102213_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_082550",
+      "files": [
+        {
+          "filename": "20250803_082550_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_085515",
+      "files": [
+        {
+          "filename": "20250803_085515_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_141420",
+      "files": [
+        {
+          "filename": "20250803_141420_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_104514",
+      "files": [
+        {
+          "filename": "20250803_104514_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_125226",
+      "files": [
+        {
+          "filename": "20250803_125226_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_130418",
+      "files": [
+        {
+          "filename": "20250803_130418_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_103441",
+      "files": [
+        {
+          "filename": "20250803_103441_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_084658",
+      "files": [
+        {
+          "filename": "20250803_084658_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_120949",
+      "files": [
+        {
+          "filename": "20250803_120949_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_081924",
+      "files": [
+        {
+          "filename": "20250803_081924_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_125344",
+      "files": [
+        {
+          "filename": "20250803_125344_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_110950",
+      "files": [
+        {
+          "filename": "20250803_110950_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_112755",
+      "files": [
+        {
+          "filename": "20250803_112755_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_112917",
+      "files": [
+        {
+          "filename": "20250803_112917_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_092343",
+      "files": [
+        {
+          "filename": "20250803_092343_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_080938",
+      "files": [
+        {
+          "filename": "20250803_080938_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_095626",
+      "files": [
+        {
+          "filename": "20250803_095626_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_132536",
+      "files": [
+        {
+          "filename": "20250803_132536_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_100515",
+      "files": [
+        {
+          "filename": "20250803_100515_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_074610",
+      "files": [
+        {
+          "filename": "20250803_074610_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_134151",
+      "files": [
+        {
+          "filename": "20250803_134151_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_094149",
+      "files": [
+        {
+          "filename": "20250803_094149_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_094956",
+      "files": [
+        {
+          "filename": "20250803_094956_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_082840",
+      "files": [
+        {
+          "filename": "20250803_082840_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_135229",
+      "files": [
+        {
+          "filename": "20250803_135229_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_105652",
+      "files": [
+        {
+          "filename": "20250803_105652_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_091404",
+      "files": [
+        {
+          "filename": "20250803_091404_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_115515",
+      "files": [
+        {
+          "filename": "20250803_115515_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_124502",
+      "files": [
+        {
+          "filename": "20250803_124502_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_123134",
+      "files": [
+        {
+          "filename": "20250803_123134_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_093929",
+      "files": [
+        {
+          "filename": "20250803_093929_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_083646",
+      "files": [
+        {
+          "filename": "20250803_083646_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_093817",
+      "files": [
+        {
+          "filename": "20250803_093817_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_073940",
+      "files": [
+        {
+          "filename": "20250803_073940_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_114244",
+      "files": [
+        {
+          "filename": "20250803_114244_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_104856",
+      "files": [
+        {
+          "filename": "20250803_104856_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_082933",
+      "files": [
+        {
+          "filename": "20250803_082933_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_142148",
+      "files": [
+        {
+          "filename": "20250803_142148_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_134026",
+      "files": [
+        {
+          "filename": "20250803_134026_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_103025",
+      "files": [
+        {
+          "filename": "20250803_103025_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_130802",
+      "files": [
+        {
+          "filename": "20250803_130802_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_101923",
+      "files": [
+        {
+          "filename": "20250803_101923_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_074228",
+      "files": [
+        {
+          "filename": "20250803_074228_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_123830",
+      "files": [
+        {
+          "filename": "20250803_123830_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_093224",
+      "files": [
+        {
+          "filename": "20250803_093224_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_094615",
+      "files": [
+        {
+          "filename": "20250803_094615_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_083306",
+      "files": [
+        {
+          "filename": "20250803_083306_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_075455",
+      "files": [
+        {
+          "filename": "20250803_075455_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_121209",
+      "files": [
+        {
+          "filename": "20250803_121209_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_110414",
+      "files": [
+        {
+          "filename": "20250803_110414_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_090525",
+      "files": [
+        {
+          "filename": "20250803_090525_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_130710",
+      "files": [
+        {
+          "filename": "20250803_130710_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_125605",
+      "files": [
+        {
+          "filename": "20250803_125605_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_102335",
+      "files": [
+        {
+          "filename": "20250803_102335_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_125657",
+      "files": [
+        {
+          "filename": "20250803_125657_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_094523",
+      "files": [
+        {
+          "filename": "20250803_094523_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_113137",
+      "files": [
+        {
+          "filename": "20250803_113137_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_133423",
+      "files": [
+        {
+          "filename": "20250803_133423_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_115735",
+      "files": [
+        {
+          "filename": "20250803_115735_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_135258",
+      "files": [
+        {
+          "filename": "20250803_135258_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_124120",
+      "files": [
+        {
+          "filename": "20250803_124120_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_073559",
+      "files": [
+        {
+          "filename": "20250803_073559_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_104421",
+      "files": [
+        {
+          "filename": "20250803_104421_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_091336",
+      "files": [
+        {
+          "filename": "20250803_091336_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_103701",
+      "files": [
+        {
+          "filename": "20250803_103701_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_084751",
+      "files": [
+        {
+          "filename": "20250803_084751_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_072149",
+      "files": [
+        {
+          "filename": "20250803_072149_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_104201",
+      "files": [
+        {
+          "filename": "20250803_104201_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_081540",
+      "files": [
+        {
+          "filename": "20250803_081540_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_131929",
+      "files": [
+        {
+          "filename": "20250803_131929_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_085136",
+      "files": [
+        {
+          "filename": "20250803_085136_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_102648",
+      "files": [
+        {
+          "filename": "20250803_102648_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_070737",
+      "files": [
+        {
+          "filename": "20250803_070737_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_072742",
+      "files": [
+        {
+          "filename": "20250803_072742_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_113612",
+      "files": [
+        {
+          "filename": "20250803_113612_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_071451",
+      "files": [
+        {
+          "filename": "20250803_071451_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_072151",
+      "files": [
+        {
+          "filename": "20250803_072151_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_092002",
+      "files": [
+        {
+          "filename": "20250803_092002_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_074320",
+      "files": [
+        {
+          "filename": "20250803_074320_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_101118",
+      "files": [
+        {
+          "filename": "20250803_101118_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_075046",
+      "files": [
+        {
+          "filename": "20250803_075046_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_071743",
+      "files": [
+        {
+          "filename": "20250803_071743_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_072835",
+      "files": [
+        {
+          "filename": "20250803_072835_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_122340",
+      "files": [
+        {
+          "filename": "20250803_122340_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_112412",
+      "files": [
+        {
+          "filename": "20250803_112412_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_074008",
+      "files": [
+        {
+          "filename": "20250803_074008_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_113520",
+      "files": [
+        {
+          "filename": "20250803_113520_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_072903",
+      "files": [
+        {
+          "filename": "20250803_072903_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_075836",
+      "files": [
+        {
+          "filename": "20250803_075836_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_131144",
+      "files": [
+        {
+          "filename": "20250803_131144_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_100445",
+      "files": [
+        {
+          "filename": "20250803_100445_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_092123",
+      "files": [
+        {
+          "filename": "20250803_092123_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_084102",
+      "files": [
+        {
+          "filename": "20250803_084102_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_123447",
+      "files": [
+        {
+          "filename": "20250803_123447_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_075716",
+      "files": [
+        {
+          "filename": "20250803_075716_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_104925",
+      "files": [
+        {
+          "filename": "20250803_104925_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_141452",
+      "files": [
+        {
+          "filename": "20250803_141452_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_083554",
+      "files": [
+        {
+          "filename": "20250803_083554_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_075427",
+      "files": [
+        {
+          "filename": "20250803_075427_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_140622",
+      "files": [
+        {
+          "filename": "20250803_140622_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_111043",
+      "files": [
+        {
+          "filename": "20250803_111043_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_135519",
+      "files": [
+        {
+          "filename": "20250803_135519_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_084415",
+      "files": [
+        {
+          "filename": "20250803_084415_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_090955",
+      "files": [
+        {
+          "filename": "20250803_090955_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_111112",
+      "files": [
+        {
+          "filename": "20250803_111112_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_140402",
+      "files": [
+        {
+          "filename": "20250803_140402_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_123517",
+      "files": [
+        {
+          "filename": "20250803_123517_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_124555",
+      "files": [
+        {
+          "filename": "20250803_124555_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_133301",
+      "files": [
+        {
+          "filename": "20250803_133301_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_085202",
+      "files": [
+        {
+          "filename": "20250803_085202_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_071232",
+      "files": [
+        {
+          "filename": "20250803_071232_stage3_enhanced.png",
+          "stage": "stage3_enhanced",
+          "type": "enhanced"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_141713",
+      "files": [
+        {
+          "filename": "20250803_141713_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_073506",
+      "files": [
+        {
+          "filename": "20250803_073506_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_121525",
+      "files": [
+        {
+          "filename": "20250803_121525_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_133354",
+      "files": [
+        {
+          "filename": "20250803_133354_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_070037",
+      "files": [
+        {
+          "filename": "20250803_070037_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_065406",
+      "files": [
+        {
+          "filename": "20250803_065406_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_114337",
+      "files": [
+        {
+          "filename": "20250803_114337_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_103058",
+      "files": [
+        {
+          "filename": "20250803_103058_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_131859",
+      "files": [
+        {
+          "filename": "20250803_131859_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_130105",
+      "files": [
+        {
+          "filename": "20250803_130105_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_120230",
+      "files": [
+        {
+          "filename": "20250803_120230_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_095244",
+      "files": [
+        {
+          "filename": "20250803_095244_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_065749",
+      "files": [
+        {
+          "filename": "20250803_065749_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_131547",
+      "files": [
+        {
+          "filename": "20250803_131547_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_131435",
+      "files": [
+        {
+          "filename": "20250803_131435_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_122000",
+      "files": [
+        {
+          "filename": "20250803_122000_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_124844",
+      "files": [
+        {
+          "filename": "20250803_124844_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_100132",
+      "files": [
+        {
+          "filename": "20250803_100132_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_103319",
+      "files": [
+        {
+          "filename": "20250803_103319_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_065817",
+      "files": [
+        {
+          "filename": "20250803_065817_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_133041",
+      "files": [
+        {
+          "filename": "20250803_133041_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_085422",
+      "files": [
+        {
+          "filename": "20250803_085422_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_091717",
+      "files": [
+        {
+          "filename": "20250803_091717_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_112847",
+      "files": [
+        {
+          "filename": "20250803_112847_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_112534",
+      "files": [
+        {
+          "filename": "20250803_112534_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_081159",
+      "files": [
+        {
+          "filename": "20250803_081159_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_080911",
+      "files": [
+        {
+          "filename": "20250803_080911_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_094242",
+      "files": [
+        {
+          "filename": "20250803_094242_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_091023",
+      "files": [
+        {
+          "filename": "20250803_091023_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_070244",
+      "files": [
+        {
+          "filename": "20250803_070244_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_114024",
+      "files": [
+        {
+          "filename": "20250803_114024_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_071835",
+      "files": [
+        {
+          "filename": "20250803_071835_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_124624",
+      "files": [
+        {
+          "filename": "20250803_124624_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_082144",
+      "files": [
+        {
+          "filename": "20250803_082144_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_104140",
+      "files": [
+        {
+          "filename": "20250803_104140_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_125319",
+      "files": [
+        {
+          "filename": "20250803_125319_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_133011",
+      "files": [
+        {
+          "filename": "20250803_133011_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_105308",
+      "files": [
+        {
+          "filename": "20250803_105308_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_093444",
+      "files": [
+        {
+          "filename": "20250803_093444_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_112123",
+      "files": [
+        {
+          "filename": "20250803_112123_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_080530",
+      "files": [
+        {
+          "filename": "20250803_080530_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_091742",
+      "files": [
+        {
+          "filename": "20250803_091742_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_081320",
+      "files": [
+        {
+          "filename": "20250803_081320_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_073246",
+      "files": [
+        {
+          "filename": "20250803_073246_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_120451",
+      "files": [
+        {
+          "filename": "20250803_120451_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_065656",
+      "files": [
+        {
+          "filename": "20250803_065656_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_105912",
+      "files": [
+        {
+          "filename": "20250803_105912_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_101831",
+      "files": [
+        {
+          "filename": "20250803_101831_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_111333",
+      "files": [
+        {
+          "filename": "20250803_111333_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_083334",
+      "files": [
+        {
+          "filename": "20250803_083334_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_101211",
+      "files": [
+        {
+          "filename": "20250803_101211_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_083718",
+      "files": [
+        {
+          "filename": "20250803_083718_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_132150",
+      "files": [
+        {
+          "filename": "20250803_132150_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_101611",
+      "files": [
+        {
+          "filename": "20250803_101611_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_122027",
+      "files": [
+        {
+          "filename": "20250803_122027_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_092817",
+      "files": [
+        {
+          "filename": "20250803_092817_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_102555",
+      "files": [
+        {
+          "filename": "20250803_102555_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_110004",
+      "files": [
+        {
+          "filename": "20250803_110004_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_092724",
+      "files": [
+        {
+          "filename": "20250803_092724_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_114407",
+      "files": [
+        {
+          "filename": "20250803_114407_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_080558",
+      "files": [
+        {
+          "filename": "20250803_080558_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_080437",
+      "files": [
+        {
+          "filename": "20250803_080437_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_082237",
+      "files": [
+        {
+          "filename": "20250803_082237_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_091244",
+      "files": [
+        {
+          "filename": "20250803_091244_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_121617",
+      "files": [
+        {
+          "filename": "20250803_121617_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_134753",
+      "files": [
+        {
+          "filename": "20250803_134753_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_071837",
+      "files": [
+        {
+          "filename": "20250803_071837_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_092845",
+      "files": [
+        {
+          "filename": "20250803_092845_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_095337",
+      "files": [
+        {
+          "filename": "20250803_095337_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_120923",
+      "files": [
+        {
+          "filename": "20250803_120923_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_122248",
+      "files": [
+        {
+          "filename": "20250803_122248_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_105146",
+      "files": [
+        {
+          "filename": "20250803_105146_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_100353",
+      "files": [
+        {
+          "filename": "20250803_100353_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_140239",
+      "files": [
+        {
+          "filename": "20250803_140239_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_111807",
+      "files": [
+        {
+          "filename": "20250803_111807_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_113300",
+      "files": [
+        {
+          "filename": "20250803_113300_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_115828",
+      "files": [
+        {
+          "filename": "20250803_115828_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_074954",
+      "files": [
+        {
+          "filename": "20250803_074954_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_111454",
+      "files": [
+        {
+          "filename": "20250803_111454_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_123738",
+      "files": [
+        {
+          "filename": "20250803_123738_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_075114",
+      "files": [
+        {
+          "filename": "20250803_075114_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_130832",
+      "files": [
+        {
+          "filename": "20250803_130832_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_101952",
+      "files": [
+        {
+          "filename": "20250803_101952_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_123013",
+      "files": [
+        {
+          "filename": "20250803_123013_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_110254",
+      "files": [
+        {
+          "filename": "20250803_110254_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_080217",
+      "files": [
+        {
+          "filename": "20250803_080217_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_075808",
+      "files": [
+        {
+          "filename": "20250803_075808_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_082236",
+      "files": [
+        {
+          "filename": "20250803_082236_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_092436",
+      "files": [
+        {
+          "filename": "20250803_092436_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_135902",
+      "files": [
+        {
+          "filename": "20250803_135902_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_132919",
+      "files": [
+        {
+          "filename": "20250803_132919_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_114719",
+      "files": [
+        {
+          "filename": "20250803_114719_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_085923",
+      "files": [
+        {
+          "filename": "20250803_085923_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_095718",
+      "files": [
+        {
+          "filename": "20250803_095718_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_082620",
+      "files": [
+        {
+          "filename": "20250803_082620_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_081856",
+      "files": [
+        {
+          "filename": "20250803_081856_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_140332",
+      "files": [
+        {
+          "filename": "20250803_140332_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_120543",
+      "files": [
+        {
+          "filename": "20250803_120543_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_101228",
+      "files": [
+        {
+          "filename": "20250803_101228_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_080149",
+      "files": [
+        {
+          "filename": "20250803_080149_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_104543",
+      "files": [
+        {
+          "filename": "20250803_104543_stage1.5_face_swapped.png",
+          "stage": "stage1.5",
+          "type": "face_swapped"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_115011",
+      "files": [
+        {
+          "filename": "20250803_115011_stage2_upscaled.png",
+          "stage": "stage2",
+          "type": "upscaled"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_084031",
+      "files": [
+        {
+          "filename": "20250803_084031_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    },
+    {
+      "timestamp": "20250803_093909",
+      "files": [
+        {
+          "filename": "20250803_093909_stage1_generated.png",
+          "stage": "stage1",
+          "type": "generated"
+        }
+      ],
+      "group_type": "singleton"
+    }
+  ]
+}

@@ -137,12 +137,24 @@ def detect_stage(name: str) -> str:
     return ""
 
 
-def scan_images(folder: Path, exts: Iterable[str]) -> List[Path]:
+def scan_images(folder: Path, exts: Iterable[str], recursive: bool = True) -> List[Path]:
+    """Scan for image files, optionally recursively"""
     allowed = {e.lower().lstrip(".") for e in exts}
     results: List[Path] = []
-    for entry in sorted(folder.iterdir()):
-        if entry.is_file() and entry.suffix.lower().lstrip(".") in allowed:
-            results.append(entry)
+    
+    if recursive:
+        # Use rglob for recursive scanning (** pattern)
+        for ext in allowed:
+            pattern = f"**/*.{ext}"
+            results.extend(folder.glob(pattern))
+        # Remove duplicates and sort
+        results = sorted(set(results))
+    else:
+        # Original non-recursive behavior
+        for entry in sorted(folder.iterdir()):
+            if entry.is_file() and entry.suffix.lower().lstrip(".") in allowed:
+                results.append(entry)
+    
     return results
 
 
@@ -171,9 +183,9 @@ def get_date_from_timestamp(timestamp_str: Optional[str]) -> Optional[str]:
 
 
 @dataclass
-class TripletRecord:
+class GroupRecord:
     index: int
-    paths: Tuple[Path, Path, Path]
+    paths: Tuple[Path, ...]  # Can be 2 or 3 paths
     relative_dir: str
 
     def as_payload(self, total: int) -> Dict[str, object]:
@@ -197,71 +209,70 @@ class TripletRecord:
         }
 
 
-def find_triplets(files: List[Path]) -> List[Tuple[Path, Path, Path]]:
-    triplets: List[Tuple[Path, Path, Path]] = []
-    stage1_files = []
-    stage15_files = []
-    stage2_files = []
+STAGE_TOKENS = (
+    "stage1_generated",
+    "stage1.5_face_swapped", 
+    "stage2_upscaled",
+    "stage3_enhanced",
+)
 
-    for file in files:
+def _basekey(p: Path) -> str:
+    """Filename minus stage tokens & punctuation → used to detect runs."""
+    n = p.stem.lower()
+    for t in STAGE_TOKENS:
+        n = n.replace(t, "")
+    # collapse separators and trim
+    n = re.sub(r"[._\-]+", "_", n).strip("_- .")
+    return n
+
+def get_stage_number(stage: str) -> float:
+    """Convert stage name to numeric value for comparison."""
+    stage_map = {
+        "stage1_generated": 1.0,
+        "stage1.5_face_swapped": 1.5,
+        "stage2_upscaled": 2.0,
+        "stage3_enhanced": 3.0
+    }
+    return stage_map.get(stage, 0.0)
+
+
+def find_flexible_groups(files: List[Path]) -> List[Tuple[Path, ...]]:
+    """Find groups by detecting stage number decreases (new group when stage < previous stage)."""
+    groups: List[Tuple[Path, ...]] = []
+    
+    # Sort all files by filename to maintain chronological order
+    sorted_files = sorted(files, key=lambda x: x.name)
+    
+    if not sorted_files:
+        return groups
+    
+    current_group = []
+    prev_stage_num = None  # Start with None to handle first file properly
+    
+    for file in sorted_files:
         stage = detect_stage(file.name)
-        timestamp = extract_timestamp(file.name)
-        timestamp_minutes = timestamp_to_minutes(timestamp)
-
-        if stage == "stage1_generated" and timestamp_minutes is not None:
-            stage1_files.append((file, timestamp_minutes, timestamp))
-        elif stage == "stage1.5_face_swapped" and timestamp_minutes is not None:
-            stage15_files.append((file, timestamp_minutes, timestamp))
-        elif stage == "stage2_upscaled" and timestamp_minutes is not None:
-            stage2_files.append((file, timestamp_minutes, timestamp))
-
-    stage1_files.sort(key=lambda x: x[1])
-    stage15_files.sort(key=lambda x: x[1])
-    stage2_files.sort(key=lambda x: x[1])
-
-    max_gap_stage1_to_15 = 0.5
-    max_gap_stage15_to_2 = 2
-
-    for stage1_file, stage1_time, stage1_ts in stage1_files:
-        stage1_date = get_date_from_timestamp(stage1_ts)
-        if not stage1_date:
-            continue
-
-        stage15_match = None
-        for stage15_file, stage15_time, stage15_ts in stage15_files:
-            stage15_date = get_date_from_timestamp(stage15_ts)
-            if (
-                stage15_date == stage1_date
-                and stage1_time <= stage15_time <= stage1_time + max_gap_stage1_to_15
-            ):
-                stage15_match = (stage15_file, stage15_time, stage15_ts)
-                break
-
-        if not stage15_match:
-            continue
-
-        stage15_file, stage15_time, stage15_ts = stage15_match
-
-        stage2_match = None
-        for stage2_file, stage2_time, stage2_ts in stage2_files:
-            stage2_date = get_date_from_timestamp(stage2_ts)
-            if (
-                stage2_date == stage1_date
-                and stage15_time <= stage2_time <= stage15_time + max_gap_stage15_to_2
-            ):
-                stage2_match = (stage2_file, stage2_time, stage2_ts)
-                break
-
-        if not stage2_match:
-            continue
-
-        stage2_file, _, stage2_ts = stage2_match
-        triplets.append((stage1_file, stage15_file, stage2_file))
-
-        stage15_files = [f for f in stage15_files if f[2] != stage15_ts]
-        stage2_files = [f for f in stage2_files if f[2] != stage2_ts]
-
-    return triplets
+        if not stage:
+            continue  # Skip files that don't match expected patterns
+            
+        stage_num = get_stage_number(stage)
+        
+        # If this is the first file or stage decreased, start a new group
+        if prev_stage_num is None or (stage_num < prev_stage_num and current_group):
+            # Finish current group if it exists and has enough files
+            if current_group and len(current_group) >= 2:
+                groups.append(tuple(current_group))
+            current_group = [file]  # Start new group with current file
+        else:
+            # Continue current group
+            current_group.append(file)
+        
+        prev_stage_num = stage_num
+    
+    # Add the final group if it has 2+ images
+    if len(current_group) >= 2:
+        groups.append(tuple(current_group))
+    
+    return groups
 
 
 def safe_delete(paths: Iterable[Path], hard_delete: bool = False, tracker: Optional[FileTracker] = None) -> None:
@@ -405,18 +416,37 @@ def _generate_thumbnail(path_str: str, mtime_ns: int, file_size: int) -> bytes:
 
 
 def build_app(
-    triplets: List[TripletRecord],
+    groups: List[GroupRecord],
     base_folder: Path,
     tracker: FileTracker,
     log_path: Path,
     hard_delete: bool,
+    batch_size: int = 50,
+    batch_start: int = 0,
 ) -> Flask:
     app = Flask(__name__)
 
-    triplet_payload = [record.as_payload(total=len(triplets)) for record in triplets]
+    # Calculate batch boundaries
+    total_groups = len(groups)
+    batch_end = min(batch_start + batch_size, total_groups)
+    current_batch_groups = groups[batch_start:batch_end]
+    current_batch_payload = [record.as_payload(total=total_groups) for record in current_batch_groups]
+    
+    # Batch info
+    batch_info = {
+        "current_batch": (batch_start // batch_size) + 1,
+        "total_batches": (total_groups + batch_size - 1) // batch_size,
+        "batch_start": batch_start,
+        "batch_end": batch_end,
+        "batch_size": batch_size,
+        "total_groups": total_groups,
+        "current_batch_size": len(current_batch_groups)
+    }
 
-    app.config["TRIPLETS"] = triplets
-    app.config["TRIPLET_PAYLOAD"] = triplet_payload
+    app.config["ALL_GROUPS"] = groups  # Keep full list for batch switching
+    app.config["GROUPS"] = current_batch_groups  # Current batch only
+    app.config["GROUP_PAYLOAD"] = current_batch_payload
+    app.config["BATCH_INFO"] = batch_info
     app.config["BASE_FOLDER"] = base_folder
     app.config["TRACKER"] = tracker
     app.config["LOG_PATH"] = log_path
@@ -439,6 +469,8 @@ def build_app(
           --accent: #4f9dff;
           --accent-soft: rgba(79, 157, 255, 0.2);
           --danger: #ff6b6b;
+          --success: #51cf66;
+          --warning: #ffd43b;
           --muted: #a0a3b1;
         }
         * { box-sizing: border-box; }
@@ -447,15 +479,81 @@ def build_app(
           font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
           background: var(--bg);
           color: #f8f9ff;
+          display: flex;
+          flex-direction: column;
+        }
+        .main-layout {
+          display: flex;
+          flex: 1;
+          min-height: 100vh;
+        }
+        .content-area {
+          flex: 1;
+          overflow-y: auto;
+        }
+        .action-sidebar {
+          width: 120px;
+          background: var(--surface-alt);
+          border-left: 1px solid rgba(255,255,255,0.1);
+          position: fixed;
+          right: 0;
+          top: 0;
+          bottom: 0;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          padding: 2rem 1rem;
+          gap: 0.5rem;
+          z-index: 200;
+        }
+        .action-btn {
+          padding: 0.75rem;
+          background: var(--surface);
+          border: 2px solid rgba(255,255,255,0.1);
+          border-radius: 8px;
+          color: white;
+          font-size: 0.9rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          text-align: center;
+          min-height: 40px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .action-btn:hover {
+          background: var(--accent);
+          border-color: var(--accent);
+          transform: translateY(-1px);
+        }
+        .action-btn.crop-active {
+          background: var(--warning);
+          border-color: var(--warning);
+          color: black;
+        }
+        .action-btn.image-active {
+          background: var(--accent);
+          border-color: var(--accent);
+          color: white;
+          transform: translateY(-1px);
+        }
+        .action-btn:disabled {
+          opacity: 0.3;
+          cursor: not-allowed;
+          transform: none;
         }
         header.toolbar {
-          position: sticky;
+          background: var(--bg);
+          padding: 1rem 2rem;
+          border-bottom: 1px solid rgba(255,255,255,0.1);
+          position: fixed;
           top: 0;
-          z-index: 10;
-          background: linear-gradient(180deg, rgba(16,16,20,0.95), rgba(16,16,20,0.85));
-          backdrop-filter: blur(16px);
-          padding: 1.25rem clamp(1rem, 3vw, 2rem);
-          border-bottom: 1px solid rgba(255,255,255,0.05);
+          z-index: 150;
+          left: 0;
+          right: 120px; /* Account for sidebar */
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          margin-bottom: 1rem;
           display: flex;
           flex-wrap: wrap;
           gap: 1rem;
@@ -522,68 +620,84 @@ def build_app(
         #status.success { color: #4dd78a; }
         #status.error { color: var(--danger); }
         main {
-          padding: clamp(1rem, 4vw, 2rem);
+          padding: 120px 140px 1rem 1rem; /* Add top padding for fixed header */
           display: flex;
           flex-direction: column;
-          gap: 1.25rem;
-          max-width: 1400px;
+          gap: 0.5rem;
+          max-width: 1600px;
           margin: 0 auto;
         }
-        section.triplet {
+        section.group {
           background: var(--surface);
-          border-radius: 16px;
-          padding: 1rem clamp(1rem, 4vw, 1.5rem);
-          box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+          border-radius: 12px;
+          padding: 0.75rem;
+          box-shadow: 0 8px 16px rgba(0,0,0,0.15);
           border: 2px solid transparent;
           transition: border-color 0.3s ease, box-shadow 0.3s ease;
         }
-        section.triplet.in-batch {
+        section.group.in-batch {
           border-color: var(--accent);
           box-shadow: 0 20px 40px rgba(0,0,0,0.25), 0 0 0 1px rgba(79,157,255,0.2);
         }
-        section.triplet.reviewed {
+        section.group.reviewed {
           border-color: var(--success);
           box-shadow: 0 20px 40px rgba(0,0,0,0.25), 0 0 0 1px rgba(81,207,102,0.2);
         }
-        section.triplet:nth-of-type(odd) {
+        section.group:nth-of-type(odd) {
           background: var(--surface-alt);
         }
-        section.triplet header.triplet-header {
+        section.group header.group-header {
           display: flex;
           justify-content: space-between;
           align-items: baseline;
           gap: 1rem;
-          font-size: 0.95rem;
-          color: var(--muted);
-          margin-bottom: 0.75rem;
+          font-size: 0.7rem;
+          color: rgba(160,163,177,0.5);
+          margin-bottom: 0.25rem;
         }
-        section.triplet header.triplet-header .location {
+        section.group header.group-header .location {
           font-size: 0.85rem;
           color: rgba(255,255,255,0.6);
         }
         .image-row {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-          gap: 0.75rem;
+          grid-auto-flow: column;           /* columns = number of items */
+          grid-auto-columns: 1fr;           /* equal widths */
+          justify-content: center;          /* centers pairs */
+          gap: 0.5rem;
+          padding: 0.5rem;
+          margin-bottom: 0.25rem;
+          background: var(--surface);
+          border-radius: 8px;
+          border: 2px solid transparent;
+          transition: border-color 0.3s ease, box-shadow 0.3s ease;
         }
         figure.image-card {
           margin: 0;
-          border-radius: 14px;
-          overflow: hidden;
-          position: relative;
-          cursor: pointer;
-          background: rgba(255,255,255,0.04);
-          transition: transform 0.12s ease, box-shadow 0.12s ease;
+          background: var(--surface-alt);
+          border-radius: 8px;
+          padding: 0.5rem;
+          text-align: center;
           border: 2px solid transparent;
+          transition: all 0.3s ease;
+          cursor: pointer;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          position: relative;
         }
         figure.image-card:hover {
           transform: translateY(-2px);
           box-shadow: 0 16px 32px rgba(0,0,0,0.25);
         }
         figure.image-card img {
-          width: 100%;
-          display: block;
-          background: #050508;
+          max-width: 100%;
+          max-height: 60vh;
+          width: auto;
+          height: auto;
+          object-fit: contain;
+          border-radius: 8px;
+          margin-bottom: 0.5rem;
         }
         figure.image-card .stage {
           display: none;
@@ -595,71 +709,23 @@ def build_app(
           text-transform: uppercase;
         }
         figure.image-card .filename {
-          padding: 0.65rem 0.85rem;
-          font-size: 0.82rem;
-          color: rgba(255,255,255,0.72);
-          word-break: break-word;
+          font-size: 0.65rem;
+          color: rgba(160,163,177,0.6);
+          margin-bottom: 0.25rem;
+          word-break: break-all;
+          line-height: 1.2;
         }
         figure.image-card.selected {
           border-color: var(--accent);
-          box-shadow: 0 0 0 2px rgba(79,157,255,0.2), 0 20px 30px rgba(79,157,255,0.2);
+          box-shadow: 0 0 0 2px rgba(79,157,255,0.3);
         }
-        figure.image-card.selected::after {
-          content: "Chosen";
-          position: absolute;
-          bottom: 12px;
-          right: 12px;
-          background: var(--accent);
-          color: #0b1221;
-          font-weight: 600;
-          padding: 0.25rem 0.6rem;
-          border-radius: 999px;
-          font-size: 0.7rem;
-          letter-spacing: 0.02em;
+        figure.image-card.selected.crop-selected {
+          border-color: white;
+          box-shadow: 0 0 0 2px rgba(255,255,255,0.6);
         }
-        figure.image-card.delete-hint::after {
-          content: "Will delete";
-          position: absolute;
-          bottom: 12px;
-          right: 12px;
-          background: rgba(255,107,107,0.18);
-          color: rgba(255,171,171,0.9);
-          font-weight: 500;
-          padding: 0.25rem 0.6rem;
-          border-radius: 999px;
-          font-size: 0.7rem;
-          letter-spacing: 0.02em;
-        }
-        .crop-toggle {
-          margin-top: 0.75rem;
-          padding: 0;
-          border-radius: 12px;
-          background: rgba(79,157,255,0.08);
-          color: rgba(255,255,255,0.85);
-          font-size: 0.9rem;
-          cursor: pointer;
-          transition: background-color 0.2s ease;
-        }
-        .crop-toggle:hover {
-          background: rgba(79, 157, 255, 0.15);
-          border: 1px solid rgba(79, 157, 255, 0.3);
-        }
-        .crop-toggle label {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.75rem 0.85rem;
-          cursor: pointer;
-          width: 100%;
-          margin: 0;
-        }
-        .crop-toggle.hidden {
-          display: none;
-        }
-        .crop-toggle input[type="checkbox"] {
-          width: 1.1rem;
-          height: 1.1rem;
-          accent-color: var(--accent);
+        figure.image-card.delete-hint {
+          border-color: var(--danger);
+          box-shadow: 0 0 0 2px rgba(255,107,107,0.3);
         }
         footer.page-end {
           text-align: center;
@@ -679,240 +745,314 @@ def build_app(
       </style>
     </head>
     <body>
-      <header class="toolbar">
-        <div>
-          <h1>Image version selector</h1>
-          <p>Click one image per row to keep it. Leave a row untouched to delete all three.</p>
-        </div>
-        <div class="summary" id="summary">
-          <span>Selected: <strong id="summary-selected">0</strong></span>
-          <span>To crop: <strong id="summary-crop">0</strong></span>
-          <span>Deleting: <strong id="summary-delete">{{ triplets|length }}</strong></span>
-        </div>
-        <button id="finalize">Finalize selections</button>
-        <button id="process-batch" class="process-batch">Process Current Batch</button>
-        <div id="batch-info" class="batch-info">
-          <span>Review batch: <strong id="batch-count">0</strong> triplets</span>
-        </div>
-        <div id="status"></div>
-      </header>
-      <main>
-        {% for triplet in triplets %}
-        <section class="triplet" data-triplet-id="{{ triplet.id }}">
-          <header class="triplet-header">
-            <span>Triplet {{ triplet.display_index }} / {{ total_triplets }}</span>
-            {% if triplet.relative_dir %}
-            <span class="location">{{ triplet.relative_dir }}</span>
-            {% endif %}
+      <div class="main-layout">
+        <div class="content-area">
+          <header class="toolbar">
+            <div>
+              <h1>Image version selector</h1>
+              <p>Use right sidebar or keys: 1,2,3 (select) • E (crop) • Space (next)</p>
+            </div>
+            <div class="summary" id="summary">
+              <span>Selected: <strong id="summary-selected">0</strong></span>
+              <span>To crop: <strong id="summary-crop">0</strong></span>
+              <span>Deleting: <strong id="summary-delete">{{ groups|length }}</strong></span>
+            </div>
+            <button id="process-batch" class="process-batch">Process Current Batch</button>
+            <div id="batch-info" class="batch-info">
+              <span>Batch {{ batch_info.current_batch }}/{{ batch_info.total_batches }}: <strong id="batch-count">{{ batch_info.current_batch_size }}</strong> groups</span>
+            </div>
+            <div id="status"></div>
           </header>
-          <div class="image-row">
-            {% for image in triplet.images %}
-            <figure class="image-card" data-image-index="{{ image.index }}">
-              <div class="stage">{{ image.stage }}</div>
-              <img src="{{ image.src }}" alt="{{ image.name }}" loading="lazy">
-              <figcaption class="filename">{{ image.name }}</figcaption>
-            </figure>
+          <main>
+            {% for group in groups %}
+            <section class="group" data-group-id="{{ group.id }}" id="group-{{ group.id }}">
+              <header class="group-header">
+                <span>{% if group.images|length == 3 %}Triplet{% else %}Pair{% endif %} {{ group.display_index }} / {{ total_groups }}</span>
+                {% if group.relative_dir %}
+                <span class="location">{{ group.relative_dir }}</span>
+                {% endif %}
+              </header>
+              <div class="image-row">
+                {% for image in group.images %}
+                <figure class="image-card" data-image-index="{{ image.index }}">
+                  <div class="stage">{{ image.stage }}</div>
+                  <img src="{{ image.src }}" alt="{{ image.name }}" loading="lazy">
+                  <figcaption class="filename">{{ image.name }}</figcaption>
+                </figure>
+                {% endfor %}
+              </div>
+            </section>
             {% endfor %}
-          </div>
-          <div class="crop-toggle hidden">
-            <label>
-              <input type="checkbox" class="crop-checkbox">
-              Send selected image to <code>crop/</code> instead of <code>Reviewed/</code>
-            </label>
-          </div>
-        </section>
-        {% endfor %}
-      </main>
-      <footer class="page-end">
-        Re-run the script to continue with newly added images.
-      </footer>
+          </main>
+          <footer class="page-end">
+            Re-run the script to continue with newly added images.
+          </footer>
+        </div>
+        
+        <div class="action-sidebar">
+          <button class="action-btn" id="btn-img1" onclick="selectImage(0)">1</button>
+          <button class="action-btn" id="btn-img2" onclick="selectImage(1)">2</button>
+          <button class="action-btn" id="btn-img3" onclick="selectImage(2)" style="display: none;">3</button>
+          <button class="action-btn" id="btn-crop" onclick="toggleCrop()">E<br><small>Crop</small></button>
+          <button class="action-btn" id="btn-next" onclick="nextGroup()">▼<br><small>Next</small></button>
+        </div>
+      </div>
       <script>
-        const triplets = Array.from(document.querySelectorAll('section.triplet'));
+        const groups = Array.from(document.querySelectorAll('section.group'));
         const summarySelected = document.getElementById('summary-selected');
         const summaryCrop = document.getElementById('summary-crop');
         const summaryDelete = document.getElementById('summary-delete');
-        const finalizeButton = document.getElementById('finalize');
         const processBatchButton = document.getElementById('process-batch');
         const batchCount = document.getElementById('batch-count');
         const statusBox = document.getElementById('status');
-        const totalTriplets = triplets.length;
         
-        // Progressive commit state
-        let reviewBatchTriplets = new Set();
-        let lastScrollTop = 0;
-
+        let currentGroup = 0;
+        let viewportGroup = 0; // Group currently in viewport center
+        let groupStates = {}; // { groupId: { selectedImage: 0|1|2, willCrop: boolean } }
+        
         function updateSummary() {
-          let selectedCount = 0;
-          let cropCount = 0;
-          triplets.forEach(triplet => {
-            const selectedIndex = triplet.dataset.selectedIndex;
-            const cards = triplet.querySelectorAll('.image-card');
-            const cropCheckbox = triplet.querySelector('.crop-checkbox');
-            cards.forEach(card => {
-              if (selectedIndex === undefined || selectedIndex === '') {
-                card.classList.remove('selected');
-                card.classList.add('delete-hint');
-              } else if (card.dataset.imageIndex === selectedIndex) {
-                card.classList.add('selected');
-                card.classList.remove('delete-hint');
-              } else {
-                card.classList.remove('selected');
-                card.classList.add('delete-hint');
-              }
-            });
-            if (selectedIndex !== undefined && selectedIndex !== '') {
-              selectedCount += 1;
-              if (cropCheckbox.checked) {
-                cropCount += 1;
-              }
-            }
-          });
-          summarySelected.textContent = selectedCount.toString();
-          summaryCrop.textContent = cropCount.toString();
-          summaryDelete.textContent = (totalTriplets - selectedCount).toString();
+          const selectedCount = Object.keys(groupStates).length;
+          const cropCount = Object.values(groupStates).filter(state => state.willCrop).length;
+          const deleteCount = groups.length - selectedCount;
           
-          // Update batch count
-          batchCount.textContent = reviewBatchTriplets.size.toString();
+          summarySelected.textContent = selectedCount;
+          summaryCrop.textContent = cropCount;
+          summaryDelete.textContent = Math.max(0, deleteCount);
+          batchCount.textContent = selectedCount;
         }
         
-        function updateViewportBatch() {
-          const viewportTop = window.scrollY;
-          const viewportBottom = viewportTop + window.innerHeight;
-          const buffer = 100; // Add some buffer for smooth transitions
+        function updateViewportGroup() {
+          const viewportCenter = window.scrollY + window.innerHeight / 2;
+          let closestGroup = 0;
+          let closestDistance = Infinity;
           
-          triplets.forEach((triplet, index) => {
-            const rect = triplet.getBoundingClientRect();
-            const elementTop = rect.top + window.scrollY;
-            const elementBottom = elementTop + rect.height;
+          groups.forEach((group, index) => {
+            const rect = group.getBoundingClientRect();
+            const groupCenter = rect.top + window.scrollY + rect.height / 2;
+            const distance = Math.abs(groupCenter - viewportCenter);
             
-            // Check if element is in or has been in viewport
-            if (elementTop < viewportBottom + buffer && elementBottom > viewportTop - buffer) {
-              if (!reviewBatchTriplets.has(index)) {
-                reviewBatchTriplets.add(index);
-                triplet.classList.add('in-batch');
-                // If user has made a selection, mark as reviewed
-                if (triplet.dataset.selectedIndex !== undefined && triplet.dataset.selectedIndex !== '') {
-                  triplet.classList.add('reviewed');
-                  triplet.classList.remove('in-batch');
-                }
-              }
+            if (distance < closestDistance) {
+              closestDistance = distance;
+              closestGroup = index;
             }
           });
           
-          updateSummary();
+          viewportGroup = closestGroup;
+          updateButtonStates();
         }
-
-        triplets.forEach(triplet => {
-          const cards = triplet.querySelectorAll('.image-card');
-          const cropToggle = triplet.querySelector('.crop-toggle');
-          const cropCheckbox = triplet.querySelector('.crop-checkbox');
-          cards.forEach(card => {
-            card.addEventListener('click', () => {
-              const current = triplet.dataset.selectedIndex;
-              const idx = card.dataset.imageIndex;
-              if (current === idx) {
-                delete triplet.dataset.selectedIndex;
-                cropCheckbox.checked = false;
-                cropToggle.classList.add('hidden');
-              } else {
-                triplet.dataset.selectedIndex = idx;
-                cropToggle.classList.remove('hidden');
+        
+        function updateButtonStates() {
+          if (viewportGroup >= groups.length) return;
+          
+          const group = groups[viewportGroup];
+          const groupId = group.dataset.groupId;
+          const state = groupStates[groupId];
+          const imageCount = group.querySelectorAll('.image-card').length;
+          
+          // Show/hide image buttons based on pair vs triplet
+          document.getElementById('btn-img1').style.display = 'block';
+          document.getElementById('btn-img2').style.display = 'block';
+          document.getElementById('btn-img3').style.display = imageCount >= 3 ? 'block' : 'none';
+          
+          // Reset button states
+          document.querySelectorAll('.action-btn').forEach(btn => {
+            btn.classList.remove('crop-active', 'image-active');
+          });
+          
+          if (state) {
+            // Highlight selected image button
+            if (state.selectedImage !== undefined) {
+              const imageButton = document.getElementById(`btn-img${state.selectedImage + 1}`);
+              if (imageButton) {
+                imageButton.classList.add('image-active');
               }
-              
-              // Update reviewed state for progressive commit
-              const tripletIndex = triplets.indexOf(triplet);
-              if (reviewBatchTriplets.has(tripletIndex)) {
-                if (triplet.dataset.selectedIndex !== undefined && triplet.dataset.selectedIndex !== '') {
-                  triplet.classList.add('reviewed');
-                  triplet.classList.remove('in-batch');
-                } else {
-                  triplet.classList.add('in-batch');
-                  triplet.classList.remove('reviewed');
+            }
+            
+            // Highlight crop button if active
+            if (state.willCrop) {
+              document.getElementById('btn-crop').classList.add('crop-active');
+            }
+          }
+        }
+        
+        function updateVisualState() {
+          groups.forEach((group, index) => {
+            const groupId = group.dataset.groupId;
+            const state = groupStates[groupId];
+            const isCurrentGroup = index === currentGroup;
+            
+            // Clear all visual states
+            group.querySelectorAll('.image-card').forEach(card => {
+              card.classList.remove('selected', 'delete-hint', 'crop-selected');
+            });
+            
+            if (state && state.selectedImage !== undefined) {
+              // Show selected image
+              const selectedCard = group.querySelectorAll('.image-card')[state.selectedImage];
+              if (selectedCard) {
+                selectedCard.classList.add('selected');
+                // Add crop styling if this group is marked for cropping
+                if (state.willCrop) {
+                  selectedCard.classList.add('crop-selected');
                 }
               }
               
-              updateSummary();
-            });
-          });
-          cropCheckbox.addEventListener('change', () => {
-            if (!(triplet.dataset.selectedIndex)) {
-              cropCheckbox.checked = false;
-              cropToggle.classList.add('hidden');
+              // Show delete hint on other images
+              group.querySelectorAll('.image-card').forEach((card, cardIndex) => {
+                if (cardIndex !== state.selectedImage) {
+                  card.classList.add('delete-hint');
+                }
+              });
+            } else {
+              // No selection = all images will be deleted
+              group.querySelectorAll('.image-card').forEach(card => {
+                card.classList.add('delete-hint');
+              });
             }
-            updateSummary();
+            
+            // Highlight viewport group (the one buttons will target)
+            const isViewportGroup = index === viewportGroup;
+            if (isViewportGroup) {
+              group.style.background = 'rgba(79, 157, 255, 0.1)';
+              group.style.borderColor = 'rgba(79, 157, 255, 0.3)';
+            } else {
+              group.style.background = '';
+              group.style.borderColor = '';
+            }
           });
-          updateSummary();
-        });
-
-        // Initialize viewport batch detection
-        window.addEventListener('scroll', updateViewportBatch);
-        window.addEventListener('resize', updateViewportBatch);
+        }
         
-        // Initial viewport batch update
-        updateViewportBatch();
-
+        function selectImage(imageIndex) {
+          if (viewportGroup >= groups.length) return;
+          
+          const group = groups[viewportGroup];
+          const groupId = group.dataset.groupId;
+          const imageCount = group.querySelectorAll('.image-card').length;
+          
+          if (imageIndex >= imageCount) return;
+          
+          // Update state
+          if (!groupStates[groupId]) {
+            groupStates[groupId] = { selectedImage: imageIndex, willCrop: false };
+          } else {
+            groupStates[groupId].selectedImage = imageIndex;
+          }
+          
+          // Update everything immediately
+          updateVisualState();
+          updateSummary();
+          updateButtonStates();
+        }
+        
+        function toggleCrop() {
+          if (viewportGroup >= groups.length) return;
+          
+          const group = groups[viewportGroup];
+          const groupId = group.dataset.groupId;
+          
+          if (!groupStates[groupId]) {
+            // No image selected yet, can't crop
+            return;
+          }
+          
+          groupStates[groupId].willCrop = !groupStates[groupId].willCrop;
+          
+          // Update everything immediately  
+          updateVisualState();
+          updateSummary();
+          updateButtonStates();
+        }
+        
+        function nextGroup() {
+          if (viewportGroup < groups.length - 1) {
+            viewportGroup++;
+            currentGroup = viewportGroup; // Keep in sync
+            updateVisualState();
+            updateButtonStates();
+            
+            // Scroll to current group
+            const group = groups[viewportGroup];
+            group.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+        
+        function prevGroup() {
+          if (viewportGroup > 0) {
+            viewportGroup--;
+            currentGroup = viewportGroup; // Keep in sync
+            updateVisualState();
+            updateButtonStates();
+            
+            // Scroll to current group
+            const group = groups[viewportGroup];
+            group.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+          // Ignore if user is typing in an input
+          if (e.target.matches('input, textarea, select')) return;
+          
+          switch(e.key) {
+            case '1':
+              e.preventDefault();
+              selectImage(0);
+              break;
+            case '2':
+              e.preventDefault();
+              selectImage(1);
+              break;
+            case '3':
+              e.preventDefault();
+              selectImage(2);
+              break;
+            case 'e':
+            case 'E':
+              e.preventDefault();
+              toggleCrop();
+              break;
+            case ' ':
+              e.preventDefault();
+              nextGroup();
+              break;
+            case 'ArrowUp':
+              e.preventDefault();
+              prevGroup();
+              break;
+            case 'ArrowDown':
+              e.preventDefault();
+              nextGroup();
+              break;
+          }
+        });
+        
         function setStatus(message, type = '') {
           statusBox.textContent = message;
           statusBox.className = type ? type : '';
         }
 
-        finalizeButton.addEventListener('click', async () => {
-          if (!confirm('Finalize selections? This will move/delete files immediately.')) {
-            return;
-          }
-          finalizeButton.disabled = true;
-          setStatus('Processing…');
-          const selections = triplets.map(triplet => {
-            const selectedIndex = triplet.dataset.selectedIndex;
-            const cropCheckbox = triplet.querySelector('.crop-checkbox');
-            return {
-              tripletId: Number(triplet.dataset.tripletId),
-              selectedIndex: selectedIndex === undefined ? null : Number(selectedIndex),
-              crop: selectedIndex === undefined ? false : cropCheckbox.checked,
-            };
-          });
-          try {
-          const response = await fetch('/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ selections, batch_mode: false }),
-            });
-            const payload = await response.json();
-            if (!response.ok || payload.status !== 'ok') {
-              throw new Error(payload.message || 'Server error');
-            }
-            setStatus(payload.message, 'success');
-            finalizeButton.disabled = true;
-            finalizeButton.textContent = 'Selections applied';
-          } catch (error) {
-            console.error(error);
-            finalizeButton.disabled = false;
-            setStatus(error.message || 'Unable to finalize selections', 'error');
-          }
-        });
-
         processBatchButton.addEventListener('click', async () => {
-          const batchTriplets = Array.from(reviewBatchTriplets).map(index => triplets[index]);
-          
-          if (batchTriplets.length === 0) {
-            setStatus('No triplets in current batch to process', 'error');
+          if (Object.keys(groupStates).length === 0) {
+            setStatus('No groups selected in current batch to process', 'error');
             return;
           }
           
-          if (!confirm(`Process current batch of ${batchTriplets.length} triplets? This will move/delete files immediately.`)) {
+          if (!confirm(`Process current batch of ${Object.keys(groupStates).length} selected groups? This will move/delete files immediately.`)) {
             return;
           }
           
           processBatchButton.disabled = true;
           setStatus('Processing batch…');
           
-          const batchSelections = batchTriplets.map(triplet => {
-            const selectedIndex = triplet.dataset.selectedIndex;
-            const cropCheckbox = triplet.querySelector('.crop-checkbox');
+          // For batch processing, only send selections for current batch groups
+          const selections = groups.map(group => {
+            const groupId = parseInt(group.dataset.groupId);
+            const state = groupStates[groupId];
             return {
-              tripletId: parseInt(triplet.dataset.tripletId),
-              selectedIndex: selectedIndex ? parseInt(selectedIndex) : null,
-              crop: cropCheckbox ? cropCheckbox.checked : false
+              groupId: groupId,
+              selectedIndex: state ? state.selectedImage : null,
+              crop: state ? state.willCrop : false,
             };
           });
           
@@ -920,37 +1060,48 @@ def build_app(
             const response = await fetch('/submit', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ selections: batchSelections, batch_mode: true })
+              body: JSON.stringify({ selections: selections, batch_mode: true })
             });
             const payload = await response.json();
             if (!response.ok) {
               throw new Error(payload.message || 'Server error');
             }
             
-            // Remove processed triplets from DOM and batch set
-            batchTriplets.forEach((triplet, i) => {
-              const index = triplets.indexOf(triplet);
-              reviewBatchTriplets.delete(index);
-              triplet.remove();
-              triplets.splice(index, 1);
-            });
-            
-            // Re-index remaining triplets
-            triplets.forEach((triplet, newIndex) => {
-              triplet.querySelector('.triplet-header span').textContent = 
-                `Triplet ${newIndex + 1} / ${triplets.length}`;
-            });
-            
             setStatus(`Batch processed! ${payload.moved || 0} moved, ${payload.deleted || 0} deleted`, 'success');
-            processBatchButton.disabled = false;
             
-            if (triplets.length === 0) {
-              setStatus('All triplets processed! 🎉', 'success');
-              processBatchButton.textContent = 'All Complete';
-              processBatchButton.disabled = true;
+            // Check if this batch is complete and auto-advance
+            if (payload.remaining === 0) {
+              // Batch is empty, check for next batch
+              setTimeout(async () => {
+                try {
+                  const nextResponse = await fetch('/next-batch', { method: 'POST' });
+                  const nextResult = await nextResponse.json();
+                  
+                  if (nextResult.status === 'success') {
+                    // Switch to next batch
+                    const switchResponse = await fetch('/switch-batch/' + nextResult.next_batch);
+                    const switchResult = await switchResponse.json();
+                    
+                    if (switchResult.status === 'success') {
+                      window.scrollTo(0, 0); // Scroll to top before reload
+                      window.location.reload();
+                    }
+                  } else if (nextResult.status === 'complete') {
+                    setStatus('All batches processed! 🎉', 'success');
+                  }
+                } catch (error) {
+                  // Fallback to simple reload
+                  window.scrollTo(0, 0); // Scroll to top before reload
+                  window.location.reload();
+                }
+              }, 1000);
+            } else {
+              // Still have groups in current batch, just reload
+              setTimeout(() => {
+                window.scrollTo(0, 0); // Scroll to top before reload
+                window.location.reload();
+              }, 1000);
             }
-            
-            updateSummary();
             
           } catch (error) {
             console.error(error);
@@ -958,23 +1109,163 @@ def build_app(
             setStatus(error.message || 'Unable to process batch', 'error');
           }
         });
+        
+        // Add scroll listener for viewport detection
+        window.addEventListener('scroll', updateViewportGroup);
+        window.addEventListener('resize', updateViewportGroup);
+        
+        // Initialize
+        updateViewportGroup(); // Detect initial viewport group
+        updateVisualState();
+        updateSummary();
+        
+        // Scroll to first group
+        if (groups.length > 0) {
+          groups[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       </script>
+    </body>
+    </html>
+    """
+
+    AUTO_ADVANCE_TEMPLATE = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Batch Complete - Auto Advance</title>
+      <style>
+        :root { color-scheme: dark; --bg: #101014; --surface: #1a1a20; --accent: #4f9dff; }
+        body { font-family: system-ui; background: var(--bg); color: white; text-align: center; padding: 4rem; }
+        .container { max-width: 600px; margin: 0 auto; }
+        h1 { color: var(--accent); margin-bottom: 2rem; }
+        .info { background: var(--surface); padding: 2rem; border-radius: 12px; margin: 2rem 0; }
+        button { background: var(--accent); color: white; border: none; padding: 1rem 2rem; border-radius: 8px; font-size: 1.1rem; cursor: pointer; margin: 0.5rem; }
+        button:hover { opacity: 0.9; }
+        .timer { font-size: 1.2rem; margin: 1rem 0; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>✅ Batch {{ current_batch }} Complete!</h1>
+        <div class="info">
+          <p>Batch {{ current_batch }} of {{ total_batches }} finished.</p>
+          <p>Ready to advance to <strong>Batch {{ next_batch }}</strong>?</p>
+          <div class="timer">Auto-advancing in <span id="countdown">10</span> seconds...</div>
+        </div>
+        <button onclick="advanceNow()">Go Now</button>
+        <button onclick="skipToNextBatch()">Next Batch</button>
+      </div>
+      
+      <script>
+        let countdown = 10;
+        const timer = setInterval(() => {
+          countdown--;
+          document.getElementById('countdown').textContent = countdown;
+          if (countdown <= 0) {
+            advanceNow();
+          }
+        }, 1000);
+        
+        async function advanceNow() {
+          clearInterval(timer);
+          try {
+            const response = await fetch('/switch-batch/{{ next_batch }}');
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+              window.location.reload();
+            } else {
+              alert('Error switching batches: ' + result.message);
+            }
+          } catch (error) {
+            alert('Error advancing to next batch: ' + error.message);
+          }
+        }
+        
+        async function skipToNextBatch() {
+          try {
+            const response = await fetch('/next-batch', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'}
+            });
+            
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+              const switchResponse = await fetch('/switch-batch/' + result.next_batch);
+              const switchResult = await switchResponse.json();
+              
+              if (switchResult.status === 'success') {
+                window.location.reload();
+              } else {
+                alert('Error switching to next batch: ' + switchResult.message);
+              }
+            } else if (result.status === 'complete') {
+              alert('All batches have been processed!');
+            } else {
+              alert('Error: ' + result.message);
+            }
+          } catch (error) {
+            alert('Error getting next batch: ' + error.message);
+          }
+        }
+      </script>
+    </body>
+    </html>
+    """
+
+    COMPLETION_TEMPLATE = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <title>All Batches Complete</title>
+      <style>
+        :root { color-scheme: dark; --bg: #101014; --surface: #1a1a20; --success: #51cf66; }
+        body { font-family: system-ui; background: var(--bg); color: white; text-align: center; padding: 4rem; }
+        h1 { color: var(--success); }
+      </style>
+    </head>
+    <body>
+      <h1>🎉 All Batches Complete!</h1>
+      <p>Image selection finished for all groups.</p>
     </body>
     </html>
     """
 
     @app.route("/")
     def index():
+        batch_info = app.config["BATCH_INFO"]
+        current_groups = app.config["GROUP_PAYLOAD"]
+        
+        # Check if batch is complete and handle auto-advance
+        if not current_groups:
+            # Batch is empty, check for next batch
+            if batch_info["current_batch"] < batch_info["total_batches"]:
+                # Show auto-advance screen
+                next_batch_num = batch_info["current_batch"] + 1
+                return render_template_string(AUTO_ADVANCE_TEMPLATE, 
+                                            next_batch=next_batch_num,
+                                            current_batch=batch_info["current_batch"],
+                                            total_batches=batch_info["total_batches"])
+            else:
+                # All batches complete
+                return render_template_string(COMPLETION_TEMPLATE)
+        
         return render_template_string(
             page_template,
-            triplets=app.config["TRIPLET_PAYLOAD"],
-            total_triplets=len(triplets),
+            groups=current_groups,
+            total_groups=batch_info["total_groups"],
+            batch_info=batch_info,
         )
 
-    @app.route("/image/<int:triplet_id>/<int:image_index>")
-    def serve_image(triplet_id: int, image_index: int):
+    @app.route("/image/<int:group_id>/<int:image_index>")
+    def serve_image(group_id: int, image_index: int):
         try:
-            record: TripletRecord = app.config["TRIPLETS"][triplet_id]
+            # group_id is global index, resolve from ALL_GROUPS
+            record: GroupRecord = app.config["ALL_GROUPS"][group_id]
             path = record.paths[image_index]
         except (IndexError, KeyError):
             return Response(status=404)
@@ -1003,9 +1294,21 @@ def build_app(
         if not isinstance(selections, list):
             return jsonify({"status": "error", "message": "Selection payload missing or invalid."}), 400
         
-        # In batch mode, we only process a subset of triplets
-        if not batch_mode and len(selections) != len(triplets):
-            return jsonify({"status": "error", "message": "Selection payload missing or invalid."}), 400
+        # Only batch mode is supported now (finalize mode removed for safety)
+        current_groups = app.config["GROUPS"]
+        all_groups = app.config["ALL_GROUPS"]
+        
+        if not batch_mode:
+            return jsonify({"status": "error", "message": "Only batch processing is supported."}), 400
+            
+        # For batch processing, expect selections for current batch only
+        expected_count = len(current_groups)
+            
+        if len(selections) != expected_count:
+            return jsonify({
+                "status": "error", 
+                "message": f"Selection payload missing or invalid. Expected {expected_count}, got {len(selections)}."
+            }), 400
 
         tracker: FileTracker = app.config["TRACKER"]
         base_folder: Path = app.config["BASE_FOLDER"]
@@ -1016,12 +1319,19 @@ def build_app(
         crop_count = 0
 
         try:
-            for selection in selections:
-                triplet_id = selection.get("tripletId")
+            for i, selection in enumerate(selections):
+                group_id = selection.get("groupId")
                 try:
-                    record: TripletRecord = app.config["TRIPLETS"][triplet_id]
+                    # For batch mode, group_id is global but we need to find it in current batch
+                    record = None
+                    for group_record in current_groups:
+                        if group_record.index == group_id:
+                            record = group_record
+                            break
+                    if record is None:
+                        raise ValueError(f"Group id {group_id} not found in current batch")
                 except (TypeError, KeyError, IndexError):
-                    raise ValueError(f"Invalid triplet id: {triplet_id}")
+                    raise ValueError(f"Invalid group id: {group_id}")
 
                 selected_index = selection.get("selectedIndex")
                 crop_flag = bool(selection.get("crop"))
@@ -1031,8 +1341,9 @@ def build_app(
                     write_log(log_path, "delete_all", None, list(record.paths))
                     continue
 
-                if not isinstance(selected_index, int) or selected_index not in (0, 1, 2):
-                    raise ValueError(f"Invalid selection index for triplet {triplet_id}")
+                max_index = len(record.paths) - 1
+                if not isinstance(selected_index, int) or selected_index < 0 or selected_index > max_index:
+                    raise ValueError(f"Invalid selection index for group {group_id}")
 
                 selected_path = record.paths[selected_index]
                 others = [p for idx, p in enumerate(record.paths) if idx != selected_index]
@@ -1049,29 +1360,87 @@ def build_app(
                 write_log(log_path, action_label, target_path, others)
                 kept_count += 1
 
-            if not batch_mode:
-                app.config["PROCESSED"] = True
         except Exception as exc:
             return jsonify({"status": "error", "message": str(exc)}), 500
 
         deleted_count = len(selections) - kept_count
         
-        if batch_mode:
-            message = f"Batch processed — kept {kept_count}, sent {crop_count} to crop/, deleted {deleted_count}."
+        # Remove ALL processed groups from current batch (both selected and deleted)
+        processed_group_ids = [s.get("groupId") for s in selections]
+        remaining_groups = [group for group in app.config["GROUPS"] if group.index not in processed_group_ids]
+        app.config["GROUPS"] = remaining_groups
+        app.config["GROUP_PAYLOAD"] = [record.as_payload(total=len(app.config["ALL_GROUPS"])) for record in remaining_groups]
+        
+        # Update batch info
+        batch_info = app.config["BATCH_INFO"]
+        batch_info["current_batch_size"] = len(remaining_groups)
+        
+        message = f"Batch processed — kept {kept_count}, sent {crop_count} to crop/, deleted {deleted_count}."
+        return jsonify({
+            "status": "ok", 
+            "message": message,
+            "moved": kept_count,
+            "deleted": deleted_count,
+            "remaining": len(remaining_groups)
+        })
+
+    @app.route("/switch-batch/<int:batch_num>")
+    def switch_batch(batch_num):
+        """Switch to a new batch without restarting the server."""
+        batch_info = app.config["BATCH_INFO"]
+        all_groups = app.config["ALL_GROUPS"]
+        
+        if batch_num < 1 or batch_num > batch_info["total_batches"]:
+            return jsonify({"status": "error", "message": f"Invalid batch number {batch_num}"}), 404
+        
+        # Calculate new batch boundaries
+        batch_size = batch_info["batch_size"]
+        new_batch_start = (batch_num - 1) * batch_size
+        new_batch_end = min(new_batch_start + batch_size, len(all_groups))
+        new_batch_groups = all_groups[new_batch_start:new_batch_end]
+        new_batch_payload = [record.as_payload(total=len(all_groups)) for record in new_batch_groups]
+        
+        # Update batch info
+        new_batch_info = {
+            "current_batch": batch_num,
+            "total_batches": batch_info["total_batches"],
+            "batch_start": new_batch_start,
+            "batch_end": new_batch_end,
+            "batch_size": batch_size,
+            "total_groups": len(all_groups),
+            "current_batch_size": len(new_batch_groups)
+        }
+        
+        # Update app config with new batch
+        app.config["GROUPS"] = new_batch_groups
+        app.config["GROUP_PAYLOAD"] = new_batch_payload
+        app.config["BATCH_INFO"] = new_batch_info
+        
+        return jsonify({
+            "status": "success", 
+            "message": f"Switched to batch {batch_num}",
+            "group_count": len(new_batch_groups),
+            "batch": batch_num,
+            "total_batches": new_batch_info["total_batches"]
+        })
+
+    @app.route("/next-batch", methods=["POST"])
+    def next_batch():
+        """Get the next batch for auto-advance."""
+        batch_info = app.config["BATCH_INFO"]
+        
+        if batch_info["current_batch"] < batch_info["total_batches"]:
+            # More batches available
+            next_batch_num = batch_info["current_batch"] + 1
             return jsonify({
-                "status": "ok", 
-                "message": message,
-                "moved": kept_count,
-                "deleted": deleted_count
+                "status": "success", 
+                "next_batch": next_batch_num,
+                "current_batch": batch_info["current_batch"],
+                "total_batches": batch_info["total_batches"]
             })
         else:
-            message = (
-                f"Processed {len(triplets)} triplets — kept {kept_count}, "
-                f"sent {crop_count} to crop/, deleted {deleted_count}."
-            )
-            threading.Thread(target=process_shutdown, daemon=True).start()
-            return jsonify({"status": "ok", "message": message})
-
+            # All batches complete
+            return jsonify({"status": "complete", "message": "All batches processed"})
     return app
 
 
@@ -1094,9 +1463,11 @@ def main() -> None:
     parser.add_argument("--exts", type=str, default="png", help="Comma-separated list of extensions to include")
     parser.add_argument("--print-triplets", action="store_true", help="Print grouped triplets and exit")
     parser.add_argument("--hard-delete", action="store_true", help="Permanently delete files instead of send2trash")
+    parser.add_argument("--batch-size", type=int, default=50, help="Number of groups to process per batch (default: 50)")
     parser.add_argument("--host", default="127.0.0.1", help="Host/IP for the local web server")
     parser.add_argument("--port", type=int, default=5000, help="Port for the local web server")
     parser.add_argument("--no-browser", action="store_true", help="Do not auto-open the browser")
+    parser.add_argument("--no-recursive", action="store_true", help="Do not scan subdirectories recursively")
     args = parser.parse_args()
 
     folder = Path(args.folder).expanduser().resolve()
@@ -1107,22 +1478,26 @@ def main() -> None:
     tracker = FileTracker("image_version_selector")
 
     exts = [ext.strip() for ext in args.exts.split(",") if ext.strip()]
-    files = scan_images(folder, exts)
+    recursive = not args.no_recursive
+    files = scan_images(folder, exts, recursive)
     if not files:
         human_err("No images found. Check --exts or folder path.")
         sys.exit(1)
 
-    triplet_paths = find_triplets(files)
-    if not triplet_paths:
-        human_err("No triplets found with the current grouping. Try adjusting filenames or timestamps.")
+    group_paths = find_flexible_groups(files)
+    if not group_paths:
+        human_err("No groups found with the current grouping. Try adjusting filenames or timestamps.")
         sys.exit(1)
 
     if args.print_triplets:
-        for idx, triplet in enumerate(triplet_paths, 1):
-            print(f"\nTriplet {idx}:")
-            for path in triplet:
+        for idx, group in enumerate(group_paths, 1):
+            group_type = "Triplet" if len(group) == 3 else "Pair"
+            print(f"\n{group_type} {idx}:")
+            for path in group:
                 print("  -", path.name)
-        print(f"\nTotal triplets: {len(triplet_paths)}")
+        triplet_count = sum(1 for group in group_paths if len(group) == 3)
+        pair_count = sum(1 for group in group_paths if len(group) == 2)
+        print(f"\nTotal: {triplet_count} triplets, {pair_count} pairs ({len(group_paths)} groups)")
         return
 
     if not args.hard_delete and not _SEND2TRASH_AVAILABLE:
@@ -1130,26 +1505,31 @@ def main() -> None:
         human_err("Or rerun with --hard-delete to permanently delete files (dangerous).")
         sys.exit(1)
 
-    records: List[TripletRecord] = []
-    for idx, triplet in enumerate(triplet_paths):
-        first_parent = triplet[0].parent
+    records: List[GroupRecord] = []
+    for idx, group in enumerate(group_paths):
+        first_parent = group[0].parent
         try:
             relative = str(first_parent.relative_to(folder))
         except ValueError:
             relative = str(first_parent)
         records.append(
-            TripletRecord(
+            GroupRecord(
                 index=idx,
-                paths=triplet,
+                paths=group,
                 relative_dir=relative if relative != "." else "",
             )
         )
 
     log_path = folder / "triplet_culler_log.csv"
-    app = build_app(records, folder, tracker, log_path, hard_delete=args.hard_delete)
+    app = build_app(records, folder, tracker, log_path, hard_delete=args.hard_delete, batch_size=args.batch_size)
 
+    # Calculate batch info for logging
+    total_groups = len(records)
+    total_batches = (total_groups + args.batch_size - 1) // args.batch_size
+    first_batch_size = min(args.batch_size, total_groups)
+    
     url = f"http://{args.host}:{args.port}"
-    info(f"Found {len(records)} triplets. Launching browser UI at {url}")
+    info(f"Found {total_groups} groups. Starting with batch 1/{total_batches} ({first_batch_size} groups). Launching browser UI at {url}")
     info("Use CTRL+C to stop the server after it reports that processing is complete.")
 
     if not args.no_browser:

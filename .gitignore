@@ -28,6 +28,13 @@ temp_*
 *_files.txt
 recover_images.py
 
+# Test Data (keep manifests, ignore generated data)
+scripts/tests/data/test_images*/
+scripts/tests/data/test_subdirs*/
+
+# Memory system files (user session data)
+memory/
+
 # Image Processing Working Directories
 _CONTENT/
 XXX_CONTENT/
