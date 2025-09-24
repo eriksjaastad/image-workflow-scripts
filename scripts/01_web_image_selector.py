@@ -240,8 +240,14 @@ def find_flexible_groups(files: List[Path]) -> List[Tuple[Path, ...]]:
     """Find groups by detecting stage number decreases (new group when stage < previous stage)."""
     groups: List[Tuple[Path, ...]] = []
     
-    # Sort all files by filename to maintain chronological order
-    sorted_files = sorted(files, key=lambda x: x.name)
+    # Sort by timestamp first, then stage order, then name (ChatGPT recommendation)
+    def sort_key(path):
+        timestamp = extract_timestamp(path.name) or "99999999_999999"
+        stage = detect_stage(path.name)
+        stage_num = get_stage_number(stage)
+        return (timestamp, stage_num, path.name)
+    
+    sorted_files = sorted(files, key=sort_key)
     
     if not sorted_files:
         return groups
@@ -256,8 +262,8 @@ def find_flexible_groups(files: List[Path]) -> List[Tuple[Path, ...]]:
             
         stage_num = get_stage_number(stage)
         
-        # If this is the first file or stage decreased, start a new group
-        if prev_stage_num is None or (stage_num < prev_stage_num and current_group):
+        # If this is the first file or stage equal/decreased, start a new group
+        if prev_stage_num is None or (stage_num <= prev_stage_num and current_group):
             # Finish current group if it exists and has enough files
             if current_group and len(current_group) >= 2:
                 groups.append(tuple(current_group))
@@ -272,7 +278,17 @@ def find_flexible_groups(files: List[Path]) -> List[Tuple[Path, ...]]:
     if len(current_group) >= 2:
         groups.append(tuple(current_group))
     
-    return groups
+    # Filter out orphan groups (no ascending stage progression)
+    filtered_groups = []
+    for group in groups:
+        # Check if group has ascending stage progression
+        stage_nums = [get_stage_number(detect_stage(f.name)) for f in group]
+        has_progression = any(stage_nums[i] < stage_nums[i+1] for i in range(len(stage_nums)-1))
+        
+        if has_progression:
+            filtered_groups.append(group)
+    
+    return filtered_groups
 
 
 def safe_delete(paths: Iterable[Path], hard_delete: bool = False, tracker: Optional[FileTracker] = None) -> None:
@@ -491,33 +507,26 @@ def build_app(
           flex: 1;
           overflow-y: auto;
         }
-        .action-sidebar {
-          width: 120px;
-          background: var(--surface-alt);
-          border-left: 1px solid rgba(255,255,255,0.1);
-          position: fixed;
-          right: 0;
-          top: 0;
-          bottom: 0;
+        .row-buttons {
           display: flex;
           flex-direction: column;
-          justify-content: center;
-          padding: 2rem 1rem;
-          gap: 0.5rem;
-          z-index: 200;
+          gap: 0.3rem;
+          margin-left: 1rem;
+          align-self: center;
         }
         .action-btn {
-          padding: 0.75rem;
+          padding: 0.5rem;
           background: var(--surface);
           border: 2px solid rgba(255,255,255,0.1);
-          border-radius: 8px;
+          border-radius: 6px;
           color: white;
-          font-size: 0.9rem;
+          font-size: 0.8rem;
           font-weight: 600;
           cursor: pointer;
           transition: all 0.2s ease;
           text-align: center;
-          min-height: 40px;
+          min-height: 32px;
+          min-width: 32px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -528,8 +537,8 @@ def build_app(
           transform: translateY(-1px);
         }
         .action-btn.crop-active {
-          background: var(--warning);
-          border-color: var(--warning);
+          background: white;
+          border-color: white;
           color: black;
         }
         .action-btn.image-active {
@@ -551,7 +560,7 @@ def build_app(
           top: 0;
           z-index: 150;
           left: 0;
-          right: 120px; /* Account for sidebar */
+          right: 0;
           box-shadow: 0 2px 8px rgba(0,0,0,0.3);
           margin-bottom: 1rem;
           display: flex;
@@ -620,11 +629,11 @@ def build_app(
         #status.success { color: #4dd78a; }
         #status.error { color: var(--danger); }
         main {
-          padding: 120px 140px 1rem 1rem; /* Add top padding for fixed header */
+          padding: 120px 1rem 1rem 1rem;
           display: flex;
           flex-direction: column;
           gap: 0.5rem;
-          max-width: 1600px;
+          max-width: 1800px;
           margin: 0 auto;
         }
         section.group {
@@ -660,10 +669,8 @@ def build_app(
           color: rgba(255,255,255,0.6);
         }
         .image-row {
-          display: grid;
-          grid-auto-flow: column;           /* columns = number of items */
-          grid-auto-columns: 1fr;           /* equal widths */
-          justify-content: center;          /* centers pairs */
+          display: flex;
+          align-items: center;
           gap: 0.5rem;
           padding: 0.5rem;
           margin-bottom: 0.25rem;
@@ -671,6 +678,14 @@ def build_app(
           border-radius: 8px;
           border: 2px solid transparent;
           transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .images-container {
+          display: grid;
+          grid-auto-flow: column;
+          grid-auto-columns: 1fr;
+          justify-content: center;
+          gap: 0.5rem;
+          flex: 1;
         }
         figure.image-card {
           margin: 0;
@@ -747,122 +762,101 @@ def build_app(
     <body>
       <div class="main-layout">
         <div class="content-area">
-          <header class="toolbar">
-            <div>
-              <h1>Image version selector</h1>
-              <p>Use right sidebar or keys: 1,2,3 (select) • E (crop) • Space (next)</p>
-            </div>
-            <div class="summary" id="summary">
-              <span>Selected: <strong id="summary-selected">0</strong></span>
-              <span>To crop: <strong id="summary-crop">0</strong></span>
+      <header class="toolbar">
+        <div>
+          <h1>Image version selector</h1>
+              <p>Use right sidebar or keys: 1,2,3 (select) • Q,W,E (select+crop) • Enter (next)</p>
+        </div>
+        <div class="summary" id="summary">
+          <span>Selected: <strong id="summary-selected">0</strong></span>
+          <span>To crop: <strong id="summary-crop">0</strong></span>
+          <span>Skipped: <strong id="summary-skipped">0</strong></span>
               <span>Deleting: <strong id="summary-delete">{{ groups|length }}</strong></span>
-            </div>
-            <button id="process-batch" class="process-batch">Process Current Batch</button>
-            <div id="batch-info" class="batch-info">
+        </div>
+        <button id="process-batch" class="process-batch">Process Current Batch</button>
+        <div id="batch-info" class="batch-info">
               <span>Batch {{ batch_info.current_batch }}/{{ batch_info.total_batches }}: <strong id="batch-count">{{ batch_info.current_batch_size }}</strong> groups</span>
-            </div>
-            <div id="status"></div>
-          </header>
-          <main>
+        </div>
+        <div id="status"></div>
+      </header>
+      <main>
             {% for group in groups %}
             <section class="group" data-group-id="{{ group.id }}" id="group-{{ group.id }}">
               <header class="group-header">
                 <span>{% if group.images|length == 3 %}Triplet{% else %}Pair{% endif %} {{ group.display_index }} / {{ total_groups }}</span>
                 {% if group.relative_dir %}
                 <span class="location">{{ group.relative_dir }}</span>
-                {% endif %}
-              </header>
-              <div class="image-row">
-                {% for image in group.images %}
-                <figure class="image-card" data-image-index="{{ image.index }}">
-                  <div class="stage">{{ image.stage }}</div>
-                  <img src="{{ image.src }}" alt="{{ image.name }}" loading="lazy">
-                  <figcaption class="filename">{{ image.name }}</figcaption>
-                </figure>
-                {% endfor %}
-              </div>
-            </section>
+            {% endif %}
+          </header>
+          <div class="image-row">
+            <div class="images-container">
+                  {% for image in group.images %}
+              <figure class="image-card" data-image-index="{{ image.index }}" onclick="handleImageClick(this)">
+              <div class="stage">{{ image.stage }}</div>
+              <img src="{{ image.src }}" alt="{{ image.name }}" loading="lazy">
+              <figcaption class="filename">{{ image.name }}</figcaption>
+            </figure>
             {% endfor %}
-          </main>
-          <footer class="page-end">
-            Re-run the script to continue with newly added images.
-          </footer>
-        </div>
-        
-        <div class="action-sidebar">
-          <button class="action-btn" id="btn-img1" onclick="selectImage(0)">1</button>
-          <button class="action-btn" id="btn-img2" onclick="selectImage(1)">2</button>
-          <button class="action-btn" id="btn-img3" onclick="selectImage(2)" style="display: none;">3</button>
-          <button class="action-btn" id="btn-crop" onclick="toggleCrop()">E<br><small>Crop</small></button>
-          <button class="action-btn" id="btn-next" onclick="nextGroup()">▼<br><small>Next</small></button>
+          </div>
+            <div class="row-buttons">
+              <button class="action-btn row-btn-1" onclick="selectImage(0, '{{ group.id }}')">1</button>
+              <button class="action-btn row-btn-2" onclick="selectImage(1, '{{ group.id }}')">2</button>
+              {% if group.images|length >= 3 %}
+              <button class="action-btn row-btn-3" onclick="selectImage(2, '{{ group.id }}')">3</button>
+              {% endif %}
+              <button class="action-btn row-btn-crop" onclick="toggleCrop('{{ group.id }}')">E</button>
+              <button class="action-btn row-btn-next" onclick="nextGroup()">▼</button>
+            </div>
+          </div>
+        </section>
+        {% endfor %}
+      </main>
+      <footer class="page-end">
+        Re-run the script to continue with newly added images.
+      </footer>
         </div>
       </div>
       <script>
         const groups = Array.from(document.querySelectorAll('section.group'));
         const summarySelected = document.getElementById('summary-selected');
         const summaryCrop = document.getElementById('summary-crop');
+        const summarySkipped = document.getElementById('summary-skipped');
         const summaryDelete = document.getElementById('summary-delete');
         const processBatchButton = document.getElementById('process-batch');
         const batchCount = document.getElementById('batch-count');
         const statusBox = document.getElementById('status');
         
-        let currentGroup = 0;
-        let viewportGroup = 0; // Group currently in viewport center
-        let groupStates = {}; // { groupId: { selectedImage: 0|1|2, willCrop: boolean } }
-        
+        let groupStates = {}; // { groupId: { selectedImage: 0|1|2, willCrop: boolean, skipped: boolean } }
+
         function updateSummary() {
-          const selectedCount = Object.keys(groupStates).length;
-          const cropCount = Object.values(groupStates).filter(state => state.willCrop).length;
-          const deleteCount = groups.length - selectedCount;
+          const selectedCount = Object.values(groupStates).filter(state => state.selectedImage !== undefined && !state.skipped).length;
+          const cropCount = Object.values(groupStates).filter(state => state.willCrop && !state.skipped).length;
+          const skippedCount = Object.values(groupStates).filter(state => state.skipped).length;
+          const deleteCount = groups.length - selectedCount - skippedCount;
           
           summarySelected.textContent = selectedCount;
           summaryCrop.textContent = cropCount;
+          summarySkipped.textContent = skippedCount;
           summaryDelete.textContent = Math.max(0, deleteCount);
           batchCount.textContent = selectedCount;
         }
         
-        function updateViewportGroup() {
-          const viewportCenter = window.scrollY + window.innerHeight / 2;
-          let closestGroup = 0;
-          let closestDistance = Infinity;
+        function updateButtonStates(groupId) {
+          const group = document.querySelector(`section.group[data-group-id="${groupId}"]`);
+          if (!group) return;
           
-          groups.forEach((group, index) => {
-            const rect = group.getBoundingClientRect();
-            const groupCenter = rect.top + window.scrollY + rect.height / 2;
-            const distance = Math.abs(groupCenter - viewportCenter);
-            
-            if (distance < closestDistance) {
-              closestDistance = distance;
-              closestGroup = index;
-            }
-          });
-          
-          viewportGroup = closestGroup;
-          updateButtonStates();
-        }
-        
-        function updateButtonStates() {
-          if (viewportGroup >= groups.length) return;
-          
-          const group = groups[viewportGroup];
-          const groupId = group.dataset.groupId;
           const state = groupStates[groupId];
           const imageCount = group.querySelectorAll('.image-card').length;
           
-          // Show/hide image buttons based on pair vs triplet
-          document.getElementById('btn-img1').style.display = 'block';
-          document.getElementById('btn-img2').style.display = 'block';
-          document.getElementById('btn-img3').style.display = imageCount >= 3 ? 'block' : 'none';
-          
-          // Reset button states
-          document.querySelectorAll('.action-btn').forEach(btn => {
+          // Reset button states for this group
+          group.querySelectorAll('.action-btn').forEach(btn => {
             btn.classList.remove('crop-active', 'image-active');
           });
           
           if (state) {
             // Highlight selected image button
             if (state.selectedImage !== undefined) {
-              const imageButton = document.getElementById(`btn-img${state.selectedImage + 1}`);
+              const imageButton = group.querySelector(`.row-btn-${state.selectedImage + 1}`);
               if (imageButton) {
                 imageButton.classList.add('image-active');
               }
@@ -870,7 +864,10 @@ def build_app(
             
             // Highlight crop button if active
             if (state.willCrop) {
-              document.getElementById('btn-crop').classList.add('crop-active');
+              const cropButton = group.querySelector('.row-btn-crop');
+              if (cropButton) {
+                cropButton.classList.add('crop-active');
+              }
             }
           }
         }
@@ -879,14 +876,16 @@ def build_app(
           groups.forEach((group, index) => {
             const groupId = group.dataset.groupId;
             const state = groupStates[groupId];
-            const isCurrentGroup = index === currentGroup;
             
             // Clear all visual states
             group.querySelectorAll('.image-card').forEach(card => {
               card.classList.remove('selected', 'delete-hint', 'crop-selected');
             });
             
-            if (state && state.selectedImage !== undefined) {
+            if (state && state.skipped) {
+              // Skipped group - no visual indication (neutral state)
+              // Images have no outline, indicating they'll be left alone
+            } else if (state && state.selectedImage !== undefined) {
               // Show selected image
               const selectedCard = group.querySelectorAll('.image-card')[state.selectedImage];
               if (selectedCard) {
@@ -910,47 +909,33 @@ def build_app(
               });
             }
             
-            // Highlight viewport group (the one buttons will target)
-            const isViewportGroup = index === viewportGroup;
-            if (isViewportGroup) {
-              group.style.background = 'rgba(79, 157, 255, 0.1)';
-              group.style.borderColor = 'rgba(79, 157, 255, 0.3)';
-            } else {
-              group.style.background = '';
-              group.style.borderColor = '';
-            }
+            // Update button states for this group
+            updateButtonStates(groupId);
           });
         }
         
-        function selectImage(imageIndex) {
-          if (viewportGroup >= groups.length) return;
+        function selectImage(imageIndex, groupId) {
+          const group = document.querySelector(`section.group[data-group-id="${groupId}"]`);
+          if (!group) return;
           
-          const group = groups[viewportGroup];
-          const groupId = group.dataset.groupId;
           const imageCount = group.querySelectorAll('.image-card').length;
-          
           if (imageIndex >= imageCount) return;
           
           // Update state
           if (!groupStates[groupId]) {
-            groupStates[groupId] = { selectedImage: imageIndex, willCrop: false };
-          } else {
+            groupStates[groupId] = { selectedImage: imageIndex, willCrop: false, skipped: false };
+              } else {
             groupStates[groupId].selectedImage = imageIndex;
+            groupStates[groupId].skipped = false; // Clear skip when selecting
           }
           
           // Update everything immediately
           updateVisualState();
           updateSummary();
-          updateButtonStates();
         }
         
-        function toggleCrop() {
-          if (viewportGroup >= groups.length) return;
-          
-          const group = groups[viewportGroup];
-          const groupId = group.dataset.groupId;
-          
-          if (!groupStates[groupId]) {
+        function toggleCrop(groupId) {
+          if (!groupStates[groupId] || groupStates[groupId].selectedImage === undefined) {
             // No image selected yet, can't crop
             return;
           }
@@ -959,34 +944,77 @@ def build_app(
           
           // Update everything immediately  
           updateVisualState();
+              updateSummary();
+        }
+        
+        function selectImageAndCrop(imageIndex, groupId) {
+          const group = document.querySelector(`section.group[data-group-id="${groupId}"]`);
+          if (!group) return;
+          
+          const imageCount = group.querySelectorAll('.image-card').length;
+          if (imageIndex >= imageCount) return;
+          
+          // Update state - select image AND mark for crop
+          groupStates[groupId] = { selectedImage: imageIndex, willCrop: true, skipped: false };
+          
+          // Update everything immediately
+          updateVisualState();
+            updateSummary();
+        }
+        
+        function handleImageClick(imageCard) {
+          const group = imageCard.closest('section.group');
+          const groupId = group.dataset.groupId;
+          const currentState = groupStates[groupId];
+          
+          if (!currentState || (!currentState.skipped && currentState.selectedImage === undefined)) {
+            // First click: skip this group (leave in directory)
+            groupStates[groupId] = { skipped: true };
+          } else if (currentState.skipped) {
+            // Second click: back to delete mode
+            delete groupStates[groupId];
+          }
+          // If image is already selected, clicking does nothing (use buttons for that)
+          
+          updateVisualState();
           updateSummary();
-          updateButtonStates();
         }
         
         function nextGroup() {
-          if (viewportGroup < groups.length - 1) {
-            viewportGroup++;
-            currentGroup = viewportGroup; // Keep in sync
-            updateVisualState();
-            updateButtonStates();
-            
-            // Scroll to current group
-            const group = groups[viewportGroup];
-            group.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Find the currently visible group using the same logic as keyboard shortcuts
+          const currentGroupId = getCurrentVisibleGroupId();
+          if (!currentGroupId) return;
+          
+          const currentGroupElement = document.querySelector(`section.group[data-group-id="${currentGroupId}"]`);
+          if (!currentGroupElement) return;
+          
+          const allGroups = Array.from(document.querySelectorAll('section.group'));
+          const currentIndex = allGroups.indexOf(currentGroupElement);
+          const nextGroupElement = allGroups[currentIndex + 1];
+          
+          if (nextGroupElement) {
+            nextGroupElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }
         }
         
-        function prevGroup() {
-          if (viewportGroup > 0) {
-            viewportGroup--;
-            currentGroup = viewportGroup; // Keep in sync
-            updateVisualState();
-            updateButtonStates();
+        // Get the currently visible group ID for keyboard shortcuts
+        function getCurrentVisibleGroupId() {
+          const viewportCenter = window.scrollY + window.innerHeight / 2;
+          let closestGroup = null;
+          let closestDistance = Infinity;
+          
+          groups.forEach((group) => {
+            const rect = group.getBoundingClientRect();
+            const groupCenter = rect.top + window.scrollY + rect.height / 2;
+            const distance = Math.abs(groupCenter - viewportCenter);
             
-            // Scroll to current group
-            const group = groups[viewportGroup];
-            group.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
+            if (distance < closestDistance) {
+              closestDistance = distance;
+              closestGroup = group;
+            }
+          });
+          
+          return closestGroup ? closestGroup.dataset.groupId : null;
         }
         
         // Keyboard shortcuts
@@ -994,31 +1022,44 @@ def build_app(
           // Ignore if user is typing in an input
           if (e.target.matches('input, textarea, select')) return;
           
+          const currentGroupId = getCurrentVisibleGroupId();
+          if (!currentGroupId) return;
+          
           switch(e.key) {
             case '1':
               e.preventDefault();
-              selectImage(0);
+              selectImage(0, currentGroupId);
               break;
             case '2':
               e.preventDefault();
-              selectImage(1);
+              selectImage(1, currentGroupId);
               break;
             case '3':
               e.preventDefault();
-              selectImage(2);
+              selectImage(2, currentGroupId);
+              break;
+            case 'q':
+            case 'Q':
+              e.preventDefault();
+              selectImageAndCrop(0, currentGroupId);
+              break;
+            case 'w':
+            case 'W':
+              e.preventDefault();
+              selectImageAndCrop(1, currentGroupId);
               break;
             case 'e':
             case 'E':
               e.preventDefault();
-              toggleCrop();
+              selectImageAndCrop(2, currentGroupId);
               break;
-            case ' ':
+            case 'Enter':
               e.preventDefault();
               nextGroup();
               break;
             case 'ArrowUp':
               e.preventDefault();
-              prevGroup();
+              nextGroup(); // Just use nextGroup for both
               break;
             case 'ArrowDown':
               e.preventDefault();
@@ -1053,6 +1094,7 @@ def build_app(
               groupId: groupId,
               selectedIndex: state ? state.selectedImage : null,
               crop: state ? state.willCrop : false,
+              skipped: state ? state.skipped : false,
             };
           });
           
@@ -1110,12 +1152,7 @@ def build_app(
           }
         });
         
-        // Add scroll listener for viewport detection
-        window.addEventListener('scroll', updateViewportGroup);
-        window.addEventListener('resize', updateViewportGroup);
-        
         // Initialize
-        updateViewportGroup(); // Detect initial viewport group
         updateVisualState();
         updateSummary();
         
@@ -1335,6 +1372,12 @@ def build_app(
 
                 selected_index = selection.get("selectedIndex")
                 crop_flag = bool(selection.get("crop"))
+                skipped = bool(selection.get("skipped"))
+
+                if skipped:
+                    # Skip this group - leave files in place
+                    write_log(log_path, "skip", None, list(record.paths))
+                    continue
 
                 if selected_index is None:
                     safe_delete(record.paths, hard_delete=hard_delete, tracker=tracker)
@@ -1377,9 +1420,9 @@ def build_app(
         
         message = f"Batch processed — kept {kept_count}, sent {crop_count} to crop/, deleted {deleted_count}."
         return jsonify({
-            "status": "ok", 
-            "message": message,
-            "moved": kept_count,
+                "status": "ok", 
+                "message": message,
+                "moved": kept_count,
             "deleted": deleted_count,
             "remaining": len(remaining_groups)
         })
@@ -1527,7 +1570,7 @@ def main() -> None:
     total_groups = len(records)
     total_batches = (total_groups + args.batch_size - 1) // args.batch_size
     first_batch_size = min(args.batch_size, total_groups)
-    
+
     url = f"http://{args.host}:{args.port}"
     info(f"Found {total_groups} groups. Starting with batch 1/{total_batches} ({first_batch_size} groups). Launching browser UI at {url}")
     info("Use CTRL+C to stop the server after it reports that processing is complete.")

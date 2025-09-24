@@ -149,6 +149,80 @@ class TestRunner:
             print("✓ Mixed grouping (triplets/pairs/singletons) working correctly")
             return True
     
+    def test_sequential_singletons_edge_case(self):
+        """Test the specific edge case that caused massive 8-13 image rows."""
+        # Use the problematic test data we created
+        test_dir = Path("scripts/tests/data/problematic_sequential")
+        
+        if not test_dir.exists():
+            # Create the problematic test data
+            result = subprocess.run([
+                sys.executable, "scripts/tests/create_problematic_test_data.py"
+            ], capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                print(f"Failed to create problematic test data: {result.stderr}")
+                return False
+        
+        # Test grouping with the problematic pattern
+        result = subprocess.run([
+            sys.executable, "scripts/01_web_image_selector.py",
+            str(test_dir), "--print-triplets"
+        ], capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print(f"Sequential singletons test failed: {result.stderr}")
+            return False
+        
+        lines = result.stdout.strip().split('\n')
+        
+        # Count actual groups
+        pair_lines = [line for line in lines if line.startswith("Pair")]
+        triplet_lines = [line for line in lines if line.startswith("Triplet")]
+        
+        total_groups = len(pair_lines) + len(triplet_lines)
+        
+        # Expected: 3 groups (190000 triplet, 200000 pair, 210000 triplet)
+        if total_groups != 3:
+            print(f"CRITICAL BUG: Expected 3 groups, got {total_groups}")
+            print("This indicates the sequential singletons bug is not fixed!")
+            print("Output:", result.stdout)
+            return False
+        
+        # Verify no cross-contamination by checking timestamps
+        problem_patterns = [
+            "174338",  # Last singleton stage1
+            "180000_stage2",  # First singleton stage2 
+            "180100", "180200", "180300", "180400"  # Other singleton stage2s
+        ]
+        
+        for pattern in problem_patterns:
+            if pattern in result.stdout:
+                print(f"CRITICAL BUG: Found problematic pattern '{pattern}' in output")
+                print("This indicates cross-contamination between singletons!")
+                print("Output:", result.stdout)
+                return False
+        
+        print("✓ Sequential singletons correctly filtered out (no massive rows)")
+        print("✓ No cross-contamination between different photo sessions")
+        print(f"✓ Correct group count: {total_groups} groups from 20 input files")
+        return True
+    
+    def test_ui_integrity(self):
+        """Test UI integrity - keyboard bindings, CSS, JavaScript syntax"""
+        result = subprocess.run([
+            sys.executable, "scripts/tests/test_ui_simple.py"
+        ], capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print(f"UI integrity test failed: {result.stderr}")
+            if result.stdout:
+                print("Output:", result.stdout)
+            return False
+        
+        print("✓ UI integrity validated (key bindings, CSS, JavaScript)")
+        return True
+    
     def test_memory_usage(self):
         """Test memory usage with large dataset"""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -390,6 +464,8 @@ def main():
     
     if not args.safety_only:
         runner.run_test("Grouping Algorithm Test", runner.test_grouping_algorithm)
+        runner.run_test("Sequential Singletons Edge Case", runner.test_sequential_singletons_edge_case, critical=True)
+        runner.run_test("UI Integrity Test", runner.test_ui_integrity, critical=True)
         
         if args.performance:
             runner.run_test("Memory Usage Test", runner.test_memory_usage)
