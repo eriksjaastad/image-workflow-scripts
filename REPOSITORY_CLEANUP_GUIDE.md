@@ -19,7 +19,9 @@ Keep the repository clean and organized by removing temporary files while preser
 - `scripts/04_batch_crop_tool.py` - Batch cropping tool ✅
 - `scripts/05_web_multi_directory_viewer.py` - Review tool ✅
 - `scripts/util_activity_timer.py` - Shared timer utility ✅
+- `scripts/util_triplet_deduplicator.py` - Triplet deduplication utility ✅
 - `scripts/file_tracker.py` - Operation logging utility ✅
+- All other `scripts/util_*.py` files - Workflow utilities ✅
 
 #### Dashboard System (Complete - Keep All)
 - `scripts/dashboard/` - **Entire directory is essential** ✅
