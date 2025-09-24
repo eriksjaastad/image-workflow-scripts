@@ -41,6 +41,7 @@ Keep the repository clean and organized by removing temporary files while preser
 #### Productivity System Documentation (Keep)
 - `ACTIVITY_TIMER_SYSTEM_OVERVIEW.md` - Timer system architecture ✅
 - `TIMER_WEB_INTERFACE_DEMO.md` - UI documentation ✅
+- `image_workflow_case_study.md` - **Living document** - Update with dashboard insights ✅
 
 #### Test Infrastructure (Keep)
 - `scripts/tests/` - **Entire directory** ✅
@@ -56,7 +57,6 @@ Keep the repository clean and organized by removing temporary files while preser
 - `IMAGE_PROCESSING_WORKFLOW_FLOWCHART.md` - ❌ Remove if superseded by main workflow doc
 
 #### Old Experiment Documentation
-- `image_workflow_case_study.md` - ❌ Remove if no longer referenced
 - `image_dataset_optimization_and_cropping.md` - ❌ Remove if superseded
 - Any `*_comparison.md` files from failed experiments
 
@@ -118,7 +118,7 @@ rm -f recover_images.py demo_*.py  # After demos/recovery complete
 
 # Remove old experiment docs (ONLY after manual review)
 # rm -f clustering_optimization_workflow.md  # If clustering work complete
-# rm -f image_workflow_case_study.md  # If no longer referenced
+# NOTE: image_workflow_case_study.md is PROTECTED - living document for dashboard insights
 ```
 
 ## Data Protection Verification
@@ -163,6 +163,7 @@ git commit -m "🧹 Repository cleanup: remove completed planning docs
 - **Core workflow scripts** (01, 03, 04, 05) - Production tools
 - **Master documentation** (IMAGE_PROCESSING_WORKFLOW.md, WEB_STYLE_GUIDE.md)
 - **System documentation** (ACTIVITY_TIMER_SYSTEM_OVERVIEW.md, etc.)
+- **Living case study** (image_workflow_case_study.md) - Update with dashboard insights
 - **Test infrastructure** (`scripts/tests/` directory)
 
 ### ✅ **Safe to Remove After Verification**
