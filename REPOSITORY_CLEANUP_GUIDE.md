@@ -1,78 +1,181 @@
-# Repository Cleanup Guide
+# Repository Cleanup Guide - Updated September 2025
 
 ## Purpose
-Keep the repository clean and organized by removing temporary files after they've served their purpose.
+Keep the repository clean and organized by removing temporary files while preserving essential documentation and productivity data.
+
+## Current System Overview
+- **Production Scripts**: 01-05 workflow tools with activity timer integration
+- **Dashboard System**: Complete productivity analytics in `scripts/dashboard/`
+- **Data Protection**: `scripts/timer_data/` and `scripts/file_operations_logs/` auto-ignored
+- **Documentation**: Core workflow docs + productivity system docs
 
 ## File Categories & Cleanup Rules
 
-### ✅ **KEEP - Core Project Files**
-- `scripts/` - All numbered workflow scripts (01-06) and utilities
-- `IMAGE_PROCESSING_WORKFLOW.md` - Main workflow documentation 
-- `clustering_optimization_workflow.md` - Active project planning document
-- `.gitignore` - Repository configuration
+### ✅ **KEEP - Essential Core Files**
 
-### 🧹 **REMOVE - Temporary Files**
+#### Production Workflow Scripts
+- `scripts/01_web_image_selector.py` - Primary workflow tool ✅
+- `scripts/03_web_character_sorter.py` - Character sorting tool ✅
+- `scripts/04_batch_crop_tool.py` - Batch cropping tool ✅
+- `scripts/05_web_multi_directory_viewer.py` - Review tool ✅
+- `scripts/util_activity_timer.py` - Shared timer utility ✅
+- `scripts/file_tracker.py` - Operation logging utility ✅
 
-#### Recovery & One-Off Scripts
-- `recover_images.py` - ❌ Remove after image recovery complete
-- Any `*_recovery.py` or `*_temp.py` files
+#### Dashboard System (Complete - Keep All)
+- `scripts/dashboard/` - **Entire directory is essential** ✅
+  - `run_dashboard.py` - Launch script
+  - `productivity_dashboard.py` - Main Flask app
+  - `data_engine.py` - Data processing
+  - `dashboard_template.html` - Web interface
+  - `data_retention_policy.py` - Storage management
+  - `Productivity Dashboard Specification.md` - Requirements doc
+  - `script_updates.csv` - Update tracking
 
-#### File Lists & Inventories  
+#### Core Documentation (Critical - Never Remove)
+- `IMAGE_PROCESSING_WORKFLOW.md` - **Master workflow documentation** ✅
+- `WEB_STYLE_GUIDE.md` - **Design system reference** ✅
+- `CURRENT_TODO_LIST.md` - **Project status tracking** ✅
+- `REPOSITORY_CLEANUP_GUIDE.md` - **This file** ✅
+- `.gitignore` - **Repository configuration** ✅
+
+#### Productivity System Documentation (Keep)
+- `ACTIVITY_TIMER_SYSTEM_OVERVIEW.md` - Timer system architecture ✅
+- `TIMER_WEB_INTERFACE_DEMO.md` - UI documentation ✅
+
+#### Test Infrastructure (Keep)
+- `scripts/tests/` - **Entire directory** ✅
+  - `README.md` - Test documentation
+  - `README_WEB_TESTS.md` - Web test guide
+  - All test files for workflow scripts
+
+### 🧹 **REMOVE - Temporary/Outdated Files**
+
+#### Superseded Planning Documents
+- `timer_dashboard_plan.md` - ❌ Remove (dashboard now complete)
+- `clustering_optimization_workflow.md` - ❌ Remove if clustering work complete
+- `IMAGE_PROCESSING_WORKFLOW_FLOWCHART.md` - ❌ Remove if superseded by main workflow doc
+
+#### Old Experiment Documentation
+- `image_workflow_case_study.md` - ❌ Remove if no longer referenced
+- `image_dataset_optimization_and_cropping.md` - ❌ Remove if superseded
+- Any `*_comparison.md` files from failed experiments
+
+#### Recovery & One-Off Scripts (Project Root)
+- `recover_images.py` - ❌ Remove after recovery complete
+- Any `*_recovery.py`, `*_temp.py`, or `*_test.py` files in root
+- `demo_*.py` files after demos complete
+
+#### File Lists & Inventories
 - `*_files.txt` (crop_files.txt, white_files.txt) - ❌ Remove after operation
 - `cropped_to_replace.txt` - ❌ Remove after replacement complete
 - Any `*_to_*.txt` inventory files
 
-#### Old Comparison & Analysis Files
-- `face_grouping_comparison.md` - ❌ Remove if from failed experiments
-- Outdated comparison documents from previous attempts
+### 🔒 **PROTECTED - Auto-Ignored (Never Manually Remove)**
+- `scripts/timer_data/` - **Productivity data** (ignored by git)
+- `scripts/file_operations_logs/` - **Operation logs** (ignored by git)
+- `quality_log_*.csv` - **Quality metrics** (ignored by git)
+- `people_scores*.csv` - **Scoring data** (ignored by git)
 
-#### Old CSV Data
-- `people_scores*.csv` - ❌ Remove if > 30 days old and not referenced
-- `quality_log_level3_*.csv` - ❌ Remove old quality logs (keep latest only)
-- Any CSV files from failed clustering attempts
-
-### 📋 **EVALUATE - Context-Dependent**
-
-#### Workflow Documentation  
-- `IMAGE_PROCESSING_WORKFLOW_FLOWCHART.md` - Keep if current, remove if outdated
-- `image_workflow_case_study.md` - Keep if referenced, remove if superseded
-
-## Cleanup Timing
+## Cleanup Timing & Procedures
 
 ### After Major Operations
+- **Dashboard Development**: Remove planning docs (`timer_dashboard_plan.md`)
 - **Image Recovery**: Remove recovery scripts, file lists, comparison files
-- **Workflow Reorganization**: Remove old numbered scripts, temp docs  
-- **Clustering Experiments**: Remove failed attempt files, old CSV data
+- **Workflow Updates**: Remove old numbered scripts, temp docs  
+- **Clustering Experiments**: Remove failed attempt files, old analysis docs
 - **Documentation Updates**: Remove superseded workflow files
 
 ### Monthly Review
-- Check for files > 30 days old in categories above
-- Remove outdated CSV logs and temporary data
-- Archive or remove old experiment documentation
+- Check for files > 30 days old in "REMOVE" categories above
+- Evaluate experiment documentation for continued relevance
+- Remove outdated planning documents after project completion
 
-## Implementation Commands
+### Quarterly Review
+- Assess all markdown files in root directory
+- Remove superseded case studies and optimization docs
+- Clean up any accumulated temporary files
 
+## Safe Cleanup Commands
+
+### Identify Candidates for Removal
 ```bash
-# Remove common temporary file patterns
-rm -f *_files.txt cropped_to_replace.txt recover_images.py
+# List all markdown files for review
+find . -maxdepth 1 -name "*.md" | grep -v -E "(IMAGE_PROCESSING_WORKFLOW|WEB_STYLE_GUIDE|CURRENT_TODO_LIST|REPOSITORY_CLEANUP_GUIDE|ACTIVITY_TIMER|TIMER_WEB_INTERFACE)"
 
-# Remove old CSV logs (keep newest)
-ls -t quality_log_*.csv | tail -n +2 | xargs rm -f
+# List temporary files
+find . -maxdepth 1 -name "*_files.txt" -o -name "*_temp.py" -o -name "*_recovery.py"
 
-# Remove old people scores if not needed
-rm -f people_scores*.csv
+# List old demo files
+find . -maxdepth 1 -name "demo_*.py"
+```
 
-# Clean up old comparison files
-rm -f face_grouping_comparison.md
+### Safe Removal (After Manual Review)
+```bash
+# Remove confirmed temporary files
+rm -f timer_dashboard_plan.md  # Dashboard complete
+rm -f *_files.txt cropped_to_replace.txt  # After operations complete
+rm -f recover_images.py demo_*.py  # After demos/recovery complete
+
+# Remove old experiment docs (ONLY after manual review)
+# rm -f clustering_optimization_workflow.md  # If clustering work complete
+# rm -f image_workflow_case_study.md  # If no longer referenced
+```
+
+## Data Protection Verification
+
+### Verify .gitignore Protection
+```bash
+# Confirm data directories are ignored
+git check-ignore scripts/timer_data/
+git check-ignore scripts/file_operations_logs/
+
+# Should return the paths (meaning they're ignored)
+```
+
+### Check for Accidentally Tracked Data
+```bash
+# Ensure no data files are tracked
+git ls-files | grep -E "(timer_data|file_operations_logs|quality_log|people_scores)"
+
+# Should return empty (no data files tracked)
 ```
 
 ## Git Integration
 
-Always commit cleanup as a separate commit:
+### Cleanup Commit Pattern
 ```bash
-git rm [files to remove]
-git commit -m "Repository cleanup: removed temporary files after [operation]"
+# Stage specific files for removal
+git rm timer_dashboard_plan.md
+git rm clustering_optimization_workflow.md  # If confirmed obsolete
+
+# Commit with clear message
+git commit -m "🧹 Repository cleanup: remove completed planning docs
+
+- Removed timer_dashboard_plan.md (dashboard system complete)
+- Removed clustering_optimization_workflow.md (work complete)
+- Keeping all essential workflow and system documentation"
 ```
 
-## Memory Reference
-This guide should be referenced whenever temporary files accumulate. The goal is keeping only active, current, and reference files in the repository while removing artifacts from completed operations.
+## Critical Reminders
+
+### ⚠️ **NEVER REMOVE**
+- **Entire `scripts/dashboard/` directory** - Complete productivity system
+- **Core workflow scripts** (01, 03, 04, 05) - Production tools
+- **Master documentation** (IMAGE_PROCESSING_WORKFLOW.md, WEB_STYLE_GUIDE.md)
+- **System documentation** (ACTIVITY_TIMER_SYSTEM_OVERVIEW.md, etc.)
+- **Test infrastructure** (`scripts/tests/` directory)
+
+### ✅ **Safe to Remove After Verification**
+- Planning documents for completed projects
+- Temporary file lists and inventories
+- Old experiment documentation
+- Recovery scripts after recovery complete
+- Demo files after demos complete
+
+### 🔒 **Protected by .gitignore**
+- All files in `scripts/timer_data/` (productivity data)
+- All files in `scripts/file_operations_logs/` (operation logs)
+- CSV files matching `quality_log_*.csv` and `people_scores*.csv`
+
+## Usage Notes
+This guide should be referenced before any cleanup operations. **Always manually review files before removal** - when in doubt, keep the file. The goal is maintaining a clean repository while preserving all essential workflow tools, documentation, and productivity systems.
