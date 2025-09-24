@@ -82,6 +82,17 @@ The dashboard system is **complete and production-ready**! Future sessions could
 2. **Optional enhancements** from the pending list above
 3. **New workflow tools** or **different productivity projects**
 
+## 🔍 Future Investigation Items
+
+### **Web Interface Template System**
+**Investigate template design for web tools consolidation:**
+- **Scope**: 01_web_image_selector, 03_web_character_sorter, 05_web_multi_directory_viewer
+- **Common elements**: Same header, color palette (WEB_STYLE_GUIDE.md), similar JavaScript patterns
+- **Shared functionality**: Image clicking, delete buttons, crop operations, navigation
+- **Goal**: Determine if template would simplify maintenance or add complexity
+- **Benefits**: Easier updates, consistent UI, reduced code duplication
+- **Considerations**: Balance between reusability and tool-specific customization
+
 ---
 
 **🎉 INCREDIBLE SESSION COMPLETE!** You now have a professional-grade productivity analytics system tracking your 100k+ file processing workflow! 📊✨🚀
