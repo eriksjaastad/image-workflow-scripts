@@ -1,0 +1,82 @@
+[
+  {
+    "script_name": "01_web_image_selector",
+    "session_id": "20250917_094900",
+    "start_time": 1758116940.0,
+    "end_time": 1758121440.0,
+    "active_time": 4067.9700833061347,
+    "idle_time": 432.0299166938653,
+    "last_activity": 1758121440.0,
+    "batches": [
+      {
+        "name": "Image Selection Batch 1",
+        "start_time": 1758116940.0,
+        "end_time": 1758119190.0,
+        "duration": 2250.0
+      },
+      {
+        "name": "Image Selection Batch 2",
+        "start_time": 1758119190.0,
+        "end_time": 1758121440.0,
+        "duration": 2250.0
+      }
+    ],
+    "operations": [
+      {
+        "type": "select",
+        "file_count": 168,
+        "timestamp": "2025-09-17T09:49:00"
+      },
+      {
+        "type": "delete",
+        "file_count": 112,
+        "timestamp": "2025-09-17T09:49:00"
+      },
+      {
+        "type": "move",
+        "file_count": 168,
+        "timestamp": "2025-09-17T09:49:00"
+      }
+    ]
+  },
+  {
+    "script_name": "01_web_image_selector",
+    "session_id": "20250917_102400",
+    "start_time": 1758119040.0,
+    "end_time": 1758124080.0,
+    "active_time": 4375.917523175535,
+    "idle_time": 664.0824768244647,
+    "last_activity": 1758124080.0,
+    "batches": [
+      {
+        "name": "Image Selection Batch 1",
+        "start_time": 1758119040.0,
+        "end_time": 1758121560.0,
+        "duration": 2520.0
+      },
+      {
+        "name": "Image Selection Batch 2",
+        "start_time": 1758121560.0,
+        "end_time": 1758124080.0,
+        "duration": 2520.0
+      }
+    ],
+    "operations": [
+      {
+        "type": "select",
+        "file_count": 123,
+        "timestamp": "2025-09-17T10:24:00"
+      },
+      {
+        "type": "delete",
+        "file_count": 83,
+        "timestamp": "2025-09-17T10:24:00"
+      },
+      {
+        "type": "move",
+        "file_count": 123,
+        "timestamp": "2025-09-17T10:24:00"
+      }
+    ]
+  }
+]

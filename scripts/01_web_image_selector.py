@@ -94,6 +94,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
 from file_tracker import FileTracker
+from util_activity_timer import ActivityTimer
 
 try:
     from flask import Flask, Response, jsonify, render_template_string, request
@@ -445,6 +446,7 @@ def build_app(
     hard_delete: bool,
     batch_size: int = 50,
     batch_start: int = 0,
+    activity_timer: Optional[ActivityTimer] = None,
 ) -> Flask:
     app = Flask(__name__)
 
@@ -474,6 +476,7 @@ def build_app(
     app.config["LOG_PATH"] = log_path
     app.config["HARD_DELETE"] = hard_delete
     app.config["PROCESSED"] = False
+    app.config["ACTIVITY_TIMER"] = activity_timer
 
     page_template = """
     <!DOCTYPE html>
@@ -1207,6 +1210,78 @@ def build_app(
         updateVisualState();
         updateSummary();
         
+        // Add activity timer display
+        const timerDiv = document.createElement('div');
+        timerDiv.id = 'activity-timer';
+        timerDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--surface);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--accent);
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 14px;
+            z-index: 1000;
+            min-width: 200px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        timerDiv.innerHTML = `
+            <div style="font-weight: bold; margin-bottom: 4px;">⏱️ Activity Timer</div>
+            <div id="timer-active">Active: 0m 0s</div>
+            <div id="timer-total">Total: 0m 0s</div>
+            <div id="timer-efficiency">Efficiency: 100%</div>
+            <div id="timer-status" style="margin-top: 4px; font-size: 12px;">🟢 Active</div>
+        `;
+        document.body.appendChild(timerDiv);
+
+        // Update timer display every 5 seconds
+        setInterval(updateTimerDisplay, 5000);
+        
+        // Track user activity
+        function markActivity() {
+            fetch('/mark_activity', { method: 'POST' });
+        }
+        
+        // Activity tracking events
+        document.addEventListener('click', markActivity);
+        document.addEventListener('keydown', markActivity);
+        document.addEventListener('scroll', markActivity);
+        
+        // Throttled mouse movement tracking
+        let mouseThrottle = false;
+        document.addEventListener('mousemove', function() {
+            if (!mouseThrottle) {
+                markActivity();
+                mouseThrottle = true;
+                setTimeout(() => mouseThrottle = false, 2000);
+            }
+        });
+        
+        function updateTimerDisplay() {
+            fetch('/timer_stats')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.active_time !== undefined) {
+                        const activeMin = Math.floor(data.active_time / 60);
+                        const activeSec = Math.floor(data.active_time % 60);
+                        const totalMin = Math.floor(data.total_time / 60);
+                        const totalSec = Math.floor(data.total_time % 60);
+                        
+                        document.getElementById('timer-active').textContent = `Active: ${activeMin}m ${activeSec}s`;
+                        document.getElementById('timer-total').textContent = `Total: ${totalMin}m ${totalSec}s`;
+                        document.getElementById('timer-efficiency').textContent = `Efficiency: ${data.efficiency.toFixed(1)}%`;
+                        document.getElementById('timer-status').innerHTML = data.is_active ? '🟢 Active' : '🔴 Idle';
+                    }
+                })
+                .catch(err => console.log('Timer update failed:', err));
+        }
+        
+        // Initial timer update
+        updateTimerDisplay();
+        
         // Scroll to first group
         if (groups.length > 0) {
           groups[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1363,6 +1438,31 @@ def build_app(
         data = _generate_thumbnail(str(path), int(stat.st_mtime_ns), stat.st_size)
         return Response(data, mimetype="image/jpeg")
 
+    @app.route("/mark_activity", methods=["POST"])
+    def mark_activity():
+        """Mark user activity for timer tracking"""
+        activity_timer: Optional[ActivityTimer] = app.config.get("ACTIVITY_TIMER")
+        if activity_timer:
+            activity_timer.mark_activity()
+        return jsonify({"status": "ok"})
+    
+    @app.route("/timer_stats")
+    def timer_stats():
+        """Get current timer statistics"""
+        activity_timer: Optional[ActivityTimer] = app.config.get("ACTIVITY_TIMER")
+        if activity_timer:
+            stats = activity_timer.get_current_stats()
+            return jsonify(stats)
+        else:
+            return jsonify({
+                "active_time": 0,
+                "total_time": 0,
+                "efficiency": 100,
+                "is_active": False,
+                "files_processed": 0,
+                "total_operations": 0
+            })
+
     def process_shutdown():
         # Graceful shutdown - just exit the process
         # The Flask dev server will handle cleanup
@@ -1402,9 +1502,15 @@ def build_app(
         base_folder: Path = app.config["BASE_FOLDER"]
         log_path: Path = app.config["LOG_PATH"]
         hard_delete: bool = app.config["HARD_DELETE"]
+        activity_timer: Optional[ActivityTimer] = app.config.get("ACTIVITY_TIMER")
 
         kept_count = 0
         crop_count = 0
+        
+        # Mark batch processing activity
+        if activity_timer:
+            activity_timer.mark_batch(f"Processing batch {batch_info['current_batch']}")
+            activity_timer.mark_activity()
 
         try:
             for i, selection in enumerate(selections):
@@ -1614,8 +1720,12 @@ def main() -> None:
             )
         )
 
+    # Initialize activity timer
+    activity_timer = ActivityTimer("01_web_image_selector")
+    activity_timer.start_session()
+    
     log_path = folder / "triplet_culler_log.csv"
-    app = build_app(records, folder, tracker, log_path, hard_delete=args.hard_delete, batch_size=args.batch_size)
+    app = build_app(records, folder, tracker, log_path, hard_delete=args.hard_delete, batch_size=args.batch_size, activity_timer=activity_timer)
 
     # Calculate batch info for logging
     total_groups = len(records)
@@ -1634,6 +1744,10 @@ def main() -> None:
     except OSError as exc:
         human_err(f"Failed to start server: {exc}")
         sys.exit(1)
+    finally:
+        # End activity timer session
+        if 'activity_timer' in locals():
+            activity_timer.end_session()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,102 @@
+[
+  {
+    "script_name": "04_batch_crop_tool",
+    "session_id": "20250915_095500",
+    "start_time": 1757944500.0,
+    "end_time": 1757947800.0,
+    "active_time": 2835.6625117995013,
+    "idle_time": 464.3374882004987,
+    "last_activity": 1757947800.0,
+    "batches": [
+      {
+        "name": "Crop Batch 1",
+        "start_time": 1757944500.0,
+        "end_time": 1757945600.0,
+        "duration": 1100.0
+      },
+      {
+        "name": "Crop Batch 2",
+        "start_time": 1757945600.0,
+        "end_time": 1757946700.0,
+        "duration": 1100.0
+      },
+      {
+        "name": "Crop Batch 3",
+        "start_time": 1757946700.0,
+        "end_time": 1757947800.0,
+        "duration": 1100.0
+      }
+    ],
+    "operations": [
+      {
+        "type": "crop",
+        "file_count": 155,
+        "timestamp": "2025-09-15T09:55:00"
+      }
+    ]
+  },
+  {
+    "script_name": "01_web_image_selector",
+    "session_id": "20250915_115500",
+    "start_time": 1757951700.0,
+    "end_time": 1757960280.0,
+    "active_time": 7268.335123836153,
+    "idle_time": 1311.664876163847,
+    "last_activity": 1757960280.0,
+    "batches": [
+      {
+        "name": "Image Selection Batch 1",
+        "start_time": 1757951700.0,
+        "end_time": 1757953130.0,
+        "duration": 1430.0
+      },
+      {
+        "name": "Image Selection Batch 2",
+        "start_time": 1757953130.0,
+        "end_time": 1757954560.0,
+        "duration": 1430.0
+      },
+      {
+        "name": "Image Selection Batch 3",
+        "start_time": 1757954560.0,
+        "end_time": 1757955990.0,
+        "duration": 1430.0
+      },
+      {
+        "name": "Image Selection Batch 4",
+        "start_time": 1757955990.0,
+        "end_time": 1757957420.0,
+        "duration": 1430.0
+      },
+      {
+        "name": "Image Selection Batch 5",
+        "start_time": 1757957420.0,
+        "end_time": 1757958850.0,
+        "duration": 1430.0
+      },
+      {
+        "name": "Image Selection Batch 6",
+        "start_time": 1757958850.0,
+        "end_time": 1757960280.0,
+        "duration": 1430.0
+      }
+    ],
+    "operations": [
+      {
+        "type": "select",
+        "file_count": 409,
+        "timestamp": "2025-09-15T11:55:00"
+      },
+      {
+        "type": "delete",
+        "file_count": 273,
+        "timestamp": "2025-09-15T11:55:00"
+      },
+      {
+        "type": "move",
+        "file_count": 409,
+        "timestamp": "2025-09-15T11:55:00"
+      }
+    ]
+  }
+]

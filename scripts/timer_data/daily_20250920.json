@@ -1,0 +1,295 @@
+[
+  {
+    "script_name": "01_web_image_selector",
+    "session_id": "20250920_090500",
+    "start_time": 1758373500.0,
+    "end_time": 1758379260.0,
+    "active_time": 5309.774760155327,
+    "idle_time": 450.2252398446726,
+    "last_activity": 1758379260.0,
+    "batches": [
+      {
+        "name": "Image Selection Batch 1",
+        "start_time": 1758373500.0,
+        "end_time": 1758373911.4285715,
+        "duration": 411.4285714626312
+      },
+      {
+        "name": "Image Selection Batch 2",
+        "start_time": 1758373911.4285715,
+        "end_time": 1758374322.857143,
+        "duration": 411.4285714626312
+      },
+      {
+        "name": "Image Selection Batch 3",
+        "start_time": 1758374322.857143,
+        "end_time": 1758374734.2857144,
+        "duration": 411.4285714626312
+      },
+      {
+        "name": "Image Selection Batch 4",
+        "start_time": 1758374734.2857144,
+        "end_time": 1758375145.7142856,
+        "duration": 411.42857122421265
+      },
+      {
+        "name": "Image Selection Batch 5",
+        "start_time": 1758375145.7142856,
+        "end_time": 1758375557.142857,
+        "duration": 411.4285714626312
+      },
+      {
+        "name": "Image Selection Batch 6",
+        "start_time": 1758375557.142857,
+        "end_time": 1758375968.5714285,
+        "duration": 411.4285714626312
+      },
+      {
+        "name": "Image Selection Batch 7",
+        "start_time": 1758375968.5714285,
+        "end_time": 1758376380.0,
+        "duration": 411.4285714626312
+      },
+      {
+        "name": "Image Selection Batch 8",
+        "start_time": 1758376380.0,
+        "end_time": 1758376791.4285715,
+        "duration": 411.4285714626312
+      },
+      {
+        "name": "Image Selection Batch 9",
+        "start_time": 1758376791.4285715,
+        "end_time": 1758377202.857143,
+        "duration": 411.4285714626312
+      },
+      {
+        "name": "Image Selection Batch 10",
+        "start_time": 1758377202.857143,
+        "end_time": 1758377614.2857144,
+        "duration": 411.4285714626312
+      },
+      {
+        "name": "Image Selection Batch 11",
+        "start_time": 1758377614.2857144,
+        "end_time": 1758378025.7142856,
+        "duration": 411.42857122421265
+      },
+      {
+        "name": "Image Selection Batch 12",
+        "start_time": 1758378025.7142856,
+        "end_time": 1758378437.142857,
+        "duration": 411.4285714626312
+      },
+      {
+        "name": "Image Selection Batch 13",
+        "start_time": 1758378437.142857,
+        "end_time": 1758378848.5714285,
+        "duration": 411.4285714626312
+      },
+      {
+        "name": "Image Selection Batch 14",
+        "start_time": 1758378848.5714285,
+        "end_time": 1758379260.0,
+        "duration": 411.4285714626312
+      }
+    ],
+    "operations": [
+      {
+        "type": "select",
+        "file_count": 885,
+        "timestamp": "2025-09-20T09:05:00"
+      },
+      {
+        "type": "delete",
+        "file_count": 590,
+        "timestamp": "2025-09-20T09:05:00"
+      },
+      {
+        "type": "move",
+        "file_count": 885,
+        "timestamp": "2025-09-20T09:05:00"
+      }
+    ]
+  },
+  {
+    "script_name": "01_web_image_selector",
+    "session_id": "20250920_130400",
+    "start_time": 1758387840.0,
+    "end_time": 1758395640.0,
+    "active_time": 5441.971079154265,
+    "idle_time": 2358.0289208457352,
+    "last_activity": 1758395640.0,
+    "batches": [
+      {
+        "name": "Image Selection Batch 1",
+        "start_time": 1758387840.0,
+        "end_time": 1758388815.0,
+        "duration": 975.0
+      },
+      {
+        "name": "Image Selection Batch 2",
+        "start_time": 1758388815.0,
+        "end_time": 1758389790.0,
+        "duration": 975.0
+      },
+      {
+        "name": "Image Selection Batch 3",
+        "start_time": 1758389790.0,
+        "end_time": 1758390765.0,
+        "duration": 975.0
+      },
+      {
+        "name": "Image Selection Batch 4",
+        "start_time": 1758390765.0,
+        "end_time": 1758391740.0,
+        "duration": 975.0
+      },
+      {
+        "name": "Image Selection Batch 5",
+        "start_time": 1758391740.0,
+        "end_time": 1758392715.0,
+        "duration": 975.0
+      },
+      {
+        "name": "Image Selection Batch 6",
+        "start_time": 1758392715.0,
+        "end_time": 1758393690.0,
+        "duration": 975.0
+      },
+      {
+        "name": "Image Selection Batch 7",
+        "start_time": 1758393690.0,
+        "end_time": 1758394665.0,
+        "duration": 975.0
+      },
+      {
+        "name": "Image Selection Batch 8",
+        "start_time": 1758394665.0,
+        "end_time": 1758395640.0,
+        "duration": 975.0
+      }
+    ],
+    "operations": [
+      {
+        "type": "select",
+        "file_count": 523,
+        "timestamp": "2025-09-20T13:04:00"
+      },
+      {
+        "type": "delete",
+        "file_count": 350,
+        "timestamp": "2025-09-20T13:04:00"
+      },
+      {
+        "type": "move",
+        "file_count": 523,
+        "timestamp": "2025-09-20T13:04:00"
+      }
+    ]
+  },
+  {
+    "script_name": "01_web_image_selector",
+    "session_id": "20250920_144400",
+    "start_time": 1758393840.0,
+    "end_time": 1758404700.0,
+    "active_time": 8444.632709684704,
+    "idle_time": 2415.3672903152965,
+    "last_activity": 1758404700.0,
+    "batches": [
+      {
+        "name": "Image Selection Batch 1",
+        "start_time": 1758393840.0,
+        "end_time": 1758394827.2727273,
+        "duration": 987.2727272510529
+      },
+      {
+        "name": "Image Selection Batch 2",
+        "start_time": 1758394827.2727273,
+        "end_time": 1758395814.5454545,
+        "duration": 987.2727272510529
+      },
+      {
+        "name": "Image Selection Batch 3",
+        "start_time": 1758395814.5454545,
+        "end_time": 1758396801.8181818,
+        "duration": 987.2727272510529
+      },
+      {
+        "name": "Image Selection Batch 4",
+        "start_time": 1758396801.8181818,
+        "end_time": 1758397789.090909,
+        "duration": 987.2727272510529
+      },
+      {
+        "name": "Image Selection Batch 5",
+        "start_time": 1758397789.090909,
+        "end_time": 1758398776.3636363,
+        "duration": 987.2727272510529
+      },
+      {
+        "name": "Image Selection Batch 6",
+        "start_time": 1758398776.3636363,
+        "end_time": 1758399763.6363637,
+        "duration": 987.2727274894714
+      },
+      {
+        "name": "Image Selection Batch 7",
+        "start_time": 1758399763.6363637,
+        "end_time": 1758400750.909091,
+        "duration": 987.2727272510529
+      },
+      {
+        "name": "Image Selection Batch 8",
+        "start_time": 1758400750.909091,
+        "end_time": 1758401738.1818182,
+        "duration": 987.2727272510529
+      },
+      {
+        "name": "Image Selection Batch 9",
+        "start_time": 1758401738.1818182,
+        "end_time": 1758402725.4545455,
+        "duration": 987.2727272510529
+      },
+      {
+        "name": "Image Selection Batch 10",
+        "start_time": 1758402725.4545455,
+        "end_time": 1758403712.7272727,
+        "duration": 987.2727272510529
+      },
+      {
+        "name": "Image Selection Batch 11",
+        "start_time": 1758403712.7272727,
+        "end_time": 1758404700.0,
+        "duration": 987.2727272510529
+      }
+    ],
+    "operations": [
+      {
+        "type": "select",
+        "file_count": 660,
+        "timestamp": "2025-09-20T14:44:00"
+      },
+      {
+        "type": "delete",
+        "file_count": 440,
+        "timestamp": "2025-09-20T14:44:00"
+      },
+      {
+        "type": "move",
+        "file_count": 660,
+        "timestamp": "2025-09-20T14:44:00"
+      }
+    ]
+  },
+  {
+    "script_name": "05_web_multi_directory_viewer",
+    "session_id": "20250920_160900",
+    "start_time": 1758398940.0,
+    "end_time": 1758400740.0,
+    "active_time": 1464.9484339365397,
+    "idle_time": 335.0515660634603,
+    "last_activity": 1758400740.0,
+    "batches": [],
+    "operations": []
+  }
+]
