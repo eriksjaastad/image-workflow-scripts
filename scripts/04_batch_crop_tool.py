@@ -96,7 +96,7 @@ from send2trash import send2trash
 # Add the project root to the path for importing
 sys.path.append(str(Path(__file__).parent.parent))
 from scripts.file_tracker import FileTracker
-from scripts.util_activity_timer import ActivityTimer
+from util_activity_timer import ActivityTimer
 
 class BatchCropTool:
     def __init__(self, directory, aspect_ratio=None):
