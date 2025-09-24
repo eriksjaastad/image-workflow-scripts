@@ -26,7 +26,10 @@ from typing import Optional, Dict, Any
 class FileTracker:
     def __init__(self, script_name: str, log_file: str = "file_operations.log"):
         self.script_name = script_name
-        self.log_file = Path(__file__).parent / log_file
+        # Create file_operations_logs directory if it doesn't exist
+        log_dir = Path(__file__).parent / "file_operations_logs"
+        log_dir.mkdir(exist_ok=True)
+        self.log_file = log_dir / log_file
         self.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.current_batch = None
         
@@ -221,7 +224,7 @@ def read_log(log_file: str = None, script_filter: str = None,
         operation_filter: Only show this type of operation
     """
     if log_file is None:
-        log_file = Path(__file__).parent / "file_operations.log"
+        log_file = Path(__file__).parent / "file_operations_logs" / "file_operations.log"
     
     if not Path(log_file).exists():
         print("No log file found")

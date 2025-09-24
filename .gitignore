@@ -17,6 +17,7 @@ __pycache__/
 # Log Files
 *.log
 file_operations*.log
+file_operations_logs/
 quality_log_*.csv
 people_scores*.csv
 
