@@ -5,6 +5,12 @@ Step 1: Web Image Selector - Modern Browser Edition
 Modern web-based tool for selecting the best image from each triplet set.
 Replaces old Matplotlib interface with fast, scrollable browser interface.
 
+🎨 STYLE GUIDE:
+---------------
+This web interface follows the project style guide for consistent design:
+  📁 WEB_STYLE_GUIDE.md
+Colors, spacing, typography, and interaction patterns are defined there.
+
 VIRTUAL ENVIRONMENT:
 --------------------
 Activate virtual environment first:
@@ -765,7 +771,7 @@ def build_app(
       <header class="toolbar">
         <div>
           <h1>Image version selector</h1>
-              <p>Use right sidebar or keys: 1,2,3 (select) • Q,W,E (select+crop) • Enter (next)</p>
+              <p>Use right sidebar or keys: 1,2,3 (select) • Q,W,E (select+crop) • Enter (next) • ↑ (back)</p>
         </div>
         <div class="summary" id="summary">
           <span>Selected: <strong id="summary-selected">0</strong></span>
@@ -921,12 +927,13 @@ def build_app(
           const imageCount = group.querySelectorAll('.image-card').length;
           if (imageIndex >= imageCount) return;
           
-          // Update state
-          if (!groupStates[groupId]) {
+          // BUTTON TOGGLE: If same image already selected, deselect it
+          const currentState = groupStates[groupId];
+          if (currentState && currentState.selectedImage === imageIndex && !currentState.willCrop) {
+            delete groupStates[groupId]; // Deselect (back to delete)
+          } else {
+            // Update state - selecting 1,2,3 should clear crop flag (state override fix)
             groupStates[groupId] = { selectedImage: imageIndex, willCrop: false, skipped: false };
-              } else {
-            groupStates[groupId].selectedImage = imageIndex;
-            groupStates[groupId].skipped = false; // Clear skip when selecting
           }
           
           // Update everything immediately
@@ -954,8 +961,14 @@ def build_app(
           const imageCount = group.querySelectorAll('.image-card').length;
           if (imageIndex >= imageCount) return;
           
-          // Update state - select image AND mark for crop
-          groupStates[groupId] = { selectedImage: imageIndex, willCrop: true, skipped: false };
+          // BUTTON TOGGLE: If same image+crop already selected, deselect it
+          const currentState = groupStates[groupId];
+          if (currentState && currentState.selectedImage === imageIndex && currentState.willCrop) {
+            delete groupStates[groupId]; // Deselect (back to delete)
+          } else {
+            // Update state - select image AND mark for crop
+            groupStates[groupId] = { selectedImage: imageIndex, willCrop: true, skipped: false };
+          }
           
           // Update everything immediately
           updateVisualState();
@@ -965,6 +978,7 @@ def build_app(
         function handleImageClick(imageCard) {
           const group = imageCard.closest('section.group');
           const groupId = group.dataset.groupId;
+          const imageIndex = parseInt(imageCard.dataset.imageIndex);
           const currentState = groupStates[groupId];
           
           if (!currentState || (!currentState.skipped && currentState.selectedImage === undefined)) {
@@ -973,8 +987,11 @@ def build_app(
           } else if (currentState.skipped) {
             // Second click: back to delete mode
             delete groupStates[groupId];
+          } else if (currentState.selectedImage === imageIndex) {
+            // UNSELECT FUNCTIONALITY: Clicking selected image deselects it (back to delete)
+            delete groupStates[groupId];
           }
-          // If image is already selected, clicking does nothing (use buttons for that)
+          // If different image is selected, clicking does nothing (use buttons for that)
           
           updateVisualState();
           updateSummary();
@@ -994,6 +1011,23 @@ def build_app(
           
           if (nextGroupElement) {
             nextGroupElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+        
+        function previousGroup() {
+          // UP ARROW NAVIGATION: Go back one row (opposite of nextGroup)
+          const currentGroupId = getCurrentVisibleGroupId();
+          if (!currentGroupId) return;
+          
+          const currentGroupElement = document.querySelector(`section.group[data-group-id="${currentGroupId}"]`);
+          if (!currentGroupElement) return;
+          
+          const allGroups = Array.from(document.querySelectorAll('section.group'));
+          const currentIndex = allGroups.indexOf(currentGroupElement);
+          const previousGroupElement = allGroups[currentIndex - 1];
+          
+          if (previousGroupElement) {
+            previousGroupElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }
         }
         
@@ -1055,15 +1089,11 @@ def build_app(
               break;
             case 'Enter':
               e.preventDefault();
-              nextGroup();
+              nextGroup(); // ENTER: Go forward (main navigation key)
               break;
             case 'ArrowUp':
               e.preventDefault();
-              nextGroup(); // Just use nextGroup for both
-              break;
-            case 'ArrowDown':
-              e.preventDefault();
-              nextGroup();
+              previousGroup(); // UP ARROW: Go back one row
               break;
           }
         });
@@ -1073,6 +1103,27 @@ def build_app(
           statusBox.className = type ? type : '';
         }
 
+        // PROCESS BUTTON SAFETY: Only enable after scrolling to bottom
+        let hasScrolledToBottom = false;
+        
+        function checkScrollPosition() {
+          const scrollPercent = (window.scrollY + window.innerHeight) / document.body.scrollHeight;
+          if (scrollPercent >= 0.9 && !hasScrolledToBottom) {
+            hasScrolledToBottom = true;
+            processBatchButton.disabled = false;
+            processBatchButton.style.opacity = '1';
+            processBatchButton.title = 'Ready to process batch';
+          }
+        }
+        
+        // Initialize process button as disabled
+        processBatchButton.disabled = true;
+        processBatchButton.style.opacity = '0.5';
+        processBatchButton.title = 'Scroll to bottom of page to enable';
+        
+        // Listen for scroll events
+        window.addEventListener('scroll', checkScrollPosition);
+        
         processBatchButton.addEventListener('click', async () => {
           if (Object.keys(groupStates).length === 0) {
             setStatus('No groups selected in current batch to process', 'error');
@@ -1506,7 +1557,7 @@ def main() -> None:
     parser.add_argument("--exts", type=str, default="png", help="Comma-separated list of extensions to include")
     parser.add_argument("--print-triplets", action="store_true", help="Print grouped triplets and exit")
     parser.add_argument("--hard-delete", action="store_true", help="Permanently delete files instead of send2trash")
-    parser.add_argument("--batch-size", type=int, default=50, help="Number of groups to process per batch (default: 50)")
+    parser.add_argument("--batch-size", type=int, default=100, help="Number of groups to process per batch (default: 100)")
     parser.add_argument("--host", default="127.0.0.1", help="Host/IP for the local web server")
     parser.add_argument("--port", type=int, default=5000, help="Port for the local web server")
     parser.add_argument("--no-browser", action="store_true", help="Do not auto-open the browser")

@@ -5,6 +5,12 @@ Step 3: Web Character Sorter - Modern Browser Edition
 Interactive web tool for sorting images into character groups.
 Features auto-advance between person directories and similarity-based layout.
 
+🎨 STYLE GUIDE:
+---------------
+This web interface follows the project style guide for consistent design:
+  📁 WEB_STYLE_GUIDE.md
+Colors, spacing, typography, and interaction patterns are defined there.
+
 VIRTUAL ENVIRONMENT:
 --------------------
 Activate virtual environment first:

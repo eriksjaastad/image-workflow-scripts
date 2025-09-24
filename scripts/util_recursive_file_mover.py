@@ -21,7 +21,7 @@ FEATURES:
 ---------
 • Recursively scans source directory for image/YAML pairs
 • Moves files while maintaining pairs integrity
-• Creates destination directory if it doesn't exist
+• Validates that both source and destination directories exist
 • Provides detailed progress reporting with tqdm
 • Uses FileTracker for comprehensive operation logging
 • Handles name conflicts with automatic renaming
@@ -81,9 +81,8 @@ def move_files(source_dir: Path, dest_dir: Path, dry_run: bool = False) -> None:
     # Initialize FileTracker
     tracker = FileTracker("recursive_file_mover")
     
-    # Create destination directory
-    if not dry_run:
-        dest_dir.mkdir(parents=True, exist_ok=True)
+    # Destination directory should already exist (validated in main)
+    # No auto-creation for safety
     
     # Find all image/YAML pairs
     print(f"🔍 Scanning {source_dir} for image/YAML pairs...")
@@ -180,6 +179,15 @@ Examples:
     # Check if source and destination are the same
     if source_dir == dest_dir:
         print(f"❌ ERROR: Source and destination are the same directory")
+        sys.exit(1)
+    
+    # Validate destination directory
+    if not dest_dir.exists():
+        print(f"❌ ERROR: Destination directory does not exist: {dest_dir}")
+        sys.exit(1)
+    
+    if not dest_dir.is_dir():
+        print(f"❌ ERROR: Destination is not a directory: {dest_dir}")
         sys.exit(1)
     
     # Check if destination is inside source (would cause issues)

@@ -223,6 +223,21 @@ class TestRunner:
         print("✓ UI integrity validated (key bindings, CSS, JavaScript)")
         return True
     
+    def test_web_tools_comprehensive(self):
+        """Test all web tools with simplified tests (browser automation can be flaky)"""
+        result = subprocess.run([
+            sys.executable, "scripts/tests/test_web_tools_simple.py"
+        ], capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print(f"Web tools test failed: {result.stderr}")
+            if result.stdout:
+                print("Output:", result.stdout)
+            return False
+        
+        print("✓ All web tools passed simplified tests")
+        return True
+    
     def test_memory_usage(self):
         """Test memory usage with large dataset"""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -466,6 +481,7 @@ def main():
         runner.run_test("Grouping Algorithm Test", runner.test_grouping_algorithm)
         runner.run_test("Sequential Singletons Edge Case", runner.test_sequential_singletons_edge_case, critical=True)
         runner.run_test("UI Integrity Test", runner.test_ui_integrity, critical=True)
+        runner.run_test("Web Tools Comprehensive Test", runner.test_web_tools_comprehensive)
         
         if args.performance:
             runner.run_test("Memory Usage Test", runner.test_memory_usage)
