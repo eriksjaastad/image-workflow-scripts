@@ -18,6 +18,10 @@ __pycache__/
 *.log
 file_operations*.log
 file_operations_logs/
+
+# Timer Data (productivity tracking - don't commit personal data)
+timer_data/
+scripts/timer_data/
 quality_log_*.csv
 people_scores*.csv
 

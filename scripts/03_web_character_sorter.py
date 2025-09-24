@@ -94,6 +94,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from file_tracker import FileTracker
+from util_activity_timer import ActivityTimer
 
 try:
     from flask import Flask, Response, jsonify, render_template_string, request, redirect
@@ -293,7 +294,7 @@ def _generate_thumbnail(image_path: str, mtime_ns: int, size: int) -> bytes:
         error_img.save(buf, format="JPEG")
         return buf.getvalue()
 
-def safe_delete(png_path: Path, hard_delete: bool = False, tracker: Optional[FileTracker] = None) -> None:
+def safe_delete(png_path: Path, hard_delete: bool = False, tracker: Optional[FileTracker] = None, activity_timer: Optional[ActivityTimer] = None) -> None:
     """Delete PNG and corresponding YAML file."""
     yaml_path = png_path.parent / f"{png_path.stem}.yaml"
     
@@ -321,8 +322,12 @@ def safe_delete(png_path: Path, hard_delete: bool = False, tracker: Optional[Fil
             files=deleted_files,
             notes="User chose to delete"
         )
+        
+        # Log operation in activity timer
+        if activity_timer:
+            activity_timer.log_operation("delete", file_count=len(deleted_files))
 
-def move_with_yaml(src_path: Path, dest_dir: Path, tracker: FileTracker, group_name: str) -> List[str]:
+def move_with_yaml(src_path: Path, dest_dir: Path, tracker: FileTracker, group_name: str, activity_timer: Optional[ActivityTimer] = None) -> List[str]:
     """Move PNG and corresponding YAML file to destination directory."""
     dest_dir.mkdir(exist_ok=True)
     
@@ -349,6 +354,10 @@ def move_with_yaml(src_path: Path, dest_dir: Path, tracker: FileTracker, group_n
         files=moved_files,
         notes=f"User selected {group_name}"
     )
+    
+    # Log operation in activity timer
+    if activity_timer:
+        activity_timer.log_operation("sort", file_count=len(moved_files))
     
     return moved_files
 
@@ -427,7 +436,7 @@ def clean_similarity_maps(folder: Path, similarity_map_dir: Path) -> bool:
         info(f"Failed to clean similarity maps: {e}")
         return False
 
-def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Optional[Path] = None) -> Flask:
+def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Optional[Path] = None, activity_timer: Optional[ActivityTimer] = None) -> Flask:
     """Create and configure the Flask app."""
     app = Flask(__name__)
     
@@ -471,6 +480,9 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
     
     # Initialize FileTracker
     tracker = FileTracker("character_sorter")
+    
+    # Store activity timer in app config
+    app.config["ACTIVITY_TIMER"] = activity_timer
     
     # Set up target directories - always in project root
     project_root = Path(__file__).parent.parent  # scripts/.. -> project root
@@ -562,9 +574,39 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
         data = _generate_thumbnail(str(path), int(stat.st_mtime_ns), stat.st_size)
         return Response(data, mimetype="image/jpeg")
     
+    @app.route("/mark_activity", methods=["POST"])
+    def mark_activity():
+        """Mark user activity for timer tracking"""
+        activity_timer: Optional[ActivityTimer] = app.config.get("ACTIVITY_TIMER")
+        if activity_timer:
+            activity_timer.mark_activity()
+        return jsonify({"status": "ok"})
+    
+    @app.route("/timer_stats")
+    def timer_stats():
+        """Get current timer statistics"""
+        activity_timer: Optional[ActivityTimer] = app.config.get("ACTIVITY_TIMER")
+        if activity_timer:
+            stats = activity_timer.get_current_stats()
+            return jsonify(stats)
+        else:
+            return jsonify({
+                "active_time": 0,
+                "total_time": 0,
+                "efficiency": 100,
+                "is_active": False,
+                "files_processed": 0,
+                "total_operations": 0
+            })
+
     @app.route("/action", methods=["POST"])
     def handle_action():
         """Handle user actions (group1, group2, group3, delete, skip, back)."""
+        # Mark activity for timer
+        activity_timer: Optional[ActivityTimer] = app.config.get("ACTIVITY_TIMER")
+        if activity_timer:
+            activity_timer.mark_activity()
+            
         data = request.get_json() or {}
         action = data.get("action")
         
@@ -572,6 +614,7 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
         images = app.config["IMAGES"]
         tracker = app.config["TRACKER"]
         target_dirs = app.config["TARGET_DIRS"]
+        activity_timer = app.config.get("ACTIVITY_TIMER")
         history = app.config["HISTORY"]
         
         if current_idx >= len(images):
@@ -593,7 +636,7 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
             group_name = f"character_{action}"
             
             try:
-                moved_files = move_with_yaml(current_image, target_dir, tracker, group_name)
+                moved_files = move_with_yaml(current_image, target_dir, tracker, group_name, activity_timer)
                 history.append((current_image.name, group_name, moved_files))
                 
                 # Remove from images list
@@ -618,7 +661,7 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
                 if yaml_file.exists():
                     files_to_delete.append(yaml_file.name)
                 
-                safe_delete(current_image, app.config["HARD_DELETE"], tracker)
+                safe_delete(current_image, app.config["HARD_DELETE"], tracker, activity_timer)
                 history.append((current_image.name, "DELETED", files_to_delete))
                 
                 # Remove from images list
@@ -716,6 +759,7 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
         tracker = app.config["TRACKER"]
         target_dirs = app.config["TARGET_DIRS"]
         hard_delete = app.config["HARD_DELETE"]
+        activity_timer = app.config.get("ACTIVITY_TIMER")
         images = app.config["IMAGES"]
         history = app.config["HISTORY"]
         
@@ -735,7 +779,7 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
                 if action in ["group1", "group2", "group3"]:
                     target_dir = target_dirs[action]
                     group_name = f"character_{action}"
-                    moved_files = move_with_yaml(image_path, target_dir, tracker, group_name)
+                    moved_files = move_with_yaml(image_path, target_dir, tracker, group_name, activity_timer)
                     history.append((image_path.name, group_name, moved_files))
                     processed_count += 1
                     
@@ -745,7 +789,7 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
                     if yaml_file.exists():
                         files_to_delete.append(yaml_file.name)
                     
-                    safe_delete(image_path, hard_delete, tracker)
+                    safe_delete(image_path, hard_delete, tracker, activity_timer)
                     history.append((image_path.name, "DELETED", files_to_delete))
                     processed_count += 1
                     
@@ -753,7 +797,7 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
                     # Move to crop directory for further processing
                     crop_dir = Path.cwd() / "crop"
                     crop_dir.mkdir(exist_ok=True)
-                    moved_files = move_with_yaml(image_path, crop_dir, tracker, "crop_processing")
+                    moved_files = move_with_yaml(image_path, crop_dir, tracker, "crop_processing", activity_timer)
                     history.append((image_path.name, "SENT_TO_CROP", moved_files))
                     processed_count += 1
         
@@ -2375,6 +2419,78 @@ VIEWPORT_TEMPLATE = """
       }
     }
     
+    // Add activity timer display
+    const timerDiv = document.createElement('div');
+    timerDiv.id = 'activity-timer';
+    timerDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: var(--surface);
+        color: white;
+        padding: 12px 16px;
+        border-radius: 8px;
+        border: 1px solid var(--accent);
+        font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+        font-size: 14px;
+        z-index: 1000;
+        min-width: 200px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    `;
+    timerDiv.innerHTML = `
+        <div style="font-weight: bold; margin-bottom: 4px;">⏱️ Activity Timer</div>
+        <div id="timer-active">Active: 0m 0s</div>
+        <div id="timer-total">Total: 0m 0s</div>
+        <div id="timer-efficiency">Efficiency: 100%</div>
+        <div id="timer-status" style="margin-top: 4px; font-size: 12px;">🟢 Active</div>
+    `;
+    document.body.appendChild(timerDiv);
+
+    // Update timer display every 5 seconds
+    setInterval(updateTimerDisplay, 5000);
+    
+    // Track user activity
+    function markActivity() {
+        fetch('/mark_activity', { method: 'POST' });
+    }
+    
+    // Activity tracking events
+    document.addEventListener('click', markActivity);
+    document.addEventListener('keydown', markActivity);
+    document.addEventListener('scroll', markActivity);
+    
+    // Throttled mouse movement tracking
+    let mouseThrottle = false;
+    document.addEventListener('mousemove', function() {
+        if (!mouseThrottle) {
+            markActivity();
+            mouseThrottle = true;
+            setTimeout(() => mouseThrottle = false, 2000);
+        }
+    });
+    
+    function updateTimerDisplay() {
+        fetch('/timer_stats')
+            .then(response => response.json())
+            .then(data => {
+                if (data.active_time !== undefined) {
+                    const activeMin = Math.floor(data.active_time / 60);
+                    const activeSec = Math.floor(data.active_time % 60);
+                    const totalMin = Math.floor(data.total_time / 60);
+                    const totalSec = Math.floor(data.total_time % 60);
+                    
+                    document.getElementById('timer-active').textContent = `Active: ${activeMin}m ${activeSec}s`;
+                    document.getElementById('timer-total').textContent = `Total: ${totalMin}m ${totalSec}s`;
+                    document.getElementById('timer-efficiency').textContent = `Efficiency: ${data.efficiency.toFixed(1)}%`;
+                    document.getElementById('timer-status').innerHTML = data.is_active ? '🟢 Active' : '🔴 Idle';
+                }
+            })
+            .catch(err => console.log('Timer update failed:', err));
+    }
+    
+    // Initial timer update
+    updateTimerDisplay();
+    
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
       if (isLoading) return;
@@ -2559,7 +2675,11 @@ def main() -> None:
             info(f"Similarity map directory {similarity_map_dir} not found - using alphabetical order")
             similarity_map_dir = None
     
-    app = create_app(folder, args.hard_delete, similarity_map_dir)
+    # Initialize activity timer
+    activity_timer = ActivityTimer("03_web_character_sorter")
+    activity_timer.start_session()
+    
+    app = create_app(folder, args.hard_delete, similarity_map_dir, activity_timer)
     
     if not args.no_browser:
         threading.Thread(target=launch_browser, args=(args.host, args.port), daemon=True).start()
@@ -2570,6 +2690,10 @@ def main() -> None:
     except OSError as exc:
         human_err(f"Failed to start server: {exc}")
         sys.exit(1)
+    finally:
+        # End activity timer session
+        if 'activity_timer' in locals():
+            activity_timer.end_session()
 
 if __name__ == "__main__":
     main()

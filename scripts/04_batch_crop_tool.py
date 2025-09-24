@@ -96,6 +96,7 @@ from send2trash import send2trash
 # Add the project root to the path for importing
 sys.path.append(str(Path(__file__).parent.parent))
 from scripts.file_tracker import FileTracker
+from scripts.util_activity_timer import ActivityTimer
 
 class BatchCropTool:
     def __init__(self, directory, aspect_ratio=None):
@@ -103,6 +104,10 @@ class BatchCropTool:
         self.aspect_ratio = self._parse_aspect_ratio(aspect_ratio) if aspect_ratio else None
         self.aspect_ratio_locked = True
         self.tracker = FileTracker("batch_crop_tool")
+        
+        # Initialize activity timer
+        self.activity_timer = ActivityTimer("04_batch_crop_tool")
+        self.activity_timer.start_session()
         
         # Get all PNG files
         self.png_files = sorted([f for f in self.directory.glob("*.png")])
@@ -342,6 +347,8 @@ class BatchCropTool:
         
     def on_crop_select(self, eclick, erelease, image_idx):
         """Handle crop rectangle selection for a specific image"""
+        # Mark activity for timer
+        self.activity_timer.mark_activity()
         if image_idx >= len(self.current_images):
             return
             
@@ -412,6 +419,9 @@ class BatchCropTool:
         
     def on_key_press(self, event):
         """Handle keyboard input"""
+        # Mark activity for timer
+        self.activity_timer.mark_activity()
+        
         key = event.key.lower()
         
         # Explicitly disable matplotlib's default save functionality
@@ -504,6 +514,10 @@ class BatchCropTool:
         if not self.current_images:
             return
             
+        # Mark batch processing activity
+        self.activity_timer.mark_batch(f"Crop batch {self.current_batch + 1}")
+        self.activity_timer.mark_activity()
+            
         print(f"\nProcessing batch {self.current_batch + 1}...")
         
         processed_count = 0
@@ -535,6 +549,9 @@ class BatchCropTool:
                 print(f"Error processing image {i + 1}: {e}")
                 
         print(f"Processed {processed_count}/{len(self.current_images)} images in batch")
+        
+        # End batch tracking
+        self.activity_timer.end_batch(f"Completed {processed_count} operations")
         
         # Move to next batch
         if self.has_next_batch():
@@ -571,6 +588,9 @@ class BatchCropTool:
             [png_path.name, yaml_path.name]
         )
         
+        # Log operation in activity timer
+        self.activity_timer.log_operation("crop", file_count=1)
+        
         # Delete original files
         png_path.unlink()
         if yaml_path.exists():
@@ -597,6 +617,9 @@ class BatchCropTool:
             f"Image {reason}", files
         )
         
+        # Log operation in activity timer
+        self.activity_timer.log_operation("skip", file_count=1)
+        
         print(f"Moved to cropped: {png_path.name} ({reason})")
         
     def safe_delete(self, png_path, yaml_path):
@@ -617,6 +640,9 @@ class BatchCropTool:
             "delete", str(png_path.parent), "trash", len(files_deleted),
             "Image deleted", files_deleted
         )
+        
+        # Log operation in activity timer
+        self.activity_timer.log_operation("delete", file_count=1)
         
         print(f"Deleted: {png_path.name}")
         
@@ -640,6 +666,10 @@ class BatchCropTool:
     def quit(self):
         """Quit the application"""
         print("Quitting batch crop tool...")
+        
+        # End activity timer session
+        self.activity_timer.end_session()
+        
         plt.close('all')
         sys.exit(0)
         

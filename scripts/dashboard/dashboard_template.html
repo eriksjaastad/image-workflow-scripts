@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 Productivity Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Erik's Web Style Guide - Dashboard Adaptation */
+        :root {
+            /* Core Colors */
+            --bg: #1a1a1a;
+            --surface: #2a2a2a;
+            --accent: #4a9eff;
+            --danger: #ff4757;
+            --success: #2ed573;
+            --warning: #ffa502;
+            --muted: #6c757d;
+            
+            /* Text Colors */
+            --text-primary: #ffffff;
+            --text-secondary: #b8b8b8;
+            --text-muted: #888888;
+            
+            /* Interactive */
+            --hover: #3a3a3a;
+            --active: #4a4a4a;
+            --border: #404040;
+            
+            /* Chart Colors */
+            --chart-primary: #4a9eff;
+            --chart-secondary: #2ed573;
+            --chart-tertiary: #ffa502;
+            --chart-quaternary: #ff6b9d;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: var(--bg);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        .dashboard-header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 1.5rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        .dashboard-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+        
+        .dashboard-subtitle {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+        
+        .controls-section {
+            background: var(--surface);
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .control-label {
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        
+        .time-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .time-btn {
+            background: var(--hover);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .time-btn:hover {
+            background: var(--active);
+            border-color: var(--accent);
+        }
+        
+        .time-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+        
+        .lookback-input {
+            background: var(--hover);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            width: 80px;
+            text-align: center;
+        }
+        
+        .lookback-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
+        }
+        
+        .dashboard-content {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .chart-container {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .chart-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .chart-subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+        
+        .chart-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .chart-btn {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+        }
+        
+        .chart-btn:hover {
+            background: var(--hover);
+            color: var(--text-primary);
+        }
+        
+        .chart-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+        
+        .chart-canvas {
+            position: relative;
+            height: 400px;
+            width: 100%;
+        }
+        
+        .stats-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: var(--text-muted);
+        }
+        
+        .error {
+            background: rgba(255, 71, 87, 0.1);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .dashboard-content {
+                padding: 1rem;
+            }
+            
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls-section {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-header">
+        <h1 class="dashboard-title">🚀 Productivity Dashboard</h1>
+        <p class="dashboard-subtitle">Real-time workflow analytics for image processing tools</p>
+    </div>
+    
+    <div class="controls-section">
+        <div class="control-group">
+            <span class="control-label">Time Scale:</span>
+            <div class="time-controls">
+                <button class="time-btn" data-slice="15T">15min</button>
+                <button class="time-btn" data-slice="H">1hr</button>
+                <button class="time-btn active" data-slice="D">Daily</button>
+                <button class="time-btn" data-slice="W">Weekly</button>
+                <button class="time-btn" data-slice="M">Monthly</button>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <span class="control-label">Lookback Days:</span>
+            <input type="number" class="lookback-input" id="lookback-days" value="30" min="1" max="365">
+        </div>
+        
+        <div class="control-group">
+            <button class="time-btn" id="refresh-btn">🔄 Refresh</button>
+        </div>
+    </div>
+    
+    <div class="dashboard-content">
+        <!-- Stats Overview -->
+        <div class="stats-overview" id="stats-overview">
+            <div class="stat-card">
+                <div class="stat-value" id="total-files">-</div>
+                <div class="stat-label">Total Files Processed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="active-days">-</div>
+                <div class="stat-label">Active Days</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avg-daily">-</div>
+                <div class="stat-label">Avg Files/Day</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="top-script">-</div>
+                <div class="stat-label">Most Used Tool</div>
+            </div>
+        </div>
+        
+        <!-- Charts Grid -->
+        <div class="charts-grid">
+            <!-- Files by Script Chart -->
+            <div class="chart-container">
+                <div class="chart-header">
+                    <div>
+                        <h3 class="chart-title">📊 Files Processed by Tool</h3>
+                        <p class="chart-subtitle">Your 3 production workflow scripts</p>
+                    </div>
+                    <div class="chart-controls">
+                        <button class="chart-btn active" data-chart="by-script" data-type="bar">Bar</button>
+                        <button class="chart-btn" data-chart="by-script" data-type="line">Line</button>
+                    </div>
+                </div>
+                <div class="chart-canvas">
+                    <canvas id="files-by-script-chart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Operations by Type Chart -->
+            <div class="chart-container">
+                <div class="chart-header">
+                    <div>
+                        <h3 class="chart-title">⚡ Operations by Type</h3>
+                        <p class="chart-subtitle">Delete, crop, sort, and move operations</p>
+                    </div>
+                    <div class="chart-controls">
+                        <button class="chart-btn active" data-chart="by-operation" data-type="bar">Bar</button>
+                        <button class="chart-btn" data-chart="by-operation" data-type="doughnut">Pie</button>
+                    </div>
+                </div>
+                <div class="chart-canvas">
+                    <canvas id="operations-by-type-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Dashboard State
+        let currentTimeSlice = 'D';
+        let currentLookbackDays = 30;
+        let charts = {};
+        let currentData = null;
+        
+        // Chart.js Default Configuration
+        Chart.defaults.color = '#b8b8b8';
+        Chart.defaults.backgroundColor = 'rgba(74, 158, 255, 0.2)';
+        Chart.defaults.borderColor = '#4a9eff';
+        Chart.defaults.plugins.legend.labels.color = '#b8b8b8';
+        
+        // Color Palette for Charts
+        const chartColors = [
+            '#4a9eff', // Primary blue
+            '#2ed573', // Success green  
+            '#ffa502', // Warning orange
+            '#ff6b9d', // Pink
+            '#a55eea', // Purple
+            '#26de81', // Mint
+            '#fd79a8', // Rose
+            '#fdcb6e'  // Yellow
+        ];
+        
+        // Initialize Dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            loadDashboardData();
+        });
+        
+        function setupEventListeners() {
+            // Time scale buttons
+            document.querySelectorAll('.time-btn[data-slice]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.time-btn[data-slice]').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentTimeSlice = this.dataset.slice;
+                    loadDashboardData();
+                });
+            });
+            
+            // Lookback days input
+            document.getElementById('lookback-days').addEventListener('change', function() {
+                currentLookbackDays = parseInt(this.value);
+                loadDashboardData();
+            });
+            
+            // Refresh button
+            document.getElementById('refresh-btn').addEventListener('click', loadDashboardData);
+            
+            // Chart type controls
+            document.querySelectorAll('.chart-btn[data-type]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const chartName = this.dataset.chart;
+                    const chartType = this.dataset.type;
+                    
+                    // Update active state
+                    this.parentElement.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Recreate chart with new type
+                    if (currentData && currentData.charts[chartName.replace('-', '_')]) {
+                        createChart(chartName, chartType, currentData.charts[chartName.replace('-', '_')]);
+                    }
+                });
+            });
+        }
+        
+        async function loadDashboardData() {
+            try {
+                showLoading();
+                
+                const response = await fetch(`/api/data/${currentTimeSlice}?lookback_days=${currentLookbackDays}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                currentData = data;
+                updateStatsOverview(data);
+                updateCharts(data);
+                
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                showError('Failed to load dashboard data: ' + error.message);
+            }
+        }
+        
+        function showLoading() {
+            document.querySelectorAll('.chart-canvas').forEach(canvas => {
+                canvas.innerHTML = '<div class="loading">Loading chart data...</div>';
+            });
+        }
+        
+        function showError(message) {
+            document.querySelectorAll('.chart-canvas').forEach(canvas => {
+                canvas.innerHTML = `<div class="error">${message}</div>`;
+            });
+        }
+        
+        function updateStatsOverview(data) {
+            // Calculate total files
+            let totalFiles = 0;
+            let activeDays = new Set();
+            let scriptTotals = {};
+            
+            if (data.charts.by_script) {
+                Object.entries(data.charts.by_script).forEach(([script, scriptData]) => {
+                    const scriptTotal = scriptData.counts.reduce((sum, count) => sum + count, 0);
+                    scriptTotals[script] = scriptTotal;
+                    totalFiles += scriptTotal;
+                    
+                    scriptData.dates.forEach(date => activeDays.add(date));
+                });
+            }
+            
+            // Update stat cards
+            document.getElementById('total-files').textContent = totalFiles.toLocaleString();
+            document.getElementById('active-days').textContent = activeDays.size;
+            document.getElementById('avg-daily').textContent = activeDays.size > 0 ? 
+                Math.round(totalFiles / activeDays.size).toLocaleString() : '0';
+            
+            // Find top script
+            const topScript = Object.entries(scriptTotals).reduce((a, b) => 
+                scriptTotals[a[0]] > scriptTotals[b[0]] ? a : b, ['None', 0]);
+            document.getElementById('top-script').textContent = topScript[0].split('_')[0] || 'None';
+        }
+        
+        function updateCharts(data) {
+            if (data.charts.by_script) {
+                createChart('by-script', 'bar', data.charts.by_script);
+            }
+            
+            if (data.charts.by_operation) {
+                createChart('by-operation', 'bar', data.charts.by_operation);
+            }
+        }
+        
+        function createChart(chartName, chartType, chartData) {
+            const canvasId = chartName === 'by-script' ? 'files-by-script-chart' : 'operations-by-type-chart';
+            const canvas = document.getElementById(canvasId);
+            
+            // Destroy existing chart
+            if (charts[canvasId]) {
+                charts[canvasId].destroy();
+            }
+            
+            // Prepare data for Chart.js
+            const datasets = [];
+            const labels = new Set();
+            
+            Object.entries(chartData).forEach(([key, data], index) => {
+                data.dates.forEach(date => labels.add(date));
+                
+                datasets.push({
+                    label: key,
+                    data: data.counts,
+                    backgroundColor: chartColors[index % chartColors.length] + '40',
+                    borderColor: chartColors[index % chartColors.length],
+                    borderWidth: 2,
+                    tension: 0.4
+                });
+            });
+            
+            const sortedLabels = Array.from(labels).sort();
+            
+            // Create chart configuration
+            const config = {
+                type: chartType,
+                data: {
+                    labels: sortedLabels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(42, 42, 42, 0.9)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#b8b8b8',
+                            borderColor: '#4a9eff',
+                            borderWidth: 1
+                        }
+                    },
+                    scales: chartType !== 'doughnut' ? {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: '#404040'
+                            },
+                            ticks: {
+                                color: '#b8b8b8'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: '#404040'
+                            },
+                            ticks: {
+                                color: '#b8b8b8'
+                            }
+                        }
+                    } : {}
+                }
+            };
+            
+            // Create chart
+            charts[canvasId] = new Chart(canvas, config);
+        }
+    </script>
+</body>
+</html>
