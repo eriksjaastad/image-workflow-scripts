@@ -67,7 +67,7 @@ python scripts/dashboard/run_dashboard.py
 - `scripts/dashboard/data_engine.py` - Data processing engine
 - `scripts/dashboard/dashboard_template.html` - Beautiful web interface
 - `scripts/dashboard/data_retention_policy.py` - Smart storage management
-- `scripts/util_activity_timer.py` - Shared timer utility
+- `scripts/utils/activity_timer.py` - Shared timer utility
 
 ### **🔧 Technical Setup**
 - **Virtual environment:** `.venv311` (Flask already installed)
