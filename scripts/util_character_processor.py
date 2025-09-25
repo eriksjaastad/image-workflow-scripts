@@ -30,7 +30,8 @@ PIPELINE STAGES:
 ----------------
 1. YAML Analysis: Extract character LoRA + prompt data
 2. Sequential Context: Infer characters for files without data
-3. Character Grouping: Organize files into character directories
+3. Prompt Analysis: Extract descriptive characters from prompts (20+ file minimum)
+4. Character Grouping: Organize files into character directories
 """
 
 import argparse
@@ -87,6 +88,154 @@ def extract_characters_from_prompt(prompt: str) -> List[str]:
     # Find all @character references
     character_matches = re.findall(r'@(\w+)', prompt)
     return [char.lower() for char in character_matches]
+
+
+def extract_descriptive_character_from_prompt(prompt: str) -> Optional[str]:
+    """
+    Extract descriptive character information from prompt text as fallback.
+    
+    Looks for physical descriptors like ethnicity, body type, hair color, etc.
+    Only returns a character name if confident descriptors are found.
+    
+    Args:
+        prompt: The prompt text to analyze
+        
+    Returns:
+        Descriptive character name or None if no clear descriptors found
+    """
+    if not prompt:
+        return None
+    
+    # Convert to lowercase for analysis
+    prompt_lower = prompt.lower()
+    
+    # Define descriptor categories (order matters - more specific first)
+    ethnicity_descriptors = [
+        'latina', 'latin', 'hispanic', 'mexican', 'spanish',
+        'asian', 'japanese', 'chinese', 'korean', 'thai', 'vietnamese',
+        'black', 'african', 'ebony', 'dark skin',
+        'white', 'caucasian', 'european', 'blonde', 'brunette', 'redhead',
+        'indian', 'middle eastern', 'arab', 'persian'
+    ]
+    
+    body_descriptors = [
+        'petite', 'small', 'tiny', 'short',
+        'tall', 'amazon', 'statuesque',
+        'curvy', 'thick', 'voluptuous', 'busty', 'big boobs', 'big tits',
+        'slim', 'skinny', 'thin', 'lean', 'athletic', 'fit'
+    ]
+    
+    age_descriptors = [
+        'young', 'teen', 'college', 'student',
+        'mature', 'milf', 'older', 'cougar'
+    ]
+    
+    # Extract descriptors from prompt (look at first half of prompt for main subject)
+    prompt_parts = prompt_lower.split(',')
+    # Take first half of prompt parts, but at least first 5 parts
+    num_parts = max(5, len(prompt_parts) // 2)
+    prompt_text = ' '.join(prompt_parts[:num_parts])
+    
+    found_ethnicity = None
+    found_body = None
+    found_age = None
+    
+    # Find ethnicity descriptors
+    for descriptor in ethnicity_descriptors:
+        if descriptor in prompt_text:
+            found_ethnicity = descriptor.replace(' ', '_')
+            break
+    
+    # Find body descriptors
+    for descriptor in body_descriptors:
+        if descriptor in prompt_text:
+            found_body = descriptor.replace(' ', '_')
+            break
+    
+    # Find age descriptors
+    for descriptor in age_descriptors:
+        if descriptor in prompt_text:
+            found_age = descriptor.replace(' ', '_')
+            break
+    
+    # Build character name from descriptors
+    descriptors = []
+    if found_ethnicity:
+        descriptors.append(found_ethnicity)
+    if found_body:
+        descriptors.append(found_body)
+    if found_age:
+        descriptors.append(found_age)
+    
+    # Only return if we found at least one meaningful descriptor
+    if descriptors:
+        return '_'.join(descriptors)
+    
+    return None
+
+
+def analyze_prompts_for_characters(character_mapping: Dict, min_threshold: int = 20) -> Dict[str, str]:
+    """
+    Analyze prompts for files without character data and group by descriptive characteristics.
+    Only creates character groups that meet the minimum threshold.
+    
+    Args:
+        character_mapping: Dictionary of filename -> character info
+        min_threshold: Minimum number of files needed to create a character group
+        
+    Returns:
+        Dictionary mapping filenames to prompt-based character names
+    """
+    # Find files without character data
+    files_without_character = []
+    for filename, char_info in character_mapping.items():
+        if not char_info.get('has_character', False):
+            files_without_character.append((filename, char_info))
+    
+    if len(files_without_character) < min_threshold:
+        return {}  # Not enough files to warrant prompt analysis
+    
+    print(f"[*] Analyzing prompts for {len(files_without_character)} files without character data...")
+    
+    # First pass: collect all potential prompt-based characters
+    prompt_character_counts = {}
+    file_to_prompt_char = {}
+    
+    for filename, char_info in files_without_character:
+        prompt = char_info.get('prompt', '')
+        prompt_char = extract_descriptive_character_from_prompt(prompt)
+        
+        if prompt_char:
+            prompt_character_counts[prompt_char] = prompt_character_counts.get(prompt_char, 0) + 1
+            file_to_prompt_char[filename] = prompt_char
+            prompt_preview = prompt[:50] + "..." if len(prompt) > 50 else prompt
+            print(f"    • {filename}: '{prompt_preview}' → {prompt_char}")
+        else:
+            prompt_preview = prompt[:50] + "..." if len(prompt) > 50 else prompt
+            print(f"    • {filename}: '{prompt_preview}' → NO MATCH")
+    
+    print(f"\n[*] Prompt character counts:")
+    for char, count in prompt_character_counts.items():
+        print(f"    • {char}: {count} files")
+    
+    # Second pass: only keep characters that meet threshold
+    viable_characters = {char: count for char, count in prompt_character_counts.items() if count >= min_threshold}
+    
+    if not viable_characters:
+        print(f"[*] No prompt-based character groups meet minimum threshold of {min_threshold} files")
+        return {}
+    
+    print(f"[*] Found {len(viable_characters)} viable prompt-based character groups:")
+    for char, count in viable_characters.items():
+        print(f"    • {char}: {count} files")
+    
+    # Third pass: assign only viable characters
+    final_assignments = {}
+    for filename, prompt_char in file_to_prompt_char.items():
+        if prompt_char in viable_characters:
+            final_assignments[filename] = prompt_char
+    
+    return final_assignments
 
 
 def parse_yaml_file(yaml_path: Path) -> Optional[Dict]:
@@ -171,7 +320,8 @@ def parse_yaml_file(yaml_path: Path) -> Optional[Dict]:
             'png_filename': png_filename,
             'has_character': has_character,
             'has_face_detected': has_face_detected,
-            'is_multi_character': len(all_characters) > 1
+            'is_multi_character': len(all_characters) > 1,
+            'prompt': data.get('prompt', '')  # Extract prompt for fallback analysis
         }
         
     except Exception as e:
@@ -249,7 +399,8 @@ def analyze_yaml(directory: str, output_file: Optional[str] = None, quiet: bool 
             'yaml_file': result['yaml_file'],
             'has_character': result['has_character'],
             'has_face_detected': result['has_face_detected'],
-            'is_multi_character': result['is_multi_character']
+            'is_multi_character': result['is_multi_character'],
+            'prompt': result['prompt']  # Include prompt for fallback analysis
         }
     
     elapsed_time = time.time() - start_time
@@ -556,8 +707,17 @@ def group_by_character(analysis_data: Dict, source_directory: str, dry_run: bool
         print(f"📁 Source: {source_dir}")
         print(f"[*] Found {len(characters)} characters: {', '.join(characters)}")
     
-    # Create character directories
-    char_dirs = create_character_directories(source_dir, characters, dry_run)
+    # Create character directories (including prompt-based characters)
+    all_characters = list(characters)
+    
+    # Add any prompt-based characters that were discovered
+    for filename, char_info in character_mapping.items():
+        if char_info.get('source') == 'prompt_analysis':
+            prompt_char = char_info.get('character_name')
+            if prompt_char and prompt_char not in all_characters:
+                all_characters.append(prompt_char)
+    
+    char_dirs = create_character_directories(source_dir, all_characters, dry_run)
     
     # Initialize activity tracking
     tracker = None
@@ -738,6 +898,41 @@ def process_directory(directory: str, dry_run: bool = False, save_analysis: bool
     
     # Stage 2: Sequential Context
     enhanced_data = add_sequential_context(analysis_data, quiet)
+    
+    # Stage 2.5: Prompt Analysis (fallback for remaining files)
+    if not quiet:
+        print("\n=== Stage 2.5: Prompt Analysis ===")
+    
+    prompt_assignments = analyze_prompts_for_characters(enhanced_data['character_mapping'], min_threshold=15)
+    
+    if prompt_assignments:
+        # Apply prompt-based character assignments
+        for filename, prompt_char in prompt_assignments.items():
+            if filename in enhanced_data['character_mapping']:
+                enhanced_data['character_mapping'][filename]['character_name'] = prompt_char
+                enhanced_data['character_mapping'][filename]['has_character'] = True
+                enhanced_data['character_mapping'][filename]['source'] = 'prompt_analysis'
+        
+        # Update summary statistics
+        enhanced_data['summary']['prompt_analysis'] = {
+            'files_assigned': len(prompt_assignments),
+            'character_groups_created': len(set(prompt_assignments.values())),
+            'character_groups': {char: list(prompt_assignments.values()).count(char) 
+                               for char in set(prompt_assignments.values())}
+        }
+        
+        if not quiet:
+            print(f"[*] Assigned {len(prompt_assignments)} files to {len(set(prompt_assignments.values()))} prompt-based character groups")
+            for char, count in enhanced_data['summary']['prompt_analysis']['character_groups'].items():
+                print(f"    • {char}: {count} files")
+    else:
+        if not quiet:
+            print("[*] No viable prompt-based character groups found")
+        enhanced_data['summary']['prompt_analysis'] = {
+            'files_assigned': 0,
+            'character_groups_created': 0,
+            'character_groups': {}
+        }
     
     if save_analysis:
         context_file = analysis_file.replace('.json', '_with_context.json') if analysis_file else None
