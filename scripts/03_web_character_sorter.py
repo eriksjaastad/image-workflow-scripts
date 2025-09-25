@@ -19,8 +19,8 @@ Activate virtual environment first:
 USAGE:
 ------
 Basic character sorting:
-  python scripts/03_web_character_sorter.py "Reviewed"
-  python scripts/03_web_character_sorter.py "crop"
+  python scripts/03_web_character_sorter.py slected
+  python scripts/03_web_character_sorter.py face_groups/person_0001
 
 Enhanced sorting with similarity maps (RECOMMENDED after face grouper):
   python scripts/03_web_character_sorter.py face_groups/person_0001 --similarity-map face_groups
@@ -504,6 +504,14 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
     app.config["SIMILARITY_MAP_DIR"] = similarity_map_dir
     app.config["IS_FACE_GROUPS_MODE"] = is_face_groups_mode
     app.config["FACE_GROUPS_INFO"] = face_groups_info
+    
+    # Set up directory navigation for face groups mode
+    if is_face_groups_mode and face_groups_info:
+        app.config["ALL_PERSON_DIRS"] = face_groups_info["person_dirs"]
+        app.config["CURRENT_DIR"] = face_groups_info["current_dir"]
+    else:
+        app.config["ALL_PERSON_DIRS"] = []
+        app.config["CURRENT_DIR"] = folder
     app.config["TARGET_DIRS"] = {
         "group1": character_group_1,
         "group2": character_group_2,
@@ -547,6 +555,14 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
                 'start_index': i
             })
         
+        # Calculate current directory index for previous button state
+        current_dir_index = 0
+        if app.config["IS_FACE_GROUPS_MODE"] and "ALL_PERSON_DIRS" in app.config:
+            try:
+                current_dir_index = app.config["ALL_PERSON_DIRS"].index(app.config["CURRENT_DIR"])
+            except (ValueError, KeyError):
+                current_dir_index = 0
+        
         return render_template_string(
             VIEWPORT_TEMPLATE,
             image_rows=image_rows,
@@ -555,7 +571,8 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
             folder_name=folder.name,
             is_face_groups_mode=app.config["IS_FACE_GROUPS_MODE"],
             face_groups_info=app.config["FACE_GROUPS_INFO"],
-            has_similarity_maps=app.config["SIMILARITY_MAP_DIR"] is not None
+            has_similarity_maps=app.config["SIMILARITY_MAP_DIR"] is not None,
+            current_dir_index=current_dir_index
         )
     
     @app.route("/image/<int:global_index>")
@@ -840,6 +857,37 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
         else:
             return jsonify({"status": "error", "message": "Failed to refresh layout"}), 500
     
+    @app.route("/prev-directory", methods=["POST"])
+    def prev_directory():
+        """Get the previous person directory for manual navigation."""
+        if not app.config["IS_FACE_GROUPS_MODE"]:
+            return jsonify({"status": "error", "message": "Not in face groups mode"}), 400
+        
+        current_dir = app.config["CURRENT_DIR"]
+        all_dirs = app.config["ALL_PERSON_DIRS"]
+        
+        try:
+            current_index = all_dirs.index(current_dir)
+            if current_index == 0:
+                return jsonify({"status": "first_directory", "message": "Already at the first directory"})
+            
+            prev_dir = all_dirs[current_index - 1]
+            
+            # Build redirect URL for previous directory
+            base_url = request.url_root.rstrip('/')
+            redirect_url = f"{base_url}/?dir={prev_dir.name}"
+            
+            return jsonify({
+                "status": "success",
+                "prev_directory": prev_dir.name,
+                "redirect_url": redirect_url,
+                "current_index": current_index - 1,
+                "total_directories": len(all_dirs)
+            })
+            
+        except ValueError:
+            return jsonify({"status": "error", "message": "Current directory not found in list"}), 500
+    
     @app.route("/next-directory", methods=["POST"])
     def next_directory():
         """Get the next person directory for manual advance."""
@@ -891,6 +939,10 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
         app.config["IMAGES"] = new_images
         app.config["FACE_GROUPS_INFO"] = new_face_groups_info
         app.config["HISTORY"] = []  # Reset history for new directory
+        
+        # Update directory navigation config
+        app.config["ALL_PERSON_DIRS"] = new_face_groups_info["person_dirs"]
+        app.config["CURRENT_DIR"] = new_face_groups_info["current_dir"]
         
         # Group images into batches for grid display
         IMAGES_PER_BATCH = 6
@@ -1604,6 +1656,23 @@ GRID_TEMPLATE = """
       transform: translateY(-2px);
     }
     
+    .btn-prev {
+      background: linear-gradient(135deg, var(--muted) 0%, #8a8ca0 100%);
+      color: white;
+      margin-right: 0.5rem;
+    }
+    
+    .btn-prev:hover:not(:disabled) {
+      background: linear-gradient(135deg, #8a8ca0 0%, var(--muted) 100%);
+      transform: translateY(-2px);
+    }
+    
+    .btn-prev:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
     .btn-back {
       background: var(--surface-alt);
       color: var(--muted);
@@ -2167,6 +2236,9 @@ VIEWPORT_TEMPLATE = """
           </button>
           {% endif %}
           {% if is_face_groups_mode %}
+          <button class="btn-prev" id="prev-directory" onclick="skipToPreviousDirectory()" {% if current_dir_index == 0 %}disabled{% endif %}>
+            ⏮️ Previous Directory
+          </button>
           <button class="btn-next" id="next-directory" onclick="skipToNextDirectory()">
             ⏭️ Next Directory
           </button>
@@ -2441,6 +2513,28 @@ VIEWPORT_TEMPLATE = """
       } finally {
         refreshBtn.innerHTML = originalText;
         refreshBtn.disabled = false;
+      }
+    }
+    
+    async function skipToPreviousDirectory() {
+      try {
+        const response = await fetch('/prev-directory', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'}
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+          // Navigate to previous directory
+          window.location.href = result.redirect_url;
+        } else if (result.status === 'first_directory') {
+          alert('Already at the first directory');
+        } else {
+          alert('Error: ' + result.message);
+        }
+      } catch (error) {
+        alert('Error going to previous directory: ' + error.message);
       }
     }
     
