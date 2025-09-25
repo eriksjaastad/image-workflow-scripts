@@ -312,10 +312,26 @@ class MultiDirectoryBatchCropTool:
             
             self.png_files = self.progress_tracker.get_current_files()
             if not self.png_files:
-                print("No files remaining in current directory, advancing...")
-                self.progress_tracker.advance_directory()
-                if self.progress_tracker.has_more_directories():
-                    self.png_files = self.progress_tracker.get_current_files()
+                # Check if we're truly at the end or if there's a tracking issue
+                current_dir = self.progress_tracker.get_current_directory()
+                if current_dir:
+                    all_files = sorted(current_dir['path'].glob("*.png"))
+                    if all_files:
+                        print(f"[!] Progress tracking issue detected in {current_dir['name']}")
+                        print(f"[!] Directory has {len(all_files)} files but current_file_index is {self.progress_tracker.current_file_index}")
+                        print("[!] Resetting to start of directory to prevent data loss")
+                        self.progress_tracker.current_file_index = 0
+                        self.progress_tracker.save_progress()
+                        self.png_files = self.progress_tracker.get_current_files()
+                    else:
+                        print("Directory is truly empty, advancing...")
+                        self.progress_tracker.advance_directory()
+                        if self.progress_tracker.has_more_directories():
+                            self.png_files = self.progress_tracker.get_current_files()
+                        else:
+                            print("🎉 All directories completed!")
+                            self.progress_tracker.cleanup_completed_session()
+                            sys.exit(0)
                 else:
                     print("🎉 All directories completed!")
                     self.progress_tracker.cleanup_completed_session()
@@ -323,6 +339,14 @@ class MultiDirectoryBatchCropTool:
         
         self.current_batch = 0
         self.total_batches = (len(self.png_files) + 2) // 3  # Round up division
+        
+        # Debug output to help track the issue
+        if not self.single_directory_mode:
+            current_dir = self.progress_tracker.get_current_directory()
+            print(f"[DEBUG] Starting in directory: {current_dir['name'] if current_dir else 'None'}")
+            print(f"[DEBUG] Current file index: {self.progress_tracker.current_file_index}")
+            print(f"[DEBUG] Files available: {len(self.png_files)}")
+            print(f"[DEBUG] Total batches: {self.total_batches}")
         
         # State for current batch of 3 images
         self.current_images = []
