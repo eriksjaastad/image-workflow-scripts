@@ -45,6 +45,12 @@ Step 1: Character Processing → scripts/utils/character_processor.py
 Step 2: Final Cropping → THIS SCRIPT (scripts/04_batch_crop_tool_multi.py)
 Step 3: Basic Review → scripts/05_multi_directory_viewer.py
 
+FILE HANDLING:
+--------------
+• Cropped images: Saved over original files in place (emily/image.png → emily/image.png)
+• Skipped images: Left unchanged in original directory
+• Deleted images: Moved to trash (no longer in directory)
+
 CONTROLS:
 ---------
 Image 1: [W] Skip  [S] Delete  [X] Reset crop
@@ -326,9 +332,7 @@ class MultiDirectoryBatchCropTool:
         self.has_pending_changes = False
         self.quit_confirmed = False
         
-        # Create cropped directory if it doesn't exist
-        self.cropped_dir = Path.cwd() / "cropped"
-        self.cropped_dir.mkdir(exist_ok=True)
+        # No longer using a separate cropped directory - files stay in place
         
         # Setup matplotlib
         self.fig = None
@@ -768,7 +772,7 @@ class MultiDirectoryBatchCropTool:
             self.show_completion()
     
     def crop_and_save(self, image_info, crop_coords):
-        """Crop image and save to cropped directory"""
+        """Crop image and save over the original file in place"""
         png_path = image_info['path']
         yaml_path = png_path.with_suffix('.yaml')
         
@@ -778,51 +782,36 @@ class MultiDirectoryBatchCropTool:
         img = Image.open(png_path)
         cropped_img = img.crop((x1, y1, x2, y2))
         
-        # Save to cropped directory
-        output_png = self.cropped_dir / png_path.name
-        output_yaml = self.cropped_dir / yaml_path.name
+        # Save over the original file (in place)
+        cropped_img.save(png_path)
         
-        cropped_img.save(output_png)
+        # YAML file stays unchanged in the same directory
         
-        # Copy YAML file if it exists
-        if yaml_path.exists():
-            shutil.copy2(yaml_path, output_yaml)
-            
         # Log the operation
         self.tracker.log_operation(
-            "crop", str(png_path.parent), "cropped", 2,
-            f"Cropped to ({x1},{y1},{x2},{y2})", 
-            [png_path.name, yaml_path.name]
+            "crop", str(png_path.parent), str(png_path.parent), 1,
+            f"Cropped in place to ({x1},{y1},{x2},{y2})", 
+            [png_path.name]
         )
         
         self.activity_timer.log_operation("crop", file_count=1)
         
-        # Delete original files
-        png_path.unlink()
-        if yaml_path.exists():
-            yaml_path.unlink()
-            
-        print(f"Cropped and saved: {png_path.name}")
+        print(f"Cropped and saved in place: {png_path.name}")
     
     def move_to_cropped(self, png_path, yaml_path, reason):
-        """Move files to cropped directory without modification"""
-        output_png = self.cropped_dir / png_path.name
-        output_yaml = self.cropped_dir / yaml_path.name
+        """Mark files as processed (skipped) but leave them in original directory"""
+        # Files stay in place - no actual moving
         
-        shutil.move(str(png_path), str(output_png))
-        if yaml_path.exists():
-            shutil.move(str(yaml_path), str(output_yaml))
-            
         file_count = 2 if yaml_path.exists() else 1
         files = [png_path.name, yaml_path.name] if yaml_path.exists() else [png_path.name]
         
         self.tracker.log_operation(
-            "move", str(png_path.parent), "cropped", file_count,
-            f"Image {reason}", files
+            "skip", str(png_path.parent), str(png_path.parent), file_count,
+            f"Image {reason} (left in place)", files
         )
         
         self.activity_timer.log_operation("skip", file_count=1)
-        print(f"Moved to cropped: {png_path.name} ({reason})")
+        print(f"Skipped (left in place): {png_path.name} ({reason})")
     
     def safe_delete(self, png_path, yaml_path):
         """Safely delete image files"""
