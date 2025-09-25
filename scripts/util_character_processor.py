@@ -90,7 +90,7 @@ def extract_characters_from_prompt(prompt: str) -> List[str]:
     return [char.lower() for char in character_matches]
 
 
-def extract_descriptive_character_from_prompt(prompt: str) -> Optional[str]:
+def extract_descriptive_character_from_prompt(prompt: str, group_by: str = "character") -> Optional[str]:
     """
     Extract descriptive character information from prompt text as fallback.
     
@@ -109,26 +109,34 @@ def extract_descriptive_character_from_prompt(prompt: str) -> Optional[str]:
     # Convert to lowercase for analysis
     prompt_lower = prompt.lower()
     
-    # Define descriptor categories (order matters - more specific first)
-    ethnicity_descriptors = [
-        'latina', 'latin', 'hispanic', 'mexican', 'spanish',
-        'asian', 'japanese', 'chinese', 'korean', 'thai', 'vietnamese',
-        'black', 'african', 'ebony', 'dark skin',
-        'white', 'caucasian', 'european', 'blonde', 'brunette', 'redhead',
-        'indian', 'middle eastern', 'arab', 'persian'
-    ]
-    
-    body_descriptors = [
-        'petite', 'small', 'tiny', 'short',
-        'tall', 'amazon', 'statuesque',
-        'curvy', 'thick', 'voluptuous', 'busty', 'big boobs', 'big tits',
-        'slim', 'skinny', 'thin', 'lean', 'athletic', 'fit'
-    ]
-    
-    age_descriptors = [
-        'young', 'teen', 'college', 'student',
-        'mature', 'milf', 'older', 'cougar'
-    ]
+    # Define all descriptor categories
+    descriptor_categories = {
+        'ethnicity': [
+            'latina', 'latin', 'hispanic', 'mexican', 'spanish',
+            'asian', 'japanese', 'chinese', 'korean', 'thai', 'vietnamese',
+            'black', 'african', 'ebony', 'dark skin',
+            'white', 'caucasian', 'european',
+            'indian', 'middle eastern', 'arab', 'persian'
+        ],
+        'body_type': [
+            'petite', 'small', 'tiny', 'short',
+            'tall', 'amazon', 'statuesque',
+            'curvy', 'thick', 'voluptuous', 'busty', 'big boobs', 'big tits',
+            'slim', 'skinny', 'thin', 'lean', 'athletic', 'fit'
+        ],
+        'age_group': [
+            'young', 'teen', 'college', 'student',
+            'mature', 'milf', 'older', 'cougar'
+        ],
+        'hair_color': [
+            'blonde', 'brunette', 'redhead', 'black hair', 'brown hair',
+            'silver hair', 'gray hair', 'pink hair', 'blue hair'
+        ],
+        'scenario': [
+            'bedroom', 'bathroom', 'kitchen', 'office', 'outdoor',
+            'beach', 'pool', 'car', 'hotel', 'cozy', 'public'
+        ]
+    }
     
     # Extract descriptors from prompt (look at first half of prompt for main subject)
     prompt_parts = prompt_lower.split(',')
@@ -136,45 +144,33 @@ def extract_descriptive_character_from_prompt(prompt: str) -> Optional[str]:
     num_parts = max(5, len(prompt_parts) // 2)
     prompt_text = ' '.join(prompt_parts[:num_parts])
     
-    found_ethnicity = None
-    found_body = None
-    found_age = None
+    # Handle different grouping modes
+    if group_by == "character":
+        # Original character mode: combine ethnicity + body + age
+        found_descriptors = []
+        
+        for category in ['ethnicity', 'body_type', 'age_group']:
+            for descriptor in descriptor_categories[category]:
+                if descriptor in prompt_text:
+                    found_descriptors.append(descriptor.replace(' ', '_'))
+                    break  # Only take first match per category
+        
+        return '_'.join(found_descriptors) if found_descriptors else None
     
-    # Find ethnicity descriptors
-    for descriptor in ethnicity_descriptors:
-        if descriptor in prompt_text:
-            found_ethnicity = descriptor.replace(' ', '_')
-            break
-    
-    # Find body descriptors
-    for descriptor in body_descriptors:
-        if descriptor in prompt_text:
-            found_body = descriptor.replace(' ', '_')
-            break
-    
-    # Find age descriptors
-    for descriptor in age_descriptors:
-        if descriptor in prompt_text:
-            found_age = descriptor.replace(' ', '_')
-            break
-    
-    # Build character name from descriptors
-    descriptors = []
-    if found_ethnicity:
-        descriptors.append(found_ethnicity)
-    if found_body:
-        descriptors.append(found_body)
-    if found_age:
-        descriptors.append(found_age)
-    
-    # Only return if we found at least one meaningful descriptor
-    if descriptors:
-        return '_'.join(descriptors)
-    
-    return None
+    else:
+        # Single category mode: group by specific category only
+        if group_by not in descriptor_categories:
+            return None
+        
+        # Find descriptors in the specified category
+        for descriptor in descriptor_categories[group_by]:
+            if descriptor in prompt_text:
+                return descriptor.replace(' ', '_')
+        
+        return None
 
 
-def analyze_prompts_for_characters(character_mapping: Dict, min_threshold: int = 20) -> Dict[str, str]:
+def analyze_prompts_for_characters(character_mapping: Dict, min_threshold: int = 20, group_by: str = "character") -> Dict[str, str]:
     """
     Analyze prompts for files without character data and group by descriptive characteristics.
     Only creates character groups that meet the minimum threshold.
@@ -203,7 +199,7 @@ def analyze_prompts_for_characters(character_mapping: Dict, min_threshold: int =
     
     for filename, char_info in files_without_character:
         prompt = char_info.get('prompt', '')
-        prompt_char = extract_descriptive_character_from_prompt(prompt)
+        prompt_char = extract_descriptive_character_from_prompt(prompt, group_by)
         
         if prompt_char:
             prompt_character_counts[prompt_char] = prompt_character_counts.get(prompt_char, 0) + 1
@@ -869,7 +865,7 @@ def group_by_character(analysis_data: Dict, source_directory: str, dry_run: bool
 # MAIN PIPELINE FUNCTION
 # ============================================================================
 
-def process_directory(directory: str, dry_run: bool = False, save_analysis: bool = False, quiet: bool = False) -> Dict:
+def process_directory(directory: str, dry_run: bool = False, save_analysis: bool = False, quiet: bool = False, group_by: str = "character") -> Dict:
     """
     Complete character processing pipeline.
     
@@ -903,7 +899,7 @@ def process_directory(directory: str, dry_run: bool = False, save_analysis: bool
     if not quiet:
         print("\n=== Stage 2.5: Prompt Analysis ===")
     
-    prompt_assignments = analyze_prompts_for_characters(enhanced_data['character_mapping'], min_threshold=15)
+    prompt_assignments = analyze_prompts_for_characters(enhanced_data['character_mapping'], min_threshold=15, group_by=group_by)
     
     if prompt_assignments:
         # Apply prompt-based character assignments
@@ -980,17 +976,20 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Process directory with full pipeline
+  # Process directory with full pipeline (default: character grouping)
   python util_character_processor.py "_asian (chater 1)/"
   
+  # Group by body type instead of character
+  python util_character_processor.py "selected/" --group-by body_type
+  
+  # Group by ethnicity
+  python util_character_processor.py "selected/" --group-by ethnicity
+  
   # Dry run to preview changes
-  python util_character_processor.py "selected/" --dry-run
+  python util_character_processor.py "selected/" --dry-run --group-by age_group
   
   # Save intermediate analysis files
   python util_character_processor.py "directory/" --save-analysis
-  
-  # Quiet mode for scripting
-  python util_character_processor.py "directory/" --quiet
         """
     )
     
@@ -998,6 +997,9 @@ Examples:
     parser.add_argument("--dry-run", action="store_true", help="Preview changes without moving files")
     parser.add_argument("--save-analysis", action="store_true", help="Save intermediate analysis JSON files")
     parser.add_argument("--quiet", "-q", action="store_true", help="Suppress progress output")
+    parser.add_argument("--group-by", "-g", type=str, default="character",
+                        choices=["character", "body_type", "ethnicity", "age_group", "hair_color", "scenario"],
+                        help="Grouping category for prompt analysis (default: character)")
     
     args = parser.parse_args()
     
@@ -1006,7 +1008,8 @@ Examples:
             directory=args.directory,
             dry_run=args.dry_run,
             save_analysis=args.save_analysis,
-            quiet=args.quiet
+            quiet=args.quiet,
+            group_by=args.group_by
         )
         
         # Exit with success
