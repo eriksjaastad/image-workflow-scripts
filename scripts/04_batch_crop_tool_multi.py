@@ -41,7 +41,7 @@ PROGRESS TRACKING:
 
 WORKFLOW POSITION:
 ------------------
-Step 1: Character Processing → scripts/util_character_processor.py
+Step 1: Character Processing → scripts/utils/character_processor.py
 Step 2: Final Cropping → THIS SCRIPT (scripts/04_batch_crop_tool_multi.py)
 Step 3: Basic Review → scripts/05_multi_directory_viewer.py
 

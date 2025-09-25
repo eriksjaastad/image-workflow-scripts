@@ -3,7 +3,7 @@
 Comprehensive Test Suite for Activity Timer System
 ==================================================
 
-Tests the util_activity_timer.py module for:
+Tests the utils/activity_timer.py module for:
 - Basic timer functionality
 - Idle detection
 - Activity tracking

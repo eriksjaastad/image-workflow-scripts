@@ -9,23 +9,23 @@ Provides daily summaries, cross-script analysis, and productivity metrics.
 USAGE:
 ------
 Daily report:
-  python scripts/util_timer_report.py --daily
-  python scripts/util_timer_report.py --daily 20250924
+  python scripts/utils/timer_report.py --daily
+  python scripts/utils/timer_report.py --daily 20250924
 
 Weekly report:
-  python scripts/util_timer_report.py --weekly
+  python scripts/utils/timer_report.py --weekly
 
 Cross-script analysis:
-  python scripts/util_timer_report.py --cross-script --days 30
+  python scripts/utils/timer_report.py --cross-script --days 30
 
 Productivity metrics:
-  python scripts/util_timer_report.py --productivity
+  python scripts/utils/timer_report.py --productivity
 
 Clean old data:
-  python scripts/util_timer_report.py --cleanup 30
+  python scripts/utils/timer_report.py --cleanup 30
 
 Live monitoring:
-  python scripts/util_timer_report.py --live
+  python scripts/utils/timer_report.py --live
 
 FEATURES:
 ---------

@@ -293,9 +293,9 @@ def main():
     print("""
 🚀 NEXT STEPS:
 1. Start using 01_web_image_selector.py - timer is already integrated!
-2. Run 'python scripts/util_timer_report.py' to see your real analytics
-3. Use 'python scripts/util_timer_report.py --live' for live monitoring
-4. Check daily reports with 'python scripts/util_timer_report.py --daily'
+2. Run 'python scripts/utils/timer_report.py' to see your real analytics
+3. Use 'python scripts/utils/timer_report.py --live' for live monitoring
+4. Check daily reports with 'python scripts/utils/timer_report.py --daily'
 
 The timer will automatically:
 ✅ Track your active work time vs idle time

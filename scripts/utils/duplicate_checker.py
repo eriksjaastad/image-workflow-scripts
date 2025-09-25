@@ -13,10 +13,10 @@ Activate virtual environment first:
 USAGE:
 ------
 Check for duplicates in project:
-  python scripts/util_duplicate_checker.py
+  python scripts/utils/duplicate_checker.py
 
 Check specific directory:
-  python scripts/util_duplicate_checker.py --root-dir face_groups
+  python scripts/utils/duplicate_checker.py --root-dir face_groups
 
 FEATURES:
 ---------

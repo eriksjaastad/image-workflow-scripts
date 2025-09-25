@@ -13,8 +13,8 @@ Activate virtual environment first:
 USAGE:
 ------
 Move complete triplets to new directory:
-  python scripts/util_triplet_mover.py source_dir destination_dir
-  python scripts/util_triplet_mover.py ~/Downloads/raw_images triplets/
+  python scripts/utils/triplet_mover.py source_dir destination_dir
+  python scripts/utils/triplet_mover.py ~/Downloads/raw_images triplets/
 
 FEATURES:
 ---------

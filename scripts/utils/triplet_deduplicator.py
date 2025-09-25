@@ -7,10 +7,10 @@ in Kiara_Average_Completed. If ANY stage of a triplet matches an existing file,
 the ENTIRE triplet is removed from the new batch.
 
 Usage:
-    python scripts/util_triplet_deduplicator.py <new_images_directory>
+    python scripts/utils/triplet_deduplicator.py <new_images_directory>
 
 Example:
-    python scripts/util_triplet_deduplicator.py "Raw_Images_New"
+    python scripts/utils/triplet_deduplicator.py "Raw_Images_New"
 """
 
 import os

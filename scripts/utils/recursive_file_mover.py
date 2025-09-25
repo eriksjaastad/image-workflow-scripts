@@ -13,9 +13,9 @@ Activate virtual environment first:
 USAGE:
 ------
 Move files between directories:
-  python scripts/util_recursive_file_mover.py {content} XXX_CONTENT
-  python scripts/util_recursive_file_mover.py ~/Downloads/output 00_white
-  python scripts/util_recursive_file_mover.py source_dir dest_dir --dry-run
+  python scripts/utils/recursive_file_mover.py {content} XXX_CONTENT
+  python scripts/utils/recursive_file_mover.py ~/Downloads/output 00_white
+  python scripts/utils/recursive_file_mover.py source_dir dest_dir --dry-run
 
 FEATURES:
 ---------
@@ -150,9 +150,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    python scripts/util_recursive_file_mover.py face_groups 00_white
-    python scripts/util_recursive_file_mover.py ~/Downloads/output 00_white  
-    python scripts/util_recursive_file_mover.py face_groups/person_0001 character_group_1
+    python scripts/utils/recursive_file_mover.py face_groups 00_white
+    python scripts/utils/recursive_file_mover.py ~/Downloads/output 00_white  
+    python scripts/utils/recursive_file_mover.py face_groups/person_0001 character_group_1
         """
     )
     

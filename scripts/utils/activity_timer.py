@@ -19,7 +19,7 @@ FEATURES:
 USAGE:
 ------
 In any script:
-    from util_activity_timer import ActivityTimer
+    from utils.activity_timer import ActivityTimer
     
     timer = ActivityTimer("script_name")
     timer.start_session()
@@ -36,7 +36,7 @@ In any script:
 
 REPORTING:
 ----------
-    from util_activity_timer import TimerReporter
+    from utils.activity_timer import TimerReporter
     
     reporter = TimerReporter()
     reporter.daily_summary()

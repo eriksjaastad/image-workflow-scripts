@@ -13,7 +13,7 @@ Activate virtual environment first:
 USAGE:
 ------
 Run on clustering output with similarity maps:
-  python scripts/util_similarity_viewer.py face_groups
+  python scripts/utils/similarity_viewer.py face_groups
 
 FEATURES:
 ---------

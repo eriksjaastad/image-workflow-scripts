@@ -8,18 +8,18 @@ into one streamlined tool for intelligent image organization.
 USAGE:
 ------
   # Default: Character LoRA names (emily, ivy) + prompt fallback for remaining files
-  python scripts/util_character_processor.py "selected/"
-  python scripts/util_character_processor.py "_asian (chater 1)/" --dry-run
+  python scripts/utils/character_processor.py "selected/"
+  python scripts/utils/character_processor.py "_asian (chater 1)/" --dry-run
   
   # 🚀 FLEXIBLE GROUPING - Controls prompt analysis fallback for files WITHOUT LoRA data!
-  python scripts/util_character_processor.py "selected/" --group-by body_type    # → emily/, ivy/, big_boobs/, petite/
-  python scripts/util_character_processor.py "selected/" --group-by ethnicity    # → emily/, ivy/, latina/, asian/
-  python scripts/util_character_processor.py "selected/" --group-by age_group    # → emily/, ivy/, young/, mature/
-  python scripts/util_character_processor.py "selected/" --group-by hair_color   # → emily/, ivy/, blonde/, brunette/
-  python scripts/util_character_processor.py "selected/" --group-by scenario     # → emily/, ivy/, bedroom/, office/
+  python scripts/utils/character_processor.py "selected/" --group-by body_type    # → emily/, ivy/, big_boobs/, petite/
+  python scripts/utils/character_processor.py "selected/" --group-by ethnicity    # → emily/, ivy/, latina/, asian/
+  python scripts/utils/character_processor.py "selected/" --group-by age_group    # → emily/, ivy/, young/, mature/
+  python scripts/utils/character_processor.py "selected/" --group-by hair_color   # → emily/, ivy/, blonde/, brunette/
+  python scripts/utils/character_processor.py "selected/" --group-by scenario     # → emily/, ivy/, bedroom/, office/
   
   # Advanced usage
-  python scripts/util_character_processor.py "directory/" --save-analysis --quiet
+  python scripts/utils/character_processor.py "directory/" --save-analysis --quiet
 
 FEATURES:
 ---------
@@ -66,7 +66,7 @@ except ImportError:
     sys.exit(1)
 
 try:
-    from util_activity_timer import ActivityTimer, FileTracker
+    from utils.activity_timer import ActivityTimer, FileTracker
 except ImportError:
     # Graceful fallback if activity timer not available
     ActivityTimer = None
@@ -993,19 +993,19 @@ def main():
         epilog="""
 Examples:
   # Process directory with full pipeline (default: character grouping)
-  python util_character_processor.py "_asian (chater 1)/"
+  python scripts/utils/character_processor.py "_asian (chater 1)/"
   
   # Group by body type instead of character
-  python util_character_processor.py "selected/" --group-by body_type
+  python scripts/utils/character_processor.py "selected/" --group-by body_type
   
   # Group by ethnicity
-  python util_character_processor.py "selected/" --group-by ethnicity
+  python scripts/utils/character_processor.py "selected/" --group-by ethnicity
   
   # Dry run to preview changes
-  python util_character_processor.py "selected/" --dry-run --group-by age_group
+  python scripts/utils/character_processor.py "selected/" --dry-run --group-by age_group
   
   # Save intermediate analysis files
-  python util_character_processor.py "directory/" --save-analysis
+  python scripts/utils/character_processor.py "directory/" --save-analysis
         """
     )
     

@@ -13,9 +13,9 @@ Activate virtual environment first:
 USAGE:
 ------
 Audit file pairs in directories:
-  python scripts/util_check_pairs.py [directory]
-  python scripts/util_check_pairs.py --recursive .
-  python scripts/util_check_pairs.py --recursive face_groups
+  python scripts/utils/check_pairs.py [directory]
+  python scripts/utils/check_pairs.py --recursive .
+  python scripts/utils/check_pairs.py --recursive face_groups
 
 FEATURES:
 ---------
@@ -202,7 +202,7 @@ def main():
         epilog="""
 Examples:
   python cleanup_pairs.py normal_images_2          # Single directory
-  python cleanup_pairs.py --recursive             # Recursive from Eros Mate root  
+  python cleanup_pairs.py --recursive             # Recursive from project root  
   python cleanup_pairs.py --recursive "Slender Kiara"  # Recursive from specific directory
         """
     )

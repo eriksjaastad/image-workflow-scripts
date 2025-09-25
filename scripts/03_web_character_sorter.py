@@ -65,7 +65,7 @@ Step 4: Final Cropping → scripts/04_batch_crop_tool.py
 Step 5: Basic Review → scripts/05_multi_directory_viewer.py
 
 🔍 OPTIONAL ANALYSIS TOOL:
-   scripts/util_similarity_viewer.py - Use between steps 2-3 to analyze face grouper results
+   scripts/utils/similarity_viewer.py - Use between steps 2-3 to analyze face grouper results
 
 ⚠️ IMPORTANT: This script works best with similarity maps from step 2 face grouper!
 
