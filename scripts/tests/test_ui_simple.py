@@ -72,8 +72,7 @@ def test_key_binding_definitions():
     # Check for expected functions
     expected_functions = [
         "function selectImage(",
-        "function selectImageAndCrop(",
-        "function toggleCrop(",
+        "function selectImage(",
         "function nextGroup(",
         "function updateButtonStates(",
         "function getCurrentVisibleGroupId(",
@@ -122,14 +121,14 @@ def test_keyboard_mapping_consistency():
     
     switch_content = switch_match.group(1)
     
-    # Check Q/W/E all call selectImageAndCrop
-    qwe_patterns = [
-        (r"case 'q'.*?selectImageAndCrop\(0\)", "Q key should call selectImageAndCrop(0)"),
-        (r"case 'w'.*?selectImageAndCrop\(1\)", "W key should call selectImageAndCrop(1)"),  
-        (r"case 'e'.*?selectImageAndCrop\(2\)", "E key should call selectImageAndCrop(2)")
+    # Check 1/2/3 keys call selectImage (Q/W/E removed - all selections go to crop)
+    key_patterns = [
+        (r"case '1'.*?selectImage\(0", "1 key should call selectImage(0"),
+        (r"case '2'.*?selectImage\(1", "2 key should call selectImage(1"),  
+        (r"case '3'.*?selectImage\(2", "3 key should call selectImage(2")
     ]
     
-    for pattern, error_msg in qwe_patterns:
+    for pattern, error_msg in key_patterns:
         if not re.search(pattern, switch_content, re.IGNORECASE | re.DOTALL):
             raise Exception(error_msg)
     

@@ -143,9 +143,9 @@ class SimpleWebToolsTest:
             print("❌ Batch size 100 not found in Web Image Selector")
             return False
         
-        # Check for state override
-        if "willCrop: false" not in selector_content:
-            print("❌ State override not found in Web Image Selector")
+        # Check for simplified workflow (all selections go to crop)
+        if "crop: state ? (state.selectedImage !== undefined) : false" not in selector_content:
+            print("❌ Simplified crop workflow not found in Web Image Selector")
             return False
         
         # Check for navigation keys
