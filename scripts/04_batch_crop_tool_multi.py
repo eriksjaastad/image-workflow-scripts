@@ -49,7 +49,7 @@ CONTROLS:
 ---------
 Image 1: [W] Skip  [S] Delete  [X] Reset crop
 Image 2: [E] Skip  [D] Delete  [C] Reset crop  
-Image 3: [R] Skip  [F] Delete  [V] Reset crop
+Image 3: [R] Skip  [4] Delete  [V] Reset crop
 
 Global: [Enter] Submit Batch  [Space] Toggle Aspect Ratio  [Q] Quit
         [N] Next Directory  [P] Previous Directory
@@ -527,7 +527,7 @@ class MultiDirectoryBatchCropTool:
         controls = [
             "[W] Skip  [S] Delete  [X] Reset",
             "[E] Skip  [D] Delete  [C] Reset", 
-            "[R] Skip  [F] Delete  [V] Reset"
+            "[R] Skip  [4] Delete  [V] Reset"
         ]
         
         for i, (ax, control_text) in enumerate(zip(self.axes, controls)):
@@ -626,7 +626,7 @@ class MultiDirectoryBatchCropTool:
         image_actions = {
             'w': (0, 'skip'), 's': (0, 'delete'), 'x': (0, 'reset'),
             'e': (1, 'skip'), 'd': (1, 'delete'), 'c': (1, 'reset'),
-            'r': (2, 'skip'), 'f': (2, 'delete'), 'v': (2, 'reset'),
+            'r': (2, 'skip'), '4': (2, 'delete'), 'v': (2, 'reset'),
         }
         
         if key in image_actions:
@@ -880,7 +880,7 @@ class MultiDirectoryBatchCropTool:
         print("\nControls:")
         print("  Image 1: [W] Skip  [S] Delete  [X] Reset")
         print("  Image 2: [E] Skip  [D] Delete  [C] Reset") 
-        print("  Image 3: [R] Skip  [F] Delete  [V] Reset")
+        print("  Image 3: [R] Skip  [4] Delete  [V] Reset")
         print("  Global:  [Enter] Submit Batch  [Space] Toggle Aspect Ratio  [Q] Quit")
         
         if not self.single_directory_mode:
