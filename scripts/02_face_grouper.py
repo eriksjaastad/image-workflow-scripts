@@ -13,7 +13,7 @@ Activate virtual environment first:
 USAGE:
 ------
 Run face grouping with similarity mapping:
-  python scripts/02_face_grouper.py --images 00_white --out ./face_groups \
+  python scripts/02_face_grouper.py --images crop --out ./face_groups \
     --kmeans 7 --emit-map --map-topk 10 --map-threshold 0.22 --map-scope cluster
 
 FEATURES:
@@ -228,8 +228,8 @@ def post_filter_small_clusters(labels: np.ndarray, min_cluster_size: int) -> np.
             new_labels[i] = mapping[int(lab)]
     return new_labels
 
-def _estimate_distance_band(X: np.ndarray) -> tuple[float, float]:
-    """Estimate a reasonable cosine distance band from k-NN distances."""
+def _calculate_distance_band(X: np.ndarray) -> tuple[float, float]:
+    """Calculate a reasonable cosine distance band from k-NN distances."""
     nn = NearestNeighbors(n_neighbors=6, metric="cosine").fit(X)
     dists, _ = nn.kneighbors(X, return_distance=True)
     nn3 = dists[:, 3]; nn4 = dists[:, 4]
@@ -244,7 +244,7 @@ def cluster_with_backoff(X: np.ndarray, min_cluster_size: int,
     Agglomerative (cosine, COMPLETE) with automatic threshold backoff.
     Success when >1 named clusters and largest <70% of data.
     """
-    low, high = _estimate_distance_band(X)
+    low, high = _calculate_distance_band(X)
     thr = high if start_thresh is None else start_thresh
     floor = low if min_thresh is None else min_thresh
     N = X.shape[0]
@@ -687,11 +687,24 @@ def main():
         print(f"\n📁 Moving image/YAML pairs to groups…")
         manifest = move_image_yaml_pairs(out_dir, kept_paths, labels,
                                          min_cluster_size=args.min_cluster_size, tracker=tracker)
+        
+        # Count images in each face group directory
         print("\n✅ COMPLETE!")
         print(f"   • Embedded: {len(embs)} / {len(paths)} (failed: {failed})")
         print(f"   • Named groups: {manifest['total_groups']}  (+ unknown)")
         print(f"   • Moved pairs: {manifest['moved_pairs']}")
         print(f"   • Output: {out_dir}")
+        
+        # Display image counts per face group
+        print(f"\n📊 Face Group Image Counts:")
+        total_images = 0
+        group_dirs = sorted([d for d in out_dir.iterdir() if d.is_dir()])
+        for group_dir in group_dirs:
+            image_count = len([f for f in group_dir.iterdir() 
+                             if f.suffix.lower() in {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}])
+            total_images += image_count
+            print(f"   • {group_dir.name}: {image_count} images")
+        print(f"   • Total: {total_images} images across {len(group_dirs)} groups")
     else:
         print("\n🔎 dry-run: not moving files")
 
