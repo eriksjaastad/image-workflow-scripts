@@ -66,6 +66,10 @@ tattersail-*/
 *.csv
 *.pt
 
+# Character Analysis Output (contains project paths)
+analysis_*.json
+character_analysis*.json
+
 # Markdown Documentation (except README)
 IMAGE_PROCESSING_WORKFLOW*.md
 face_grouping_comparison.md
