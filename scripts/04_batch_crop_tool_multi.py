@@ -520,7 +520,32 @@ class MultiDirectoryBatchCropTool:
                 
             except Exception as e:
                 print(f"Error loading {png_path}: {e}")
-                continue
+                # Add placeholder for failed image to maintain index consistency
+                self.current_images.append({
+                    'path': png_path,
+                    'image': None,
+                    'original_size': (0, 0),
+                    'load_error': str(e)
+                })
+                
+                # Initialize state for failed image
+                self.image_states.append({
+                    'action': 'skip',  # Auto-skip failed images
+                    'crop_coords': None,
+                    'has_selection': False,
+                    'image_aspect_ratio': 1.0,
+                    'load_failed': True
+                })
+                
+                # Show error in the subplot
+                ax = self.axes[i]
+                ax.clear()
+                ax.text(0.5, 0.5, f'LOAD ERROR\n{png_path.name}\n{str(e)}', 
+                       ha='center', va='center', fontsize=10, color='red',
+                       transform=ax.transAxes, bbox=dict(boxstyle="round,pad=0.3", facecolor="yellow", alpha=0.7))
+                ax.set_title(f"Image {i+1}: LOAD ERROR", fontsize=10, color='red')
+                ax.set_xticks([])
+                ax.set_yticks([])
         
         # Hide unused subplots
         for i in range(len(batch_files), 3):
@@ -572,6 +597,11 @@ class MultiDirectoryBatchCropTool:
         """Handle crop rectangle selection for a specific image"""
         self.activity_timer.mark_activity()
         if image_idx >= len(self.current_images):
+            return
+            
+        # Skip crop selection for failed images
+        if self.current_images[image_idx].get('image') is None:
+            print(f"Cannot crop image {image_idx + 1}: Load failed")
             return
             
         # Get crop coordinates
@@ -711,6 +741,12 @@ class MultiDirectoryBatchCropTool:
             return
             
         image_info = self.current_images[image_idx]
+        
+        # Skip reset for failed images
+        if image_info.get('image') is None:
+            print(f"Cannot reset image {image_idx + 1}: Load failed")
+            return
+            
         img = Image.open(image_info['path'])
         img_width, img_height = img.size
         
