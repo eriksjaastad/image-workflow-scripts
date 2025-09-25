@@ -94,7 +94,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
 from file_tracker import FileTracker
-from util_activity_timer import ActivityTimer
+from utils.activity_timer import ActivityTimer
 
 try:
     from flask import Flask, Response, jsonify, render_template_string, request

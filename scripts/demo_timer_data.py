@@ -19,7 +19,7 @@ import sys
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent))
 
-from util_activity_timer import TimerReporter
+from utils.activity_timer import TimerReporter
 
 def generate_realistic_session(script_name, date, start_hour, duration_minutes, files_count):
     """Generate a realistic session with natural patterns"""
@@ -214,7 +214,7 @@ def show_demo_analytics(data_dir):
     
     # Import the advanced reporter
     sys.path.append(str(Path(__file__).parent))
-    from util_timer_report import AdvancedTimerReporter
+    from utils.timer_report import AdvancedTimerReporter
     
     advanced_reporter = AdvancedTimerReporter()
     advanced_reporter.data_dir = data_dir

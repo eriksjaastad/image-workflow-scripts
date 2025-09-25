@@ -20,6 +20,7 @@ USAGE:
 ------
 Basic character sorting:
   python scripts/03_web_character_sorter.py slected
+  python scripts/03_web_character_sorter.py _sort_again
   python scripts/03_web_character_sorter.py face_groups/person_0001
 
 Enhanced sorting with similarity maps (RECOMMENDED after face grouper):
@@ -94,7 +95,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from file_tracker import FileTracker
-from util_activity_timer import ActivityTimer
+from utils.activity_timer import ActivityTimer
 
 try:
     from flask import Flask, Response, jsonify, render_template_string, request, redirect
