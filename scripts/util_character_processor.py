@@ -7,23 +7,23 @@ into one streamlined tool for intelligent image organization.
 
 USAGE:
 ------
-  # Default: Character grouping (combines ethnicity + body + age)
+  # Default: Character LoRA names (emily, ivy) + prompt fallback for remaining files
   python scripts/util_character_processor.py "selected/"
   python scripts/util_character_processor.py "_asian (chater 1)/" --dry-run
   
-  # 🚀 FLEXIBLE GROUPING - Revolutionary feature!
-  python scripts/util_character_processor.py "selected/" --group-by body_type    # → big_boobs/, petite/, curvy/
-  python scripts/util_character_processor.py "selected/" --group-by ethnicity    # → latina/, asian/, black/
-  python scripts/util_character_processor.py "selected/" --group-by age_group    # → young/, mature/, teen/
-  python scripts/util_character_processor.py "selected/" --group-by hair_color   # → blonde/, brunette/, redhead/
-  python scripts/util_character_processor.py "selected/" --group-by scenario     # → bedroom/, office/, outdoor/
+  # 🚀 FLEXIBLE GROUPING - Controls prompt analysis fallback for files WITHOUT LoRA data!
+  python scripts/util_character_processor.py "selected/" --group-by body_type    # → emily/, ivy/, big_boobs/, petite/
+  python scripts/util_character_processor.py "selected/" --group-by ethnicity    # → emily/, ivy/, latina/, asian/
+  python scripts/util_character_processor.py "selected/" --group-by age_group    # → emily/, ivy/, young/, mature/
+  python scripts/util_character_processor.py "selected/" --group-by hair_color   # → emily/, ivy/, blonde/, brunette/
+  python scripts/util_character_processor.py "selected/" --group-by scenario     # → emily/, ivy/, bedroom/, office/
   
   # Advanced usage
   python scripts/util_character_processor.py "directory/" --save-analysis --quiet
 
 FEATURES:
 ---------
-• 🚀 FLEXIBLE GROUPING: Group by ANY criteria (body_type, ethnicity, age_group, etc.)
+• 🚀 FLEXIBLE GROUPING: Controls fallback analysis for files without LoRA data
 • Complete 4-stage pipeline in one command
 • YAML metadata extraction with multi-character support
 • Sequential context inference for edge cases
