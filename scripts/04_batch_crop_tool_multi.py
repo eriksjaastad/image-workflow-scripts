@@ -323,6 +323,8 @@ class MultiDirectoryBatchCropTool:
         self.image_states = []  # List of dicts with crop coords, action, etc.
         self.selectors = []
         self.axes = []
+        self.has_pending_changes = False
+        self.quit_confirmed = False
         
         # Create cropped directory if it doesn't exist
         self.cropped_dir = Path.cwd() / "cropped"
@@ -409,6 +411,10 @@ class MultiDirectoryBatchCropTool:
         batch_files = self.png_files[start_idx:end_idx]
         self.current_images = []
         self.image_states = []
+        
+        # Reset flags for new batch
+        self.has_pending_changes = False
+        self.quit_confirmed = False
         
         # Clear previous selectors
         for selector in self.selectors:
@@ -578,6 +584,7 @@ class MultiDirectoryBatchCropTool:
         self.image_states[image_idx]['crop_coords'] = (x1, y1, x2, y2)
         self.image_states[image_idx]['has_selection'] = True
         self.image_states[image_idx]['action'] = None
+        self.has_pending_changes = True
         
         # Update title
         crop_width = x2 - x1
@@ -698,6 +705,7 @@ class MultiDirectoryBatchCropTool:
             return
             
         self.image_states[image_idx]['action'] = action
+        self.has_pending_changes = True
         
         color = 'orange' if action == 'skip' else 'red'
         action_text = action.upper()
@@ -739,6 +747,10 @@ class MultiDirectoryBatchCropTool:
                 print(f"Error processing image {i + 1}: {e}")
         
         print(f"Processed {processed_count}/{len(self.current_images)} images in batch")
+        
+        # Clear pending changes flag after successful submission
+        self.has_pending_changes = False
+        self.quit_confirmed = False
         
         # Update progress tracking
         if not self.single_directory_mode:
@@ -854,6 +866,14 @@ class MultiDirectoryBatchCropTool:
     
     def quit(self):
         """Quit the application"""
+        if self.has_pending_changes and not self.quit_confirmed:
+            print("\n⚠️  WARNING: You have uncommitted changes!")
+            print("   - You've made crop selections or set actions (skip/delete)")
+            print("   - These changes will be LOST if you quit now")
+            print("   - Press [Enter] to commit changes, or [Q] again to quit anyway")
+            self.quit_confirmed = True
+            return
+            
         print("Quitting multi-directory batch crop tool...")
         
         if not self.single_directory_mode:
