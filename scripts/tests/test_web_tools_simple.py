@@ -143,9 +143,9 @@ class SimpleWebToolsTest:
             print("❌ Batch size 100 not found in Web Image Selector")
             return False
         
-        # Check for simplified workflow (all selections go to crop)
-        if "crop: state ? (state.selectedImage !== undefined) : false" not in selector_content:
-            print("❌ Simplified crop workflow not found in Web Image Selector")
+        # Check for simplified workflow (all selections go to selected)
+        if "selected: state ? (state.selectedImage !== undefined) : false" not in selector_content:
+            print("❌ Simplified selected workflow not found in Web Image Selector")
             return False
         
         # Check for navigation keys

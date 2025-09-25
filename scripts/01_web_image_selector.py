@@ -27,7 +27,7 @@ FEATURES:
 • Fast performance with cached image loading
 • Advanced triplet detection with precise timestamp matching
 • Integrated FileTracker logging for complete audit trail
-• Selected images are automatically moved to crop/ folder for processing
+• Selected images are automatically moved to selected/ folder for processing
 • Safe deletion with send2trash (recoverable from system trash)
 • Support for PNG and HEIC/HEIF formats
 
@@ -46,10 +46,10 @@ HOW IT WORKS:
 ---------
 1. Click exactly one image in each row to keep it
 2. Leave a row untouched if you want all three images deleted
-3. Selected images are automatically moved to crop/ folder
+3. Selected images are automatically moved to selected/ folder
 4. Press **Finalize selections** when done
 5. The script will:
-   • Move chosen images (+ YAML files) to crop/
+   • Move chosen images (+ YAML files) to selected/
    • Delete unselected images using send2trash (recoverable)
    • Log all actions in triplet_culler_log.csv and FileTracker logs
 
@@ -65,7 +65,7 @@ HOW IT WORKS:
 -------------
 1. Click exactly one image in each row to keep it
 2. Leave a row untouched if you want all three images deleted
-3. Selected images are automatically moved to crop/ folder
+3. Selected images are automatically moved to selected/ folder
 4. Press **Finalize selections** when done
 
 WHAT HAPPENS:
@@ -407,15 +407,15 @@ def move_with_yaml(
 # Removed move_to_reviewed function - all selections now go to crop
 
 
-def move_to_crop(src_path: Path, tracker: FileTracker) -> Path:
+def move_to_selected(src_path: Path, tracker: FileTracker) -> Path:
     project_root = find_project_root(src_path.parent)
-    crop_dir = project_root / "crop"
+    selected_dir = project_root / "selected"
     return move_with_yaml(
         src_path,
-        crop_dir,
+        selected_dir,
         tracker,
-        dest_label="crop",
-        notes="Marked for crop during triplet selection",
+        dest_label="selected",
+        notes="Selected during triplet selection",
     )
 
 
@@ -762,11 +762,11 @@ def build_app(
       <header class="toolbar">
         <div>
           <h1>Image version selector</h1>
-              <p>Use right sidebar or keys: 1,2,3 (select) • Q,W,E (select+crop) • Enter (next) • ↑ (back)</p>
+              <p>Use right sidebar or keys: 1,2,3 (select) • Enter (next) • ↑ (back)</p>
         </div>
         <div class="summary" id="summary">
           <span>Selected: <strong id="summary-selected">0</strong></span>
-          <span>To crop: <strong id="summary-crop">0</strong></span>
+          <span>Selected: <strong id="summary-selected-count">0</strong></span>
           <span>Skipped: <strong id="summary-skipped">0</strong></span>
               <span>Deleting: <strong id="summary-delete">{{ groups|length }}</strong></span>
         </div>
@@ -815,7 +815,7 @@ def build_app(
       <script>
         const groups = Array.from(document.querySelectorAll('section.group'));
         const summarySelected = document.getElementById('summary-selected');
-        const summaryCrop = document.getElementById('summary-crop');
+        const summarySelectedCount = document.getElementById('summary-selected-count');
         const summarySkipped = document.getElementById('summary-skipped');
         const summaryDelete = document.getElementById('summary-delete');
         const processBatchButton = document.getElementById('process-batch');
@@ -826,12 +826,11 @@ def build_app(
 
         function updateSummary() {
           const selectedCount = Object.values(groupStates).filter(state => state.selectedImage !== undefined && !state.skipped).length;
-          const cropCount = selectedCount; // All selected images go to crop
           const skippedCount = Object.values(groupStates).filter(state => state.skipped).length;
           const deleteCount = groups.length - selectedCount - skippedCount;
           
           summarySelected.textContent = selectedCount;
-          summaryCrop.textContent = cropCount;
+          summarySelectedCount.textContent = selectedCount;
           summarySkipped.textContent = skippedCount;
           summaryDelete.textContent = Math.max(0, deleteCount);
           batchCount.textContent = selectedCount;
@@ -880,7 +879,7 @@ def build_app(
               const selectedCard = group.querySelectorAll('.image-card')[state.selectedImage];
               if (selectedCard) {
                 selectedCard.classList.add('selected');
-                // All selected images automatically go to crop
+                // All selected images automatically go to selected
                 selectedCard.classList.add('crop-selected');
               }
               
@@ -914,7 +913,7 @@ def build_app(
           if (currentState && currentState.selectedImage === imageIndex) {
             delete groupStates[groupId]; // Deselect (back to delete)
           } else {
-            // Update state - select image (automatically goes to crop)
+            // Update state - select image (automatically goes to selected)
             groupStates[groupId] = { selectedImage: imageIndex, skipped: false };
           }
           
@@ -1024,21 +1023,6 @@ def build_app(
               e.preventDefault();
               selectImage(2, currentGroupId);
               break;
-            case 'q':
-            case 'Q':
-              e.preventDefault();
-              selectImageAndCrop(0, currentGroupId);
-              break;
-            case 'w':
-            case 'W':
-              e.preventDefault();
-              selectImageAndCrop(1, currentGroupId);
-              break;
-            case 'e':
-            case 'E':
-              e.preventDefault();
-              selectImageAndCrop(2, currentGroupId);
-              break;
             case 'Enter':
               e.preventDefault();
               nextGroup(); // ENTER: Go forward (main navigation key)
@@ -1096,7 +1080,7 @@ def build_app(
             return {
               groupId: groupId,
               selectedIndex: state ? state.selectedImage : null,
-              crop: state ? (state.selectedImage !== undefined) : false, // All selections go to crop
+              selected: state ? (state.selectedImage !== undefined) : false, // All selections go to selected
               skipped: state ? state.skipped : false,
             };
           });
@@ -1481,10 +1465,10 @@ def build_app(
                 selected_path = record.paths[selected_index]
                 others = [p for idx, p in enumerate(record.paths) if idx != selected_index]
 
-                # Always move selected images to crop directory
-                target_path = move_to_crop(selected_path, tracker=tracker)
+                # Always move selected images to selected directory
+                target_path = move_to_selected(selected_path, tracker=tracker)
                 crop_count += 1
-                action_label = "keep_one_to_crop"
+                action_label = "keep_one_to_selected"
 
                 safe_delete(others, hard_delete=hard_delete, tracker=tracker)
                 write_log(log_path, action_label, target_path, others)
@@ -1505,7 +1489,7 @@ def build_app(
         batch_info = app.config["BATCH_INFO"]
         batch_info["current_batch_size"] = len(remaining_groups)
         
-        message = f"Batch processed — kept {kept_count}, sent {crop_count} to crop/, deleted {deleted_count}."
+        message = f"Batch processed — kept {kept_count}, sent {crop_count} to selected/, deleted {deleted_count}."
         return jsonify({
                 "status": "ok", 
                 "message": message,

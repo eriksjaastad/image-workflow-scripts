@@ -58,9 +58,6 @@ def test_key_binding_definitions():
     
     # Check for expected key bindings
     expected_keys = [
-        "case 'q':", "case 'Q':",
-        "case 'w':", "case 'W':", 
-        "case 'e':", "case 'E':",
         "case '1':", "case '2':", "case '3':",
         "case 'Enter':"
     ]
@@ -159,7 +156,6 @@ def test_help_text_accuracy():
     # Check that help text mentions the right keys
     expected_help_parts = [
         "1,2,3 (select)",
-        "Q,W,E (select+crop)", 
         "Enter (next)"
     ]
     

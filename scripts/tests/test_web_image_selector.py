@@ -97,9 +97,9 @@ class WebImageSelectorTest:
         selected_images = self.driver.find_elements(By.CSS_SELECTOR, "figure.image-card.selected")
         assert len(selected_images) > 0, "Image should be selected with '1' key"
         
-        # All selected images automatically have crop state (no toggle needed)
+        # All selected images automatically have selected state (no toggle needed)
         crop_selected = self.driver.find_elements(By.CSS_SELECTOR, "figure.image-card.crop-selected")
-        assert len(crop_selected) > 0, "Selected images should automatically have crop state"
+        assert len(crop_selected) > 0, "Selected images should automatically have selected state"
         
         print("✅ Keyboard shortcuts test passed")
     
@@ -121,7 +121,7 @@ class WebImageSelectorTest:
         print("✅ Unselect functionality test passed")
     
     def test_selection_consistency(self):
-        """Test that all selections consistently go to crop"""
+        """Test that all selections consistently go to selected"""
         # Select first image
         self.driver.find_element(By.TAG_NAME, "body").send_keys("1")
         time.sleep(0.5)
@@ -131,8 +131,8 @@ class WebImageSelectorTest:
         crop_selected = self.driver.find_elements(By.CSS_SELECTOR, "figure.image-card.crop-selected")
         
         assert len(selected_images) > 0, "Should have selected image"
-        assert len(crop_selected) > 0, "Selected image should automatically have crop state"
-        assert len(selected_images) == len(crop_selected), "All selected images should have crop state"
+        assert len(crop_selected) > 0, "Selected image should automatically have selected state"
+        assert len(selected_images) == len(crop_selected), "All selected images should have selected state"
         
         print("✅ Selection consistency test passed")
     
