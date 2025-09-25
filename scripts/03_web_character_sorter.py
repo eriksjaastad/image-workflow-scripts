@@ -2789,7 +2789,7 @@ def main() -> None:
     parser.add_argument("--similarity-map", type=str, 
                        help="Directory containing similarity map files (neighbors.jsonl, etc.)")
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
-    parser.add_argument("--port", default=5000, type=int, help="Port to bind to")
+    parser.add_argument("--port", default=8000, type=int, help="Port to bind to")
     parser.add_argument("--no-browser", action="store_true", 
                        help="Don't automatically open browser")
     
