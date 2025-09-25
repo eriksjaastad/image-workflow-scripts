@@ -1159,32 +1159,20 @@ def build_app(
         updateVisualState();
         updateSummary();
         
-        // Add activity timer display
-        const timerDiv = document.createElement('div');
-        timerDiv.id = 'activity-timer';
-        timerDiv.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: var(--surface);
-            color: white;
-            padding: 12px 16px;
-            border-radius: 8px;
-            border: 1px solid var(--accent);
-            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-            font-size: 14px;
-            z-index: 1000;
-            min-width: 200px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        `;
-        timerDiv.innerHTML = `
-            <div style="font-weight: bold; margin-bottom: 4px;">⏱️ Activity Timer</div>
-            <div id="timer-active">Active: 0m 0s</div>
-            <div id="timer-total">Total: 0m 0s</div>
-            <div id="timer-efficiency">Efficiency: 100%</div>
-            <div id="timer-status" style="margin-top: 4px; font-size: 12px;">🟢 Active</div>
-        `;
-        document.body.appendChild(timerDiv);
+        // Add simple activity timer status to header
+        const header = document.querySelector('h1');
+        if (header) {
+            const timerStatus = document.createElement('span');
+            timerStatus.id = 'activity-status';
+            timerStatus.style.cssText = `
+                margin-left: 1rem;
+                font-size: 0.8rem;
+                font-weight: normal;
+                color: var(--text-secondary);
+            `;
+            timerStatus.innerHTML = '🟢 Active';
+            header.appendChild(timerStatus);
+        }
 
         // Update timer display every 5 seconds
         setInterval(updateTimerDisplay, 5000);
@@ -1214,15 +1202,11 @@ def build_app(
                 .then(response => response.json())
                 .then(data => {
                     if (data.active_time !== undefined) {
-                        const activeMin = Math.floor(data.active_time / 60);
-                        const activeSec = Math.floor(data.active_time % 60);
-                        const totalMin = Math.floor(data.total_time / 60);
-                        const totalSec = Math.floor(data.total_time % 60);
-                        
-                        document.getElementById('timer-active').textContent = `Active: ${activeMin}m ${activeSec}s`;
-                        document.getElementById('timer-total').textContent = `Total: ${totalMin}m ${totalSec}s`;
-                        document.getElementById('timer-efficiency').textContent = `Efficiency: ${data.efficiency.toFixed(1)}%`;
-                        document.getElementById('timer-status').innerHTML = data.is_active ? '🟢 Active' : '🔴 Idle';
+                        // Update simple status indicator in header
+                        const statusElement = document.getElementById('activity-status');
+                        if (statusElement) {
+                            statusElement.innerHTML = data.is_active ? '🟢 Active' : '⚫ Inactive';
+                        }
                     }
                 })
                 .catch(err => console.log('Timer update failed:', err));

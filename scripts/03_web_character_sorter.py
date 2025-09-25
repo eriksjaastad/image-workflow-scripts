@@ -1023,6 +1023,14 @@ MAIN_TEMPLATE = """
       min-width: 120px;
     }
     
+    /* Button highlight for active/clicked state */
+    .btn.btn-active {
+      background: var(--accent) !important;
+      color: white !important;
+      box-shadow: 0 0 0 2px var(--accent), 0 0 12px rgba(79, 157, 255, 0.6);
+      transform: translateY(-1px);
+    }
+    
     .btn-group1 {
       background: var(--accent);
       color: white;
@@ -1238,8 +1246,28 @@ MAIN_TEMPLATE = """
       }
     }
     
+    function highlightButton(action) {
+      // Remove active class from all buttons
+      document.querySelectorAll('.btn').forEach(btn => btn.classList.remove('btn-active'));
+      
+      // Add active class to the clicked button
+      const buttonClass = action === 'skip' || action === 'back' ? 'btn-secondary' : `btn-${action}`;
+      const button = document.querySelector(`.${buttonClass}`);
+      if (button) {
+        button.classList.add('btn-active');
+        
+        // Remove highlight after 1 second
+        setTimeout(() => {
+          button.classList.remove('btn-active');
+        }, 1000);
+      }
+    }
+    
     async function handleAction(action) {
       if (isLoading) return;
+      
+      // Highlight the clicked button
+      highlightButton(action);
       
       isLoading = true;
       document.body.classList.add('loading');
@@ -2050,6 +2078,13 @@ VIEWPORT_TEMPLATE = """
       gap: 0.5rem;
       margin-bottom: 0.5rem;
     }
+    
+    /* Row button active state */
+    .btn-row.btn-active {
+      background: var(--accent) !important;
+      color: white !important;
+      box-shadow: 0 0 0 2px var(--accent), 0 0 8px rgba(79, 157, 255, 0.5);
+    }
 
     .btn-row {
       padding: 0.2rem 0.8rem;
@@ -2263,8 +2298,28 @@ VIEWPORT_TEMPLATE = """
       
       updateBatchInfo();
     }
+    
+    function highlightRowButton(rowId, action) {
+      // Remove active class from all row buttons in this row
+      const rowButtons = document.querySelector(`[data-row-id="${rowId}"]`).closest('.row-container').querySelectorAll('.btn-row');
+      rowButtons.forEach(btn => btn.classList.remove('btn-active'));
+      
+      // Add active class to the clicked row button
+      const button = document.querySelector(`[onclick="selectRowAction(${rowId}, '${action}')"]`);
+      if (button) {
+        button.classList.add('btn-active');
+        
+        // Remove highlight after 1 second
+        setTimeout(() => {
+          button.classList.remove('btn-active');
+        }, 1000);
+      }
+    }
 
     function selectRowAction(rowId, action) {
+      // Highlight the clicked row button
+      highlightRowButton(rowId, action);
+      
       const row = document.querySelector(`[data-row-id="${rowId}"]`);
       const imageItems = row.querySelectorAll('[data-global-index]');
       
@@ -2419,32 +2474,20 @@ VIEWPORT_TEMPLATE = """
       }
     }
     
-    // Add activity timer display
-    const timerDiv = document.createElement('div');
-    timerDiv.id = 'activity-timer';
-    timerDiv.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: var(--surface);
-        color: white;
-        padding: 12px 16px;
-        border-radius: 8px;
-        border: 1px solid var(--accent);
-        font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-        font-size: 14px;
-        z-index: 1000;
-        min-width: 200px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    `;
-    timerDiv.innerHTML = `
-        <div style="font-weight: bold; margin-bottom: 4px;">⏱️ Activity Timer</div>
-        <div id="timer-active">Active: 0m 0s</div>
-        <div id="timer-total">Total: 0m 0s</div>
-        <div id="timer-efficiency">Efficiency: 100%</div>
-        <div id="timer-status" style="margin-top: 4px; font-size: 12px;">🟢 Active</div>
-    `;
-    document.body.appendChild(timerDiv);
+    // Add simple activity timer status to header
+    const header = document.querySelector('h1');
+    if (header) {
+        const timerStatus = document.createElement('span');
+        timerStatus.id = 'activity-status';
+        timerStatus.style.cssText = `
+            margin-left: 1rem;
+            font-size: 0.8rem;
+            font-weight: normal;
+            color: var(--text-secondary);
+        `;
+        timerStatus.innerHTML = '🟢 Active';
+        header.appendChild(timerStatus);
+    }
 
     // Update timer display every 5 seconds
     setInterval(updateTimerDisplay, 5000);
@@ -2474,15 +2517,11 @@ VIEWPORT_TEMPLATE = """
             .then(response => response.json())
             .then(data => {
                 if (data.active_time !== undefined) {
-                    const activeMin = Math.floor(data.active_time / 60);
-                    const activeSec = Math.floor(data.active_time % 60);
-                    const totalMin = Math.floor(data.total_time / 60);
-                    const totalSec = Math.floor(data.total_time % 60);
-                    
-                    document.getElementById('timer-active').textContent = `Active: ${activeMin}m ${activeSec}s`;
-                    document.getElementById('timer-total').textContent = `Total: ${totalMin}m ${totalSec}s`;
-                    document.getElementById('timer-efficiency').textContent = `Efficiency: ${data.efficiency.toFixed(1)}%`;
-                    document.getElementById('timer-status').innerHTML = data.is_active ? '🟢 Active' : '🔴 Idle';
+                    // Update simple status indicator in header
+                    const statusElement = document.getElementById('activity-status');
+                    if (statusElement) {
+                        statusElement.innerHTML = data.is_active ? '🟢 Active' : '⚫ Inactive';
+                    }
                 }
             })
             .catch(err => console.log('Timer update failed:', err));

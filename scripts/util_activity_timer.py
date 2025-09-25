@@ -200,14 +200,17 @@ class ActivityTimer:
                 self.last_activity = current_time
             else:
                 self.is_active = False
+        
+        # Ensure active time never exceeds total time
+        active_time_capped = min(self.active_time, total_time)
                 
         return {
             "script": self.script_name,
             "session_id": self.session_id,
             "total_time": total_time,
-            "active_time": self.active_time,
+            "active_time": active_time_capped,
             "idle_time": self.idle_time,
-            "efficiency": (self.active_time / total_time * 100) if total_time > 0 else 0,
+            "efficiency": (active_time_capped / total_time * 100) if total_time > 0 else 0,
             "batches_completed": len([b for b in self.current_session.batches if "end_time" in b]),
             "total_operations": len(self.current_session.operations),
             "files_processed": sum(op.get("file_count", 0) for op in self.current_session.operations if op.get("file_count")),
