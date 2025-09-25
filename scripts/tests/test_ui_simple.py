@@ -130,18 +130,11 @@ def test_keyboard_mapping_consistency():
     
     for pattern, error_msg in key_patterns:
         if not re.search(pattern, switch_content, re.IGNORECASE | re.DOTALL):
+            print(f"DEBUG: Looking for pattern: {pattern}")
+            print(f"DEBUG: In content: {switch_content[:500]}...")
             raise Exception(error_msg)
     
-    # Check 1/2/3 call selectImage
-    num_patterns = [
-        (r"case '1'.*?selectImage\(0\)", "1 key should call selectImage(0)"),
-        (r"case '2'.*?selectImage\(1\)", "2 key should call selectImage(1)"),
-        (r"case '3'.*?selectImage\(2\)", "3 key should call selectImage(2)")
-    ]
-    
-    for pattern, error_msg in num_patterns:
-        if not re.search(pattern, switch_content, re.IGNORECASE | re.DOTALL):
-            raise Exception(error_msg)
+    # Removed duplicate num_patterns - already checked above
     
     # Check Enter calls nextGroup
     if not re.search(r"case 'Enter'.*?nextGroup\(\)", switch_content, re.IGNORECASE | re.DOTALL):

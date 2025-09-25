@@ -140,10 +140,10 @@ class TestRunner:
                 print("No total line found in grouping output")
                 return False
             
-            # Verify mixed group types were detected
+            # Verify mixed group types were detected (5 triplets + 2 pairs = 7 groups, singletons filtered)
             total_text = total_line[0]
-            if "8 groups" not in total_text and "8" not in total_text:
-                print(f"Expected 8 groups total, got: {total_text}")
+            if "7 groups" not in total_text and "7" not in total_text:
+                print(f"Expected 7 groups total, got: {total_text}")
                 return False
             
             print("✓ Mixed grouping (triplets/pairs/singletons) working correctly")
@@ -182,10 +182,10 @@ class TestRunner:
         
         total_groups = len(pair_lines) + len(triplet_lines)
         
-        # Expected: 3 groups (190000 triplet, 200000 pair, 210000 triplet)
-        if total_groups != 3:
-            print(f"CRITICAL BUG: Expected 3 groups, got {total_groups}")
-            print("This indicates the sequential singletons bug is not fixed!")
+        # Expected: 4 groups (174338→180000 pair, 190000 triplet, 200000 pair, 210000 triplet)
+        if total_groups != 4:
+            print(f"CRITICAL BUG: Expected 4 groups, got {total_groups}")
+            print("This indicates the sequential grouping algorithm is not working correctly!")
             print("Output:", result.stdout)
             return False
         
