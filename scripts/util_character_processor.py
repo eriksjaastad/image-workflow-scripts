@@ -35,14 +35,14 @@ FEATURES:
 
 PIPELINE STAGES:
 ----------------
-1. YAML Analysis: Extract character LoRA + prompt data
-2. Sequential Context: Infer characters for files without data  
-3. Prompt Analysis: Extract descriptive characters from prompts (15+ file minimum)
+1. YAML Analysis: Extract character LoRA names (emily, ivy) + prompt data
+2. Sequential Context: Infer missing characters from chronological neighbors  
+3. Prompt Analysis: FALLBACK for remaining files - extract descriptors (15+ file minimum)
 4. Character Grouping: Organize files into directories (supports flexible categories)
 
 GROUPING CATEGORIES:
 -------------------
-• character (default): Combines ethnicity + body + age (latina_petite_young)
+• character (default): Uses LoRA names (emily, ivy) + prompt fallback (latina_petite_young)
 • body_type: big_boobs, petite, curvy, tall, athletic, etc.
 • ethnicity: latina, asian, black, white, indian, etc.
 • age_group: young, mature, teen, milf, college, etc.
