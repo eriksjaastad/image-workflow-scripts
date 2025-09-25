@@ -97,13 +97,9 @@ class WebImageSelectorTest:
         selected_images = self.driver.find_elements(By.CSS_SELECTOR, "figure.image-card.selected")
         assert len(selected_images) > 0, "Image should be selected with '1' key"
         
-        # Test crop key
-        self.driver.find_element(By.TAG_NAME, "body").send_keys("q")
-        time.sleep(0.5)
-        
-        # Check if crop state is active
+        # All selected images automatically have crop state (no toggle needed)
         crop_selected = self.driver.find_elements(By.CSS_SELECTOR, "figure.image-card.crop-selected")
-        assert len(crop_selected) > 0, "Image should have crop state with 'Q' key"
+        assert len(crop_selected) > 0, "Selected images should automatically have crop state"
         
         print("✅ Keyboard shortcuts test passed")
     
@@ -124,29 +120,21 @@ class WebImageSelectorTest:
         
         print("✅ Unselect functionality test passed")
     
-    def test_state_override(self):
-        """Test that selecting 1,2,3 after Q,W,E clears crop state"""
-        # First select with crop
-        self.driver.find_element(By.TAG_NAME, "body").send_keys("q")
-        time.sleep(0.5)
-        
-        # Verify crop state
-        crop_selected = self.driver.find_elements(By.CSS_SELECTOR, "figure.image-card.crop-selected")
-        assert len(crop_selected) > 0, "Should have crop state"
-        
-        # Then select with regular selection
+    def test_selection_consistency(self):
+        """Test that all selections consistently go to crop"""
+        # Select first image
         self.driver.find_element(By.TAG_NAME, "body").send_keys("1")
         time.sleep(0.5)
         
-        # Verify crop state is cleared
-        crop_selected = self.driver.find_elements(By.CSS_SELECTOR, "figure.image-card.crop-selected")
-        assert len(crop_selected) == 0, "Crop state should be cleared"
-        
-        # Verify regular selection is active
+        # Verify both selected and crop state are active
         selected_images = self.driver.find_elements(By.CSS_SELECTOR, "figure.image-card.selected")
-        assert len(selected_images) > 0, "Should have regular selection"
+        crop_selected = self.driver.find_elements(By.CSS_SELECTOR, "figure.image-card.crop-selected")
         
-        print("✅ State override test passed")
+        assert len(selected_images) > 0, "Should have selected image"
+        assert len(crop_selected) > 0, "Selected image should automatically have crop state"
+        assert len(selected_images) == len(crop_selected), "All selected images should have crop state"
+        
+        print("✅ Selection consistency test passed")
     
     def test_button_toggle(self):
         """Test that clicking same button twice deselects"""
@@ -244,7 +232,7 @@ class WebImageSelectorTest:
             self.test_batch_size_100_default()
             self.test_keyboard_shortcuts()
             self.test_unselect_functionality()
-            self.test_state_override()
+            self.test_selection_consistency()
             self.test_button_toggle()
             self.test_navigation_keys()
             self.test_process_button_safety()

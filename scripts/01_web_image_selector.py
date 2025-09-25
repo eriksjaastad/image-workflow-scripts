@@ -27,7 +27,7 @@ FEATURES:
 • Fast performance with cached image loading
 • Advanced triplet detection with precise timestamp matching
 • Integrated FileTracker logging for complete audit trail
-• Option to send selections directly to crop/ or Reviewed/ folders
+• Selected images are automatically moved to crop/ folder for processing
 • Safe deletion with send2trash (recoverable from system trash)
 • Support for PNG and HEIC/HEIF formats
 
@@ -46,10 +46,10 @@ HOW IT WORKS:
 ---------
 1. Click exactly one image in each row to keep it
 2. Leave a row untouched if you want all three images deleted
-3. Optionally enable **Send to crop/** toggle to move winners to crop/ instead of Reviewed/
+3. Selected images are automatically moved to crop/ folder
 4. Press **Finalize selections** when done
 5. The script will:
-   • Move chosen images (+ YAML files) to Reviewed/ or crop/
+   • Move chosen images (+ YAML files) to crop/
    • Delete unselected images using send2trash (recoverable)
    • Log all actions in triplet_culler_log.csv and FileTracker logs
 
@@ -65,7 +65,7 @@ HOW IT WORKS:
 -------------
 1. Click exactly one image in each row to keep it
 2. Leave a row untouched if you want all three images deleted
-3. Optionally enable **Send to crop/** toggle to move winners to crop/ instead of Reviewed/
+3. Selected images are automatically moved to crop/ folder
 4. Press **Finalize selections** when done
 
 WHAT HAPPENS:
@@ -404,15 +404,7 @@ def move_with_yaml(
     return target_png
 
 
-def move_to_reviewed(src_path: Path, base_folder: Path, tracker: FileTracker) -> Path:
-    reviewed_dir = base_folder.parent / "Reviewed"
-    return move_with_yaml(
-        src_path,
-        reviewed_dir,
-        tracker,
-        dest_label="Reviewed",
-        notes="Selected image from triplet selector",
-    )
+# Removed move_to_reviewed function - all selections now go to crop
 
 
 def move_to_crop(src_path: Path, tracker: FileTracker) -> Path:
@@ -657,10 +649,6 @@ def build_app(
           border-color: var(--accent);
           box-shadow: 0 20px 40px rgba(0,0,0,0.25), 0 0 0 1px rgba(79,157,255,0.2);
         }
-        section.group.reviewed {
-          border-color: var(--success);
-          box-shadow: 0 20px 40px rgba(0,0,0,0.25), 0 0 0 1px rgba(81,207,102,0.2);
-        }
         section.group:nth-of-type(odd) {
           background: var(--surface-alt);
         }
@@ -813,7 +801,6 @@ def build_app(
               {% if group.images|length >= 3 %}
               <button class="action-btn row-btn-3" onclick="selectImage(2, '{{ group.id }}')">3</button>
               {% endif %}
-              <button class="action-btn row-btn-crop" onclick="toggleCrop('{{ group.id }}')">E</button>
               <button class="action-btn row-btn-next" onclick="nextGroup()">▼</button>
             </div>
           </div>
@@ -835,11 +822,11 @@ def build_app(
         const batchCount = document.getElementById('batch-count');
         const statusBox = document.getElementById('status');
         
-        let groupStates = {}; // { groupId: { selectedImage: 0|1|2, willCrop: boolean, skipped: boolean } }
+        let groupStates = {}; // { groupId: { selectedImage: 0|1|2, skipped: boolean } }
 
         function updateSummary() {
           const selectedCount = Object.values(groupStates).filter(state => state.selectedImage !== undefined && !state.skipped).length;
-          const cropCount = Object.values(groupStates).filter(state => state.willCrop && !state.skipped).length;
+          const cropCount = selectedCount; // All selected images go to crop
           const skippedCount = Object.values(groupStates).filter(state => state.skipped).length;
           const deleteCount = groups.length - selectedCount - skippedCount;
           
@@ -871,13 +858,7 @@ def build_app(
               }
             }
             
-            // Highlight crop button if active
-            if (state.willCrop) {
-              const cropButton = group.querySelector('.row-btn-crop');
-              if (cropButton) {
-                cropButton.classList.add('crop-active');
-              }
-            }
+            // Crop button removed - all selections go to crop automatically
           }
         }
         
@@ -899,10 +880,8 @@ def build_app(
               const selectedCard = group.querySelectorAll('.image-card')[state.selectedImage];
               if (selectedCard) {
                 selectedCard.classList.add('selected');
-                // Add crop styling if this group is marked for cropping
-                if (state.willCrop) {
-                  selectedCard.classList.add('crop-selected');
-                }
+                // All selected images automatically go to crop
+                selectedCard.classList.add('crop-selected');
               }
               
               // Show delete hint on other images
@@ -932,11 +911,11 @@ def build_app(
           
           // BUTTON TOGGLE: If same image already selected, deselect it
           const currentState = groupStates[groupId];
-          if (currentState && currentState.selectedImage === imageIndex && !currentState.willCrop) {
+          if (currentState && currentState.selectedImage === imageIndex) {
             delete groupStates[groupId]; // Deselect (back to delete)
           } else {
-            // Update state - selecting 1,2,3 should clear crop flag (state override fix)
-            groupStates[groupId] = { selectedImage: imageIndex, willCrop: false, skipped: false };
+            // Update state - select image (automatically goes to crop)
+            groupStates[groupId] = { selectedImage: imageIndex, skipped: false };
           }
           
           // Update everything immediately
@@ -944,39 +923,9 @@ def build_app(
           updateSummary();
         }
         
-        function toggleCrop(groupId) {
-          if (!groupStates[groupId] || groupStates[groupId].selectedImage === undefined) {
-            // No image selected yet, can't crop
-            return;
-          }
-          
-          groupStates[groupId].willCrop = !groupStates[groupId].willCrop;
-          
-          // Update everything immediately  
-          updateVisualState();
-              updateSummary();
-        }
+        // toggleCrop function removed - all selections automatically go to crop
         
-        function selectImageAndCrop(imageIndex, groupId) {
-          const group = document.querySelector(`section.group[data-group-id="${groupId}"]`);
-          if (!group) return;
-          
-          const imageCount = group.querySelectorAll('.image-card').length;
-          if (imageIndex >= imageCount) return;
-          
-          // BUTTON TOGGLE: If same image+crop already selected, deselect it
-          const currentState = groupStates[groupId];
-          if (currentState && currentState.selectedImage === imageIndex && currentState.willCrop) {
-            delete groupStates[groupId]; // Deselect (back to delete)
-          } else {
-            // Update state - select image AND mark for crop
-            groupStates[groupId] = { selectedImage: imageIndex, willCrop: true, skipped: false };
-          }
-          
-          // Update everything immediately
-          updateVisualState();
-            updateSummary();
-        }
+        // selectImageAndCrop function removed - regular selectImage now handles all cases
         
         function handleImageClick(imageCard) {
           const group = imageCard.closest('section.group');
@@ -1147,7 +1096,7 @@ def build_app(
             return {
               groupId: groupId,
               selectedIndex: state ? state.selectedImage : null,
-              crop: state ? state.willCrop : false,
+              crop: state ? (state.selectedImage !== undefined) : false, // All selections go to crop
               skipped: state ? state.skipped : false,
             };
           });
@@ -1548,13 +1497,10 @@ def build_app(
                 selected_path = record.paths[selected_index]
                 others = [p for idx, p in enumerate(record.paths) if idx != selected_index]
 
-                if crop_flag:
-                    target_path = move_to_crop(selected_path, tracker=tracker)
-                    crop_count += 1
-                    action_label = "keep_one_to_crop"
-                else:
-                    target_path = move_to_reviewed(selected_path, base_folder, tracker)
-                    action_label = "keep_one"
+                # Always move selected images to crop directory
+                target_path = move_to_crop(selected_path, tracker=tracker)
+                crop_count += 1
+                action_label = "keep_one_to_crop"
 
                 safe_delete(others, hard_delete=hard_delete, tracker=tracker)
                 write_log(log_path, action_label, target_path, others)
