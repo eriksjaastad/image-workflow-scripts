@@ -7,31 +7,47 @@ into one streamlined tool for intelligent image organization.
 
 USAGE:
 ------
-  # Full pipeline (most common)
-  python scripts/util_character_processor.py "_asian (chater 1)/"
-  python scripts/util_character_processor.py "selected/" --dry-run
+  # Default: Character grouping (combines ethnicity + body + age)
+  python scripts/util_character_processor.py "selected/"
+  python scripts/util_character_processor.py "_asian (chater 1)/" --dry-run
   
-  # Individual functions
-  python -c "from scripts.util_character_processor import analyze_yaml; analyze_yaml('dir/')"
-  python -c "from scripts.util_character_processor import process_directory; process_directory('dir/', dry_run=True)"
+  # 🚀 FLEXIBLE GROUPING - Revolutionary feature!
+  python scripts/util_character_processor.py "selected/" --group-by body_type    # → big_boobs/, petite/, curvy/
+  python scripts/util_character_processor.py "selected/" --group-by ethnicity    # → latina/, asian/, black/
+  python scripts/util_character_processor.py "selected/" --group-by age_group    # → young/, mature/, teen/
+  python scripts/util_character_processor.py "selected/" --group-by hair_color   # → blonde/, brunette/, redhead/
+  python scripts/util_character_processor.py "selected/" --group-by scenario     # → bedroom/, office/, outdoor/
+  
+  # Advanced usage
+  python scripts/util_character_processor.py "directory/" --save-analysis --quiet
 
 FEATURES:
 ---------
-• Complete 3-stage pipeline in one command
+• 🚀 FLEXIBLE GROUPING: Group by ANY criteria (body_type, ethnicity, age_group, etc.)
+• Complete 4-stage pipeline in one command
 • YAML metadata extraction with multi-character support
 • Sequential context inference for edge cases
-• Intelligent character-based file organization
+• Intelligent prompt-based descriptor extraction
 • Multi-character directory creation (emily_ivy/, etc.)
+• Minimum threshold protection (prevents directory fragmentation)
 • Progress tracking and comprehensive statistics
 • Dry-run mode for safe testing
-• Individual function access for advanced usage
 
 PIPELINE STAGES:
 ----------------
 1. YAML Analysis: Extract character LoRA + prompt data
-2. Sequential Context: Infer characters for files without data
-3. Prompt Analysis: Extract descriptive characters from prompts (20+ file minimum)
-4. Character Grouping: Organize files into character directories
+2. Sequential Context: Infer characters for files without data  
+3. Prompt Analysis: Extract descriptive characters from prompts (15+ file minimum)
+4. Character Grouping: Organize files into directories (supports flexible categories)
+
+GROUPING CATEGORIES:
+-------------------
+• character (default): Combines ethnicity + body + age (latina_petite_young)
+• body_type: big_boobs, petite, curvy, tall, athletic, etc.
+• ethnicity: latina, asian, black, white, indian, etc.
+• age_group: young, mature, teen, milf, college, etc.
+• hair_color: blonde, brunette, redhead, black_hair, etc.
+• scenario: bedroom, office, outdoor, kitchen, beach, etc.
 """
 
 import argparse
