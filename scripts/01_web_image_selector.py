@@ -57,7 +57,7 @@ OPTIONAL FLAGS:
 ---------------
   --exts            File extensions to include (default: png)
   --hard-delete     Permanently delete instead of using trash
-  --host/--port     Web server binding (default: 127.0.0.1:5000)
+  --host/--port     Web server binding (default: 127.0.0.1:8080)
   --no-browser      Don't auto-launch browser
   --print-triplets  Show triplet groupings and exit (debug)
 
@@ -1579,7 +1579,7 @@ def main() -> None:
     parser.add_argument("--hard-delete", action="store_true", help="Permanently delete files instead of send2trash")
     parser.add_argument("--batch-size", type=int, default=100, help="Number of groups to process per batch (default: 100)")
     parser.add_argument("--host", default="127.0.0.1", help="Host/IP for the local web server")
-    parser.add_argument("--port", type=int, default=5000, help="Port for the local web server")
+    parser.add_argument("--port", type=int, default=8080, help="Port for the local web server")
     parser.add_argument("--no-browser", action="store_true", help="Do not auto-open the browser")
     parser.add_argument("--no-recursive", action="store_true", help="Do not scan subdirectories recursively")
     args = parser.parse_args()
