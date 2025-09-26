@@ -667,6 +667,10 @@ class MultiDirectoryBatchCropTool:
         self.activity_timer.mark_activity()
         key = event.key.lower()
         
+        # Debug: Print key for troubleshooting
+        if key in ['left', 'arrow_left', 'leftarrow']:
+            print(f"DEBUG: Arrow key detected: '{event.key}' -> '{key}'")
+        
         # Global controls
         if key == 'q':
             self.quit()
@@ -688,7 +692,7 @@ class MultiDirectoryBatchCropTool:
         elif key == 'p' and not self.single_directory_mode:
             self.previous_directory()
             return
-        elif key == 'left':
+        elif key in ['left', 'arrow_left', 'leftarrow'] or key == 'b':
             self.previous_batch()
             return
             
