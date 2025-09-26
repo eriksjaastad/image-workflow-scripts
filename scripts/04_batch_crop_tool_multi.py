@@ -58,7 +58,7 @@ Image 2: [E] Skip  [D] Delete  [C] Reset crop
 Image 3: [R] Skip  [4] Delete  [V] Reset crop
 
 Global: [Enter] Submit Batch  [Space] Toggle Aspect Ratio  [Q] Quit
-        [N] Next Directory  [P] Previous Directory
+        [N] Next Directory  [P] Previous Directory  [B/←] Previous Batch
 """
 
 import argparse
@@ -355,6 +355,7 @@ class MultiDirectoryBatchCropTool:
         self.axes = []
         self.has_pending_changes = False
         self.quit_confirmed = False
+        self.previous_batch_confirmed = False
         
         # No longer using a separate cropped directory - files stay in place
         
@@ -443,6 +444,7 @@ class MultiDirectoryBatchCropTool:
         # Reset flags for new batch
         self.has_pending_changes = False
         self.quit_confirmed = False
+        self.previous_batch_confirmed = False
         
         # Clear previous selectors
         for selector in self.selectors:
@@ -686,6 +688,9 @@ class MultiDirectoryBatchCropTool:
         elif key == 'p' and not self.single_directory_mode:
             self.previous_directory()
             return
+        elif key == 'b' or key == 'left':
+            self.previous_batch()
+            return
             
         # Image-specific controls
         image_actions = {
@@ -734,6 +739,47 @@ class MultiDirectoryBatchCropTool:
         self.current_batch = 0
         self.total_batches = (len(self.png_files) + 2) // 3
         self.load_batch()
+    
+    def previous_batch(self):
+        """Go back to the previous batch within the current directory"""
+        if self.current_batch <= 0:
+            print("Already at first batch")
+            return
+            
+        # Check for uncommitted changes
+        if self.has_pending_changes:
+            print("\n⚠️  WARNING: You have uncommitted changes in current batch!")
+            print("   - Press [Enter] to commit changes first, or")
+            print("   - Press [B] again to go back anyway (changes will be lost)")
+            if not hasattr(self, 'previous_batch_confirmed'):
+                self.previous_batch_confirmed = False
+            if not self.previous_batch_confirmed:
+                self.previous_batch_confirmed = True
+                return
+            else:
+                self.previous_batch_confirmed = False
+        
+        print(f"Going back to batch {self.current_batch}...")
+        
+        # Move back one batch
+        self.current_batch -= 1
+        
+        # Reverse the progress tracking - subtract the files from the previous batch
+        if not self.single_directory_mode:
+            # Calculate how many files were in the batch we're going back to
+            batch_start = self.current_batch * 3
+            batch_end = min(batch_start + 3, len(self.png_files))
+            files_in_batch = batch_end - batch_start
+            
+            # Subtract those files from the progress
+            self.progress_tracker.current_file_index -= files_in_batch
+            if self.progress_tracker.current_file_index < 0:
+                self.progress_tracker.current_file_index = 0
+            self.progress_tracker.save_progress()
+            
+        # Load the previous batch
+        self.load_batch()
+        print(f"Moved back to batch {self.current_batch + 1}/{self.total_batches}")
     
     def reset_image_crop(self, image_idx):
         """Reset the crop selection for a specific image back to full image"""
@@ -951,6 +997,7 @@ class MultiDirectoryBatchCropTool:
         print("  Image 2: [E] Skip  [D] Delete  [C] Reset") 
         print("  Image 3: [R] Skip  [4] Delete  [V] Reset")
         print("  Global:  [Enter] Submit Batch  [Space] Toggle Aspect Ratio  [Q] Quit")
+        print("  Navigation: [B/←] Previous Batch")
         
         if not self.single_directory_mode:
             print("  Multi-Directory: [N] Next Directory  [P] Previous Directory")
