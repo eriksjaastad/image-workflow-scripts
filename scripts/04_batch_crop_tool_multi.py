@@ -448,7 +448,7 @@ class MultiDirectoryBatchCropTool:
         # Debug: Show which files are being loaded
         print(f"[DEBUG] Loading batch at file index {start_idx}:")
         for i, file_path in enumerate(batch_files):
-            print(f"  Image {i+1}: {file_path.split('/')[-1]}")
+            print(f"  Image {i+1}: {file_path.name}")
         
         self.current_images = []
         self.image_states = []
@@ -581,8 +581,8 @@ class MultiDirectoryBatchCropTool:
             lock_str = "🔒" if self.aspect_ratio_locked else "🔓"
             aspect_info = f" • [{lock_str} Space] Aspect Ratio" if self.aspect_ratio else ""
             # Debug: Show first filename to verify position
-            first_file = self.png_files[self.progress_tracker.current_file_index] if self.progress_tracker.current_file_index < len(self.png_files) else "N/A"
-            filename_debug = f" • DEBUG: {first_file.split('/')[-1][:25]}..."
+            first_file = self.png_files[self.progress_tracker.current_file_index] if self.progress_tracker.current_file_index < len(self.png_files) else None
+            filename_debug = f" • DEBUG: {first_file.name[:25]}..." if first_file else " • DEBUG: N/A"
             title = f"Batch {self.current_batch + 1}/{self.total_batches} • {remaining_images} images remaining • [1,2,3] Delete • [Enter] Submit • [Q] Quit{aspect_info}{filename_debug}"
         else:
             # Multi-directory mode - enhanced progress display
@@ -595,8 +595,8 @@ class MultiDirectoryBatchCropTool:
             dirs_info = f"{progress['directories_remaining']} directories left"
             
             # Debug: Show first filename to verify position
-            first_file = self.png_files[self.progress_tracker.current_file_index] if self.progress_tracker.current_file_index < len(self.png_files) else "N/A"
-            filename_debug = f" • DEBUG: {first_file.split('/')[-1][:25]}..."
+            first_file = self.png_files[self.progress_tracker.current_file_index] if self.progress_tracker.current_file_index < len(self.png_files) else None
+            filename_debug = f" • DEBUG: {first_file.name[:25]}..." if first_file else " • DEBUG: N/A"
             title = f"{dir_info} • {batch_info} • {dirs_info} • [1,2,3] Delete • [Enter] Submit • [Q] Quit{aspect_info}{filename_debug}"
         
         self.fig.suptitle(title, fontsize=12, y=0.98)
