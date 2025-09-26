@@ -337,8 +337,8 @@ class MultiDirectoryBatchCropTool:
                     self.progress_tracker.cleanup_completed_session()
                     sys.exit(0)
         
-        # Calculate current batch from file index when resuming
-        self.current_batch = self.progress_tracker.current_file_index // 3
+        # Initialize batch tracking (load_batch will set current_batch correctly)
+        self.current_batch = 0  # Will be set by load_batch()
         self.total_batches = (len(self.png_files) + 2) // 3  # Round up division
         
         # Debug output to help track the issue
@@ -435,8 +435,12 @@ class MultiDirectoryBatchCropTool:
     
     def load_batch(self):
         """Load the current batch of up to 3 images"""
-        start_idx = self.current_batch * 3
+        # Use progress tracker's file index as the source of truth
+        start_idx = self.progress_tracker.current_file_index
         end_idx = min(start_idx + 3, len(self.png_files))
+        
+        # Update current_batch to match the actual position
+        self.current_batch = start_idx // 3
         
         # Get images for this batch
         batch_files = self.png_files[start_idx:end_idx]
@@ -722,8 +726,7 @@ class MultiDirectoryBatchCropTool:
         
         if self.progress_tracker.has_more_directories():
             self.png_files = self.progress_tracker.get_current_files()
-            # Calculate current batch from file index
-            self.current_batch = self.progress_tracker.current_file_index // 3
+            # current_batch will be set by load_batch()
             self.total_batches = (len(self.png_files) + 2) // 3
             self.load_batch()
         else:
@@ -748,7 +751,8 @@ class MultiDirectoryBatchCropTool:
     
     def previous_batch(self):
         """Go back to the previous batch within the current directory"""
-        if self.current_batch <= 0:
+        # Check if we can go back (need at least 3 files back)
+        if self.progress_tracker.current_file_index < 3:
             print("Already at first batch")
             return
             
@@ -765,24 +769,13 @@ class MultiDirectoryBatchCropTool:
             else:
                 self.previous_batch_confirmed = False
         
-        print(f"Going back to batch {self.current_batch}...")
+        # Move back one batch (3 files)
+        old_file_index = self.progress_tracker.current_file_index
+        self.progress_tracker.current_file_index = max(0, old_file_index - 3)
+        self.progress_tracker.save_progress()
         
-        # Move back one batch
-        self.current_batch -= 1
+        print(f"Going back from file {old_file_index} to {self.progress_tracker.current_file_index}")
         
-        # Reverse the progress tracking - subtract the files from the previous batch
-        if not self.single_directory_mode:
-            # Calculate how many files were in the batch we're going back to
-            batch_start = self.current_batch * 3
-            batch_end = min(batch_start + 3, len(self.png_files))
-            files_in_batch = batch_end - batch_start
-            
-            # Subtract those files from the progress
-            self.progress_tracker.current_file_index -= files_in_batch
-            if self.progress_tracker.current_file_index < 0:
-                self.progress_tracker.current_file_index = 0
-            self.progress_tracker.save_progress()
-            
         # Load the previous batch
         self.load_batch()
         print(f"Moved back to batch {self.current_batch + 1}/{self.total_batches}")
