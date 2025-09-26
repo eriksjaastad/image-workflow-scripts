@@ -204,13 +204,14 @@ class MultiDirectoryProgressTracker:
         return None
     
     def get_current_files(self) -> List[Path]:
-        """Get PNG files from current directory, starting from current file index."""
+        """Get ALL PNG files from current directory (not sliced)."""
         current_dir = self.get_current_directory()
         if not current_dir:
             return []
         
+        # Return ALL files - let load_batch() handle the indexing
         all_files = sorted(current_dir['path'].glob("*.png"))
-        return all_files[self.current_file_index:]
+        return all_files
     
     def advance_file(self, count: int = 1):
         """Advance file index by count."""
