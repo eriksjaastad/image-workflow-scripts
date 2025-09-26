@@ -337,7 +337,8 @@ class MultiDirectoryBatchCropTool:
                     self.progress_tracker.cleanup_completed_session()
                     sys.exit(0)
         
-        self.current_batch = 0
+        # Calculate current batch from file index when resuming
+        self.current_batch = self.progress_tracker.current_file_index // 3
         self.total_batches = (len(self.png_files) + 2) // 3  # Round up division
         
         # Debug output to help track the issue
@@ -345,6 +346,7 @@ class MultiDirectoryBatchCropTool:
             current_dir = self.progress_tracker.get_current_directory()
             print(f"[DEBUG] Starting in directory: {current_dir['name'] if current_dir else 'None'}")
             print(f"[DEBUG] Current file index: {self.progress_tracker.current_file_index}")
+            print(f"[DEBUG] Calculated current batch: {self.current_batch}")
             print(f"[DEBUG] Files available: {len(self.png_files)}")
             print(f"[DEBUG] Total batches: {self.total_batches}")
         
@@ -667,9 +669,7 @@ class MultiDirectoryBatchCropTool:
         self.activity_timer.mark_activity()
         key = event.key.lower()
         
-        # Debug: Print key for troubleshooting
-        if key in ['left', 'arrow_left', 'leftarrow']:
-            print(f"DEBUG: Arrow key detected: '{event.key}' -> '{key}'")
+        # Arrow key detection confirmed working
         
         # Global controls
         if key == 'q':
@@ -722,7 +722,8 @@ class MultiDirectoryBatchCropTool:
         
         if self.progress_tracker.has_more_directories():
             self.png_files = self.progress_tracker.get_current_files()
-            self.current_batch = 0
+            # Calculate current batch from file index
+            self.current_batch = self.progress_tracker.current_file_index // 3
             self.total_batches = (len(self.png_files) + 2) // 3
             self.load_batch()
         else:
@@ -740,6 +741,7 @@ class MultiDirectoryBatchCropTool:
         self.progress_tracker.save_progress()
         
         self.png_files = self.progress_tracker.get_current_files()
+        # When going to previous directory, start at beginning (batch 0)
         self.current_batch = 0
         self.total_batches = (len(self.png_files) + 2) // 3
         self.load_batch()
