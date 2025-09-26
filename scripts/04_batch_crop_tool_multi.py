@@ -53,12 +53,12 @@ FILE HANDLING:
 
 CONTROLS:
 ---------
-Image 1: [W] Skip  [S] Delete  [X] Reset crop
-Image 2: [E] Skip  [D] Delete  [C] Reset crop  
-Image 3: [R] Skip  [4] Delete  [V] Reset crop
+Image 1: [1] Delete  [X] Reset crop
+Image 2: [2] Delete  [C] Reset crop  
+Image 3: [3] Delete  [V] Reset crop
 
 Global: [Enter] Submit Batch  [Space] Toggle Aspect Ratio  [Q] Quit
-        [N] Next Directory  [P] Previous Directory  [B/←] Previous Batch
+        [N] Next Directory  [P] Previous Directory  [←] Previous Batch
 """
 
 import argparse
@@ -568,7 +568,7 @@ class MultiDirectoryBatchCropTool:
             remaining_images = len(self.png_files) - (self.current_batch * 3)
             lock_str = "🔒" if self.aspect_ratio_locked else "🔓"
             aspect_info = f" • [{lock_str} Space] Aspect Ratio" if self.aspect_ratio else ""
-            title = f"Batch {self.current_batch + 1}/{self.total_batches} • {remaining_images} images remaining • [Enter] Submit • [Q] Quit{aspect_info}"
+            title = f"Batch {self.current_batch + 1}/{self.total_batches} • {remaining_images} images remaining • [1,2,3] Delete • [Enter] Submit • [Q] Quit{aspect_info}"
         else:
             # Multi-directory mode - enhanced progress display
             progress = self.progress_tracker.get_progress_info()
@@ -579,16 +579,16 @@ class MultiDirectoryBatchCropTool:
             batch_info = f"Batch {self.current_batch + 1}/{self.total_batches}"
             dirs_info = f"{progress['directories_remaining']} directories left"
             
-            title = f"{dir_info} • {batch_info} • {dirs_info} • [Enter] Submit • [Q] Quit{aspect_info}"
+            title = f"{dir_info} • {batch_info} • {dirs_info} • [1,2,3] Delete • [Enter] Submit • [Q] Quit{aspect_info}"
         
         self.fig.suptitle(title, fontsize=12, y=0.98)
     
     def update_control_labels(self):
         """Update the control labels below each image"""
         controls = [
-            "[W] Skip  [S] Delete  [X] Reset",
-            "[E] Skip  [D] Delete  [C] Reset", 
-            "[R] Skip  [4] Delete  [V] Reset"
+            "[1] Delete  [X] Reset",
+            "[2] Delete  [C] Reset", 
+            "[3] Delete  [V] Reset"
         ]
         
         for i, (ax, control_text) in enumerate(zip(self.axes, controls)):
@@ -688,15 +688,15 @@ class MultiDirectoryBatchCropTool:
         elif key == 'p' and not self.single_directory_mode:
             self.previous_directory()
             return
-        elif key == 'b' or key == 'left':
+        elif key == 'left':
             self.previous_batch()
             return
             
         # Image-specific controls
         image_actions = {
-            'w': (0, 'skip'), 's': (0, 'delete'), 'x': (0, 'reset'),
-            'e': (1, 'skip'), 'd': (1, 'delete'), 'c': (1, 'reset'),
-            'r': (2, 'skip'), '4': (2, 'delete'), 'v': (2, 'reset'),
+            '1': (0, 'delete'), 'x': (0, 'reset'),
+            '2': (1, 'delete'), 'c': (1, 'reset'),
+            '3': (2, 'delete'), 'v': (2, 'reset'),
         }
         
         if key in image_actions:
@@ -750,7 +750,7 @@ class MultiDirectoryBatchCropTool:
         if self.has_pending_changes:
             print("\n⚠️  WARNING: You have uncommitted changes in current batch!")
             print("   - Press [Enter] to commit changes first, or")
-            print("   - Press [B] again to go back anyway (changes will be lost)")
+            print("   - Press [←] again to go back anyway (changes will be lost)")
             if not hasattr(self, 'previous_batch_confirmed'):
                 self.previous_batch_confirmed = False
             if not self.previous_batch_confirmed:
@@ -993,11 +993,11 @@ class MultiDirectoryBatchCropTool:
         
         print(f"Will process in {self.total_batches} batches of up to 3 images each")
         print("\nControls:")
-        print("  Image 1: [W] Skip  [S] Delete  [X] Reset")
-        print("  Image 2: [E] Skip  [D] Delete  [C] Reset") 
-        print("  Image 3: [R] Skip  [4] Delete  [V] Reset")
+        print("  Image 1: [1] Delete  [X] Reset")
+        print("  Image 2: [2] Delete  [C] Reset") 
+        print("  Image 3: [3] Delete  [V] Reset")
         print("  Global:  [Enter] Submit Batch  [Space] Toggle Aspect Ratio  [Q] Quit")
-        print("  Navigation: [B/←] Previous Batch")
+        print("  Navigation: [←] Previous Batch")
         
         if not self.single_directory_mode:
             print("  Multi-Directory: [N] Next Directory  [P] Previous Directory")
