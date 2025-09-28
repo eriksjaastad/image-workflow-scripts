@@ -91,7 +91,7 @@ class ActivityTimer:
         self.current_batch = None
         
         # Data storage
-        self.data_dir = Path(__file__).parent / "timer_data"
+        self.data_dir = Path(__file__).parent.parent.parent / "data" / "timer_data"
         self.data_dir.mkdir(exist_ok=True)
         self.session_file = self.data_dir / f"session_{self.session_id}.json"
         self.daily_file = self.data_dir / f"daily_{datetime.now().strftime('%Y%m%d')}.json"
@@ -314,7 +314,7 @@ class TimerReporter:
     """
     
     def __init__(self):
-        self.data_dir = Path(__file__).parent / "timer_data"
+        self.data_dir = Path(__file__).parent.parent.parent / "data" / "timer_data"
         self.data_dir.mkdir(exist_ok=True)
         
     def daily_summary(self, date: str = None) -> Dict[str, Any]:
@@ -479,7 +479,7 @@ def weekly_report():
     
 def cleanup_old_data(days_to_keep: int = 30):
     """Clean up old timer data files"""
-    data_dir = Path(__file__).parent / "timer_data"
+    data_dir = Path(__file__).parent.parent.parent / "data" / "timer_data"
     if not data_dir.exists():
         return
         

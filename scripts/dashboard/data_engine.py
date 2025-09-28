@@ -24,8 +24,8 @@ from collections import defaultdict
 class DashboardDataEngine:
     def __init__(self, data_dir: str = ".."):
         self.data_dir = Path(data_dir)
-        self.timer_data_dir = self.data_dir / "timer_data"
-        self.file_ops_dir = self.data_dir / "file_operations_logs"
+        self.timer_data_dir = self.data_dir / "data" / "timer_data"
+        self.file_ops_dir = self.data_dir / "data" / "file_operations_logs"
         
         # Script update tracking (in dashboard directory)
         self.script_updates_file = Path(__file__).parent / "script_updates.csv"

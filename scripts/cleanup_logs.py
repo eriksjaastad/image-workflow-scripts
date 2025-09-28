@@ -19,10 +19,11 @@ import json
 
 class LogCleanupManager:
     def __init__(self):
-        self.scripts_dir = Path(__file__).parent
-        self.file_ops_dir = self.scripts_dir / "file_operations_logs"
-        self.timer_data_dir = self.scripts_dir / "timer_data"
-        self.archive_dir = self.scripts_dir / "log_archives"
+        self.project_root = Path(__file__).parent.parent
+        self.data_dir = self.project_root / "data"
+        self.file_ops_dir = self.data_dir / "file_operations_logs"
+        self.timer_data_dir = self.data_dir / "timer_data"
+        self.archive_dir = self.data_dir / "log_archives"
         
         # Retention policies
         self.DETAILED_LOG_DAYS = 2      # Keep 2 days of detailed file ops (for lost file tracking)

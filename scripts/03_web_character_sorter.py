@@ -135,7 +135,7 @@ class MultiDirectoryProgressTracker:
     
     def __init__(self, base_directory: Path):
         self.base_directory = base_directory
-        self.progress_dir = Path("scripts/sorter_progress")
+        self.progress_dir = Path("data/sorter_progress")
         self.progress_dir.mkdir(exist_ok=True)
         
         # Create progress file name based on base directory

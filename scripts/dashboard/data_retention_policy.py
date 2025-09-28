@@ -15,9 +15,9 @@ import shutil
 class DataRetentionManager:
     def __init__(self, data_dir: str = ".."):
         self.data_dir = Path(data_dir)
-        self.timer_data_dir = self.data_dir / "timer_data"
-        self.file_ops_dir = self.data_dir / "file_operations_logs"
-        self.archive_dir = self.data_dir / "dashboard_archives"
+        self.timer_data_dir = self.data_dir / "data" / "timer_data"
+        self.file_ops_dir = self.data_dir / "data" / "file_operations_logs"
+        self.archive_dir = self.data_dir / "data" / "dashboard_archives"
         
         # Retention policies (days) - Realistic for contract work
         self.DETAILED_RETENTION = 30    # Keep full detail for 30 days
