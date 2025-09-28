@@ -18,8 +18,12 @@ Activate virtual environment first:
 
 USAGE:
 ------
-Basic character sorting:
-  python scripts/03_web_character_sorter.py slected
+Multi-directory character sorting (RECOMMENDED):
+  python scripts/03_web_character_sorter.py selected
+  # Automatically processes all subdirectories (emily/, mia/, etc.) with auto-advance
+
+Basic character sorting (single directory):
+  python scripts/03_web_character_sorter.py selected/emily
   python scripts/03_web_character_sorter.py _sort_again
   python scripts/03_web_character_sorter.py face_groups/person_0001
 
@@ -124,6 +128,167 @@ except Exception:
     _SEND2TRASH_AVAILABLE = False
 
 THUMBNAIL_MAX_DIM = 800
+
+
+class MultiDirectoryProgressTracker:
+    """Manages progress tracking across multiple directories with session persistence."""
+    
+    def __init__(self, base_directory: Path):
+        self.base_directory = base_directory
+        self.progress_dir = Path("scripts/sorter_progress")
+        self.progress_dir.mkdir(exist_ok=True)
+        
+        # Create progress file name based on base directory
+        safe_name = str(base_directory).replace('/', '_').replace(' ', '_').replace('(', '').replace(')', '')
+        self.progress_file = self.progress_dir / f"{safe_name}_progress.json"
+        
+        self.directories = []
+        self.current_directory_index = 0
+        self.session_data = {}
+        
+        self.discover_directories()
+        self.load_progress()
+    
+    def discover_directories(self):
+        """Discover all subdirectories containing PNG files, sorted alphabetically."""
+        subdirs = []
+        
+        for item in self.base_directory.iterdir():
+            if item.is_dir():
+                # Check if directory contains PNG files
+                png_files = list(item.glob("*.png"))
+                if png_files:
+                    subdirs.append({
+                        'path': item,
+                        'name': item.name,
+                        'file_count': len(png_files)
+                    })
+        
+        # Sort alphabetically by directory name
+        subdirs.sort(key=lambda x: x['name'].lower())
+        self.directories = subdirs
+        
+        print(f"[*] Discovered {len(self.directories)} directories with images:")
+        for i, dir_info in enumerate(self.directories):
+            print(f"    {i+1}. {dir_info['name']} ({dir_info['file_count']} images)")
+    
+    def load_progress(self):
+        """Load existing progress from file."""
+        if not self.progress_file.exists():
+            self.initialize_progress()
+            return
+        
+        try:
+            with open(self.progress_file, 'r') as f:
+                self.session_data = json.load(f)
+            
+            # Validate and restore state
+            if 'current_directory_index' in self.session_data:
+                self.current_directory_index = self.session_data['current_directory_index']
+            
+            # Ensure indices are valid
+            if self.current_directory_index >= len(self.directories):
+                self.current_directory_index = 0
+            
+            print(f"[*] Resumed session from: {self.progress_file}")
+            self.print_resume_info()
+            
+        except Exception as e:
+            print(f"[!] Error loading progress: {e}")
+            self.initialize_progress()
+    
+    def initialize_progress(self):
+        """Initialize new progress tracking session."""
+        self.session_data = {
+            'base_directory': str(self.base_directory),
+            'session_start': time.strftime('%Y-%m-%d %H:%M:%S'),
+            'current_directory_index': 0,
+            'directories': {
+                dir_info['name']: {
+                    'status': 'pending',
+                    'total_files': dir_info['file_count']
+                } for dir_info in self.directories
+            }
+        }
+        self.save_progress()
+    
+    def save_progress(self):
+        """Save current progress to file."""
+        self.session_data['current_directory_index'] = self.current_directory_index
+        self.session_data['last_updated'] = time.strftime('%Y-%m-%d %H:%M:%S')
+        
+        try:
+            with open(self.progress_file, 'w') as f:
+                json.dump(self.session_data, f, indent=2)
+        except Exception as e:
+            print(f"[!] Error saving progress: {e}")
+    
+    def get_current_directory(self) -> Optional[Dict]:
+        """Get current directory info."""
+        if self.current_directory_index < len(self.directories):
+            return self.directories[self.current_directory_index]
+        return None
+    
+    def advance_directory(self):
+        """Move to next directory."""
+        if self.current_directory_index < len(self.directories):
+            # Mark current directory as completed
+            current_dir = self.get_current_directory()
+            if current_dir:
+                self.session_data['directories'][current_dir['name']]['status'] = 'completed'
+        
+        self.current_directory_index += 1
+        
+        # Mark new directory as in progress
+        current_dir = self.get_current_directory()
+        if current_dir:
+            self.session_data['directories'][current_dir['name']]['status'] = 'in_progress'
+        
+        self.save_progress()
+    
+    def has_more_directories(self) -> bool:
+        """Check if there are more directories to process."""
+        return self.current_directory_index < len(self.directories)
+    
+    def get_progress_info(self) -> Dict:
+        """Get current progress information for display."""
+        current_dir = self.get_current_directory()
+        if not current_dir:
+            return {
+                'current_directory': None,
+                'directories_remaining': 0,
+                'total_directories': len(self.directories),
+                'progress_text': "All directories completed"
+            }
+        
+        directories_remaining = len(self.directories) - self.current_directory_index
+        
+        return {
+            'current_directory': current_dir['name'],
+            'directories_remaining': directories_remaining,
+            'total_directories': len(self.directories),
+            'progress_text': f"{current_dir['name']} • {directories_remaining} directories left • {self.current_directory_index + 1}/{len(self.directories)}"
+        }
+    
+    def print_resume_info(self):
+        """Print resume information to console."""
+        current_dir = self.get_current_directory()
+        if current_dir:
+            print(f"    Current directory: {current_dir['name']} ({self.current_directory_index + 1}/{len(self.directories)})")
+            remaining = len(self.directories) - self.current_directory_index
+            print(f"    Directories remaining: {remaining}")
+        else:
+            print("    All directories completed!")
+    
+    def cleanup_completed_session(self):
+        """Clean up progress file after completing all directories."""
+        try:
+            if self.progress_file.exists():
+                self.progress_file.unlink()
+                print(f"[*] Cleaned up progress file: {self.progress_file}")
+        except Exception as e:
+            print(f"[!] Error cleaning up progress file: {e}")
+
 
 def human_err(msg: str) -> None:
     print(f"[!] {msg}", file=sys.stderr)
@@ -437,7 +602,7 @@ def clean_similarity_maps(folder: Path, similarity_map_dir: Path) -> bool:
         info(f"Failed to clean similarity maps: {e}")
         return False
 
-def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Optional[Path] = None, activity_timer: Optional[ActivityTimer] = None) -> Flask:
+def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Optional[Path] = None, activity_timer: Optional[ActivityTimer] = None, multi_directory_tracker: Optional[MultiDirectoryProgressTracker] = None) -> Flask:
     """Create and configure the Flask app."""
     app = Flask(__name__)
     
@@ -505,6 +670,8 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
     app.config["SIMILARITY_MAP_DIR"] = similarity_map_dir
     app.config["IS_FACE_GROUPS_MODE"] = is_face_groups_mode
     app.config["FACE_GROUPS_INFO"] = face_groups_info
+    app.config["MULTI_DIRECTORY_TRACKER"] = multi_directory_tracker
+    app.config["IS_MULTI_DIRECTORY_MODE"] = multi_directory_tracker is not None
     
     # Set up directory navigation for face groups mode
     if is_face_groups_mode and face_groups_info:
@@ -527,8 +694,34 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
         images = app.config["IMAGES"]
         
         if not images:
+            # Check for auto-advance in multi-directory mode
+            if app.config["IS_MULTI_DIRECTORY_MODE"] and app.config["MULTI_DIRECTORY_TRACKER"]:
+                tracker = app.config["MULTI_DIRECTORY_TRACKER"]
+                if tracker.has_more_directories():
+                    current_dir_info = tracker.get_current_directory()
+                    tracker.advance_directory()
+                    next_dir_info = tracker.get_current_directory()
+                    
+                    if next_dir_info:
+                        print(f"DEBUG: Multi-directory mode - advancing to {next_dir_info['name']}")
+                        return render_template_string(AUTO_ADVANCE_TEMPLATE, 
+                                                    next_directory=next_dir_info['name'],
+                                                    current_dir=current_dir_info['name'] if current_dir_info else "Unknown",
+                                                    position=tracker.current_directory_index,
+                                                    total=len(tracker.directories))
+                    else:
+                        print(f"DEBUG: Multi-directory mode - all directories completed")
+                        tracker.cleanup_completed_session()
+                        return render_template_string(COMPLETION_TEMPLATE, 
+                                                    history=app.config["HISTORY"])
+                else:
+                    print(f"DEBUG: Multi-directory mode - no more directories")
+                    tracker.cleanup_completed_session()
+                    return render_template_string(COMPLETION_TEMPLATE, 
+                                                history=app.config["HISTORY"])
+            
             # Check for auto-advance in face groups mode
-            if app.config["IS_FACE_GROUPS_MODE"] and app.config["FACE_GROUPS_INFO"]:
+            elif app.config["IS_FACE_GROUPS_MODE"] and app.config["FACE_GROUPS_INFO"]:
                 print(f"DEBUG: Face groups mode detected, checking for next directory...")
                 next_dir = find_next_person_directory(app.config["FACE_GROUPS_INFO"])
                 if next_dir:
@@ -541,7 +734,7 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
                 else:
                     print(f"DEBUG: No next directory found, showing completion")
             else:
-                print(f"DEBUG: Not in face groups mode (IS_FACE_GROUPS_MODE: {app.config['IS_FACE_GROUPS_MODE']})")
+                print(f"DEBUG: Single directory mode")
             
             return render_template_string(COMPLETION_TEMPLATE, 
                                         history=app.config["HISTORY"])
@@ -564,6 +757,11 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
             except (ValueError, KeyError):
                 current_dir_index = 0
         
+        # Get progress info for multi-directory mode
+        progress_info = None
+        if app.config["IS_MULTI_DIRECTORY_MODE"] and app.config["MULTI_DIRECTORY_TRACKER"]:
+            progress_info = app.config["MULTI_DIRECTORY_TRACKER"].get_progress_info()
+        
         return render_template_string(
             VIEWPORT_TEMPLATE,
             image_rows=image_rows,
@@ -572,6 +770,8 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
             folder_name=folder.name,
             is_face_groups_mode=app.config["IS_FACE_GROUPS_MODE"],
             face_groups_info=app.config["FACE_GROUPS_INFO"],
+            is_multi_directory_mode=app.config["IS_MULTI_DIRECTORY_MODE"],
+            progress_info=progress_info,
             has_similarity_maps=app.config["SIMILARITY_MAP_DIR"] is not None,
             current_dir_index=current_dir_index
         )
@@ -910,60 +1110,103 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
     
     @app.route("/switch-directory/<directory_name>")
     def switch_directory(directory_name):
-        """Switch to a new person directory without restarting the server."""
-        if not app.config["IS_FACE_GROUPS_MODE"]:
-            return jsonify({"status": "error", "message": "Not in face groups mode"}), 400
-        
-        # Get the face groups root from current config
-        face_groups_info = app.config["FACE_GROUPS_INFO"]
-        face_groups_root = face_groups_info["face_groups_root"]
-        new_directory = face_groups_root / directory_name
-        
-        if not new_directory.exists():
-            return jsonify({"status": "error", "message": f"Directory {directory_name} not found"}), 404
-        
-        # Scan for images in new directory
-        new_images = scan_images(new_directory)
-        if not new_images:
-            return jsonify({"status": "error", "message": f"No images found in {directory_name}"}), 404
-        
-        # Apply similarity sorting if available
-        similarity_map_dir = app.config["SIMILARITY_MAP_DIR"]
-        if similarity_map_dir:
-            neighbors_data = load_similarity_neighbors(similarity_map_dir)
-            if neighbors_data:
-                new_images = similarity_sort_images(new_images, neighbors_data)
-        
-        # Update app config with new directory
-        new_face_groups_info = detect_face_groups_context(new_directory)
-        app.config["FOLDER"] = new_directory
-        app.config["IMAGES"] = new_images
-        app.config["FACE_GROUPS_INFO"] = new_face_groups_info
-        app.config["HISTORY"] = []  # Reset history for new directory
-        
-        # Update directory navigation config
-        app.config["ALL_PERSON_DIRS"] = new_face_groups_info["person_dirs"]
-        app.config["CURRENT_DIR"] = new_face_groups_info["current_dir"]
-        
-        # Group images into batches for grid display
-        IMAGES_PER_BATCH = 6
-        image_batches = []
-        for i in range(0, len(new_images), IMAGES_PER_BATCH):
-            batch = new_images[i:i + IMAGES_PER_BATCH]
-            image_batches.append({
-                'id': i // IMAGES_PER_BATCH,
-                'images': [{'index': j, 'path': img, 'name': img.name} for j, img in enumerate(batch)],
-                'start_index': i
+        """Switch to a new directory without restarting the server."""
+        # Handle multi-directory mode
+        if app.config["IS_MULTI_DIRECTORY_MODE"]:
+            tracker = app.config["MULTI_DIRECTORY_TRACKER"]
+            
+            # Find the directory by name
+            target_dir = None
+            for dir_info in tracker.directories:
+                if dir_info['name'] == directory_name:
+                    target_dir = dir_info['path']
+                    break
+            
+            if not target_dir:
+                return jsonify({"status": "error", "message": f"Directory {directory_name} not found"}), 404
+            
+            # Scan for images in new directory
+            new_images = scan_images(target_dir)
+            if not new_images:
+                return jsonify({"status": "error", "message": f"No images found in {directory_name}"}), 404
+            
+            # Apply similarity sorting if available
+            similarity_map_dir = app.config["SIMILARITY_MAP_DIR"]
+            if similarity_map_dir:
+                neighbors_data = load_similarity_neighbors(similarity_map_dir)
+                if neighbors_data:
+                    new_images = similarity_sort_images(new_images, neighbors_data)
+            
+            # Group images into batches
+            new_image_batches = []
+            for i in range(0, len(new_images), IMAGES_PER_BATCH):
+                batch = new_images[i:i + IMAGES_PER_BATCH]
+                new_image_batches.append({
+                    'id': i // IMAGES_PER_BATCH,
+                    'images': [{'index': j, 'path': img, 'name': img.name} for j, img in enumerate(batch)],
+                    'start_index': i
+                })
+            
+            # Update app config
+            app.config["IMAGES"] = new_images
+            app.config["IMAGE_BATCHES"] = new_image_batches
+            app.config["CURRENT_BATCH"] = 0
+            app.config["FOLDER"] = target_dir
+            app.config["HISTORY"] = []
+            app.config["BATCH_DECISIONS"] = {}
+            
+            return jsonify({
+                "status": "success",
+                "message": f"Switched to {directory_name}",
+                "image_count": len(new_images),
+                "batch_count": len(new_image_batches)
             })
-        app.config["IMAGE_BATCHES"] = image_batches
         
-        return jsonify({
-            "status": "success", 
-            "message": f"Switched to {directory_name}",
-            "image_count": len(new_images),
-            "position": new_face_groups_info["position"],
-            "total": new_face_groups_info["total"]
-        })
+        # Handle face groups mode
+        elif app.config["IS_FACE_GROUPS_MODE"]:
+            if not app.config["FACE_GROUPS_INFO"]:
+                return jsonify({"status": "error", "message": "Not in face groups mode"}), 400
+            
+            # Get the face groups root from current config
+            face_groups_info = app.config["FACE_GROUPS_INFO"]
+            face_groups_root = face_groups_info["face_groups_root"]
+            new_directory = face_groups_root / directory_name
+            
+            if not new_directory.exists():
+                return jsonify({"status": "error", "message": f"Directory {directory_name} not found"}), 404
+            
+            # Scan for images in new directory
+            new_images = scan_images(new_directory)
+            if not new_images:
+                return jsonify({"status": "error", "message": f"No images found in {directory_name}"}), 404
+            
+            # Apply similarity sorting if available
+            similarity_map_dir = app.config["SIMILARITY_MAP_DIR"]
+            if similarity_map_dir:
+                neighbors_data = load_similarity_neighbors(similarity_map_dir)
+                if neighbors_data:
+                    new_images = similarity_sort_images(new_images, neighbors_data)
+            
+            # Update app config with new directory
+            new_face_groups_info = detect_face_groups_context(new_directory)
+            app.config["FOLDER"] = new_directory
+            app.config["IMAGES"] = new_images
+            app.config["FACE_GROUPS_INFO"] = new_face_groups_info
+            app.config["HISTORY"] = []  # Reset history for new directory
+            
+            # Update directory navigation config
+            app.config["ALL_PERSON_DIRS"] = new_face_groups_info["person_dirs"]
+            app.config["CURRENT_DIR"] = new_face_groups_info["current_dir"]
+            
+            return jsonify({
+                "status": "success",
+                "message": f"Switched to {directory_name}",
+                "image_count": len(new_images)
+            })
+        
+        # If we get here, neither multi-directory nor face groups mode is active
+        else:
+            return jsonify({"status": "error", "message": "No multi-directory mode active"}), 400
     
     return app
 
@@ -2006,6 +2249,12 @@ VIEWPORT_TEMPLATE = """
       font-weight: 500;
     }
     
+    .multi-directory-progress {
+      font-size: 0.9rem;
+      color: var(--accent);
+      font-weight: 500;
+    }
+    
     .image-row {
       display: flex;
       flex-wrap: wrap;
@@ -2225,7 +2474,9 @@ VIEWPORT_TEMPLATE = """
       <div class="header">
         <div class="progress-info">
           <span>{{ total_images }} images • {{ folder_name }}</span>
-          {% if is_face_groups_mode and face_groups_info %}
+          {% if is_multi_directory_mode and progress_info %}
+          <span class="multi-directory-progress">{{ progress_info.progress_text }}</span>
+          {% elif is_face_groups_mode and face_groups_info %}
           <span class="face-groups-progress">Directory {{ face_groups_info.position }}/{{ face_groups_info.total }}</span>
           {% endif %}
           <span class="batch-info" id="batch-info">Review batch: 0 rows</span>
@@ -2801,6 +3052,30 @@ def main() -> None:
         human_err(f"{folder} is not a directory")
         sys.exit(1)
     
+    # Check if we're in multi-directory mode (directory contains subdirectories with images)
+    multi_directory_tracker = None
+    is_multi_directory_mode = False
+    
+    # Look for subdirectories with PNG files
+    subdirs_with_images = []
+    for item in folder.iterdir():
+        if item.is_dir() and list(item.glob("*.png")):
+            subdirs_with_images.append(item)
+    
+    # If we found subdirectories with images, enable multi-directory mode
+    if len(subdirs_with_images) > 1:
+        is_multi_directory_mode = True
+        multi_directory_tracker = MultiDirectoryProgressTracker(folder)
+        
+        # Get the current directory to process
+        current_dir_info = multi_directory_tracker.get_current_directory()
+        if not current_dir_info:
+            info("All directories completed!")
+            sys.exit(0)
+        
+        folder = current_dir_info['path']  # Process the current subdirectory
+        info(f"Multi-directory mode: Processing {current_dir_info['name']} ({multi_directory_tracker.current_directory_index + 1}/{len(multi_directory_tracker.directories)})")
+    
     # Handle similarity map directory
     similarity_map_dir = None
     if args.similarity_map:
@@ -2813,7 +3088,7 @@ def main() -> None:
     activity_timer = ActivityTimer("03_web_character_sorter")
     activity_timer.start_session()
     
-    app = create_app(folder, args.hard_delete, similarity_map_dir, activity_timer)
+    app = create_app(folder, args.hard_delete, similarity_map_dir, activity_timer, multi_directory_tracker)
     
     if not args.no_browser:
         threading.Thread(target=launch_browser, args=(args.host, args.port), daemon=True).start()

@@ -407,6 +407,54 @@ class TestRunner:
             print("✓ Source files unchanged during analysis")
             return True
     
+    def test_desktop_image_selector_crop(self):
+        """Test the desktop image selector crop tool"""
+        try:
+            # Run the desktop image selector crop test
+            result = subprocess.run([
+                sys.executable, "scripts/tests/test_desktop_image_selector_crop.py"
+            ], capture_output=True, text=True, timeout=60)
+            
+            if result.returncode == 0:
+                print("✓ Desktop image selector crop tool tests passed")
+                return True
+            else:
+                print(f"✗ Desktop image selector crop tool tests failed")
+                if self.verbose:
+                    print(f"Error output: {result.stderr}")
+                return False
+                
+        except subprocess.TimeoutExpired:
+            print("✗ Desktop image selector crop tool tests timed out")
+            return False
+        except Exception as e:
+            print(f"✗ Desktop image selector crop tool tests failed: {e}")
+            return False
+    
+    def test_dashboard(self):
+        """Test the productivity dashboard with real data"""
+        try:
+            # Run the dashboard test
+            result = subprocess.run([
+                sys.executable, "scripts/tests/test_dashboard.py"
+            ], capture_output=True, text=True, timeout=120)  # Longer timeout for server startup
+            
+            if result.returncode == 0:
+                print("✓ Dashboard tests passed with real data")
+                return True
+            else:
+                print(f"✗ Dashboard tests failed")
+                if self.verbose:
+                    print(f"Error output: {result.stderr}")
+                return False
+                
+        except subprocess.TimeoutExpired:
+            print("✗ Dashboard tests timed out")
+            return False
+        except Exception as e:
+            print(f"✗ Dashboard tests failed: {e}")
+            return False
+    
     def summary(self):
         """Print test summary"""
         total = self.passed + self.failed
@@ -471,6 +519,8 @@ def main():
         runner.run_test("Sequential Singletons Edge Case", runner.test_sequential_singletons_edge_case, critical=True)
         runner.run_test("UI Integrity Test", runner.test_ui_integrity, critical=True)
         runner.run_test("Web Tools Comprehensive Test", runner.test_web_tools_comprehensive)
+        runner.run_test("Desktop Image Selector Crop Test", runner.test_desktop_image_selector_crop)
+        runner.run_test("Dashboard Test", runner.test_dashboard)
         
         if args.performance:
             runner.run_test("Memory Usage Test", runner.test_memory_usage)

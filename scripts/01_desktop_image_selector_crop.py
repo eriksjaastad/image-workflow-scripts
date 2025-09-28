@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Enhanced Multi-Directory Batch Crop Tool - Intelligent Directory Processing
-===========================================================================
-Process multiple character directories in one continuous session with automatic
-discovery, progress tracking, and session persistence.
+Desktop Image Selector + Crop Tool - Select and Crop in One Workflow
+====================================================================
+Combines triplet selection with immediate cropping for maximum efficiency.
+Select which image to keep from each triplet, crop it, and move to the next.
 
 VIRTUAL ENVIRONMENT:
 --------------------
@@ -12,59 +12,57 @@ Activate virtual environment first:
 
 USAGE:
 ------
-Multi-directory mode (NEW):
-  python scripts/04_batch_crop_tool_multi.py selected/
-  python scripts/04_batch_crop_tool_multi.py selected/ --aspect-ratio 16:9
-
-Single directory mode (legacy):
-  python scripts/04_batch_crop_tool_multi.py selected/kelly_mia/
+Process directories containing image triplets:
+  python scripts/01_desktop_image_selector_crop.py XXX_CONTENT/
+  python scripts/01_desktop_image_selector_crop.py XXX_CONTENT/ --aspect-ratio 16:9
 
 FEATURES:
 ---------
-• Auto-discover character subdirectories (kelly_mia/, astrid_kelly/, etc.)
-• Alphabetical directory processing order
-• Session persistence - resume exactly where you left off
-• Clean progress tracking: files remaining + directories left
-• Process 3 images at once in side-by-side layout
-• Individual crop rectangles for each image
-• Intuitive hotkey system (W-S-X, E-D-C, R-F-V)
-• Batch submission reduces overhead dramatically
-• Large, easy-to-grab handles with generous click zones
+• Advanced triplet detection with precise timestamp matching
+• Select which image to keep from each triplet (1, 2, or 3)
+• Immediate cropping of selected image with interactive rectangles
+• Large, easy-to-see images with generous crop handles
 • Configurable aspect ratios (1:1, 16:9, 4:3, free)
-• Real-time crop preview with zoom capabilities
+• Integrated ActivityTimer and FileTracker logging
+• Session progress tracking and navigation
+• Safe deletion with send2trash (recoverable)
 
-PROGRESS TRACKING:
-------------------
-• Files: "587 files remaining in kelly_mia"
-• Directories: "3 directories left after this one"
-• Session persistence stored in scripts/crop_progress/
+WORKFLOW:
+---------
+1. View 3 images from triplet side-by-side
+2. Click or press [1][2][3] to select which image to keep
+3. Crop the selected image by dragging rectangle
+4. Press [Enter] to crop selected image, delete others, next triplet
+5. Or press [R] to reset row (all back to delete), or [←] to go back
 
 WORKFLOW POSITION:
 ------------------
-Step 1: Character Processing → scripts/utils/character_processor.py
-Step 2: Final Cropping → THIS SCRIPT (scripts/04_batch_crop_tool_multi.py)
+Step 1: Image Selection + Cropping → THIS SCRIPT (scripts/01_desktop_image_selector_crop.py)
+Step 2: Character Sorting → scripts/03_web_character_sorter.py
 Step 3: Basic Review → scripts/05_multi_directory_viewer.py
 
 FILE HANDLING:
 --------------
-• Cropped images: Saved over original files in place (emily/image.png → emily/image.png)
-• Skipped images: Left unchanged in original directory
-• Deleted images: Moved to trash (no longer in directory)
+• Selected & cropped images: Moved to selected/ directory
+• Unselected images: Deleted (moved to trash)
+• YAML files: Moved with their corresponding images
 
 CONTROLS:
 ---------
-Image 1: [1] Delete  [X] Reset crop
-Image 2: [2] Delete  [C] Reset crop  
-Image 3: [3] Delete  [V] Reset crop
+Selection:  [1] [2] [3] Select Image (auto-shows crop rectangle)
+Reset:      [R] Reset Row (all back to delete, clear crops)
+Navigation: [←] Previous Triplet  [Enter] Submit & Next Triplet
+Global:     [Space] Aspect Ratio Toggle  [Q] Quit  [H] Help
 
-Global: [Enter] Submit Batch  [Space] Toggle Aspect Ratio  [Q] Quit
-        [N] Next Directory  [P] Previous Directory  [←] Previous Batch
+NOTE: Moving any crop handle automatically selects that image!
 """
 
 import argparse
 import json
+import re
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -95,6 +93,177 @@ from send2trash import send2trash
 sys.path.append(str(Path(__file__).parent.parent))
 from scripts.file_tracker import FileTracker
 from utils.activity_timer import ActivityTimer
+
+# Triplet detection constants and functions (from web image selector)
+STAGE_NAMES = [
+    "stage1_generated",
+    "stage1.5_face_swapped", 
+    "stage2_upscaled",
+    "stage2.5_inpainted",
+    "stage3_final"
+]
+
+
+def detect_stage(name: str) -> str:
+    """Detect stage from filename."""
+    low = name.lower()
+    for stage in STAGE_NAMES:
+        if stage in low:
+            return stage
+    return ""
+
+
+def get_stage_number(stage: str) -> float:
+    """Convert stage name to numeric value for sorting."""
+    stage_map = {
+        "stage1_generated": 1.0,
+        "stage1.5_face_swapped": 1.5,
+        "stage2_upscaled": 2.0,
+        "stage2.5_inpainted": 2.5,
+        "stage3_final": 3.0
+    }
+    return stage_map.get(stage, 0.0)
+
+
+def extract_timestamp(filename: str) -> Optional[str]:
+    """Extract timestamp from filename (YYYYMMDD_HHMMSS format)."""
+    match = re.search(r"(\d{8}_\d{6})", filename)
+    return match.group(1) if match else None
+
+
+def scan_images(folder: Path, exts: List[str], recursive: bool = True) -> List[Path]:
+    """Scan directory for image files with specified extensions."""
+    results = []
+    
+    def scan_dir(directory: Path):
+        try:
+            for entry in directory.iterdir():
+                if entry.is_file() and any(entry.name.lower().endswith(f'.{ext}') for ext in exts):
+                    results.append(entry)
+                elif entry.is_dir() and recursive:
+                    scan_dir(entry)
+        except PermissionError:
+            pass
+    
+    scan_dir(folder)
+    return results
+
+
+def find_flexible_groups(files: List[Path]) -> List[Tuple[Path, ...]]:
+    """Find triplet groups by detecting stage number decreases."""
+    groups: List[Tuple[Path, ...]] = []
+    
+    # Sort by timestamp first, then stage order, then name
+    def sort_key(path):
+        timestamp = extract_timestamp(path.name) or "99999999_999999"
+        stage = detect_stage(path.name)
+        stage_num = get_stage_number(stage)
+        return (timestamp, stage_num, path.name)
+    
+    sorted_files = sorted(files, key=sort_key)
+    
+    if not sorted_files:
+        return groups
+    
+    current_group = []
+    prev_stage_num = None
+    
+    for file in sorted_files:
+        stage = detect_stage(file.name)
+        if not stage:
+            continue  # Skip files that don't match expected patterns
+            
+        stage_num = get_stage_number(stage)
+        
+        # If this is the first file or stage equal/decreased, start a new group
+        if prev_stage_num is None or (stage_num <= prev_stage_num and current_group):
+            # Finish current group if it exists and has enough files
+            if current_group and len(current_group) >= 2:
+                groups.append(tuple(current_group))
+            current_group = [file]  # Start new group with current file
+        else:
+            # Continue current group
+            current_group.append(file)
+        
+        prev_stage_num = stage_num
+    
+    # Add the final group if it has 2+ images
+    if len(current_group) >= 2:
+        groups.append(tuple(current_group))
+    
+    # Filter out orphan groups (no ascending stage progression)
+    filtered_groups = []
+    for group in groups:
+        # Check if group has ascending stage progression
+        stage_nums = [get_stage_number(detect_stage(f.name)) for f in group]
+        has_progression = any(stage_nums[i] < stage_nums[i+1] for i in range(len(stage_nums)-1))
+        
+        if has_progression:
+            filtered_groups.append(group)
+    
+    return filtered_groups
+
+
+@dataclass
+class TripletRecord:
+    """Represents a triplet of images for processing."""
+    index: int
+    paths: Tuple[Path, ...]  # Can be 2 or 3 paths
+    relative_dir: str
+    
+    @property
+    def display_name(self) -> str:
+        """Get display name for this triplet."""
+        group_type = "Triplet" if len(self.paths) == 3 else "Pair"
+        return f"{group_type} {self.index + 1}"
+
+
+class TripletProgressTracker:
+    """Manages progress tracking for triplet processing."""
+    
+    def __init__(self, triplets: List[TripletRecord]):
+        self.triplets = triplets
+        self.current_triplet_index = 0
+        self.selected_count = 0
+        self.deleted_count = 0
+        self.processed_count = 0
+    
+    def get_current_triplet(self) -> Optional[TripletRecord]:
+        """Get current triplet being processed."""
+        if self.current_triplet_index < len(self.triplets):
+            return self.triplets[self.current_triplet_index]
+        return None
+    
+    def advance_triplet(self):
+        """Move to next triplet."""
+        self.current_triplet_index += 1
+        self.processed_count += 1
+    
+    def previous_triplet(self):
+        """Move to previous triplet."""
+        if self.current_triplet_index > 0:
+            self.current_triplet_index -= 1
+            self.processed_count -= 1
+    
+    def has_more_triplets(self) -> bool:
+        """Check if there are more triplets to process."""
+        return self.current_triplet_index < len(self.triplets)
+    
+    def can_go_back(self) -> bool:
+        """Check if we can go back to previous triplet."""
+        return self.current_triplet_index > 0
+    
+    def get_progress_info(self) -> Dict:
+        """Get current progress information."""
+        remaining = len(self.triplets) - self.current_triplet_index
+        return {
+            'current_triplet': self.current_triplet_index + 1,
+            'total_triplets': len(self.triplets),
+            'remaining': remaining,
+            'selected': self.selected_count,
+            'deleted': self.deleted_count,
+            'processed': self.processed_count
+        }
 
 
 class MultiDirectoryProgressTracker:
@@ -280,76 +449,61 @@ class MultiDirectoryProgressTracker:
             print(f"[!] Error cleaning up progress file: {e}")
 
 
-class MultiDirectoryBatchCropTool:
+class DesktopImageSelectorCropTool:
     """Enhanced batch crop tool with multi-directory support."""
     
-    def __init__(self, directory, aspect_ratio=None):
+    def __init__(self, directory, aspect_ratio=None, exts=["png"]):
         self.base_directory = Path(directory)
         self.aspect_ratio = self._parse_aspect_ratio(aspect_ratio) if aspect_ratio else None
         self.aspect_ratio_locked = True
-        self.tracker = FileTracker("multi_batch_crop_tool")
+        self.tracker = FileTracker("desktop_image_selector_crop")
         
         # Initialize activity timer
-        self.activity_timer = ActivityTimer("04_batch_crop_tool_multi")
+        self.activity_timer = ActivityTimer("01_desktop_image_selector_crop")
         self.activity_timer.start_session()
         
-        # Initialize progress tracker
-        self.progress_tracker = MultiDirectoryProgressTracker(self.base_directory)
+        # Scan for images and detect triplets
+        print(f"[*] Scanning {self.base_directory} for image triplets...")
+        files = scan_images(self.base_directory, exts, recursive=True)
+        if not files:
+            raise ValueError(f"No images found in {self.base_directory}")
         
-        # Check if we're in single directory mode or multi-directory mode
-        self.single_directory_mode = self._is_single_directory_mode()
+        # Find triplet groups
+        group_paths = find_flexible_groups(files)
+        if not group_paths:
+            raise ValueError("No triplet groups found. Check filenames and timestamps.")
         
-        if self.single_directory_mode:
-            print("[*] Single directory mode detected")
-            self.png_files = sorted([f for f in self.base_directory.glob("*.png")])
-            if not self.png_files:
-                raise ValueError(f"No PNG files found in {directory}")
-        else:
-            print("[*] Multi-directory mode enabled")
-            if not self.progress_tracker.has_more_directories():
-                print("🎉 All directories completed!")
-                self.progress_tracker.cleanup_completed_session()
-                sys.exit(0)
+        # Create triplet records
+        self.triplets = []
+        for idx, group in enumerate(group_paths):
+            first_parent = group[0].parent
+            try:
+                relative = str(first_parent.relative_to(self.base_directory))
+            except ValueError:
+                relative = str(first_parent)
             
-            self.png_files = self.progress_tracker.get_current_files()
-            if not self.png_files:
-                # Check if we're truly at the end or if there's a tracking issue
-                current_dir = self.progress_tracker.get_current_directory()
-                if current_dir:
-                    all_files = sorted(current_dir['path'].glob("*.png"))
-                    if all_files:
-                        print(f"[!] Progress tracking issue detected in {current_dir['name']}")
-                        print(f"[!] Directory has {len(all_files)} files but current_file_index is {self.progress_tracker.current_file_index}")
-                        print("[!] Resetting to start of directory to prevent data loss")
-                        self.progress_tracker.current_file_index = 0
-                        self.progress_tracker.save_progress()
-                        self.png_files = self.progress_tracker.get_current_files()
-                    else:
-                        print("Directory is truly empty, advancing...")
-                        self.progress_tracker.advance_directory()
-                        if self.progress_tracker.has_more_directories():
-                            self.png_files = self.progress_tracker.get_current_files()
-                        else:
-                            print("🎉 All directories completed!")
-                            self.progress_tracker.cleanup_completed_session()
-                            sys.exit(0)
-                else:
-                    print("🎉 All directories completed!")
-                    self.progress_tracker.cleanup_completed_session()
-                    sys.exit(0)
+            self.triplets.append(
+                TripletRecord(
+                    index=idx,
+                    paths=group,
+                    relative_dir=relative if relative != "." else ""
+                )
+            )
         
-        # Initialize batch tracking (load_batch will set current_batch correctly)
-        self.current_batch = 0  # Will be set by load_batch()
-        self.total_batches = (len(self.png_files) + 2) // 3  # Round up division
+        # Initialize progress tracker
+        self.progress_tracker = TripletProgressTracker(self.triplets)
         
-        # Debug output to help track the issue
-        if not self.single_directory_mode:
-            current_dir = self.progress_tracker.get_current_directory()
-            print(f"[DEBUG] Starting in directory: {current_dir['name'] if current_dir else 'None'}")
-            print(f"[DEBUG] Current file index: {self.progress_tracker.current_file_index}")
-            print(f"[DEBUG] Calculated current batch: {self.current_batch}")
-            print(f"[DEBUG] Files available: {len(self.png_files)}")
-            print(f"[DEBUG] Total batches: {self.total_batches}")
+        print(f"[*] Found {len(self.triplets)} triplet groups")
+        triplet_count = sum(1 for t in self.triplets if len(t.paths) == 3)
+        pair_count = sum(1 for t in self.triplets if len(t.paths) == 2)
+        print(f"[*] {triplet_count} triplets, {pair_count} pairs")
+        
+        # Initialize current triplet state
+        self.current_triplet = None
+        self.current_images = []  # Will hold 3 different images from current triplet
+        self.image_states = []   # State for each image: {'status': 'delete'|'selected', 'crop_coords': None}
+        
+        # No old directory logic needed - triplet-based processing only
         
         # State for current batch of 3 images
         self.current_images = []
@@ -361,6 +515,9 @@ class MultiDirectoryBatchCropTool:
         self.previous_batch_confirmed = False
         
         # No longer using a separate cropped directory - files stay in place
+        
+        # This tool always works with triplets, no single directory mode
+        self.single_directory_mode = False
         
         # Setup matplotlib
         self.fig = None
@@ -428,28 +585,32 @@ class MultiDirectoryBatchCropTool:
         # Minimize spacing between subplots
         self.fig.subplots_adjust(left=0.01, right=0.99, top=0.96, bottom=0.04, wspace=0.03)
         
-        # Connect keyboard events
+        # Connect keyboard and mouse events
         self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
+        self.fig.canvas.mpl_connect('button_press_event', self.on_image_click)
         
         # Initialize selectors list
         self.selectors = [None, None, None]
     
-    def load_batch(self):
-        """Load the current batch of up to 3 images"""
-        # Use progress tracker's file index as the source of truth
-        start_idx = self.progress_tracker.current_file_index
-        end_idx = min(start_idx + 3, len(self.png_files))
+    def load_current_triplet(self):
+        """Load the current triplet for processing"""
+        # Get current triplet from progress tracker
+        self.current_triplet = self.progress_tracker.get_current_triplet()
+        if not self.current_triplet:
+            print("🎉 All triplets processed!")
+            self.activity_timer.end_session()
+            plt.close('all')
+            sys.exit(0)
         
-        # Update current_batch to match the actual position
-        self.current_batch = start_idx // 3
+        # Get the image files from the triplet
+        triplet_files = list(self.current_triplet.paths)
         
-        # Get images for this batch
-        batch_files = self.png_files[start_idx:end_idx]
-        
-        # Debug: Show which files are being loaded
-        print(f"[DEBUG] Loading batch at file index {start_idx}:")
-        for i, file_path in enumerate(batch_files):
-            print(f"  Image {i+1}: {file_path.name}")
+        # Debug: Show which triplet is being loaded
+        progress = self.progress_tracker.get_progress_info()
+        print(f"[DEBUG] Loading {self.current_triplet.display_name} ({progress['current_triplet']}/{progress['total_triplets']}):")
+        for i, file_path in enumerate(triplet_files):
+            stage = detect_stage(file_path.name) or f"image {i+1}"
+            print(f"  Image {i+1}: {file_path.name} ({stage})")
         
         self.current_images = []
         self.image_states = []
@@ -465,8 +626,8 @@ class MultiDirectoryBatchCropTool:
                 selector.set_active(False)
         self.selectors = [None, None, None]
         
-        # Load and display each image
-        for i, png_path in enumerate(batch_files):
+        # Load and display each image from the triplet
+        for i, png_path in enumerate(triplet_files):
             try:
                 # Load image
                 img = Image.open(png_path)
@@ -482,9 +643,9 @@ class MultiDirectoryBatchCropTool:
                 img_width, img_height = img.size
                 image_aspect_ratio = img_width / img_height
                 
-                # Initialize state for this image
+                # Initialize state for this image (triplet selection logic)
                 self.image_states.append({
-                    'action': None,  # 'skip', 'delete', or None (crop)
+                    'status': 'delete',  # 'delete' (default) or 'selected'
                     'crop_coords': None,
                     'has_selection': False,
                     'image_aspect_ratio': image_aspect_ratio
@@ -494,13 +655,22 @@ class MultiDirectoryBatchCropTool:
                 ax = self.axes[i]
                 ax.clear()
                 ax.imshow(img_array, aspect='equal')
-                ax.set_title(f"Image {i+1}", fontsize=12)
+                
+                # Set title with stage information
+                stage = detect_stage(png_path.name) or f"Image {i+1}"
+                ax.set_title(f"{stage.replace('_', ' ').title()}", fontsize=12)
                 ax.set_xticks([])
                 ax.set_yticks([])
                 
-                # Remove axis spines
+                # Set border color based on selection status
+                border_color = 'red' if self.image_states[i]['status'] == 'delete' else 'green'
+                border_width = 3
+                
+                # Configure axis spines for visual feedback
                 for spine in ax.spines.values():
-                    spine.set_visible(False)
+                    spine.set_visible(True)
+                    spine.set_color(border_color)
+                    spine.set_linewidth(border_width)
                 ax.margins(0)
                 
                 # Create RectangleSelector
@@ -563,7 +733,7 @@ class MultiDirectoryBatchCropTool:
                 ax.set_yticks([])
         
         # Hide unused subplots
-        for i in range(len(batch_files), 3):
+        for i in range(len(triplet_files), 3):
             self.axes[i].clear()
             self.axes[i].set_visible(False)
         
@@ -586,32 +756,109 @@ class MultiDirectoryBatchCropTool:
             filename_debug = f" • DEBUG: {first_file.name[:25]}..." if first_file else " • DEBUG: N/A"
             title = f"Batch {self.current_batch + 1}/{self.total_batches} • {remaining_images} images remaining • [1,2,3] Delete • [Enter] Submit • [Q] Quit{aspect_info}{filename_debug}"
         else:
-            # Multi-directory mode - enhanced progress display
+            # Triplet mode - enhanced progress display
             progress = self.progress_tracker.get_progress_info()
             lock_str = "🔒" if self.aspect_ratio_locked else "🔓"
             aspect_info = f" • [{lock_str} Space] Aspect" if self.aspect_ratio else ""
             
-            dir_info = f"📁 {progress['current_directory']} • {progress['files_remaining']} files remaining"
-            batch_info = f"Batch {self.current_batch + 1}/{self.total_batches}"
-            dirs_info = f"{progress['directories_remaining']} directories left"
+            # Count current selections
+            selected_count = sum(1 for state in self.image_states if state['status'] == 'selected')
+            delete_count = len(self.image_states) - selected_count
             
-            # Debug: Show first filename to verify position
-            first_file = self.png_files[self.progress_tracker.current_file_index] if self.progress_tracker.current_file_index < len(self.png_files) else None
-            filename_debug = f" • DEBUG: {first_file.name[:25]}..." if first_file else " • DEBUG: N/A"
-            title = f"{dir_info} • {batch_info} • {dirs_info} • [1,2,3] Delete • [Enter] Submit • [Q] Quit{aspect_info}"
+            triplet_info = f"📸 Triplet {progress['current_triplet']}/{progress['total_triplets']} • {self.current_triplet.display_name if hasattr(self, 'current_triplet') else 'Loading...'}"
+            selection_info = f"Selected: {selected_count} • Delete: {delete_count}"
+            
+            title = f"{triplet_info} • {selection_info} • [1,2,3] Select • [R] Reset • [Enter] Submit • [Q] Quit{aspect_info}"
         
         self.fig.suptitle(title, fontsize=12, y=0.98)
     
+    def select_image(self, image_idx: int):
+        """Select an image (change status from delete to selected)"""
+        if image_idx >= len(self.image_states):
+            return
+        
+        # Change status to selected
+        self.image_states[image_idx]['status'] = 'selected'
+        
+        # Update visual feedback
+        self.update_visual_feedback()
+        self.update_control_labels()
+        self.update_title()
+        
+        # Mark as having pending changes
+        self.has_pending_changes = True
+        
+        print(f"[*] Image {image_idx + 1} selected for cropping")
+    
+    def on_image_click(self, event):
+        """Handle clicking on an image to select it"""
+        if event.inaxes is None:
+            return
+        
+        # Find which image was clicked
+        for i, ax in enumerate(self.axes):
+            if event.inaxes == ax and i < len(self.current_images):
+                self.select_image(i)
+                break
+    
+    def update_visual_feedback(self):
+        """Update visual feedback for all images based on selection status"""
+        for i, ax in enumerate(self.axes):
+            if i < len(self.image_states):
+                status = self.image_states[i]['status']
+                border_color = 'green' if status == 'selected' else 'red'
+                border_width = 3
+                
+                # Update border color
+                for spine in ax.spines.values():
+                    spine.set_color(border_color)
+                    spine.set_linewidth(border_width)
+        
+        # Refresh the display
+        self.fig.canvas.draw()
+    
+    def reset_entire_row(self):
+        """Reset entire row to default state (all delete, clear all crops)"""
+        for i in range(len(self.image_states)):
+            self.image_states[i]['status'] = 'delete'
+            self.image_states[i]['crop_coords'] = None
+            self.image_states[i]['has_selection'] = False
+            
+            # Clear crop rectangle
+            if i < len(self.selectors) and self.selectors[i]:
+                self.selectors[i].set_visible(False)
+        
+        # Update display
+        self.update_visual_feedback()
+        self.update_control_labels()
+        self.update_title()
+        
+        self.has_pending_changes = False
+        print("[*] Entire row reset to default (all DELETE)")
+    
+    def previous_triplet(self):
+        """Move to previous triplet with confirmation if changes pending"""
+        if self.has_pending_changes:
+            print("[!] You have unsaved changes. Press [Enter] to submit or [R] to reset before navigating.")
+            return
+        
+        if not self.progress_tracker.can_go_back():
+            print("Already at first triplet")
+            return
+        
+        self.progress_tracker.previous_triplet()
+        self.load_current_triplet()
+        print("[*] Moved to previous triplet")
+    
     def update_control_labels(self):
         """Update the control labels below each image"""
-        controls = [
-            "[1] Delete  [X] Reset",
-            "[2] Delete  [C] Reset", 
-            "[3] Delete  [V] Reset"
-        ]
-        
-        for i, (ax, control_text) in enumerate(zip(self.axes, controls)):
+        for i, ax in enumerate(self.axes):
             if i < len(self.current_images):
+                status = self.image_states[i]['status']
+                if status == 'selected':
+                    control_text = f"[{i+1}] ✅ SELECTED  [X/C/V] Reset"
+                else:
+                    control_text = f"[{i+1}] ❌ DELETE  [X/C/V] Reset"
                 ax.set_xlabel(control_text, fontsize=10)
     
     def on_crop_select(self, eclick, erelease, image_idx):
@@ -624,6 +871,9 @@ class MultiDirectoryBatchCropTool:
         if self.current_images[image_idx].get('image') is None:
             print(f"Cannot crop image {image_idx + 1}: Load failed")
             return
+        
+        # Auto-select this image when crop handle is moved
+        self.select_image(image_idx)
             
         # Get crop coordinates
         x1, y1 = int(eclick.xdata), int(eclick.ydata)
@@ -709,25 +959,24 @@ class MultiDirectoryBatchCropTool:
         elif key == 'p' and not self.single_directory_mode:
             self.previous_directory()
             return
-        elif key in ['left', 'arrow_left', 'leftarrow'] or key == 'b':
-            self.previous_batch()
+        elif key in ['left', 'arrow_left', 'leftarrow']:
+            self.previous_triplet()
+            return
+        elif key == 'r':
+            self.reset_entire_row()
             return
             
-        # Image-specific controls
-        image_actions = {
-            '1': (0, 'delete'), 'x': (0, 'reset'),
-            '2': (1, 'delete'), 'c': (1, 'reset'),
-            '3': (2, 'delete'), 'v': (2, 'reset'),
-        }
-        
-        if key in image_actions:
-            image_idx, action = image_actions[key]
-            
+        # Image selection and reset controls
+        if key in ['1', '2', '3']:
+            image_idx = int(key) - 1
             if image_idx < len(self.current_images):
-                if action == 'reset':
-                    self.reset_image_crop(image_idx)
-                else:
-                    self.set_image_action(image_idx, action)
+                self.select_image(image_idx)
+        elif key in ['x', 'c', 'v']:
+            # Reset individual crop
+            reset_map = {'x': 0, 'c': 1, 'v': 2}
+            image_idx = reset_map[key]
+            if image_idx < len(self.current_images):
+                self.reset_image_crop(image_idx)
     
     def next_directory(self):
         """Move to next directory (multi-directory mode only)."""
@@ -837,56 +1086,67 @@ class MultiDirectoryBatchCropTool:
         plt.draw()
     
     def submit_batch(self):
-        """Process all images in the current batch"""
+        """Process current triplet - crop selected image, delete others"""
         if not self.current_images:
             return
-            
-        self.activity_timer.mark_batch(f"Crop batch {self.current_batch + 1}")
+        
+        progress = self.progress_tracker.get_progress_info()
+        self.activity_timer.mark_batch(f"Triplet {progress['current_triplet']}")
         self.activity_timer.mark_activity()
-            
-        print(f"\nProcessing batch {self.current_batch + 1}...")
         
-        processed_count = 0
+        print(f"\nProcessing {self.current_triplet.display_name}...")
         
+        selected_images = []
+        deleted_images = []
+        
+        # Process each image based on selection status
         for i, (image_info, state) in enumerate(zip(self.current_images, self.image_states)):
             png_path = image_info['path']
             yaml_path = png_path.with_suffix('.yaml')
             
             try:
-                if state['action'] == 'skip':
-                    self.move_to_cropped(png_path, yaml_path, "skipped")
-                    processed_count += 1
-                elif state['action'] == 'delete':
-                    self.safe_delete(png_path, yaml_path)
-                    processed_count += 1
-                elif state['has_selection'] and state['crop_coords']:
-                    self.crop_and_save(image_info, state['crop_coords'])
-                    processed_count += 1
+                if state['status'] == 'selected':
+                    # Crop and save selected image
+                    if state['has_selection'] and state['crop_coords']:
+                        self.crop_and_save(image_info, state['crop_coords'])
+                        selected_images.append(png_path.name)
+                        self.tracker.log_action("crop", str(png_path))
+                    else:
+                        # Selected but no crop - just keep the original
+                        selected_images.append(png_path.name)
+                        self.tracker.log_action("keep", str(png_path))
                 else:
-                    print(f"Image {i + 1}: No action specified, skipping...")
+                    # Delete unselected images
+                    self.safe_delete(png_path, yaml_path)
+                    deleted_images.append(png_path.name)
+                    self.tracker.log_action("delete", str(png_path))
                     
             except Exception as e:
                 print(f"Error processing image {i + 1}: {e}")
         
-        print(f"Processed {processed_count}/{len(self.current_images)} images in batch")
+        # Update progress tracker stats
+        self.progress_tracker.selected_count += len(selected_images)
+        self.progress_tracker.deleted_count += len(deleted_images)
+        
+        print(f"Selected: {len(selected_images)}, Deleted: {len(deleted_images)}")
+        if selected_images:
+            print(f"  Kept: {', '.join(selected_images)}")
+        if deleted_images:
+            print(f"  Deleted: {', '.join(deleted_images)}")
         
         # Clear pending changes flag after successful submission
         self.has_pending_changes = False
         self.quit_confirmed = False
         
-        # Update progress tracking
-        if not self.single_directory_mode:
-            self.progress_tracker.advance_file(processed_count)
+        # Advance to next triplet
+        self.progress_tracker.advance_triplet()
         
-        self.activity_timer.end_batch(f"Completed {processed_count} operations")
+        self.activity_timer.end_batch(f"Completed triplet processing")
         
-        # Move to next batch or directory
-        if self.has_next_batch():
-            # Progress was already advanced above by processed_count
-            # Just load the next batch
-            self.load_batch()
-        elif not self.single_directory_mode and self.progress_tracker.has_more_directories():
-            self.next_directory()
+        # Move to next triplet or finish
+        next_triplet = self.progress_tracker.get_current_triplet()
+        if next_triplet:
+            self.load_current_triplet()
         else:
             self.show_completion()
     
@@ -994,26 +1254,17 @@ class MultiDirectoryBatchCropTool:
     
     def run(self):
         """Main execution loop"""
-        if self.single_directory_mode:
-            print(f"Starting single directory batch crop tool on {self.base_directory}")
-            print(f"Found {len(self.png_files)} images")
-        else:
-            progress = self.progress_tracker.get_progress_info()
-            print(f"Starting multi-directory batch crop tool on {self.base_directory}")
-            print(f"Directory {progress['directory_index']} of {progress['total_directories']}: {progress['current_directory']}")
-            print(f"Files remaining in this directory: {progress['files_remaining']}")
-            print(f"Directories remaining after this: {progress['directories_remaining']}")
+        progress = self.progress_tracker.get_progress_info()
+        print(f"Starting Desktop Image Selector + Crop Tool on {self.base_directory}")
+        print(f"Found {len(self.triplets)} triplet groups to process")
+        print(f"Current: Triplet {progress['current_triplet']}/{progress['total_triplets']}")
         
-        print(f"Will process in {self.total_batches} batches of up to 3 images each")
         print("\nControls:")
-        print("  Image 1: [1] Delete  [X] Reset")
-        print("  Image 2: [2] Delete  [C] Reset") 
-        print("  Image 3: [3] Delete  [V] Reset")
-        print("  Global:  [Enter] Submit Batch  [Space] Toggle Aspect Ratio  [Q] Quit")
-        print("  Navigation: [←] Previous Batch")
-        
-        if not self.single_directory_mode:
-            print("  Multi-Directory: [N] Next Directory  [P] Previous Directory")
+        print("  Selection: [1] [2] [3] Select image (default: all DELETE)")
+        print("  Reset:     [R] Reset entire row  [X/C/V] Reset individual crop")
+        print("  Submit:    [Enter] Crop selected image, delete others, advance")
+        print("  Navigate:  [←] Previous triplet  [Q] Quit")
+        print("  Aspect:    [Space] Toggle aspect ratio lock")
         
         if self.aspect_ratio:
             print(f"\n📐 Global aspect ratio override enabled: {self.aspect_ratio:.2f}:1 (locked by default)")
@@ -1021,10 +1272,10 @@ class MultiDirectoryBatchCropTool:
             print("\n📐 Using each image's natural aspect ratio (locked by default)")
             print("   Use [Space] to toggle aspect ratio lock on/off")
             
-        print("\nStarting first batch...\n")
+        print("\nStarting first triplet...\n")
         
-        # Load first batch
-        self.load_batch()
+        # Load first triplet
+        self.load_current_triplet()
         
         # Show the plot
         plt.show()
@@ -1066,7 +1317,7 @@ Session Persistence:
         sys.exit(1)
     
     try:
-        tool = MultiDirectoryBatchCropTool(directory, args.aspect_ratio)
+        tool = DesktopImageSelectorCropTool(directory, args.aspect_ratio)
         tool.run()
     except Exception as e:
         print(f"Error: {e}")
