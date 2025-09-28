@@ -21,6 +21,7 @@ file_operations_logs/
 
 # Timer Data (productivity tracking - don't commit personal data)
 scripts/timer_data/
+scripts/utils/timer_data/
 quality_log_*.csv
 people_scores*.csv
 
