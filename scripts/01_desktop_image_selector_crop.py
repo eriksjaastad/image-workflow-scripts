@@ -30,7 +30,7 @@ FEATURES:
 WORKFLOW:
 ---------
 1. View 3 images from triplet side-by-side
-2. Click or press [1][2][3] to select which image to keep
+2. Click or press [[]\ to select which image to keep
 3. Crop the selected image by dragging rectangle
 4. Press [Enter] to crop selected image, delete others, next triplet
 5. Or press [R] to reset row (all back to delete), or [←] to go back
@@ -49,7 +49,7 @@ FILE HANDLING:
 
 CONTROLS:
 ---------
-Selection:  [1] [2] [3] Keep Image (auto-shows crop rectangle)
+Selection:  [ [ \ Keep Image (auto-shows crop rectangle)
 Reset:      [R] Reset Row (all back to delete, clear crops)
 Navigation: [←] Previous Triplet  [Enter] Submit & Next Triplet
 Global:     [Q] Quit  [H] Help
@@ -574,7 +574,7 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
         print("\n" + "="*60)
         print("DESKTOP IMAGE SELECTOR + CROP TOOL - HELP")
         print("="*60)
-        print("  Selection: [1] [2] [3] Keep image (default: all DELETE)")
+        print("  Selection: [ [ \\ Keep image (default: all DELETE)")
         print("  Reset:     [R] Reset entire row  [X/C/V] Reset individual crop")
         print("  Submit:    [Enter] Crop selected image, delete others, advance")
         print("  Skip:      [S] Skip current triplet entirely")
@@ -594,7 +594,7 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
         print(f"Triplet {self.progress_tracker.current_triplet_index + 1} of {progress['total_triplets']}: {progress['current_triplet']}")
         
         print("\nControls:")
-        print("  Selection: [1] [2] [3] Keep image (default: all DELETE)")
+        print("  Selection: [ [ \\ Keep image (default: all DELETE)")
         print("  Reset:     [R] Reset entire row  [X/C/V] Reset individual crop")
         print("  Submit:    [Enter] Crop selected image, delete others, advance")
         print("  Skip:      [S] Skip current triplet entirely")
