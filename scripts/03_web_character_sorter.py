@@ -136,7 +136,7 @@ class MultiDirectoryProgressTracker:
     def __init__(self, base_directory: Path):
         self.base_directory = base_directory
         self.progress_dir = Path("data/sorter_progress")
-        self.progress_dir.mkdir(exist_ok=True)
+        self.progress_dir.mkdir(parents=True, exist_ok=True)
         
         # Create progress file name based on base directory
         safe_name = str(base_directory).replace('/', '_').replace(' ', '_').replace('(', '').replace(')', '')
@@ -461,8 +461,11 @@ def _generate_thumbnail(image_path: str, mtime_ns: int, size: int) -> bytes:
         return buf.getvalue()
 
 def safe_delete(png_path: Path, hard_delete: bool = False, tracker: Optional[FileTracker] = None, activity_timer: Optional[ActivityTimer] = None) -> None:
-    """Delete PNG and corresponding YAML file."""
+    """Delete PNG and corresponding metadata file (.yaml or .caption)."""
+    # Try .yaml first, then .caption
     yaml_path = png_path.parent / f"{png_path.stem}.yaml"
+    if not yaml_path.exists():
+        yaml_path = png_path.parent / f"{png_path.stem}.caption"
     
     files_to_delete = [png_path]
     if yaml_path.exists():
@@ -493,11 +496,15 @@ def safe_delete(png_path: Path, hard_delete: bool = False, tracker: Optional[Fil
         if activity_timer:
             activity_timer.log_operation("delete", file_count=len(deleted_files))
 
-def move_with_yaml(src_path: Path, dest_dir: Path, tracker: FileTracker, group_name: str, activity_timer: Optional[ActivityTimer] = None) -> List[str]:
-    """Move PNG and corresponding YAML file to destination directory."""
+def move_with_metadata(src_path: Path, dest_dir: Path, tracker: FileTracker, group_name: str, activity_timer: Optional[ActivityTimer] = None) -> List[str]:
+    """Move PNG and corresponding metadata file (.yaml or .caption) to destination directory."""
     dest_dir.mkdir(exist_ok=True)
     
+    # Try .yaml first, then .caption
     yaml_path = src_path.parent / f"{src_path.stem}.yaml"
+    if not yaml_path.exists():
+        yaml_path = src_path.parent / f"{src_path.stem}.caption"
+    
     moved_files = []
     
     # Move PNG
@@ -505,7 +512,7 @@ def move_with_yaml(src_path: Path, dest_dir: Path, tracker: FileTracker, group_n
     src_path.rename(dest_png)
     moved_files.append(src_path.name)
     
-    # Move YAML if it exists
+    # Move metadata file if it exists
     if yaml_path.exists():
         dest_yaml = dest_dir / yaml_path.name
         yaml_path.rename(dest_yaml)
@@ -854,7 +861,7 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
             group_name = f"character_{action}"
             
             try:
-                moved_files = move_with_yaml(current_image, target_dir, tracker, group_name, activity_timer)
+                moved_files = move_with_metadata(current_image, target_dir, tracker, group_name, activity_timer)
                 history.append((current_image.name, group_name, moved_files))
                 
                 # Remove from images list
@@ -997,7 +1004,7 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
                 if action in ["group1", "group2", "group3"]:
                     target_dir = target_dirs[action]
                     group_name = f"character_{action}"
-                    moved_files = move_with_yaml(image_path, target_dir, tracker, group_name, activity_timer)
+                    moved_files = move_with_metadata(image_path, target_dir, tracker, group_name, activity_timer)
                     history.append((image_path.name, group_name, moved_files))
                     processed_count += 1
                     
@@ -1015,7 +1022,7 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
                     # Move to crop directory for further processing
                     crop_dir = Path.cwd() / "crop"
                     crop_dir.mkdir(exist_ok=True)
-                    moved_files = move_with_yaml(image_path, crop_dir, tracker, "crop_processing", activity_timer)
+                    moved_files = move_with_metadata(image_path, crop_dir, tracker, "crop_processing", activity_timer)
                     history.append((image_path.name, "SENT_TO_CROP", moved_files))
                     processed_count += 1
         
@@ -2313,9 +2320,6 @@ VIEWPORT_TEMPLATE = """
       display: block;
     }
     
-    .image-container img:hover {
-      opacity: 0.8;
-    }
     
     .image-name {
       font-size: 0.7rem;

@@ -25,7 +25,7 @@ FEATURES:
 ---------
 • 🚀 FLEXIBLE GROUPING: Controls fallback analysis for files without LoRA data
 • Complete 4-stage pipeline in one command
-• YAML metadata extraction with multi-character support
+• Metadata extraction from YAML and caption files with multi-character support
 • Sequential context inference for edge cases
 • Intelligent prompt-based descriptor extraction
 • Multi-character directory creation (emily_ivy/, etc.)
@@ -35,7 +35,7 @@ FEATURES:
 
 PIPELINE STAGES:
 ----------------
-1. YAML Analysis: Extract character LoRA names (emily, ivy) + prompt data
+1. Metadata Analysis: Extract character LoRA names (emily, ivy) + prompt data from YAML/caption files
 2. Sequential Context: Infer missing characters from chronological neighbors  
 3. Prompt Analysis: FALLBACK for remaining files - extract descriptors (15+ file minimum)
 4. Character Grouping: Organize files into directories (supports flexible categories)
@@ -250,6 +250,46 @@ def analyze_prompts_for_characters(character_mapping: Dict, min_threshold: int =
     return final_assignments
 
 
+def parse_caption_file(caption_path: Path) -> Optional[Dict]:
+    """Parse caption file and extract character information."""
+    try:
+        with open(caption_path, 'r', encoding='utf-8') as f:
+            prompt = f.read().strip()
+        
+        if not prompt:
+            return None
+        
+        # Extract character information from prompt
+        prompt_characters = extract_characters_from_prompt(prompt)
+        primary_character = prompt_characters[0] if prompt_characters else None
+        character_name = primary_character if primary_character else "unknown"
+        
+        # Determine corresponding PNG filename
+        png_filename = caption_path.stem + '.png'
+        
+        # Determine if we have character data
+        has_character = bool(prompt_characters)
+        
+        return {
+            'character_lora': None,  # Caption files don't have LoRA data
+            'character_name': character_name,
+            'primary_character': primary_character,
+            'all_characters': prompt_characters,
+            'character_count': len(prompt_characters),
+            'stage': 'unknown',  # Caption files don't have stage info
+            'yaml_file': caption_path.name,  # Keep this for compatibility
+            'png_filename': png_filename,
+            'has_character': has_character,
+            'has_face_detected': True,  # Assume true for caption files
+            'is_multi_character': len(prompt_characters) > 1,
+            'prompt': prompt  # Full prompt text for fallback analysis
+        }
+        
+    except Exception as e:
+        print(f"[!] Error parsing {caption_path}: {e}")
+        return None
+
+
 def parse_yaml_file(yaml_path: Path) -> Optional[Dict]:
     """Parse YAML file and extract character information."""
     try:
@@ -341,12 +381,23 @@ def parse_yaml_file(yaml_path: Path) -> Optional[Dict]:
         return None
 
 
+def parse_metadata_file(metadata_path: Path) -> Optional[Dict]:
+    """Parse metadata file (YAML or caption) and extract character information."""
+    if metadata_path.suffix.lower() == '.yaml':
+        return parse_yaml_file(metadata_path)
+    elif metadata_path.suffix.lower() == '.caption':
+        return parse_caption_file(metadata_path)
+    else:
+        print(f"[!] Unsupported metadata file type: {metadata_path}")
+        return None
+
+
 def analyze_yaml(directory: str, output_file: Optional[str] = None, quiet: bool = False) -> Dict:
     """
-    Stage 1: Analyze YAML files to extract character information.
+    Stage 1: Analyze metadata files (YAML and caption) to extract character information.
     
     Args:
-        directory: Directory to scan for YAML files
+        directory: Directory to scan for metadata files
         output_file: Optional JSON output file path
         quiet: Suppress progress output
         
@@ -357,12 +408,16 @@ def analyze_yaml(directory: str, output_file: Optional[str] = None, quiet: bool 
     if not directory_path.exists() or not directory_path.is_dir():
         raise ValueError(f"Directory not found: {directory_path}")
     
+    # Support both YAML and caption files
     yaml_files = list(directory_path.rglob('*.yaml'))
-    total_files = len(yaml_files)
+    caption_files = list(directory_path.rglob('*.caption'))
+    metadata_files = yaml_files + caption_files
+    total_files = len(metadata_files)
     
     if not quiet:
-        print(f"🔍 Analyzing YAML files in: {directory_path}")
-        print(f"[*] Found {total_files} YAML files to analyze...")
+        print(f"🔍 Analyzing metadata files in: {directory_path}")
+        print(f"[*] Found {len(yaml_files)} YAML files and {len(caption_files)} caption files")
+        print(f"[*] Total {total_files} metadata files to analyze...")
     
     character_mapping = {}
     processing_stats = {
@@ -377,12 +432,12 @@ def analyze_yaml(directory: str, output_file: Optional[str] = None, quiet: bool 
     
     start_time = time.time()
     
-    for i, yaml_path in enumerate(yaml_files):
+    for i, metadata_path in enumerate(metadata_files):
         if not quiet and i % 100 == 0:
             percent = (i / total_files) * 100 if total_files > 0 else 0
             print(f"[*] Processing... {i}/{total_files} ({percent:.1f}%)")
         
-        result = parse_yaml_file(yaml_path)
+        result = parse_metadata_file(metadata_path)
         
         if result is None:
             processing_stats['errors'] += 1

@@ -16,7 +16,7 @@ class SimpleWebToolsTest:
     
     def test_web_image_selector_startup(self):
         """Test that Web Image Selector starts without errors"""
-        test_dir = Path("scripts/tests/data/test_images_medium")
+        test_dir = Path(__file__).parent / "data/test_images_medium"
         
         if not test_dir.exists():
             print("⚠️  Test data not found, skipping")
@@ -24,9 +24,9 @@ class SimpleWebToolsTest:
         
         # Test that the script can start and analyze data
         result = subprocess.run([
-            sys.executable, "scripts/01_web_image_selector.py",
+            sys.executable, "01_web_image_selector.py",
             str(test_dir), "--print-triplets"
-        ], capture_output=True, text=True, timeout=10)
+        ], capture_output=True, text=True, timeout=10, cwd=Path(__file__).parent.parent)
         
         if result.returncode != 0:
             print(f"❌ Web Image Selector failed: {result.stderr}")
@@ -42,7 +42,7 @@ class SimpleWebToolsTest:
     
     def test_web_character_sorter_startup(self):
         """Test that Web Character Sorter can start with test data"""
-        test_dir = Path("scripts/tests/data/test_subdirs")
+        test_dir = Path(__file__).parent / "data/test_subdirs"
         
         if not test_dir.exists():
             print("⚠️  Test data not found, skipping")
@@ -50,9 +50,9 @@ class SimpleWebToolsTest:
         
         # Start server in background and test it starts
         process = subprocess.Popen([
-            sys.executable, "scripts/03_web_character_sorter.py",
+            sys.executable, "03_web_character_sorter.py",
             str(test_dir), "--port", "5010", "--no-browser"
-        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=Path(__file__).parent.parent)
         
         try:
             # Wait a bit for startup
@@ -73,7 +73,7 @@ class SimpleWebToolsTest:
     
     def test_web_multi_directory_viewer_startup(self):
         """Test that Multi-Directory Viewer can start with test data"""
-        test_dir = Path("scripts/tests/data/test_subdirs")
+        test_dir = Path(__file__).parent / "data/test_subdirs"
         
         if not test_dir.exists():
             print("⚠️  Test data not found, skipping")
@@ -81,9 +81,9 @@ class SimpleWebToolsTest:
         
         # Start server in background and test it starts
         process = subprocess.Popen([
-            sys.executable, "scripts/05_web_multi_directory_viewer.py",
+            sys.executable, "05_web_multi_directory_viewer.py",
             str(test_dir), "--port", "5011", "--no-browser"
-        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=Path(__file__).parent.parent)
         
         try:
             # Wait a bit for startup
@@ -105,17 +105,18 @@ class SimpleWebToolsTest:
     def test_style_guide_references(self):
         """Test that all web files reference the style guide"""
         web_files = [
-            "scripts/01_web_image_selector.py",
-            "scripts/03_web_character_sorter.py", 
-            "scripts/05_web_multi_directory_viewer.py"
+            "01_web_image_selector.py",
+            "03_web_character_sorter.py", 
+            "05_web_multi_directory_viewer.py"
         ]
         
         for file_path in web_files:
-            if not Path(file_path).exists():
+            full_path = Path(__file__).parent.parent / file_path
+            if not full_path.exists():
                 print(f"⚠️  {file_path} not found, skipping")
                 continue
             
-            content = Path(file_path).read_text()
+            content = full_path.read_text()
             
             if "WEB_STYLE_GUIDE.md" not in content:
                 print(f"❌ {file_path} missing style guide reference")
@@ -131,7 +132,11 @@ class SimpleWebToolsTest:
     def test_recent_enhancements_in_code(self):
         """Test that recent enhancements are present in the code"""
         # Test Web Image Selector enhancements
-        selector_content = Path("scripts/01_web_image_selector.py").read_text()
+        selector_content = Path(__file__).parent.parent / "01_web_image_selector.py"
+        if not selector_content.exists():
+            print("⚠️  Web image selector not found, skipping")
+            return True
+        selector_content = selector_content.read_text()
         
         # Check for unselect functionality
         if "UNSELECT FUNCTIONALITY" not in selector_content:
@@ -154,8 +159,9 @@ class SimpleWebToolsTest:
             return False
         
         # Test Multi-Directory Viewer enhancements
-        if Path("scripts/05_web_multi_directory_viewer.py").exists():
-            viewer_content = Path("scripts/05_web_multi_directory_viewer.py").read_text()
+        viewer_path = Path(__file__).parent.parent / "05_web_multi_directory_viewer.py"
+        if viewer_path.exists():
+            viewer_content = viewer_path.read_text()
             
             # Check for interactive features
             if "toggleDelete" not in viewer_content:

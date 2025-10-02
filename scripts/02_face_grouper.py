@@ -13,7 +13,7 @@ Activate virtual environment first:
 USAGE:
 ------
 Run face grouping with similarity mapping:
-  python scripts/02_face_grouper.py --images crop --out ./face_groups \
+  python scripts/02_face_grouper.py --images mixed-0919 --out ./sorted \
     --kmeans 7 --emit-map --map-topk 10 --map-threshold 0.22 --map-scope cluster
 
 FEATURES:
@@ -364,41 +364,41 @@ def second_pass_unknowns(X: np.ndarray, labels: np.ndarray,
 
 
 # ------------------------------ IO & grouping ------------------------------
-def discover_image_yaml_pairs(root: Path) -> Tuple[List[Path], List[str]]:
+def discover_image_metadata_pairs(root: Path) -> Tuple[List[Path], List[str]]:
     image_exts = {".jpg", ".jpeg", ".png", ".webp"}
     errors: List[str] = []
 
     all_files = list(root.rglob("*"))
     images = {p.stem: p for p in all_files if p.suffix.lower() in image_exts}
-    yamls  = {p.stem: p for p in all_files if p.suffix.lower() == ".yaml"}
+    metadata  = {p.stem: p for p in all_files if p.suffix.lower() in [".yaml", ".caption"]}
 
-    image_stems = set(images.keys()); yaml_stems = set(yamls.keys())
-    orphaned_images = image_stems - yaml_stems
-    orphaned_yamls  = yaml_stems - image_stems
-    valid_pairs     = image_stems & yaml_stems
+    image_stems = set(images.keys()); metadata_stems = set(metadata.keys())
+    orphaned_images = image_stems - metadata_stems
+    orphaned_metadata  = metadata_stems - image_stems
+    valid_pairs     = image_stems & metadata_stems
 
     if orphaned_images:
-        errors.append(f"🚨 ALARM: {len(orphaned_images)} images without YAML files:")
+        errors.append(f"🚨 ALARM: {len(orphaned_images)} images without metadata files:")
         for stem in sorted(orphaned_images):
             errors.append(f"   • {images[stem]}")
-    if orphaned_yamls:
-        errors.append(f"🚨 ALARM: {len(orphaned_yamls)} YAML files without images:")
-        for stem in sorted(orphaned_yamls):
-            errors.append(f"   • {yamls[stem]}")
+    if orphaned_metadata:
+        errors.append(f"🚨 ALARM: {len(orphaned_metadata)} metadata files without images:")
+        for stem in sorted(orphaned_metadata):
+            errors.append(f"   • {metadata[stem]}")
 
     if not valid_pairs:
-        errors.append("🚨 ALARM: No valid image/YAML pairs found!")
+        errors.append("🚨 ALARM: No valid image/metadata pairs found!")
         return [], errors
 
     valid_image_paths = [images[stem] for stem in sorted(valid_pairs)]
-    print(f"✅ Found {len(valid_pairs)} valid image/YAML pairs")
-    orphan_count = len(orphaned_images) + len(orphaned_yamls)
+    print(f"✅ Found {len(valid_pairs)} valid image/metadata pairs")
+    orphan_count = len(orphaned_images) + len(orphaned_metadata)
     if orphan_count:
         print(f"⚠️  Found {orphan_count} orphaned files")
     return valid_image_paths, errors
 
 
-def move_image_yaml_pairs(out_dir: Path, paths: List[Path], labels: np.ndarray,
+def move_image_metadata_pairs(out_dir: Path, paths: List[Path], labels: np.ndarray,
                           min_cluster_size: int = 20, tracker=None) -> Dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest = {"groups": [], "moved_pairs": 0, "errors": []}
@@ -414,9 +414,12 @@ def move_image_yaml_pairs(out_dir: Path, paths: List[Path], labels: np.ndarray,
 
         for i in idxs:
             image_path = paths[i]
-            yaml_path  = image_path.with_suffix(".yaml")
+            # Try .yaml first, then .caption
+            yaml_path = image_path.with_suffix(".yaml")
             if not yaml_path.exists():
-                msg = f"🚨 MISSING YAML: {yaml_path} (for image {image_path})"
+                yaml_path = image_path.with_suffix(".caption")
+            if not yaml_path.exists():
+                msg = f"🚨 MISSING METADATA: {yaml_path} (for image {image_path})"
                 print(msg); manifest["errors"].append(msg)
                 if tracker: tracker.log_operation("error", notes=msg)
                 continue
@@ -447,7 +450,7 @@ def move_image_yaml_pairs(out_dir: Path, paths: List[Path], labels: np.ndarray,
         tracker.log_operation("group_move",
             source_dir=str(paths[0].parent) if paths else "unknown",
             dest_dir=str(out_dir), file_count=total_pairs * 2,
-            notes=f"Moved {total_pairs} image/YAML pairs into {manifest['total_groups']} groups + unknown")
+            notes=f"Moved {total_pairs} image/metadata pairs into {manifest['total_groups']} groups + unknown")
     return manifest
 
 def write_similarity_map(out_dir: Path, kept_paths: List[Path], labels: np.ndarray, X: np.ndarray,
@@ -542,7 +545,7 @@ def write_similarity_map(out_dir: Path, kept_paths: List[Path], labels: np.ndarr
 # ------------------------------ main ------------------------------
 def main():
     ap = argparse.ArgumentParser(description="Hybrid face-first grouper with YAML-pair moves")
-    ap.add_argument("--images", required=True, help="Input dir containing image/YAML pairs")
+    ap.add_argument("--images", required=True, help="Input dir containing image/metadata pairs (.yaml or .caption)")
     ap.add_argument("--out", default="./face_groups", help="Output directory")
     ap.add_argument("--min-cluster-size", type=int, default=20,
                     help="Minimum items to form a named group; smaller clusters go to 'unknown'")
@@ -581,12 +584,12 @@ def main():
         tracker = FileTracker("hybrid_grouper")
         tracker.log_batch_start(f"Hybrid grouping: {img_dir} -> {out_dir}")
 
-    print("🔍 Discovering image/YAML pairs…")
-    paths, errors = discover_image_yaml_pairs(img_dir)
+    print("🔍 Discovering image/metadata pairs…")
+    paths, errors = discover_image_metadata_pairs(img_dir)
     if errors:
         print("\n".join(errors))
         if not paths:
-            print("❌ No valid image/YAML pairs found. Exiting.")
+            print("❌ No valid image/metadata pairs found. Exiting.")
             sys.exit(1)
         print(f"\n⚠️  Continuing with {len(paths)} valid pairs, ignoring orphaned files.")
 
@@ -640,8 +643,8 @@ def main():
         print(f"📝 wrote preview: {out_dir/'preview.csv'}")
 
         if not args.dry_run:
-            print(f"\n📁 Moving image/YAML pairs to groups…")
-            manifest = move_image_yaml_pairs(out_dir, kept_paths, labels,
+            print(f"\n📁 Moving image/metadata pairs to groups…")
+            manifest = move_image_metadata_pairs(out_dir, kept_paths, labels,
                                             min_cluster_size=1, tracker=tracker)  # no filtering
             print("\n✅ COMPLETE!")
             print(f"   • Embedded: {len(embs)} / {len(paths)}")
@@ -684,8 +687,8 @@ def main():
     print(f"📝 wrote preview: {out_dir/'preview.csv'}")
 
     if not args.dry_run:
-        print(f"\n📁 Moving image/YAML pairs to groups…")
-        manifest = move_image_yaml_pairs(out_dir, kept_paths, labels,
+        print(f"\n📁 Moving image/metadata pairs to groups…")
+        manifest = move_image_metadata_pairs(out_dir, kept_paths, labels,
                                          min_cluster_size=args.min_cluster_size, tracker=tracker)
         
         # Count images in each face group directory

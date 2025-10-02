@@ -302,10 +302,6 @@ HTML_TEMPLATE = """
             border: 3px solid transparent;
         }
         
-        .image-container:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-        }
         
         .image-container.selected {
             border-color: #007aff;

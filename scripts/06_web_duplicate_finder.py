@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Step 5: Multi-Directory Image Viewer
-=====================================
-Interactive viewer for quick assessment and cleanup of clustering results.
-Shows all images from subdirectories with crop and delete functionality.
+Step 6: Web Duplicate Finder
+=============================
+Side-by-side directory viewer for finding and removing duplicate images.
+Simple split-screen interface for visual duplicate detection.
 
 🎨 STYLE GUIDE:
 ---------------
@@ -18,19 +18,21 @@ Activate virtual environment first:
 
 USAGE:
 ------
-Run on clustering output directories:
-  python scripts/05_web_multi_directory_viewer.py face_groups
-  python scripts/05_web_multi_directory_viewer.py character_group_1
+Compare two directories for duplicates:
+  python scripts/06_web_duplicate_finder.py left_directory right_directory
+  python scripts/06_web_duplicate_finder.py mixed-0919/duplicate_group_001 mixed-0919/duplicate_group_002
+  python scripts/06_web_duplicate_finder.py sorted/unknown character_group_1
 
 FEATURES:
 ---------
-• 8 images per row (compact thumbnails)
-• Directory headers as visual separators
-• Interactive crop and delete functionality
-• Click image → Crop (send to crop/ directory)
-• Right-click image → Delete (send to trash)
-• Shows all subdirectories in one consolidated view
-• Perfect for quick clustering quality assessment and cleanup
+• Split-screen layout: left directory (view-only) vs right directory (interactive)
+• 4 images per row on each side for easy comparison
+• Left side: First directory - view-only reference images
+• Right side: Second directory - interactive delete functionality
+• Click image → Select for deletion (red highlight)
+• Click again → Deselect
+• Both sides scroll independently
+• Perfect for comparing two directories and removing duplicates
 • FileTracker integration for complete audit trail
 
 WORKFLOW POSITION:
@@ -69,10 +71,11 @@ sys.path.insert(0, str(project_root))
 
 from scripts.file_tracker import FileTracker
 
+_SEND2TRASH_AVAILABLE = False
 try:
-    import send2trash
+    from send2trash import send2trash
     _SEND2TRASH_AVAILABLE = True
-except ImportError:
+except Exception:
     _SEND2TRASH_AVAILABLE = False
 
 def find_image_directories(output_dir):
@@ -122,7 +125,7 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Directory Image Viewer - {{ output_dir }}</title>
+    <title>Web Duplicate Finder - {{ output_dir }}</title>
     <style>
         :root {
             color-scheme: dark;
@@ -144,11 +147,84 @@ HTML_TEMPLATE = """
         body {
             font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 0;
             background: var(--bg);
             color: #f8f9ff;
             line-height: 1.4;
+            height: 100vh;
+            overflow: hidden;
         }
+        
+        .split-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            gap: 2px;
+        }
+        
+        .panel {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            background: var(--surface);
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+        
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+        
+        .left-panel {
+            background: var(--surface-alt);
+        }
+        
+        .right-panel {
+            background: var(--surface);
+        }
+        
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            padding: 1rem 0;
+        }
+        
+        .image-item {
+            position: relative;
+            background: var(--bg);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+        
+        .image-container {
+            position: relative;
+        }
+        
+        .right-panel .image-container {
+            cursor: pointer;
+        }
+        
+        .image-container img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .image-container.delete-selected {
+            border: 3px solid var(--danger);
+            box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.3);
+        }
+        
         
         header.toolbar {
             position: sticky;
@@ -252,7 +328,7 @@ HTML_TEMPLATE = """
         .image-grid {
             padding: 20px;
             display: grid;
-            grid-template-columns: repeat(8, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 15px;
         }
         
@@ -350,21 +426,15 @@ HTML_TEMPLATE = """
             font-style: italic;
         }
         
-        @media (max-width: 1200px) {
-            .image-grid {
-                grid-template-columns: repeat(6, 1fr);
-            }
-        }
-        
         @media (max-width: 800px) {
             .image-grid {
-                grid-template-columns: repeat(4, 1fr);
+                grid-template-columns: repeat(3, 1fr);
             }
         }
         
         @media (max-width: 500px) {
             .image-grid {
-                grid-template-columns: repeat(3, 1fr);
+                grid-template-columns: repeat(2, 1fr);
             }
         }
     </style>
@@ -372,54 +442,48 @@ HTML_TEMPLATE = """
 <body>
     <div class="status-bar" id="statusBar"></div>
     
-    <header class="toolbar">
-        <div class="toolbar-left">
-            <h1>Multi-Directory Image Viewer</h1>
-            <p>{{ output_dir }} • {{ total_directories }} directories, {{ total_images }} images total</p>
-        </div>
-        <div class="toolbar-center">
-            <span id="selectionStats">
-                <span id="deleteCount">0 delete</span> • 
-                <span id="cropCount">0 crop</span>
-            </span>
-        </div>
-        <div class="toolbar-right">
-            <button id="processButton" onclick="processSelections()">Process Selections</button>
-        </div>
-    </header>
-    
-    {% for directory in directories %}
-    <div class="directory-section">
-        <div class="directory-header">
-            <span>{{ directory.name }}</span>
-            <span class="directory-count">{{ directory.count }} images</span>
+    <div class="split-container">
+        <!-- Left Panel - View Only -->
+        <div class="panel left-panel">
+            <div class="panel-header">
+                <h2>{{ left_dir_name }}</h2>
+                <p>{{ left_images|length }} images (view-only)</p>
+            </div>
+            <div class="panel-content">
+                <div class="image-grid">
+                    {% for image in left_images %}
+                    <div class="image-item">
+                        <div class="image-container">
+                            <img src="/image/{{ left_dir_name }}/{{ image }}" alt="{{ image }}" loading="lazy">
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
         
-        {% if directory.images %}
-        <div class="image-grid">
-            {% for image in directory.images %}
-            <div class="image-item" data-directory="{{ directory.name }}" data-image="{{ image }}">
-                <div class="image-container" onclick="toggleDelete('{{ directory.name }}', '{{ image }}')">
-                    <img src="/image/{{ directory.name }}/{{ image }}" alt="{{ image }}" loading="lazy">
+        <!-- Right Panel - Interactive -->
+        <div class="panel right-panel">
+            <div class="panel-header">
+                <h2>{{ right_dir_name }}</h2>
+                <div id="selectionStats">
+                    <span id="deleteCount">0 selected</span>
+                    <button id="processButton" onclick="processSelections()" style="margin-left: 1rem;">Delete Selected</button>
                 </div>
-                <button class="crop-button" onclick="toggleCrop('{{ directory.name }}', '{{ image }}')">Crop</button>
             </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="no-images">No images found</div>
-        {% endif %}
-    </div>
-    {% endfor %}
-    
-    {% if not directories %}
-    <div class="directory-section">
-        <div class="no-images">
-            <h3>No directories with images found</h3>
-            <p>Make sure the output directory contains subdirectories with PNG files.</p>
+            <div class="panel-content">
+                <div class="image-grid">
+                    {% for image in right_images %}
+                    <div class="image-item" data-directory="{{ right_dir_name }}" data-image="{{ image }}">
+                        <div class="image-container" onclick="toggleDelete('{{ right_dir_name }}', '{{ image }}')">
+                            <img src="/image/{{ right_dir_name }}/{{ image }}" alt="{{ image }}" loading="lazy">
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
     </div>
-    {% endif %}
 </body>
 </html>
 """
@@ -437,7 +501,7 @@ JAVASCRIPT_CODE = """
     }
     
     // Track image states: 'delete', 'crop', or null
-    const imageStates = {};
+    let imageStates = {};
     
     function getImageKey(directory, image) {
         return `${directory}/${image}`;
@@ -446,21 +510,16 @@ JAVASCRIPT_CODE = """
     function updateImageVisual(directory, image) {
         const key = getImageKey(directory, image);
         const container = document.querySelector(`[data-directory="${directory}"][data-image="${image}"] .image-container`);
-        const button = document.querySelector(`[data-directory="${directory}"][data-image="${image}"] .crop-button`);
         
-        if (!container || !button) return;
+        if (!container) return;
         
         // Clear all states
-        container.classList.remove('delete-selected', 'crop-selected');
-        button.classList.remove('active');
+        container.classList.remove('delete-selected');
         
         // Apply current state
         const state = imageStates[key];
         if (state === 'delete') {
             container.classList.add('delete-selected');
-        } else if (state === 'crop') {
-            container.classList.add('crop-selected');
-            button.classList.add('active');
         }
         
         // Update selection stats
@@ -469,10 +528,8 @@ JAVASCRIPT_CODE = """
     
     function updateSelectionStats() {
         const deleteCount = Object.values(imageStates).filter(state => state === 'delete').length;
-        const cropCount = Object.values(imageStates).filter(state => state === 'crop').length;
         
-        document.getElementById('deleteCount').textContent = `${deleteCount} delete`;
-        document.getElementById('cropCount').textContent = `${cropCount} crop`;
+        document.getElementById('deleteCount').textContent = `${deleteCount} selected`;
     }
     
     function toggleDelete(directory, image) {
@@ -490,20 +547,6 @@ JAVASCRIPT_CODE = """
         updateImageVisual(directory, image);
     }
     
-    function toggleCrop(directory, image) {
-        const key = getImageKey(directory, image);
-        const currentState = imageStates[key];
-        
-        if (currentState === 'crop') {
-            // Toggle off crop
-            delete imageStates[key];
-        } else {
-            // Set to crop (overrides delete)
-            imageStates[key] = 'crop';
-        }
-        
-        updateImageVisual(directory, image);
-    }
     
     async function processSelections() {
         const selections = Object.keys(imageStates).map(key => {
@@ -520,10 +563,9 @@ JAVASCRIPT_CODE = """
             return;
         }
         
-        const cropCount = selections.filter(s => s.action === 'crop').length;
         const deleteCount = selections.filter(s => s.action === 'delete').length;
         
-        if (!confirm(`Process ${cropCount} crop and ${deleteCount} delete operations?`)) {
+        if (!confirm(`Delete ${deleteCount} selected images?`)) {
             return;
         }
         
@@ -538,6 +580,15 @@ JAVASCRIPT_CODE = """
             
             if (result.success) {
                 showStatus(`✅ Processed ${result.processed} operations - Reloading page...`, 'success');
+                
+                // Clear all selections immediately
+                imageStates = {};
+                updateSelectionStats();
+                
+                // Remove all visual highlights
+                document.querySelectorAll('.image-container.delete-selected').forEach(container => {
+                    container.classList.remove('delete-selected');
+                });
                 
                 // Reload the page after a short delay to show the updated file list
                 setTimeout(() => {
@@ -554,34 +605,30 @@ JAVASCRIPT_CODE = """
 </script>
 """
 
-def create_app(output_dir):
+def create_app(left_dir, right_dir):
     app = Flask(__name__)
     
-    # Convert to absolute path from script's parent directory  
-    if not Path(output_dir).is_absolute():
-        output_path = Path(__file__).parent.parent / output_dir
-    else:
-        output_path = Path(output_dir)
-    
-    # Find all directories with images
-    directories = find_image_directories(output_dir)
-    total_images = sum(d['count'] for d in directories)
-    
-    print(f"📁 Found {len(directories)} directories with {total_images} total images")
-    for d in directories:
-        print(f"   • {d['name']}: {d['count']} images")
+    # Convert to absolute paths
+    left_path = Path(left_dir).resolve()
+    right_path = Path(right_dir).resolve()
     
     # Initialize FileTracker
     tracker = FileTracker("multi_directory_viewer")
     
     @app.route('/')
     def index():
+        # Scan directories fresh each time to reflect deletions
+        left_images = sorted([img.name for img in left_path.glob("*.png")])
+        right_images = sorted([img.name for img in right_path.glob("*.png")])
+        
         return render_template_string(
             HTML_TEMPLATE + JAVASCRIPT_CODE,
-            directories=directories,
-            total_directories=len(directories),
-            total_images=total_images,
-            output_dir=output_dir
+            left_images=left_images,
+            right_images=right_images,
+            left_dir_name=left_path.name,
+            right_dir_name=right_path.name,
+            left_dir=left_dir,
+            right_dir=right_dir
         )
     
     @app.route('/image/<directory>/<filename>')
@@ -589,19 +636,22 @@ def create_app(output_dir):
         """Serve images from the directories."""
         from flask import send_file
         
-        # Find the correct directory structure
-        for dir_info in directories:
-            if dir_info['name'] == directory:
-                image_path = dir_info['path'] / filename
-                if image_path.exists():
-                    return send_file(str(image_path))
-                break
+        # Determine which directory to serve from
+        if directory == left_path.name:
+            image_path = left_path / filename
+        elif directory == right_path.name:
+            image_path = right_path / filename
+        else:
+            return "Directory not found", 404
+        
+        if image_path.exists():
+            return send_file(str(image_path))
         
         return "Image not found", 404
     
     @app.route('/process', methods=['POST'])
     def process_selections():
-        """Process batch of crop and delete selections."""
+        """Process batch of delete selections."""
         data = request.get_json()
         selections = data.get('selections', [])
         
@@ -620,44 +670,21 @@ def create_app(output_dir):
                 errors.append(f"Invalid selection: {selection}")
                 continue
             
-            source_path = output_path / directory / image
+            # Only allow deletions from the right directory
+            if directory != right_path.name:
+                errors.append(f"Can only delete from right directory: {directory}")
+                continue
+                
+            source_path = right_path / image
             if not source_path.exists():
                 errors.append(f"Image not found: {image}")
                 continue
             
             try:
-                if action == 'crop':
-                    # Move to crop directory
-                    crop_dir = output_path.parent / 'crop'
-                    crop_dir.mkdir(exist_ok=True)
-                    
-                    dest_path = crop_dir / image
-                    
-                    # Handle name conflicts
-                    counter = 1
-                    while dest_path.exists():
-                        stem = source_path.stem
-                        suffix = source_path.suffix
-                        dest_path = crop_dir / f"{stem}_{counter:03d}{suffix}"
-                        counter += 1
-                    
-                    shutil.move(str(source_path), str(dest_path))
-                    
-                    # Also move metadata file if it exists (.yaml or .caption)
-                    yaml_source = source_path.with_suffix('.yaml')
-                    if not yaml_source.exists():
-                        yaml_source = source_path.with_suffix('.caption')
-                    
-                    if yaml_source.exists():
-                        yaml_dest = dest_path.with_suffix(yaml_source.suffix)
-                        shutil.move(str(yaml_source), str(yaml_dest))
-                    
-                    tracker.log_move(source_path, dest_path, "crop_action")
-                    
-                elif action == 'delete':
+                if action == 'delete':
                     # Move to trash
                     if _SEND2TRASH_AVAILABLE:
-                        send2trash.send2trash(str(source_path))
+                        send2trash(str(source_path))
                         
                         # Also delete metadata file if it exists (.yaml or .caption)
                         yaml_source = source_path.with_suffix('.yaml')
@@ -665,9 +692,9 @@ def create_app(output_dir):
                             yaml_source = source_path.with_suffix('.caption')
                         
                         if yaml_source.exists():
-                            send2trash.send2trash(str(yaml_source))
+                            send2trash(str(yaml_source))
                         
-                        tracker.log_delete(source_path, "delete_action")
+                        tracker.log_operation("delete", source_dir=str(source_path.parent), dest_dir="trash", file_count=1)
                     else:
                         errors.append(f"send2trash not available for {image}")
                         continue
@@ -697,21 +724,43 @@ def open_browser(url):
     webbrowser.open(url)
 
 def main():
-    parser = argparse.ArgumentParser(description="Multi-directory image viewer for clustering results")
-    parser.add_argument("output_dir", help="Directory containing subdirectories with images (e.g., out_k7_final)")
+    parser = argparse.ArgumentParser(description="Web duplicate finder - compare two directories side by side")
+    parser.add_argument("left_dir", help="Left directory (view-only reference)")
+    parser.add_argument("right_dir", help="Right directory (interactive, can delete)")
     parser.add_argument("--port", type=int, default=5005, help="Port to run the server on (default: 5005)")
     parser.add_argument("--no-browser", action="store_true", help="Don't automatically open browser")
     
     args = parser.parse_args()
     
-    if not Path(args.output_dir).exists():
-        print(f"❌ Error: Directory '{args.output_dir}' not found")
+    # Validate both directories exist
+    left_path = Path(args.left_dir)
+    right_path = Path(args.right_dir)
+    
+    if not left_path.exists():
+        print(f"❌ Error: Left directory '{args.left_dir}' not found")
         sys.exit(1)
     
-    print(f"🚀 Starting Multi-Directory Image Viewer...")
-    print(f"📂 Scanning: {args.output_dir}")
+    if not right_path.exists():
+        print(f"❌ Error: Right directory '{args.right_dir}' not found")
+        sys.exit(1)
     
-    app = create_app(args.output_dir)
+    # Get images from both directories
+    left_images = list(left_path.glob("*.png"))
+    right_images = list(right_path.glob("*.png"))
+    
+    if not left_images:
+        print(f"❌ Error: No PNG images found in left directory '{args.left_dir}'")
+        sys.exit(1)
+    
+    if not right_images:
+        print(f"❌ Error: No PNG images found in right directory '{args.right_dir}'")
+        sys.exit(1)
+    
+    print(f"🚀 Starting Web Duplicate Finder...")
+    print(f"📂 Left directory: {args.left_dir} ({len(left_images)} images)")
+    print(f"📂 Right directory: {args.right_dir} ({len(right_images)} images)")
+    
+    app = create_app(args.left_dir, args.right_dir)
     
     url = f"http://localhost:{args.port}"
     print(f"🌐 Server starting at: {url}")

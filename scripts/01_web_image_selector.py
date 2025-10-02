@@ -532,11 +532,6 @@ def build_app(
           align-items: center;
           justify-content: center;
         }
-        .action-btn:hover {
-          background: var(--accent);
-          border-color: var(--accent);
-          transform: translateY(-1px);
-        }
         .action-btn.crop-active {
           background: white;
           border-color: white;
@@ -697,10 +692,6 @@ def build_app(
           flex-direction: column;
           align-items: center;
           position: relative;
-        }
-        figure.image-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 16px 32px rgba(0,0,0,0.25);
         }
         figure.image-card img {
           max-width: 100%;
@@ -1222,7 +1213,6 @@ def build_app(
         h1 { color: var(--accent); margin-bottom: 2rem; }
         .info { background: var(--surface); padding: 2rem; border-radius: 12px; margin: 2rem 0; }
         button { background: var(--accent); color: white; border: none; padding: 1rem 2rem; border-radius: 8px; font-size: 1.1rem; cursor: pointer; margin: 0.5rem; }
-        button:hover { opacity: 0.9; }
         .timer { font-size: 1.2rem; margin: 1rem 0; }
       </style>
     </head>

@@ -57,6 +57,9 @@ Hailey/
 tattersail-*/
 00_*/
 
+# Content Directories (large datasets - do not track)
+mojo1/
+
 # Image and Data Files
 *.png
 *.jpg
@@ -65,6 +68,7 @@ tattersail-*/
 *.yml
 *.csv
 *.pt
+*.content
 
 # Character Analysis Output (contains project paths)
 analysis_*.json

@@ -2,8 +2,9 @@
 """
 Utility: Check Pairs - Orphaned Files Audit Tool
 =================================================
-Find and optionally clean up orphaned PNG/YAML files in directory trees.
+Find and optionally clean up orphaned PNG/metadata files in directory trees.
 Identifies files missing their corresponding pair for data integrity.
+Supports both .yaml and .caption metadata files.
 
 VIRTUAL ENVIRONMENT:
 --------------------
@@ -19,8 +20,9 @@ Audit file pairs in directories:
 
 FEATURES:
 ---------
-• Recursively scans directory trees for PNG/YAML files
-• Identifies orphaned files (PNG without YAML, YAML without PNG)
+• Recursively scans directory trees for PNG/metadata files
+• Identifies orphaned files (PNG without metadata, metadata without PNG)
+• Supports both .yaml and .caption metadata files
 • Detailed report grouped by directory
 • Optional cleanup with user confirmation
 • Safe deletion using send2trash (recoverable)
@@ -35,14 +37,14 @@ from collections import defaultdict
 from send2trash import send2trash
 
 def find_mismatched_files_recursive(root_directory):
-    """Recursively find PNG files without matching YAML files and vice versa."""
+    """Recursively find PNG files without matching metadata files and vice versa."""
     root_directory = Path(root_directory)
     
     print(f"🔍 Recursively scanning: {root_directory}")
     
-    # Get all PNG and YAML files recursively, organized by directory
+    # Get all PNG and metadata files recursively, organized by directory
     all_orphaned_pngs = []
-    all_orphaned_yamls = []
+    all_orphaned_metadata = []
     total_pairs = 0
     directories_scanned = 0
     
@@ -56,51 +58,55 @@ def find_mismatched_files_recursive(root_directory):
             
         directories_scanned += 1
         
-        # Get PNG and YAML files in this directory
+        # Get PNG and metadata files in this directory
         png_files = {f.stem: f for f in current_dir.glob("*.png")}
         yaml_files = {f.stem: f for f in current_dir.glob("*.yaml")}
+        caption_files = {f.stem: f for f in current_dir.glob("*.caption")}
+        metadata_files = {**yaml_files, **caption_files}  # Combine both types
         
-        if not png_files and not yaml_files:
+        if not png_files and not metadata_files:
             continue
             
         # Find mismatched files in this directory
-        pngs_without_yaml = set(png_files.keys()) - set(yaml_files.keys())
-        yamls_without_png = set(yaml_files.keys()) - set(png_files.keys())
-        pairs_in_dir = len(set(png_files.keys()) & set(yaml_files.keys()))
+        pngs_without_metadata = set(png_files.keys()) - set(metadata_files.keys())
+        metadata_without_png = set(metadata_files.keys()) - set(png_files.keys())
+        pairs_in_dir = len(set(png_files.keys()) & set(metadata_files.keys()))
         
-        if pngs_without_yaml or yamls_without_png or pairs_in_dir > 0:
+        if pngs_without_metadata or metadata_without_png or pairs_in_dir > 0:
             print(f"  📁 {current_dir.relative_to(root_directory) if current_dir != root_directory else '.'}: "
-                  f"{pairs_in_dir} pairs, {len(pngs_without_yaml)} orphaned PNGs, {len(yamls_without_png)} orphaned YAMLs")
+                  f"{pairs_in_dir} pairs, {len(pngs_without_metadata)} orphaned PNGs, {len(metadata_without_png)} orphaned metadata")
         
         # Add to global lists
-        all_orphaned_pngs.extend([png_files[stem] for stem in pngs_without_yaml])
-        all_orphaned_yamls.extend([yaml_files[stem] for stem in yamls_without_png])
+        all_orphaned_pngs.extend([png_files[stem] for stem in pngs_without_metadata])
+        all_orphaned_metadata.extend([metadata_files[stem] for stem in metadata_without_png])
         total_pairs += pairs_in_dir
     
     print(f"📊 Scanned {directories_scanned} directories")
     
     return {
         'orphaned_pngs': all_orphaned_pngs,
-        'orphaned_yamls': all_orphaned_yamls,
+        'orphaned_metadata': all_orphaned_metadata,
         'total_pairs': total_pairs
     }
 
 def find_mismatched_files(directory):
-    """Find PNG files without matching YAML files and vice versa in a single directory."""
+    """Find PNG files without matching metadata files and vice versa in a single directory."""
     directory = Path(directory)
     
-    # Get all PNG and YAML files
+    # Get all PNG and metadata files
     png_files = {f.stem: f for f in directory.glob("*.png")}
     yaml_files = {f.stem: f for f in directory.glob("*.yaml")}
+    caption_files = {f.stem: f for f in directory.glob("*.caption")}
+    metadata_files = {**yaml_files, **caption_files}  # Combine both types
     
-    # Find PNGs without YAMLs and YAMLs without PNGs
-    pngs_without_yaml = set(png_files.keys()) - set(yaml_files.keys())
-    yamls_without_png = set(yaml_files.keys()) - set(png_files.keys())
+    # Find PNGs without metadata and metadata without PNGs
+    pngs_without_metadata = set(png_files.keys()) - set(metadata_files.keys())
+    metadata_without_png = set(metadata_files.keys()) - set(png_files.keys())
     
     return {
-        'orphaned_pngs': [png_files[stem] for stem in pngs_without_yaml],
-        'orphaned_yamls': [yaml_files[stem] for stem in yamls_without_png],
-        'total_pairs': len(set(png_files.keys()) & set(yaml_files.keys()))
+        'orphaned_pngs': [png_files[stem] for stem in pngs_without_metadata],
+        'orphaned_metadata': [metadata_files[stem] for stem in metadata_without_png],
+        'total_pairs': len(set(png_files.keys()) & set(metadata_files.keys()))
     }
 
 def cleanup_and_verify(directory, recursive=False):
@@ -113,7 +119,7 @@ def cleanup_and_verify(directory, recursive=False):
         print(f"\n🔍 Scanning directory: {directory}")
         results = find_mismatched_files(directory)
     
-    if not results['orphaned_yamls'] and not results['orphaned_pngs']:
+    if not results['orphaned_metadata'] and not results['orphaned_pngs']:
         print("\n✅ All files are already properly paired!")
         print(f"Total pairs: {results['total_pairs']}")
         return
@@ -123,17 +129,17 @@ def cleanup_and_verify(directory, recursive=False):
     print(f"{'='*60}")
     print(f"  • Total paired files: {results['total_pairs']}")
     print(f"  • Orphaned PNG files: {len(results['orphaned_pngs'])}")
-    print(f"  • Orphaned YAML files: {len(results['orphaned_yamls'])}")
+    print(f"  • Orphaned metadata files: {len(results['orphaned_metadata'])}")
     
-    # Show orphaned YAML files
-    if results['orphaned_yamls']:
-        print(f"\n🔸 ORPHANED YAML FILES ({len(results['orphaned_yamls'])}):")
+    # Show orphaned metadata files
+    if results['orphaned_metadata']:
+        print(f"\n🔸 ORPHANED METADATA FILES ({len(results['orphaned_metadata'])}):")
         # Group by directory for better readability
-        yamls_by_dir = defaultdict(list)
-        for f in results['orphaned_yamls']:
-            yamls_by_dir[f.parent].append(f)
+        metadata_by_dir = defaultdict(list)
+        for f in results['orphaned_metadata']:
+            metadata_by_dir[f.parent].append(f)
         
-        for dir_path, files in sorted(yamls_by_dir.items()):
+        for dir_path, files in sorted(metadata_by_dir.items()):
             print(f"  📁 {dir_path}:")
             for f in sorted(files):
                 print(f"    • {f.name}")
@@ -154,7 +160,7 @@ def cleanup_and_verify(directory, recursive=False):
     print(f"\n{'='*60}")
     
     # Ask user what to do
-    total_orphans = len(results['orphaned_yamls']) + len(results['orphaned_pngs'])
+    total_orphans = len(results['orphaned_metadata']) + len(results['orphaned_pngs'])
     while True:
         print(f"\nFound {total_orphans} orphaned files.")
         choice = input("Do you want to move them to trash? (y/n/q): ").lower().strip()
@@ -173,10 +179,10 @@ def cleanup_and_verify(directory, recursive=False):
 
 def perform_cleanup(results):
     """Actually move the orphaned files to trash."""
-    # Move orphaned YAML files to trash
-    if results['orphaned_yamls']:
-        print(f"\n🗑️  Moving {len(results['orphaned_yamls'])} orphaned YAML files to trash:")
-        for f in sorted(results['orphaned_yamls']):
+    # Move orphaned metadata files to trash
+    if results['orphaned_metadata']:
+        print(f"\n🗑️  Moving {len(results['orphaned_metadata'])} orphaned metadata files to trash:")
+        for f in sorted(results['orphaned_metadata']):
             try:
                 send2trash(str(f))
                 print(f"  ✓ {f.name}")
@@ -197,7 +203,7 @@ def perform_cleanup(results):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Clean up orphaned PNG and YAML files',
+        description='Clean up orphaned PNG and metadata files (.yaml/.caption)',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

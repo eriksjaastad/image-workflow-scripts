@@ -69,10 +69,10 @@ class TestRunner:
             
             # Create test data with multiple groups
             result = subprocess.run([
-                sys.executable, "scripts/tests/create_test_data.py", 
+                sys.executable, "create_test_data.py", 
                 "--output", str(test_dir),
                 "--triplets", "10"
-            ], capture_output=True, text=True)
+            ], capture_output=True, text=True, cwd=Path(__file__).parent)
             
             if result.returncode != 0:
                 print(f"Failed to create test data: {result.stderr}")
@@ -80,9 +80,9 @@ class TestRunner:
             
             # Verify that the script finds groups correctly
             result = subprocess.run([
-                sys.executable, "scripts/01_web_image_selector.py",
+                sys.executable, "01_web_image_selector.py",
                 str(test_dir), "--print-triplets"
-            ], capture_output=True, text=True)
+            ], capture_output=True, text=True, cwd=Path(__file__).parent.parent)
             
             if result.returncode != 0:
                 print(f"Failed to run grouping test: {result.stderr}")
@@ -113,10 +113,10 @@ class TestRunner:
             
             # Create specific test pattern to verify stage progression logic
             result = subprocess.run([
-                sys.executable, "scripts/tests/create_test_data.py",
+                sys.executable, "create_test_data.py",
                 "--output", str(test_dir),
                 "--triplets", "5", "--pairs", "2", "--singletons", "1"
-            ], capture_output=True, text=True)
+            ], capture_output=True, text=True, cwd=Path(__file__).parent)
             
             if result.returncode != 0:
                 print(f"Failed to create mixed test data: {result.stderr}")
@@ -124,9 +124,9 @@ class TestRunner:
             
             # Test grouping
             result = subprocess.run([
-                sys.executable, "scripts/01_web_image_selector.py",
+                sys.executable, "01_web_image_selector.py",
                 str(test_dir), "--print-triplets"
-            ], capture_output=True, text=True)
+            ], capture_output=True, text=True, cwd=Path(__file__).parent.parent)
             
             if result.returncode != 0:
                 print(f"Grouping failed: {result.stderr}")
@@ -152,13 +152,13 @@ class TestRunner:
     def test_sequential_singletons_edge_case(self):
         """Test the specific edge case that caused massive 8-13 image rows."""
         # Use the problematic test data we created
-        test_dir = Path("scripts/tests/data/problematic_sequential")
+        test_dir = Path(__file__).parent / "data/problematic_sequential"
         
         if not test_dir.exists():
             # Create the problematic test data
             result = subprocess.run([
-                sys.executable, "scripts/tests/create_problematic_test_data.py"
-            ], capture_output=True, text=True)
+                sys.executable, "create_problematic_test_data.py"
+            ], capture_output=True, text=True, cwd=Path(__file__).parent)
             
             if result.returncode != 0:
                 print(f"Failed to create problematic test data: {result.stderr}")
@@ -166,9 +166,9 @@ class TestRunner:
         
         # Test grouping with the problematic pattern
         result = subprocess.run([
-            sys.executable, "scripts/01_web_image_selector.py",
+            sys.executable, "01_web_image_selector.py",
             str(test_dir), "--print-triplets"
-        ], capture_output=True, text=True)
+        ], capture_output=True, text=True, cwd=Path(__file__).parent.parent)
         
         if result.returncode != 0:
             print(f"Sequential singletons test failed: {result.stderr}")
@@ -200,8 +200,8 @@ class TestRunner:
     def test_ui_integrity(self):
         """Test UI integrity - keyboard bindings, CSS, JavaScript syntax"""
         result = subprocess.run([
-            sys.executable, "scripts/tests/test_ui_simple.py"
-        ], capture_output=True, text=True)
+            sys.executable, "test_ui_simple.py"
+        ], capture_output=True, text=True, cwd=Path(__file__).parent)
         
         if result.returncode != 0:
             print(f"UI integrity test failed: {result.stderr}")
@@ -215,8 +215,8 @@ class TestRunner:
     def test_web_tools_comprehensive(self):
         """Test all web tools with simplified tests (browser automation can be flaky)"""
         result = subprocess.run([
-            sys.executable, "scripts/tests/test_web_tools_simple.py"
-        ], capture_output=True, text=True)
+            sys.executable, "test_web_tools_simple.py"
+        ], capture_output=True, text=True, cwd=Path(__file__).parent)
         
         if result.returncode != 0:
             print(f"Web tools test failed: {result.stderr}")
@@ -234,7 +234,7 @@ class TestRunner:
             
             # Create large test dataset (similar to XXX_CONTENT size)
             result = subprocess.run([
-                sys.executable, "scripts/tests/create_test_data.py",
+                sys.executable, "create_test_data.py",
                 "--output", str(test_dir),
                 "--size", "large"
             ], capture_output=True, text=True)
@@ -246,7 +246,7 @@ class TestRunner:
             # Test that large dataset can be processed
             start_time = time.time()
             result = subprocess.run([
-                sys.executable, "scripts/01_web_image_selector.py",
+                sys.executable, "01_web_image_selector.py",
                 str(test_dir), "--print-triplets"
             ], capture_output=True, text=True, timeout=30)  # 30 second timeout
             
@@ -266,7 +266,7 @@ class TestRunner:
             
             # Create subdirectory test data
             result = subprocess.run([
-                sys.executable, "scripts/tests/create_test_data.py",
+                sys.executable, "create_test_data.py",
                 "--subdirectory-test",
                 "--output", str(test_dir)
             ], capture_output=True, text=True)
@@ -277,9 +277,9 @@ class TestRunner:
             
             # Test recursive scanning
             result = subprocess.run([
-                sys.executable, "scripts/01_web_image_selector.py",
+                sys.executable, "01_web_image_selector.py",
                 str(test_dir), "--print-triplets"
-            ], capture_output=True, text=True)
+            ], capture_output=True, text=True, cwd=Path(__file__).parent.parent)
             
             if result.returncode != 0:
                 print(f"Subdirectory scanning failed: {result.stderr}")
@@ -321,7 +321,7 @@ class TestRunner:
             
             # Create subdirectory test data with random files
             result = subprocess.run([
-                sys.executable, "scripts/tests/create_test_data.py",
+                sys.executable, "create_test_data.py",
                 "--subdirectory-test",
                 "--output", str(test_dir)
             ], capture_output=True, text=True)
@@ -332,9 +332,9 @@ class TestRunner:
             
             # Test that script handles non-standard files gracefully
             result = subprocess.run([
-                sys.executable, "scripts/01_web_image_selector.py",
+                sys.executable, "01_web_image_selector.py",
                 str(test_dir), "--print-triplets"
-            ], capture_output=True, text=True)
+            ], capture_output=True, text=True, cwd=Path(__file__).parent.parent)
             
             if result.returncode != 0:
                 print(f"Script failed when processing non-standard files: {result.stderr}")
@@ -371,10 +371,10 @@ class TestRunner:
             
             # Create test data
             result = subprocess.run([
-                sys.executable, "scripts/tests/create_test_data.py",
+                sys.executable, "create_test_data.py",
                 "--output", str(test_dir),
                 "--triplets", "5"
-            ], capture_output=True, text=True)
+            ], capture_output=True, text=True, cwd=Path(__file__).parent)
             
             if result.returncode != 0:
                 return False
@@ -386,9 +386,9 @@ class TestRunner:
             
             # Run analysis (should not modify files)
             result = subprocess.run([
-                sys.executable, "scripts/01_web_image_selector.py",
+                sys.executable, "01_web_image_selector.py",
                 str(test_dir), "--print-triplets"
-            ], capture_output=True, text=True)
+            ], capture_output=True, text=True, cwd=Path(__file__).parent.parent)
             
             if result.returncode != 0:
                 print(f"Analysis failed: {result.stderr}")
@@ -412,7 +412,7 @@ class TestRunner:
         try:
             # Run the desktop image selector crop test
             result = subprocess.run([
-                sys.executable, "scripts/tests/test_desktop_image_selector_crop.py"
+                sys.executable, "test_desktop_image_selector_crop.py"
             ], capture_output=True, text=True, timeout=60)
             
             if result.returncode == 0:
@@ -436,7 +436,7 @@ class TestRunner:
         try:
             # Run the dashboard test
             result = subprocess.run([
-                sys.executable, "scripts/tests/test_dashboard.py"
+                sys.executable, "test_dashboard.py"
             ], capture_output=True, text=True, timeout=120)  # Longer timeout for server startup
             
             if result.returncode == 0:
@@ -499,7 +499,7 @@ def main():
     # Create test data if requested
     if args.create_data:
         print("\n🔧 Creating test data...")
-        subprocess.run([sys.executable, "scripts/tests/create_test_data.py", "--size", "medium"])
+        subprocess.run([sys.executable, "create_test_data.py", "--size", "medium"], cwd=Path(__file__).parent)
     
     # Always run critical safety tests
     if not runner.run_test("File Safety Test", runner.test_file_safety, critical=True):

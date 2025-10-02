@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Enhanced Multi-Directory Batch Crop Tool - Intelligent Directory Processing
+Multi-Directory Crop Tool - Intelligent Directory Processing
 ===========================================================================
 Process multiple character directories in one continuous session with automatic
 discovery, progress tracking, and session persistence.
@@ -13,11 +13,11 @@ Activate virtual environment first:
 USAGE:
 ------
 Multi-directory mode (NEW):
-  python scripts/04_batch_crop_tool_multi.py selected/
-  python scripts/04_batch_crop_tool_multi.py selected/ --aspect-ratio 16:9
+  python scripts/04_multi_crop_tool.py selected/
+  python scripts/04_multi_crop_tool.py selected/ --aspect-ratio 16:9
 
 Single directory mode (legacy):
-  python scripts/04_batch_crop_tool_multi.py selected/kelly_mia/
+  python scripts/04_multi_crop_tool.py selected/kelly_mia/
 
 FEATURES:
 ---------
@@ -42,7 +42,7 @@ PROGRESS TRACKING:
 WORKFLOW POSITION:
 ------------------
 Step 1: Character Processing → scripts/utils/character_processor.py
-Step 2: Final Cropping → THIS SCRIPT (scripts/04_batch_crop_tool_multi.py)
+Step 2: Final Cropping → THIS SCRIPT (scripts/04_multi_crop_tool.py)
 Step 3: Basic Review → scripts/05_multi_directory_viewer.py
 
 FILE HANDLING:
@@ -57,7 +57,7 @@ Image 1: [1] Delete  [X] Reset crop
 Image 2: [2] Delete  [C] Reset crop  
 Image 3: [3] Delete  [V] Reset crop
 
-Global: [Enter] Submit Batch  [Space] Toggle Aspect Ratio  [Q] Quit
+Global: [Enter] Submit Batch  [Q] Quit
         [N] Next Directory  [P] Previous Directory  [←] Previous Batch
 """
 
@@ -68,33 +68,13 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-# Set matplotlib backend before importing pyplot
-import matplotlib
-matplotlib.rcParams['toolbar'] = 'None'
-
-try:
-    matplotlib.use('Qt5Agg', force=True)
-    print("[*] Using Qt5Agg backend (PyQt5) - full interactivity available")
-    backend_interactive = True
-except Exception as e:
-    print(f"[!] Qt5Agg backend failed: {e}")
-    matplotlib.use('Agg', force=True)
-    print("[!] Using Agg backend - limited interactivity")
-    backend_interactive = False
-
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from matplotlib.widgets import RectangleSelector
 from PIL import Image
 import numpy as np
-import os
-import shutil
-from send2trash import send2trash
 
 # Add the project root to the path for importing
 sys.path.append(str(Path(__file__).parent.parent))
-from scripts.file_tracker import FileTracker
-from utils.activity_timer import ActivityTimer
+from utils.base_desktop_image_tool import BaseDesktopImageTool
 
 
 class MultiDirectoryProgressTracker:
@@ -269,7 +249,7 @@ class MultiDirectoryProgressTracker:
             print(f"[*] Resuming in directory: {progress['current_directory']}")
             print(f"[*] Files remaining in this directory: {progress['files_remaining']}")
             print(f"[*] Directories remaining after this: {progress['directories_remaining']}")
-        
+    
     def cleanup_completed_session(self):
         """Remove progress file when session is complete."""
         try:
@@ -280,18 +260,12 @@ class MultiDirectoryProgressTracker:
             print(f"[!] Error cleaning up progress file: {e}")
 
 
-class MultiDirectoryBatchCropTool:
-    """Enhanced batch crop tool with multi-directory support."""
+class MultiCropTool(BaseDesktopImageTool):
+    """Multi-directory crop tool - inherits from BaseDesktopImageTool."""
     
     def __init__(self, directory, aspect_ratio=None):
-        self.base_directory = Path(directory)
-        self.aspect_ratio = self._parse_aspect_ratio(aspect_ratio) if aspect_ratio else None
-        self.aspect_ratio_locked = True
-        self.tracker = FileTracker("multi_batch_crop_tool")
-        
-        # Initialize activity timer
-        self.activity_timer = ActivityTimer("04_batch_crop_tool_multi")
-        self.activity_timer.start_session()
+        """Initialize multi-directory crop tool."""
+        super().__init__(directory, aspect_ratio, "multi_crop_tool")
         
         # Initialize progress tracker
         self.progress_tracker = MultiDirectoryProgressTracker(self.base_directory)
@@ -351,20 +325,8 @@ class MultiDirectoryBatchCropTool:
             print(f"[DEBUG] Files available: {len(self.png_files)}")
             print(f"[DEBUG] Total batches: {self.total_batches}")
         
-        # State for current batch of 3 images
-        self.current_images = []
-        self.image_states = []  # List of dicts with crop coords, action, etc.
-        self.selectors = []
-        self.axes = []
-        self.has_pending_changes = False
-        self.quit_confirmed = False
-        self.previous_batch_confirmed = False
-        
-        # No longer using a separate cropped directory - files stay in place
-        
-        # Setup matplotlib
-        self.fig = None
-        self.setup_display()
+        # Load first batch
+        self.load_batch()
     
     def _is_single_directory_mode(self) -> bool:
         """Determine if we're processing a single directory or multiple directories."""
@@ -380,59 +342,6 @@ class MultiDirectoryBatchCropTool:
         )
         
         return not has_subdirs_with_images
-    
-    def _parse_aspect_ratio(self, ratio_str: str) -> float:
-        """Parse aspect ratio string like '16:9' into float."""
-        try:
-            if ':' in ratio_str:
-                width, height = map(float, ratio_str.split(':'))
-                return width / height
-            else:
-                return float(ratio_str)
-        except:
-            print(f"⚠️  Invalid aspect ratio: {ratio_str}. Using original image ratio.")
-            return None
-    
-    def setup_display(self):
-        """Setup the matplotlib figure with 3 subplots optimized for screen space"""
-        if self.fig:
-            plt.close(self.fig)
-            
-        # Get screen dimensions and calculate optimal figure size
-        try:
-            import tkinter as tk
-            root = tk.Tk()
-            screen_width = root.winfo_screenwidth()
-            screen_height = root.winfo_screenheight()
-            root.destroy()
-        except ImportError:
-            screen_width = 1920
-            screen_height = 1080
-        
-        # Calculate optimal figure size
-        max_width = screen_width * 0.9 / 100
-        max_height = (screen_height * 0.85) / 100
-        
-        # Create figure with optimized dimensions
-        self.fig, self.axes = plt.subplots(1, 3, figsize=(max_width, max_height))
-        self.fig.suptitle("", fontsize=14, y=0.98)
-        
-        # Hide the matplotlib toolbar completely
-        try:
-            self.fig.canvas.toolbar_visible = False
-            if hasattr(self.fig.canvas, 'toolbar'):
-                self.fig.canvas.toolbar = None
-        except:
-            pass
-        
-        # Minimize spacing between subplots
-        self.fig.subplots_adjust(left=0.01, right=0.99, top=0.96, bottom=0.04, wspace=0.03)
-        
-        # Connect keyboard events
-        self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
-        
-        # Initialize selectors list
-        self.selectors = [None, None, None]
     
     def load_batch(self):
         """Load the current batch of up to 3 images"""
@@ -451,124 +360,28 @@ class MultiDirectoryBatchCropTool:
         for i, file_path in enumerate(batch_files):
             print(f"  Image {i+1}: {file_path.name}")
         
+        # Reset state for new batch
         self.current_images = []
         self.image_states = []
-        
-        # Reset flags for new batch
-        self.has_pending_changes = False
-        self.quit_confirmed = False
-        self.previous_batch_confirmed = False
-        
-        # Clear previous selectors
-        for selector in self.selectors:
-            if selector:
-                selector.set_active(False)
-        self.selectors = [None, None, None]
+        self.reset_batch_flags()
+        self.clear_selectors()
         
         # Load and display each image
         for i, png_path in enumerate(batch_files):
-            try:
-                # Load image
-                img = Image.open(png_path)
-                img_array = np.array(img)
-                
-                self.current_images.append({
-                    'path': png_path,
-                    'image': img_array,
-                    'original_size': img.size
-                })
-                
-                # Calculate this image's aspect ratio
-                img_width, img_height = img.size
-                image_aspect_ratio = img_width / img_height
-                
-                # Initialize state for this image
-                self.image_states.append({
-                    'action': None,  # 'skip', 'delete', or None (crop)
-                    'crop_coords': None,
-                    'has_selection': False,
-                    'image_aspect_ratio': image_aspect_ratio
-                })
-                
-                # Display image
-                ax = self.axes[i]
-                ax.clear()
-                ax.imshow(img_array, aspect='equal')
-                ax.set_title(f"Image {i+1}", fontsize=12)
-                ax.set_xticks([])
-                ax.set_yticks([])
-                
-                # Remove axis spines
-                for spine in ax.spines.values():
-                    spine.set_visible(False)
-                ax.margins(0)
-                
-                # Create RectangleSelector
-                selector = RectangleSelector(
-                    ax, 
-                    lambda eclick, erelease, idx=i: self.on_crop_select(eclick, erelease, idx),
-                    useblit=True,
-                    button=[1],
-                    minspanx=5, minspany=5,
-                    spancoords='pixels',
-                    interactive=True,
-                    props=dict(facecolor='none', edgecolor='red', linewidth=2),
-                    drag_from_anywhere=False,
-                    use_data_coordinates=False,
-                    grab_range=120,
-                    handle_props=dict(markersize=48, markerfacecolor='none', markeredgecolor='red', markeredgewidth=3)
-                )
-                
-                self.selectors[i] = selector
-                
-                # Set initial crop selection to full image
-                selector.extents = (0, img_width, 0, img_height)
-                
-                # Initialize the crop coordinates
-                self.image_states[i]['crop_coords'] = (0, 0, img_width, img_height)
-                self.image_states[i]['has_selection'] = True
-                
-                # Update title
-                aspect_str = f" [{image_aspect_ratio:.2f}:1]" if self.aspect_ratio_locked else ""
-                self.axes[i].set_title(f"Image {i+1}: {img_width}×{img_height}{aspect_str} [Full Image]", 
-                                     fontsize=10, color='green')
-                
-            except Exception as e:
-                print(f"Error loading {png_path}: {e}")
-                # Add placeholder for failed image to maintain index consistency
-                self.current_images.append({
-                    'path': png_path,
-                    'image': None,
-                    'original_size': (0, 0),
-                    'load_error': str(e)
-                })
-                
-                # Initialize state for failed image
-                self.image_states.append({
-                    'action': 'skip',  # Auto-skip failed images
-                    'crop_coords': None,
-                    'has_selection': False,
-                    'image_aspect_ratio': 1.0,
-                    'load_failed': True
-                })
-                
-                # Show error in the subplot
-                ax = self.axes[i]
-                ax.clear()
-                ax.text(0.5, 0.5, f'LOAD ERROR\n{png_path.name}\n{str(e)}', 
-                       ha='center', va='center', fontsize=10, color='red',
-                       transform=ax.transAxes, bbox=dict(boxstyle="round,pad=0.3", facecolor="yellow", alpha=0.7))
-                ax.set_title(f"Image {i+1}: LOAD ERROR", fontsize=10, color='red')
-                ax.set_xticks([])
-                ax.set_yticks([])
+            success = self.load_image_safely(png_path, i)
+            if not success:
+                continue
+        
+        # Set default status to 'selected' for multi crop tool (keep all unless specifically deleted)
+        for i in range(len(self.image_states)):
+            self.image_states[i]['status'] = 'selected'
         
         # Hide unused subplots
-        for i in range(len(batch_files), 3):
-            self.axes[i].clear()
-            self.axes[i].set_visible(False)
+        self.hide_unused_subplots(len(batch_files))
         
         # Update title with progress information
         self.update_title()
+        self.update_image_titles(self.image_states)
         self.update_control_labels()
         
         plt.tight_layout(rect=[0, 0.02, 1, 0.98])
@@ -579,8 +392,7 @@ class MultiDirectoryBatchCropTool:
         if self.single_directory_mode:
             # Single directory mode - original behavior
             remaining_images = len(self.png_files) - (self.current_batch * 3)
-            lock_str = "🔒" if self.aspect_ratio_locked else "🔓"
-            aspect_info = f" • [{lock_str} Space] Aspect Ratio" if self.aspect_ratio else ""
+            aspect_info = f" • [🔒 LOCKED] Aspect Ratio" if self.aspect_ratio else ""
             # Debug: Show first filename to verify position
             first_file = self.png_files[self.progress_tracker.current_file_index] if self.progress_tracker.current_file_index < len(self.png_files) else None
             filename_debug = f" • DEBUG: {first_file.name[:25]}..." if first_file else " • DEBUG: N/A"
@@ -588,8 +400,7 @@ class MultiDirectoryBatchCropTool:
         else:
             # Multi-directory mode - enhanced progress display
             progress = self.progress_tracker.get_progress_info()
-            lock_str = "🔒" if self.aspect_ratio_locked else "🔓"
-            aspect_info = f" • [{lock_str} Space] Aspect" if self.aspect_ratio else ""
+            aspect_info = f" • [🔒 LOCKED] Aspect" if self.aspect_ratio else ""
             
             dir_info = f"📁 {progress['current_directory']} • {progress['files_remaining']} files remaining"
             batch_info = f"Batch {self.current_batch + 1}/{self.total_batches}"
@@ -601,118 +412,47 @@ class MultiDirectoryBatchCropTool:
             title = f"{dir_info} • {batch_info} • {dirs_info} • [1,2,3] Delete • [Enter] Submit • [Q] Quit{aspect_info}"
         
         self.fig.suptitle(title, fontsize=12, y=0.98)
+        self.fig.canvas.draw_idle()
     
     def update_control_labels(self):
         """Update the control labels below each image"""
-        controls = [
-            "[1] Delete  [X] Reset",
-            "[2] Delete  [C] Reset", 
-            "[3] Delete  [V] Reset"
-        ]
+        reset_keys = ['X', 'C', 'V']
         
-        for i, (ax, control_text) in enumerate(zip(self.axes, controls)):
+        for i, ax in enumerate(self.axes):
             if i < len(self.current_images):
+                reset_key = reset_keys[i] if i < len(reset_keys) else 'R'
+                
+                # Get image filename and trim it
+                image_path = self.current_images[i]['path']
+                filename = image_path.stem  # Remove extension
+                
+                # Trim timestamp from beginning if it's too long (first 14 chars are usually timestamp)
+                if len(filename) > 20 and filename[:14].replace('_', '').isdigit():
+                    display_name = filename[14:]  # Remove timestamp
+                else:
+                    display_name = filename
+                
+                # Limit display name length
+                if len(display_name) > 25:
+                    display_name = display_name[:22] + "..."
+                
+                status = self.image_states[i].get('status', 'selected')
+                if status == 'selected':
+                    control_text = f"{display_name} • [{i+1}] ✓ KEEP  [{reset_key}] Reset"
+                else:
+                    control_text = f"{display_name} • [{i+1}] DELETE  [{reset_key}] Reset"
                 ax.set_xlabel(control_text, fontsize=10)
     
-    def on_crop_select(self, eclick, erelease, image_idx):
-        """Handle crop rectangle selection for a specific image"""
-        self.activity_timer.mark_activity()
-        if image_idx >= len(self.current_images):
-            return
-            
-        # Skip crop selection for failed images
-        if self.current_images[image_idx].get('image') is None:
-            print(f"Cannot crop image {image_idx + 1}: Load failed")
-            return
-            
-        # Get crop coordinates
-        x1, y1 = int(eclick.xdata), int(eclick.ydata)
-        x2, y2 = int(erelease.xdata), int(erelease.ydata)
-        
-        # Ensure proper ordering
-        x1, x2 = min(x1, x2), max(x1, x2)
-        y1, y2 = min(y1, y2), max(y1, y2)
-        
-        # Apply aspect ratio constraint if locked
-        active_aspect_ratio = self.aspect_ratio if self.aspect_ratio else self.image_states[image_idx]['image_aspect_ratio']
-        
-        if self.aspect_ratio_locked and active_aspect_ratio:
-            sel_width = x2 - x1
-            sel_height = y2 - y1
-            
-            if sel_width > 0 and sel_height > 0:
-                target_height_from_width = sel_width / active_aspect_ratio
-                target_width_from_height = sel_height * active_aspect_ratio
-                
-                if target_height_from_width <= sel_height:
-                    new_height = target_height_from_width
-                    height_diff = sel_height - new_height
-                    y1 += height_diff / 2
-                    y2 = y1 + new_height
-                else:
-                    new_width = target_width_from_height
-                    width_diff = sel_width - new_width
-                    x1 += width_diff / 2
-                    x2 = x1 + new_width
-                
-                x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
-                self.selectors[image_idx].extents = (x1, x2, y1, y2)
-                plt.draw()
-        
-        # Store crop coordinates
-        self.image_states[image_idx]['crop_coords'] = (x1, y1, x2, y2)
-        self.image_states[image_idx]['has_selection'] = True
-        self.image_states[image_idx]['action'] = None
-        self.has_pending_changes = True
-        
-        # Update title
-        crop_width = x2 - x1
-        crop_height = y2 - y1
-        crop_aspect = crop_width/crop_height if crop_height > 0 else 0
-        aspect_str = f" ({crop_aspect:.2f}:1)" if crop_height > 0 else ""
-        
-        if self.aspect_ratio_locked:
-            ratio_source = f"Global {self.aspect_ratio:.2f}:1" if self.aspect_ratio else f"Original {active_aspect_ratio:.2f}:1"
-            lock_str = f" [🔒 {ratio_source}]"
-        else:
-            lock_str = " [🔓 Free]"
-        
-        self.axes[image_idx].set_title(f"Image {image_idx + 1}: {crop_width}×{crop_height}{aspect_str}{lock_str}", 
-                                       fontsize=10, color='green')
-        plt.draw()
-    
-    def on_key_press(self, event):
-        """Handle keyboard input"""
-        self.activity_timer.mark_activity()
-        key = event.key.lower()
-        
-        # Arrow key detection confirmed working
-        
-        # Global controls
-        if key == 'q':
-            self.quit()
-            return
-        elif key == 'escape':
-            self.quit()
-            return
-        elif key == 'enter':
-            self.submit_batch()
-            return
-        elif key == ' ':
-            self.aspect_ratio_locked = not self.aspect_ratio_locked
-            lock_str = "🔒 locked" if self.aspect_ratio_locked else "🔓 unlocked"
-            print(f"Aspect ratio {lock_str}")
-            return
-        elif key == 'n' and not self.single_directory_mode:
+    def handle_specific_keys(self, key: str):
+        """Handle tool-specific keys."""
+        # Directory navigation (multi-directory mode only)
+        if key == 'n' and not self.single_directory_mode:
             self.next_directory()
             return
         elif key == 'p' and not self.single_directory_mode:
             self.previous_directory()
             return
-        elif key in ['left', 'arrow_left', 'leftarrow'] or key == 'b':
-            self.previous_batch()
-            return
-            
+        
         # Image-specific controls
         image_actions = {
             '1': (0, 'delete'), 'x': (0, 'reset'),
@@ -728,6 +468,27 @@ class MultiDirectoryBatchCropTool:
                     self.reset_image_crop(image_idx)
                 else:
                     self.set_image_action(image_idx, action)
+    
+    def set_image_action(self, image_idx, action):
+        """Toggle between selected and delete for a specific image"""
+        if image_idx >= len(self.current_images):
+            return
+            
+        # Toggle between selected and delete
+        current_status = self.image_states[image_idx].get('status', 'selected')
+        if current_status == 'selected':
+            self.image_states[image_idx]['status'] = 'delete'
+            print(f"[*] Image {image_idx + 1} marked for deletion")
+        else:
+            self.image_states[image_idx]['status'] = 'selected'
+            print(f"[*] Image {image_idx + 1} marked to keep")
+            
+        self.has_pending_changes = True
+        
+        # Update display
+        self.update_image_titles(self.image_states)
+        self.update_control_labels()
+        self.fig.canvas.draw_idle()
     
     def next_directory(self):
         """Move to next directory (multi-directory mode only)."""
@@ -762,7 +523,7 @@ class MultiDirectoryBatchCropTool:
         self.total_batches = (len(self.png_files) + 2) // 3
         self.load_batch()
     
-    def previous_batch(self):
+    def go_back(self):
         """Go back to the previous batch within the current directory"""
         # Check if we can go back (need at least 3 files back)
         if self.progress_tracker.current_file_index < 3:
@@ -793,55 +554,12 @@ class MultiDirectoryBatchCropTool:
         self.load_batch()
         print(f"Moved back to batch {self.current_batch + 1}/{self.total_batches}")
     
-    def reset_image_crop(self, image_idx):
-        """Reset the crop selection for a specific image back to full image"""
-        if image_idx >= len(self.current_images):
-            return
-            
-        image_info = self.current_images[image_idx]
-        
-        # Skip reset for failed images
-        if image_info.get('image') is None:
-            print(f"Cannot reset image {image_idx + 1}: Load failed")
-            return
-            
-        img = Image.open(image_info['path'])
-        img_width, img_height = img.size
-        
-        if self.selectors[image_idx]:
-            self.selectors[image_idx].extents = (0, img_width, 0, img_height)
-            
-        self.image_states[image_idx]['crop_coords'] = (0, 0, img_width, img_height)
-        self.image_states[image_idx]['has_selection'] = True
-        self.image_states[image_idx]['action'] = None
-        
-        image_aspect_ratio = self.image_states[image_idx]['image_aspect_ratio']
-        aspect_str = f" [{image_aspect_ratio:.2f}:1]" if self.aspect_ratio_locked else ""
-        self.axes[image_idx].set_title(f"Image {image_idx + 1}: {img_width}×{img_height}{aspect_str} [RESET TO FULL]", 
-                                       fontsize=10, color='green')
-        plt.draw()
-    
-    def set_image_action(self, image_idx, action):
-        """Set action (skip/delete) for a specific image"""
-        if image_idx >= len(self.current_images):
-            return
-            
-        self.image_states[image_idx]['action'] = action
-        self.has_pending_changes = True
-        
-        color = 'orange' if action == 'skip' else 'red'
-        action_text = action.upper()
-        
-        self.axes[image_idx].set_title(f"Image {image_idx + 1} [{action_text}]", 
-                                       fontsize=12, color=color)
-        plt.draw()
-    
     def submit_batch(self):
         """Process all images in the current batch"""
         if not self.current_images:
             return
             
-        self.activity_timer.mark_batch(f"Crop batch {self.current_batch + 1}")
+        self.activity_timer.mark_batch(f"Crop group {self.current_batch + 1}")
         self.activity_timer.mark_activity()
             
         print(f"\nProcessing batch {self.current_batch + 1}...")
@@ -877,6 +595,11 @@ class MultiDirectoryBatchCropTool:
         # Update progress tracking
         if not self.single_directory_mode:
             self.progress_tracker.advance_file(processed_count)
+        else:
+            # In single directory mode, advance both batch counter and progress tracker
+            self.current_batch += 1
+            # Also update progress tracker since load_batch uses it as source of truth
+            self.progress_tracker.current_file_index = self.current_batch * 3
         
         self.activity_timer.end_batch(f"Completed {processed_count} operations")
         
@@ -890,67 +613,6 @@ class MultiDirectoryBatchCropTool:
         else:
             self.show_completion()
     
-    def crop_and_save(self, image_info, crop_coords):
-        """Crop image and save over the original file in place"""
-        png_path = image_info['path']
-        yaml_path = png_path.with_suffix('.yaml')
-        
-        x1, y1, x2, y2 = crop_coords
-        
-        # Load and crop image
-        img = Image.open(png_path)
-        cropped_img = img.crop((x1, y1, x2, y2))
-        
-        # Save over the original file (in place)
-        cropped_img.save(png_path)
-        
-        # YAML file stays unchanged in the same directory
-        
-        # Log the operation
-        self.tracker.log_operation(
-            "crop", str(png_path.parent), str(png_path.parent), 1,
-            f"Cropped in place to ({x1},{y1},{x2},{y2})", 
-            [png_path.name]
-        )
-        
-        self.activity_timer.log_operation("crop", file_count=1)
-        
-        print(f"Cropped and saved in place: {png_path.name}")
-    
-    def move_to_cropped(self, png_path, yaml_path, reason):
-        """Mark files as processed (skipped) but leave them in original directory"""
-        # Files stay in place - no actual moving
-        
-        file_count = 2 if yaml_path.exists() else 1
-        files = [png_path.name, yaml_path.name] if yaml_path.exists() else [png_path.name]
-        
-        self.tracker.log_operation(
-            "skip", str(png_path.parent), str(png_path.parent), file_count,
-            f"Image {reason} (left in place)", files
-        )
-        
-        self.activity_timer.log_operation("skip", file_count=1)
-        print(f"Skipped (left in place): {png_path.name} ({reason})")
-    
-    def safe_delete(self, png_path, yaml_path):
-        """Safely delete image files"""
-        files_deleted = []
-        
-        send2trash(str(png_path))
-        files_deleted.append(png_path.name)
-        
-        if yaml_path.exists():
-            send2trash(str(yaml_path))
-            files_deleted.append(yaml_path.name)
-            
-        self.tracker.log_operation(
-            "delete", str(png_path.parent), "trash", len(files_deleted),
-            "Image deleted", files_deleted
-        )
-        
-        self.activity_timer.log_operation("delete", file_count=1)
-        print(f"Deleted: {png_path.name}")
-    
     def has_next_batch(self):
         """Check if there are more batches to process in current directory"""
         next_start = (self.current_batch + 1) * 3
@@ -963,43 +625,23 @@ class MultiDirectoryBatchCropTool:
         if not self.single_directory_mode:
             self.progress_tracker.cleanup_completed_session()
         
-        plt.text(0.5, 0.5, "🎉 All images processed!\n\nBatch cropping complete.", 
+        plt.text(0.5, 0.5, "🎉 All images processed!\n\nMulti-directory cropping complete.", 
                  ha='center', va='center', fontsize=20, 
                  bbox=dict(boxstyle="round,pad=1", facecolor="lightgreen"))
         plt.axis('off')
-        plt.title("Multi-Directory Batch Crop Tool - Complete", fontsize=16)
+        plt.title("Multi-Directory Crop Tool - Complete", fontsize=16)
         plt.draw()
         
-        print("\n🎉 All images processed! Multi-directory batch cropping complete.")
-    
-    def quit(self):
-        """Quit the application"""
-        if self.has_pending_changes and not self.quit_confirmed:
-            print("\n⚠️  WARNING: You have uncommitted changes!")
-            print("   - You've made crop selections or set actions (skip/delete)")
-            print("   - These changes will be LOST if you quit now")
-            print("   - Press [Enter] to commit changes, or [Q] again to quit anyway")
-            self.quit_confirmed = True
-            return
-            
-        print("Quitting multi-directory batch crop tool...")
-        
-        if not self.single_directory_mode:
-            print(f"[*] Progress saved to: {self.progress_tracker.progress_file}")
-            print("[*] Resume by running the same command again")
-        
-        self.activity_timer.end_session()
-        plt.close('all')
-        sys.exit(0)
+        print("\n🎉 All images processed! Multi-directory cropping complete.")
     
     def run(self):
         """Main execution loop"""
         if self.single_directory_mode:
-            print(f"Starting single directory batch crop tool on {self.base_directory}")
+            print(f"Starting single directory multi crop tool on {self.base_directory}")
             print(f"Found {len(self.png_files)} images")
         else:
             progress = self.progress_tracker.get_progress_info()
-            print(f"Starting multi-directory batch crop tool on {self.base_directory}")
+            print(f"Starting multi-directory multi crop tool on {self.base_directory}")
             print(f"Directory {progress['directory_index']} of {progress['total_directories']}: {progress['current_directory']}")
             print(f"Files remaining in this directory: {progress['files_remaining']}")
             print(f"Directories remaining after this: {progress['directories_remaining']}")
@@ -1009,7 +651,7 @@ class MultiDirectoryBatchCropTool:
         print("  Image 1: [1] Delete  [X] Reset")
         print("  Image 2: [2] Delete  [C] Reset") 
         print("  Image 3: [3] Delete  [V] Reset")
-        print("  Global:  [Enter] Submit Batch  [Space] Toggle Aspect Ratio  [Q] Quit")
+        print("  Global:  [Enter] Submit Batch  [Q] Quit")
         print("  Navigation: [←] Previous Batch")
         
         if not self.single_directory_mode:
@@ -1019,12 +661,8 @@ class MultiDirectoryBatchCropTool:
             print(f"\n📐 Global aspect ratio override enabled: {self.aspect_ratio:.2f}:1 (locked by default)")
         else:
             print("\n📐 Using each image's natural aspect ratio (locked by default)")
-            print("   Use [Space] to toggle aspect ratio lock on/off")
             
         print("\nStarting first batch...\n")
-        
-        # Load first batch
-        self.load_batch()
         
         # Show the plot
         plt.show()
@@ -1032,18 +670,18 @@ class MultiDirectoryBatchCropTool:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Enhanced Multi-Directory Batch Crop Tool - Process multiple character directories with session persistence",
+        description="Multi-Directory Crop Tool - Process multiple character directories with session persistence",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   # Multi-directory mode (auto-discover subdirectories)
-  python scripts/04_batch_crop_tool_multi.py selected/
+  python scripts/04_multi_crop_tool.py selected/
   
   # Single directory mode (process one directory)
-  python scripts/04_batch_crop_tool_multi.py selected/kelly_mia/
+  python scripts/04_multi_crop_tool.py selected/kelly_mia/
   
   # With aspect ratio constraint
-  python scripts/04_batch_crop_tool_multi.py selected/ --aspect-ratio 16:9
+  python scripts/04_multi_crop_tool.py selected/ --aspect-ratio 16:9
 
 Session Persistence:
   Progress is automatically saved to scripts/crop_progress/
@@ -1066,7 +704,7 @@ Session Persistence:
         sys.exit(1)
     
     try:
-        tool = MultiDirectoryBatchCropTool(directory, args.aspect_ratio)
+        tool = MultiCropTool(directory, args.aspect_ratio)
         tool.run()
     except Exception as e:
         print(f"Error: {e}")
