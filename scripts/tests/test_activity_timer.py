@@ -311,7 +311,7 @@ class TestTimerReporter(unittest.TestCase):
         reporter.data_dir = self.test_dir / "timer_data"
         
         # Mock datetime to control "today"
-        with patch('util_activity_timer.datetime') as mock_datetime:
+        with patch('scripts.utils.activity_timer.datetime') as mock_datetime:
             mock_datetime.now.return_value.strftime.return_value = "20250924"
             mock_datetime.now.return_value.__sub__ = lambda self, other: MagicMock(strftime=lambda fmt: "20250923")
             

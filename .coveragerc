@@ -1,0 +1,26 @@
+[run]
+source = scripts
+omit = 
+    scripts/tests/*
+    scripts/__pycache__/*
+    scripts/utils/__pycache__/*
+    scripts/dashboard/__pycache__/*
+    */site-packages/*
+    */venv/*
+    */.venv/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if self.debug:
+    if settings.DEBUG
+    raise AssertionError
+    raise NotImplementedError
+    if 0:
+    if __name__ == .__main__.:
+    class .*\bProtocol\):
+    @(abc\.)?abstractmethod
+
+[html]
+directory = scripts/tests/htmlcov

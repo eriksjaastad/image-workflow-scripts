@@ -219,7 +219,7 @@ class TripletProgressTracker:
             'current_triplet': current_triplet.display_name,
             'total_triplets': len(self.triplets)
         }
-    
+        
     def cleanup_completed_session(self):
         """Remove progress file when session is complete."""
         try:
@@ -334,7 +334,7 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
                 
                 if status == 'selected':
                     control_text = f"{display_name} • [{i+1}] ✓ KEEP  [{reset_key}] Reset"
-                else:
+        else:
                     control_text = f"{display_name} • [{i+1}] DELETE  [{reset_key}] Reset"
                 ax.set_xlabel(control_text, fontsize=10)
     
@@ -403,13 +403,13 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
             ax = self.axes[i]
             status = state.get('status', 'delete')
             
-            if status == 'selected':
+                if status == 'selected':
                 # Green border for selected image
                 for spine in ax.spines.values():
                     spine.set_visible(True)
                     spine.set_color('green')
                     spine.set_linewidth(3)
-            else:
+                else:
                 # No border for unselected images
                 for spine in ax.spines.values():
                     spine.set_visible(False)
@@ -421,11 +421,11 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
         for i, state in enumerate(self.image_states):
             state['status'] = 'delete'
             state['action'] = None
-            
-            # Reset the visual crop rectangle
-            if i < len(self.selectors) and self.selectors[i]:
+                
+                # Reset the visual crop rectangle
+                if i < len(self.selectors) and self.selectors[i]:
                 img_width, img_height = self.current_images[i]['original_size']
-                self.selectors[i].extents = (0, img_width, 0, img_height)
+                    self.selectors[i].extents = (0, img_width, 0, img_height)
         
         # Update display
         self.update_visual_feedback()
@@ -468,7 +468,7 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
         """Process current triplet - crop selected image, delete others."""
         if not self.current_images:
             return
-            
+        
         self.activity_timer.mark_batch(f"Triplet {self.progress_tracker.current_triplet_index + 1}")
         self.activity_timer.mark_activity()
         
@@ -488,8 +488,8 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
             self.progress_tracker.advance_triplet()
             if self.progress_tracker.has_more_triplets():
                 self.load_current_triplet()
-            else:
-                self.show_completion()
+        else:
+            self.show_completion()
             return
         
         # Process each image
@@ -558,7 +558,7 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
     def show_completion(self):
         """Show completion message."""
         plt.clf()
-        self.progress_tracker.cleanup_completed_session()
+            self.progress_tracker.cleanup_completed_session()
         
         plt.text(0.5, 0.5, "🎉 All triplets processed!\n\nImage selection and cropping complete.", 
                  ha='center', va='center', fontsize=20, 
