@@ -20,11 +20,7 @@ from pathlib import Path
 import re
 from send2trash import send2trash
 
-def extract_base_timestamp(filename):
-    """Extract the base timestamp from a filename (without stage suffix)."""
-    # Match pattern like 20250726_010033
-    match = re.match(r'(\d{8}_\d{6})', filename)
-    return match.group(1) if match else None
+from utils.companion_file_utils import extract_base_timestamp
 
 def build_completed_database(completed_dir):
     """Build a set of all base timestamps from completed work."""

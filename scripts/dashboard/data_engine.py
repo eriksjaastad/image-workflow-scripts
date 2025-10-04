@@ -19,6 +19,13 @@ import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
+import sys
+
+# Add the project root to Python path for imports
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from scripts.utils.companion_file_utils import calculate_work_time_from_file_operations, get_file_operation_metrics
 from collections import defaultdict
 
 class DashboardDataEngine:
@@ -32,6 +39,32 @@ class DashboardDataEngine:
         
         # Cache for processed data
         self._cache = {}
+        
+    def get_display_name(self, script_name: str) -> str:
+        """Convert script filename to human-readable display name"""
+        display_names = {
+            # Current script names
+            '01_web_image_selector': 'Web Image Selector',
+            '01_desktop_image_selector_crop': 'Desktop Image Selector Crop',
+            '02_web_character_sorter': 'Web Character Sorter',
+            '03_web_character_sorter': 'Web Character Sorter',
+            '04_multi_crop_tool': 'Multi Crop Tool',
+            '04_batch_crop_tool': 'Multi Crop Tool',
+            '05_web_multi_directory_viewer': 'Multi Directory Viewer',
+            '06_web_duplicate_finder': 'Duplicate Finder',
+            
+            # Log script names (from actual data)
+            'desktop_image_selector_crop': 'Desktop Image Selector Crop',
+            'character_sorter': 'Character Sorter',
+            'multi_directory_viewer': 'Multi Directory Viewer',
+            'image_version_selector': 'Web Image Selector',
+            'multi_batch_crop_tool': 'Multi Crop Tool',
+            
+            # Legacy names
+            'batch_crop_tool': 'Multi Crop Tool'
+        }
+        
+        return display_names.get(script_name, script_name.replace('_', ' ').title())
         
     def discover_scripts(self) -> List[str]:
         """Dynamically discover all scripts that have generated data"""
@@ -112,14 +145,196 @@ class DashboardDataEngine:
         
         return records
     
+    def calculate_file_operation_work_time(self, file_operations: List[Dict], break_threshold_minutes: int = 5) -> Dict[str, Any]:
+        """
+        Calculate work time from file operations using intelligent break detection.
+        
+        This method is used for file-heavy tools that no longer use ActivityTimer.
+        It analyzes FileTracker logs to determine actual work time.
+        
+        Args:
+            file_operations: List of file operation dictionaries from FileTracker
+            break_threshold_minutes: Minutes of inactivity considered a break (default: 5)
+            
+        Returns:
+            Dictionary with work time metrics
+        """
+        if not file_operations:
+            return {
+                'work_time_seconds': 0.0,
+                'work_time_minutes': 0.0,
+                'total_operations': 0,
+                'files_processed': 0,
+                'efficiency_score': 0.0,
+                'timing_method': 'file_operations'
+            }
+        
+        # Use the centralized function from companion_file_utils
+        metrics = get_file_operation_metrics(file_operations)
+        
+        # Add timing method identifier
+        metrics['timing_method'] = 'file_operations'
+        
+        return metrics
+    
+    def get_combined_timing_data(self, script_name: str, date: str) -> Dict[str, Any]:
+        """
+        Get combined timing data for a script on a specific date.
+        
+        For file-heavy tools, uses file-operation timing.
+        For scroll-heavy tools, uses ActivityTimer data.
+        
+        Args:
+            script_name: Name of the script
+            date: Date string (YYYYMMDD format)
+            
+        Returns:
+            Dictionary with combined timing data
+        """
+        # Define which tools use which timing method
+        file_heavy_tools = {
+            '01_web_image_selector',
+            '01_desktop_image_selector_crop', 
+            '02_web_character_sorter',
+            '04_multi_crop_tool'
+        }
+        
+        scroll_heavy_tools = {
+            '05_web_multi_directory_viewer',
+            '06_web_duplicate_finder'
+        }
+        
+        # Get file operations for this script and date
+        file_ops = self.load_file_operations(date, date)
+        script_file_ops = [op for op in file_ops if op.get('script') == script_name]
+        
+        if script_name in file_heavy_tools:
+            # Use file-operation timing
+            return self.calculate_file_operation_work_time(script_file_ops)
+        elif script_name in scroll_heavy_tools:
+            # Use ActivityTimer data
+            timer_data = self.load_activity_data(date, date)
+            script_timer_data = [t for t in timer_data if t.get('script') == script_name]
+            
+            if script_timer_data:
+                # Calculate total work time from timer data
+                total_work_time = sum(session.get('active_time', 0) for session in script_timer_data)
+                total_files = sum(session.get('files_processed', 0) for session in script_timer_data)
+                
+                return {
+                    'work_time_seconds': total_work_time,
+                    'work_time_minutes': total_work_time / 60.0,
+                    'total_operations': len(script_timer_data),
+                    'files_processed': total_files,
+                    'efficiency_score': total_files / (total_work_time / 60.0) if total_work_time > 0 else 0.0,
+                    'timing_method': 'activity_timer'
+                }
+            else:
+                return {
+                    'work_time_seconds': 0.0,
+                    'work_time_minutes': 0.0,
+                    'total_operations': 0,
+                    'files_processed': 0,
+                    'efficiency_score': 0.0,
+                    'timing_method': 'activity_timer'
+                }
+        else:
+            # Unknown script - try file operations first, fallback to timer
+            if script_file_ops:
+                return self.calculate_file_operation_work_time(script_file_ops)
+            else:
+                return {
+                    'work_time_seconds': 0.0,
+                    'work_time_minutes': 0.0,
+                    'total_operations': 0,
+                    'files_processed': 0,
+                    'efficiency_score': 0.0,
+                    'timing_method': 'unknown'
+                }
+    
     def load_file_operations(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Dict]:
-        """Load and process FileTracker logs"""
+        """Load and process daily summaries (consolidated data) with fallback to detailed logs"""
         records = []
         
-        if not self.file_ops_dir.exists():
+        # Load from both sources and merge
+        summaries_dir = self.data_dir / "data" / "daily_summaries"
+        if summaries_dir.exists():
+            records.extend(self._load_from_daily_summaries(summaries_dir, start_date, end_date))
+        
+        # Always also load from detailed logs to get historical data
+        records.extend(self._load_from_detailed_logs(start_date, end_date))
+        
+        return records
+    
+    def _load_from_daily_summaries(self, summaries_dir: Path, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Dict]:
+        """Load records from daily summary files"""
+        records = []
+        
+        for summary_file in summaries_dir.glob("daily_summary_*.json"):
+            # Extract date from filename
+            date_match = re.search(r'(\d{8})', summary_file.name)
+            if not date_match:
+                continue
+                
+            file_date = date_match.group(1)
+            if start_date and file_date < start_date.replace('-', ''):
+                continue
+            if end_date and file_date > end_date.replace('-', ''):
+                continue
+            
+            try:
+                with open(summary_file, 'r') as f:
+                    summary_data = json.load(f)
+                    
+                # Convert daily summary to individual records for compatibility
+                for script_name, script_data in summary_data.get('scripts', {}).items():
+                    # Create records for each operation type
+                    for operation_type, file_count in script_data.get('operations', {}).items():
+                        if file_count > 0:
+                            record = {
+                                'timestamp_str': summary_data['date'] + 'T00:00:00Z',
+                                'script': script_name,
+                                'session_id': f"daily_{summary_data['date']}",
+                                'operation': operation_type,
+                                'source_dir': None,
+                                'dest_dir': None,
+                                'file_count': file_count,
+                                'files': [],
+                                'notes': f"Daily summary for {summary_data['date']}",
+                                'work_time_seconds': script_data.get('work_time_seconds', 0),
+                                'work_time_minutes': script_data.get('work_time_minutes', 0)
+                            }
+                            
+                            # Convert timestamp
+                            try:
+                                record['timestamp'] = datetime.fromisoformat(record['timestamp_str'])
+                                record['date'] = record['timestamp'].date()
+                            except:
+                                record['timestamp'] = None
+                                record['date'] = None
+                            
+                            records.append(record)
+                            
+            except Exception as e:
+                print(f"Warning: Could not process {summary_file}: {e}")
+        
+        return records
+    
+    def _load_from_detailed_logs(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Dict]:
+        """Fallback: Load records from detailed log files"""
+        records = []
+        
+        file_ops_dir = self.data_dir / "data" / "file_operations_logs"
+        if not file_ops_dir.exists():
             return records
         
-        for log_file in self.file_ops_dir.glob("*.log"):
+        # Check both regular log files and archived files
+        log_files = list(file_ops_dir.glob("*.log"))
+        archive_dir = self.data_dir / "data" / "log_archives"
+        if archive_dir.exists():
+            log_files.extend(archive_dir.glob("*.gz"))
+        
+        for log_file in log_files:
             # Extract date from filename if possible
             date_match = re.search(r'(\d{8})', log_file.name)
             if date_match:
@@ -130,32 +345,63 @@ class DashboardDataEngine:
                     continue
             
             try:
-                with open(log_file, 'r') as f:
-                    for line in f:
-                        if line.strip():
-                            data = json.loads(line)
-                            if data.get('type') == 'file_operation':
-                                record = {
-                                    'timestamp_str': data.get('timestamp'),
-                                    'script': data.get('script'),
-                                    'session_id': data.get('session_id'),
-                                    'operation': data.get('operation'),
-                                    'source_dir': data.get('source_dir'),
-                                    'dest_dir': data.get('dest_dir'),
-                                    'file_count': data.get('file_count', 0),
-                                    'files': data.get('files', []),
-                                    'notes': data.get('notes', '')
-                                }
-                                
-                                # Convert timestamp
-                                try:
-                                    record['timestamp'] = datetime.fromisoformat(record['timestamp_str'])
-                                    record['date'] = record['timestamp'].date()
-                                except:
-                                    record['timestamp'] = None
-                                    record['date'] = None
-                                
-                                records.append(record)
+                # Handle compressed files
+                if log_file.suffix == '.gz':
+                    import gzip
+                    with gzip.open(log_file, 'rt') as f:
+                        for line in f:
+                            if line.strip():
+                                data = json.loads(line)
+                                if data.get('type') == 'file_operation':
+                                    record = {
+                                        'timestamp_str': data.get('timestamp'),
+                                        'script': data.get('script'),
+                                        'session_id': data.get('session_id'),
+                                        'operation': data.get('operation'),
+                                        'source_dir': data.get('source_dir'),
+                                        'dest_dir': data.get('dest_dir'),
+                                        'file_count': data.get('file_count', 0),
+                                        'files': data.get('files', []),
+                                        'notes': data.get('notes', '')
+                                    }
+                                    
+                                    # Convert timestamp
+                                    try:
+                                        record['timestamp'] = datetime.fromisoformat(record['timestamp_str'])
+                                        record['date'] = record['timestamp'].date()
+                                    except:
+                                        record['timestamp'] = None
+                                        record['date'] = None
+                                    
+                                    records.append(record)
+                else:
+                    # Handle regular files
+                    with open(log_file, 'r') as f:
+                        for line in f:
+                            if line.strip():
+                                data = json.loads(line)
+                                if data.get('type') == 'file_operation':
+                                    record = {
+                                        'timestamp_str': data.get('timestamp'),
+                                        'script': data.get('script'),
+                                        'session_id': data.get('session_id'),
+                                        'operation': data.get('operation'),
+                                        'source_dir': data.get('source_dir'),
+                                        'dest_dir': data.get('dest_dir'),
+                                        'file_count': data.get('file_count', 0),
+                                        'files': data.get('files', []),
+                                        'notes': data.get('notes', '')
+                                    }
+                                    
+                                    # Convert timestamp
+                                    try:
+                                        record['timestamp'] = datetime.fromisoformat(record['timestamp_str'])
+                                        record['date'] = record['timestamp'].date()
+                                    except:
+                                        record['timestamp'] = None
+                                        record['date'] = None
+                                    
+                                    records.append(record)
             except Exception as e:
                 print(f"Warning: Could not process {log_file}: {e}")
         
@@ -185,6 +431,11 @@ class DashboardDataEngine:
                 continue
             
             group_key = record.get(group_field, 'unknown')
+            
+            # Convert script names to display names for better readability
+            if group_field == 'script':
+                group_key = self.get_display_name(group_key)
+            
             value = record.get(value_field, 0)
             if value is None:
                 value = 0
@@ -360,9 +611,20 @@ class DashboardDataEngine:
         # Map current script names to log names
         if production_scripts is None:
             production_scripts = [
-                'image_version_selector',  # 01_web_image_selector
-                'character_sorter',        # 03_web_character_sorter  
-                'batch_crop_tool'          # 04_batch_crop_tool
+                # Current script names
+                '01_web_image_selector',
+                '01_desktop_image_selector_crop',
+                '03_web_character_sorter',
+                '04_multi_crop_tool',
+                
+                # Log script names (from actual data)
+                'desktop_image_selector_crop',
+                'character_sorter',
+                'image_version_selector',
+                'multi_batch_crop_tool',
+                
+                # Legacy names
+                'batch_crop_tool'
             ]
         
         # Load raw data

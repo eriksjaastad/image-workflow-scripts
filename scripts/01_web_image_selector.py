@@ -94,7 +94,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
 from file_tracker import FileTracker
-from utils.activity_timer import ActivityTimer
+from utils.companion_file_utils import find_all_companion_files, move_file_with_all_companions, launch_browser, generate_thumbnail, format_image_display_name, get_error_display_html, extract_timestamp_from_filename, timestamp_to_minutes, get_date_from_timestamp, detect_stage, get_stage_number, sort_image_files_by_timestamp_and_stage
 
 try:
     from flask import Flask, Response, jsonify, render_template_string, request
@@ -136,14 +136,6 @@ def info(msg: str) -> None:
     print(f"[*] {msg}")
 
 
-def detect_stage(name: str) -> str:
-    low = name.lower()
-    for stage in STAGE_NAMES:
-        if stage in low:
-            return stage
-    return ""
-
-
 def scan_images(folder: Path, exts: Iterable[str], recursive: bool = True) -> List[Path]:
     """Scan for image files, optionally recursively"""
     allowed = {e.lower().lstrip(".") for e in exts}
@@ -163,30 +155,6 @@ def scan_images(folder: Path, exts: Iterable[str], recursive: bool = True) -> Li
                 results.append(entry)
     
     return results
-
-
-def extract_timestamp(filename: str) -> Optional[str]:
-    match = re.search(r"(\d{8}_\d{6})", filename)
-    return match.group(1) if match else None
-
-
-def timestamp_to_minutes(timestamp_str: Optional[str]) -> Optional[float]:
-    if not timestamp_str or len(timestamp_str) != 15:
-        return None
-    try:
-        time_part = timestamp_str.split("_")[1]
-        hours = int(time_part[:2])
-        minutes = int(time_part[2:4])
-        seconds = int(time_part[4:6])
-        return hours * 60 + minutes + seconds / 60.0
-    except Exception:
-        return None
-
-
-def get_date_from_timestamp(timestamp_str: Optional[str]) -> Optional[str]:
-    if not timestamp_str or len(timestamp_str) != 15:
-        return None
-    return timestamp_str.split("_")[0]
 
 
 @dataclass
@@ -232,29 +200,12 @@ def _basekey(p: Path) -> str:
     n = re.sub(r"[._\-]+", "_", n).strip("_- .")
     return n
 
-def get_stage_number(stage: str) -> float:
-    """Convert stage name to numeric value for comparison."""
-    stage_map = {
-        "stage1_generated": 1.0,
-        "stage1.5_face_swapped": 1.5,
-        "stage2_upscaled": 2.0,
-        "stage3_enhanced": 3.0
-    }
-    return stage_map.get(stage, 0.0)
-
-
 def find_flexible_groups(files: List[Path]) -> List[Tuple[Path, ...]]:
     """Find groups by detecting stage number decreases (new group when stage < previous stage)."""
     groups: List[Tuple[Path, ...]] = []
     
-    # Sort by timestamp first, then stage order, then name (ChatGPT recommendation)
-    def sort_key(path):
-        timestamp = extract_timestamp(path.name) or "99999999_999999"
-        stage = detect_stage(path.name)
-        stage_num = get_stage_number(stage)
-        return (timestamp, stage_num, path.name)
-    
-    sorted_files = sorted(files, key=sort_key)
+    # Use standardized sorting logic for consistent image ordering
+    sorted_files = sort_image_files_by_timestamp_and_stage(files)
     
     if not sorted_files:
         return groups
@@ -380,18 +331,11 @@ def move_with_yaml(
     notes: str,
 ) -> Path:
     destination.mkdir(exist_ok=True)
-    moved_files: List[str] = []
-
-    target_png = destination / src_path.name
-    shutil.move(str(src_path), str(target_png))
-    moved_files.append(src_path.name)
-
-    yaml_path = src_path.parent / f"{src_path.stem}.yaml"
-    if yaml_path.exists():
-        target_yaml = destination / yaml_path.name
-        shutil.move(str(yaml_path), str(target_yaml))
-        moved_files.append(yaml_path.name)
-
+    
+    # Use wildcard logic to move image and ALL companion files
+    moved_files = move_file_with_all_companions(src_path, destination, dry_run=False)
+    
+    # Log the operation
     tracker.log_operation(
         operation="move",
         source_dir=str(src_path.parent.name),
@@ -401,7 +345,7 @@ def move_with_yaml(
         notes=notes,
     )
 
-    return target_png
+    return destination / src_path.name
 
 
 # Removed move_to_reviewed function - all selections now go to crop
@@ -421,13 +365,8 @@ def move_to_selected(src_path: Path, tracker: FileTracker) -> Path:
 
 @lru_cache(maxsize=2048)
 def _generate_thumbnail(path_str: str, mtime_ns: int, file_size: int) -> bytes:
-    path = Path(path_str)
-    with Image.open(path) as img:
-        img = img.convert("RGB")
-        img.thumbnail((THUMBNAIL_MAX_DIM, THUMBNAIL_MAX_DIM), Image.Resampling.LANCZOS)
-        buffer = BytesIO()
-        img.save(buffer, format="JPEG", quality=85)
-    return buffer.getvalue()
+    """Generate thumbnail using shared function."""
+    return generate_thumbnail(path_str, mtime_ns, file_size, max_dim=THUMBNAIL_MAX_DIM, quality=85)
 
 
 def build_app(
@@ -438,7 +377,6 @@ def build_app(
     hard_delete: bool,
     batch_size: int = 50,
     batch_start: int = 0,
-    activity_timer: Optional[ActivityTimer] = None,
 ) -> Flask:
     app = Flask(__name__)
 
@@ -468,7 +406,6 @@ def build_app(
     app.config["LOG_PATH"] = log_path
     app.config["HARD_DELETE"] = hard_delete
     app.config["PROCESSED"] = False
-    app.config["ACTIVITY_TIMER"] = activity_timer
 
     page_template = """
     <!DOCTYPE html>
@@ -477,6 +414,7 @@ def build_app(
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <title>Image Version Selector</title>
+      {{ error_display_html }}
       <style>
         :root {
           color-scheme: dark;
@@ -782,7 +720,7 @@ def build_app(
               <figure class="image-card" data-image-index="{{ image.index }}" onclick="handleImageClick(this)">
               <div class="stage">{{ image.stage }}</div>
               <img src="{{ image.src }}" alt="{{ image.name }}" loading="lazy">
-              <figcaption class="filename">{{ image.name }}</figcaption>
+              <figcaption class="filename">{{ format_image_display_name(image.name, context='web') }}</figcaption>
             </figure>
             {% endfor %}
           </div>
@@ -1134,27 +1072,9 @@ def build_app(
         updateVisualState();
         updateSummary();
         
-        // Add simple activity timer status to header
-        const header = document.querySelector('h1');
-        if (header) {
-            const timerStatus = document.createElement('span');
-            timerStatus.id = 'activity-status';
-            timerStatus.style.cssText = `
-                margin-left: 1rem;
-                font-size: 0.8rem;
-                font-weight: normal;
-                color: var(--text-secondary);
-            `;
-            timerStatus.innerHTML = '🟢 Active';
-            header.appendChild(timerStatus);
-        }
-
-        // Update timer display every 5 seconds
-        setInterval(updateTimerDisplay, 5000);
-        
         // Track user activity
         function markActivity() {
-            fetch('/mark_activity', { method: 'POST' });
+            // Activity tracking removed - using file-operation-based timing instead
         }
         
         // Activity tracking events
@@ -1171,24 +1091,6 @@ def build_app(
                 setTimeout(() => mouseThrottle = false, 2000);
             }
         });
-        
-        function updateTimerDisplay() {
-            fetch('/timer_stats')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.active_time !== undefined) {
-                        // Update simple status indicator in header
-                        const statusElement = document.getElementById('activity-status');
-                        if (statusElement) {
-                            statusElement.innerHTML = data.is_active ? '🟢 Active' : '⚫ Inactive';
-                        }
-                    }
-                })
-                .catch(err => console.log('Timer update failed:', err));
-        }
-        
-        // Initial timer update
-        updateTimerDisplay();
         
         // Scroll to first group
         if (groups.length > 0) {
@@ -1247,10 +1149,10 @@ def build_app(
             if (result.status === 'success') {
               window.location.reload();
             } else {
-              alert('Error switching batches: ' + result.message);
+              showError('Error switching batches: ' + result.message);
             }
           } catch (error) {
-            alert('Error advancing to next batch: ' + error.message);
+            showError('Error advancing to next batch: ' + error.message);
           }
         }
         
@@ -1270,15 +1172,15 @@ def build_app(
               if (switchResult.status === 'success') {
                 window.location.reload();
               } else {
-                alert('Error switching to next batch: ' + switchResult.message);
+                showError('Error switching to next batch: ' + switchResult.message);
               }
             } else if (result.status === 'complete') {
-              alert('All batches have been processed!');
+              showError('All batches have been processed!');
             } else {
-              alert('Error: ' + result.message);
+              showError('Error: ' + result.message);
             }
           } catch (error) {
-            alert('Error getting next batch: ' + error.message);
+            showError('Error getting next batch: ' + error.message);
           }
         }
       </script>
@@ -1329,6 +1231,8 @@ def build_app(
             groups=current_groups,
             total_groups=batch_info["total_groups"],
             batch_info=batch_info,
+            format_image_display_name=format_image_display_name,
+            error_display_html=get_error_display_html(),
         )
 
     @app.route("/image/<int:group_id>/<int:image_index>")
@@ -1344,31 +1248,6 @@ def build_app(
         stat = path.stat()
         data = _generate_thumbnail(str(path), int(stat.st_mtime_ns), stat.st_size)
         return Response(data, mimetype="image/jpeg")
-
-    @app.route("/mark_activity", methods=["POST"])
-    def mark_activity():
-        """Mark user activity for timer tracking"""
-        activity_timer: Optional[ActivityTimer] = app.config.get("ACTIVITY_TIMER")
-        if activity_timer:
-            activity_timer.mark_activity()
-        return jsonify({"status": "ok"})
-    
-    @app.route("/timer_stats")
-    def timer_stats():
-        """Get current timer statistics"""
-        activity_timer: Optional[ActivityTimer] = app.config.get("ACTIVITY_TIMER")
-        if activity_timer:
-            stats = activity_timer.get_current_stats()
-            return jsonify(stats)
-        else:
-            return jsonify({
-                "active_time": 0,
-                "total_time": 0,
-                "efficiency": 100,
-                "is_active": False,
-                "files_processed": 0,
-                "total_operations": 0
-            })
 
     def process_shutdown():
         # Graceful shutdown - just exit the process
@@ -1409,16 +1288,10 @@ def build_app(
         base_folder: Path = app.config["BASE_FOLDER"]
         log_path: Path = app.config["LOG_PATH"]
         hard_delete: bool = app.config["HARD_DELETE"]
-        activity_timer: Optional[ActivityTimer] = app.config.get("ACTIVITY_TIMER")
 
         kept_count = 0
         crop_count = 0
         
-        # Mark batch processing activity
-        if activity_timer:
-            activity_timer.mark_batch(f"Processing batch {batch_info['current_batch']}")
-            activity_timer.mark_activity()
-
         try:
             for i, selection in enumerate(selections):
                 group_id = selection.get("groupId")
@@ -1548,17 +1421,6 @@ def build_app(
     return app
 
 
-def launch_browser(host: str, port: int) -> None:
-    if host not in {"127.0.0.1", "localhost", "0.0.0.0"}:
-        return
-    url = f"http://{host}:{port}/"
-    time.sleep(1.2)
-    try:
-        webbrowser.open(url)
-    except Exception:
-        pass
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Scroll through image triplets in a browser and batch apply decisions.",
@@ -1624,12 +1486,8 @@ def main() -> None:
             )
         )
 
-    # Initialize activity timer
-    activity_timer = ActivityTimer("01_web_image_selector")
-    activity_timer.start_session()
-    
     log_path = folder / "triplet_culler_log.csv"
-    app = build_app(records, folder, tracker, log_path, hard_delete=args.hard_delete, batch_size=args.batch_size, activity_timer=activity_timer)
+    app = build_app(records, folder, tracker, log_path, hard_delete=args.hard_delete, batch_size=args.batch_size)
 
     # Calculate batch info for logging
     total_groups = len(records)
@@ -1648,10 +1506,6 @@ def main() -> None:
     except OSError as exc:
         human_err(f"Failed to start server: {exc}")
         sys.exit(1)
-    finally:
-        # End activity timer session
-        if 'activity_timer' in locals():
-            activity_timer.end_session()
 
 
 if __name__ == "__main__":

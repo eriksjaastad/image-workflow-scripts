@@ -13,11 +13,17 @@ __pycache__/
 .Python
 *.so
 .pytest_cache/
+.coverage
+htmlcov/
 
 # Log Files
 *.log
 file_operations*.log
 file_operations_logs/
+
+# Test Coverage Reports
+.coverage
+htmlcov/
 
 # Data Directory (productivity tracking and working data - don't commit personal data)
 data/
@@ -74,10 +80,11 @@ mojo1/
 analysis_*.json
 character_analysis*.json
 
-# Markdown Documentation (except README)
+# Markdown Documentation (except README and core docs)
 IMAGE_PROCESSING_WORKFLOW*.md
 face_grouping_comparison.md
 workflow*.md
+
 
 # IDE and Editor Files
 .vscode/

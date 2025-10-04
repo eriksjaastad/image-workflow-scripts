@@ -61,11 +61,13 @@ import argparse
 from pathlib import Path
 from flask import Flask, render_template_string, request, jsonify
 import webbrowser
+from utils.companion_file_utils import launch_browser, generate_thumbnail, logger, get_error_display_html
 import threading
 import time
 import shutil
 
-# Add the project root to Python path for imports
+# Configuration
+THUMBNAIL_MAX_DIM = 200
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
@@ -126,6 +128,7 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Web Duplicate Finder - {{ output_dir }}</title>
+    {{ error_display_html }}
     <style>
         :root {
             color-scheme: dark;
@@ -628,13 +631,14 @@ def create_app(left_dir, right_dir):
             left_dir_name=left_path.name,
             right_dir_name=right_path.name,
             left_dir=left_dir,
-            right_dir=right_dir
+            right_dir=right_dir,
+            error_display_html=get_error_display_html()
         )
     
     @app.route('/image/<directory>/<filename>')
     def serve_image(directory, filename):
-        """Serve images from the directories."""
-        from flask import send_file
+        """Serve image thumbnails from the directories."""
+        from flask import Response
         
         # Determine which directory to serve from
         if directory == left_path.name:
@@ -645,7 +649,20 @@ def create_app(left_dir, right_dir):
             return "Directory not found", 404
         
         if image_path.exists():
-            return send_file(str(image_path))
+            try:
+                # Generate thumbnail using shared function
+                stat = image_path.stat()
+                thumbnail_data = generate_thumbnail(
+                    str(image_path), 
+                    int(stat.st_mtime_ns), 
+                    stat.st_size,
+                    max_dim=THUMBNAIL_MAX_DIM,
+                    quality=85
+                )
+                return Response(thumbnail_data, mimetype='image/jpeg')
+            except Exception as e:
+                logger.error_with_exception(f"Error generating thumbnail for {filename}", e)
+                return "Error generating thumbnail", 500
         
         return "Image not found", 404
     
@@ -720,8 +737,12 @@ def create_app(left_dir, right_dir):
 
 def open_browser(url):
     """Open browser after a short delay."""
-    time.sleep(1.5)
-    webbrowser.open(url)
+    # Extract host and port from URL for shared function
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    host = parsed.hostname or "localhost"
+    port = parsed.port or 5000
+    launch_browser(host, port, delay=1.5)
 
 def main():
     parser = argparse.ArgumentParser(description="Web duplicate finder - compare two directories side by side")
@@ -737,11 +758,11 @@ def main():
     right_path = Path(args.right_dir)
     
     if not left_path.exists():
-        print(f"❌ Error: Left directory '{args.left_dir}' not found")
+        logger.directory_not_found(args.left_dir)
         sys.exit(1)
     
     if not right_path.exists():
-        print(f"❌ Error: Right directory '{args.right_dir}' not found")
+        logger.directory_not_found(args.right_dir)
         sys.exit(1)
     
     # Get images from both directories

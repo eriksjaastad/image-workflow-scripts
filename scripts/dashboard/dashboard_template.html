@@ -176,6 +176,13 @@
             margin-top: 0.25rem;
         }
         
+        .timing-method-indicator {
+            color: var(--accent);
+            font-size: 0.8rem;
+            margin-top: 0.25rem;
+            font-weight: 500;
+        }
+        
         .chart-controls {
             display: flex;
             gap: 0.5rem;
@@ -309,6 +316,10 @@
                 <div class="stat-label">Total Files Processed</div>
             </div>
             <div class="stat-card">
+                <div class="stat-value" id="total-work-time">-</div>
+                <div class="stat-label">Total Work Time</div>
+            </div>
+            <div class="stat-card">
                 <div class="stat-value" id="active-days">-</div>
                 <div class="stat-label">Active Days</div>
             </div>
@@ -330,6 +341,7 @@
                     <div>
                         <h3 class="chart-title">📊 Files Processed by Tool</h3>
                         <p class="chart-subtitle">Your 3 production workflow scripts</p>
+                        <p class="timing-method-indicator" id="timing-method-indicator">⏱️ Timing: File Operations + Activity Timer</p>
                     </div>
                     <div class="chart-controls">
                         <button class="chart-btn active" data-chart="by-script" data-type="bar">Bar</button>
@@ -385,8 +397,26 @@
             '#fdcb6e'  // Yellow
         ];
         
+        console.log('JavaScript loaded successfully!');
+        
         // Initialize Dashboard
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('Dashboard initializing...');
+            console.log('DOM loaded, checking for canvas elements:');
+            console.log('files-by-script-chart:', document.getElementById('files-by-script-chart'));
+            console.log('operations-by-type-chart:', document.getElementById('operations-by-type-chart'));
+            console.log('All canvas elements:', document.querySelectorAll('canvas'));
+            console.log('Document body:', document.body);
+            console.log('Document ready state:', document.readyState);
+            
+            // Try again after a short delay
+            setTimeout(function() {
+                console.log('After delay - checking canvas elements again:');
+                console.log('files-by-script-chart:', document.getElementById('files-by-script-chart'));
+                console.log('operations-by-type-chart:', document.getElementById('operations-by-type-chart'));
+                console.log('All canvas elements:', document.querySelectorAll('canvas'));
+            }, 100);
+            
             setupEventListeners();
             loadDashboardData();
         });
@@ -431,10 +461,14 @@
         
         async function loadDashboardData() {
             try {
+                console.log('Loading dashboard data...');
                 showLoading();
                 
                 const response = await fetch(`/api/data/${currentTimeSlice}?lookback_days=${currentLookbackDays}`);
+                console.log('Response status:', response.status);
+                
                 const data = await response.json();
+                console.log('Data received:', data);
                 
                 if (data.error) {
                     throw new Error(data.error);
@@ -444,6 +478,8 @@
                 updateStatsOverview(data);
                 updateCharts(data);
                 
+                console.log('Dashboard data loaded successfully');
+                
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
                 showError('Failed to load dashboard data: ' + error.message);
@@ -451,8 +487,37 @@
         }
         
         function showLoading() {
-            document.querySelectorAll('.chart-canvas').forEach(canvas => {
-                canvas.innerHTML = '<div class="loading">Loading chart data...</div>';
+            // Show loading message in chart containers, preserve canvas elements
+            document.querySelectorAll('.chart-canvas').forEach(container => {
+                // Clear any existing charts
+                const canvas = container.querySelector('canvas');
+                if (canvas) {
+                    const chartId = canvas.id;
+                    if (charts[chartId]) {
+                        charts[chartId].destroy();
+                        delete charts[chartId];
+                    }
+                }
+                
+                // Show loading message over canvas
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'loading';
+                loadingDiv.textContent = 'Loading chart data...';
+                loadingDiv.style.cssText = `
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: var(--surface);
+                    padding: 20px;
+                    border-radius: 8px;
+                    color: var(--text-secondary);
+                    z-index: 10;
+                `;
+                
+                // Clear container and add loading message
+                container.innerHTML = '';
+                container.appendChild(loadingDiv);
             });
         }
         
@@ -462,11 +527,27 @@
             });
         }
         
+        function formatWorkTime(minutes) {
+            if (minutes < 60) {
+                return `${Math.round(minutes)}m`;
+            } else if (minutes < 1440) { // Less than 24 hours
+                const hours = Math.floor(minutes / 60);
+                const remainingMinutes = Math.round(minutes % 60);
+                return `${hours}h ${remainingMinutes}m`;
+            } else {
+                const days = Math.floor(minutes / 1440);
+                const remainingHours = Math.floor((minutes % 1440) / 60);
+                return `${days}d ${remainingHours}h`;
+            }
+        }
+        
         function updateStatsOverview(data) {
-            // Calculate total files
+            // Calculate total files and work time
             let totalFiles = 0;
+            let totalWorkTimeMinutes = 0;
             let activeDays = new Set();
             let scriptTotals = {};
+            let timingMethods = {};
             
             if (data.charts.by_script) {
                 Object.entries(data.charts.by_script).forEach(([script, scriptData]) => {
@@ -475,11 +556,19 @@
                     totalFiles += scriptTotal;
                     
                     scriptData.dates.forEach(date => activeDays.add(date));
+                    
+                    // Calculate work time for this script
+                    if (data.timing_data && data.timing_data[script]) {
+                        const scriptTiming = data.timing_data[script];
+                        totalWorkTimeMinutes += scriptTiming.work_time_minutes || 0;
+                        timingMethods[script] = scriptTiming.timing_method || 'unknown';
+                    }
                 });
             }
             
             // Update stat cards
             document.getElementById('total-files').textContent = totalFiles.toLocaleString();
+            document.getElementById('total-work-time').textContent = formatWorkTime(totalWorkTimeMinutes);
             document.getElementById('active-days').textContent = activeDays.size;
             document.getElementById('avg-daily').textContent = activeDays.size > 0 ? 
                 Math.round(totalFiles / activeDays.size).toLocaleString() : '0';
@@ -487,44 +576,159 @@
             // Find top script
             const topScript = Object.entries(scriptTotals).reduce((a, b) => 
                 scriptTotals[a[0]] > scriptTotals[b[0]] ? a : b, ['None', 0]);
-            document.getElementById('top-script').textContent = topScript[0].split('_')[0] || 'None';
+            document.getElementById('top-script').textContent = topScript[0] || 'None';
+            
+            // Update timing method indicator
+            updateTimingMethodIndicator(timingMethods);
+        }
+        
+        function updateTimingMethodIndicator(timingMethods) {
+            const indicator = document.getElementById('timing-method-indicator');
+            if (!indicator) return;
+            
+            const methods = Object.values(timingMethods);
+            const hasFileOps = methods.includes('file_operations');
+            const hasActivityTimer = methods.includes('activity_timer');
+            
+            if (hasFileOps && hasActivityTimer) {
+                indicator.textContent = '⏱️ Timing: File Operations + Activity Timer';
+                indicator.style.color = 'var(--accent)';
+            } else if (hasFileOps) {
+                indicator.textContent = '⏱️ Timing: File Operations Only';
+                indicator.style.color = 'var(--success)';
+            } else if (hasActivityTimer) {
+                indicator.textContent = '⏱️ Timing: Activity Timer Only';
+                indicator.style.color = 'var(--warning)';
+            } else {
+                indicator.textContent = '⏱️ Timing: No Data Available';
+                indicator.style.color = 'var(--muted)';
+            }
         }
         
         function updateCharts(data) {
+            console.log('updateCharts called with data:', data);
+            console.log('data.charts exists?', !!data.charts);
+            console.log('data.charts.by_script exists?', !!data.charts?.by_script);
+            console.log('data.charts.by_operation exists?', !!data.charts?.by_operation);
+            
+            if (!data || !data.charts) {
+                console.warn('No chart data available');
+                return;
+            }
+            
+            console.log('Chart data available:', data.charts);
+            
             if (data.charts.by_script) {
+                console.log('Creating by_script chart with data:', data.charts.by_script);
                 createChart('by-script', 'bar', data.charts.by_script);
+            } else {
+                console.warn('No by_script data available');
+                console.log('data.charts keys:', Object.keys(data.charts));
+                showChartError('files-by-script-chart', 'No script data available');
             }
             
             if (data.charts.by_operation) {
+                console.log('Creating by_operation chart with data:', data.charts.by_operation);
                 createChart('by-operation', 'bar', data.charts.by_operation);
+            } else {
+                console.warn('No by_operation data available');
+                showChartError('operations-by-type-chart', 'No operation data available');
             }
         }
         
         function createChart(chartName, chartType, chartData) {
+            console.log(`createChart called: ${chartName}, ${chartType}`, chartData);
+            
             const canvasId = chartName === 'by-script' ? 'files-by-script-chart' : 'operations-by-type-chart';
-            const canvas = document.getElementById(canvasId);
+            const containerId = canvasId.replace('-chart', '-chart').replace('files-by-script', 'files-by-script').replace('operations-by-type', 'operations-by-type');
+            
+            console.log(`Looking for canvas with ID: ${canvasId}`);
+            
+            let canvas = document.getElementById(canvasId);
+            
+            // If canvas doesn't exist, recreate it
+            if (!canvas) {
+                console.log(`Canvas not found, recreating: ${canvasId}`);
+                const container = document.querySelector(`[data-chart="${chartName === 'by-script' ? 'by-script' : 'by-operation'}"]`)?.closest('.chart-container')?.querySelector('.chart-canvas');
+                
+                if (container) {
+                    // Clear container and recreate canvas
+                    container.innerHTML = '';
+                    canvas = document.createElement('canvas');
+                    canvas.id = canvasId;
+                    container.appendChild(canvas);
+                    console.log(`Canvas recreated: ${canvasId}`);
+                }
+            }
+            
+            console.log(`Canvas element found:`, canvas);
+            
+            // Check if canvas exists
+            if (!canvas) {
+                console.error(`Canvas element not found: ${canvasId}`);
+                console.log('Available elements with similar IDs:');
+                console.log('files-by-script-chart:', document.getElementById('files-by-script-chart'));
+                console.log('operations-by-type-chart:', document.getElementById('operations-by-type-chart'));
+                console.log('All canvas elements:', document.querySelectorAll('canvas'));
+                return;
+            }
+            
+            // Clear loading message and restore canvas
+            canvas.innerHTML = '';
+            canvas.style.display = 'block';
+            console.log('Canvas cleared and restored');
+            
+            // Remove any existing error messages
+            const errorDiv = document.getElementById(canvasId + '-error');
+            if (errorDiv) {
+                errorDiv.remove();
+                console.log('Removed existing error div');
+            }
+            
+            // Check if chartData is valid
+            if (!chartData || typeof chartData !== 'object') {
+                console.error(`Invalid chart data for ${chartName}:`, chartData);
+                showChartError(canvasId, 'No data available');
+                return;
+            }
             
             // Destroy existing chart
             if (charts[canvasId]) {
                 charts[canvasId].destroy();
+                console.log('Destroyed existing chart');
             }
             
             // Prepare data for Chart.js
             const datasets = [];
             const labels = new Set();
             
-            Object.entries(chartData).forEach(([key, data], index) => {
-                data.dates.forEach(date => labels.add(date));
-                
-                datasets.push({
-                    label: key,
-                    data: data.counts,
-                    backgroundColor: chartColors[index % chartColors.length] + '40',
-                    borderColor: chartColors[index % chartColors.length],
-                    borderWidth: 2,
-                    tension: 0.4
+            try {
+                Object.entries(chartData).forEach(([key, data], index) => {
+                    if (!data || !data.dates || !data.counts) {
+                        console.warn(`Invalid data structure for ${key}:`, data);
+                        return;
+                    }
+                    
+                    data.dates.forEach(date => labels.add(date));
+                    
+                    datasets.push({
+                        label: key,
+                        data: data.counts,
+                        backgroundColor: chartColors[index % chartColors.length] + '40',
+                        borderColor: chartColors[index % chartColors.length],
+                        borderWidth: 2,
+                        tension: 0.4
+                    });
                 });
-            });
+                
+                console.log('Datasets prepared:', datasets);
+                console.log('Labels prepared:', Array.from(labels));
+                
+                if (datasets.length === 0) {
+                    console.warn('No datasets created');
+                    showChartError(canvasId, 'No valid data to display');
+                    return;
+                }
             
             const sortedLabels = Array.from(labels).sort();
             
@@ -577,7 +781,42 @@
             };
             
             // Create chart
+            console.log('Creating Chart.js instance with config:', config);
             charts[canvasId] = new Chart(canvas, config);
+            console.log(`Chart created successfully for ${chartName}`);
+                
+            } catch (error) {
+                console.error(`Error creating chart ${chartName}:`, error);
+                showChartError(canvasId, 'Failed to create chart');
+            }
+        }
+        
+        function showChartError(canvasId, message) {
+            const canvas = document.getElementById(canvasId);
+            if (canvas) {
+                canvas.style.display = 'none';
+                
+                // Create error message element
+                let errorDiv = document.getElementById(canvasId + '-error');
+                if (!errorDiv) {
+                    errorDiv = document.createElement('div');
+                    errorDiv.id = canvasId + '-error';
+                    errorDiv.className = 'chart-error';
+                    errorDiv.style.cssText = `
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        height: 400px;
+                        background: var(--surface);
+                        border: 1px solid var(--border);
+                        border-radius: 8px;
+                        color: var(--text-secondary);
+                        font-size: 0.9rem;
+                    `;
+                    canvas.parentNode.insertBefore(errorDiv, canvas);
+                }
+                errorDiv.textContent = message;
+            }
         }
     </script>
 </body>

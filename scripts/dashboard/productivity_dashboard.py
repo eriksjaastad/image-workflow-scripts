@@ -20,7 +20,7 @@ from flask import Flask, render_template, jsonify, request
 from data_engine import DashboardDataEngine
 
 class ProductivityDashboard:
-    def __init__(self, data_dir: str = ".."):
+    def __init__(self, data_dir: str = "../.."):
         self.data_engine = DashboardDataEngine(data_dir)
         # Set template folder to current directory
         self.app = Flask(__name__, template_folder='.')
@@ -71,6 +71,18 @@ class ProductivityDashboard:
             else:
                 updates = self.data_engine.load_script_updates()
                 return jsonify(updates.to_dict('records'))
+        
+        @self.app.route("/api/debug")
+        def debug_data():
+            """Debug endpoint to see raw data structure"""
+            try:
+                raw_data = self.data_engine.generate_dashboard_data(
+                    time_slice='D', 
+                    lookback_days=30
+                )
+                return jsonify(raw_data)
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
     
     def transform_for_charts(self, data):
         """Transform raw data into Chart.js format"""

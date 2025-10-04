@@ -1,7 +1,7 @@
 # Crop Progress Tracking System Design
 
 ## Overview
-A systematic progress tracking system for the batch crop tool that allows users to resume cropping sessions exactly where they left off, with independent tracking per directory.
+A systematic progress tracking system for the multi-crop tool that allows users to resume cropping sessions exactly where they left off, with independent tracking per directory.
 
 ## Problem Statement
 When processing large image directories (100-1000+ images), users need to:
@@ -53,7 +53,7 @@ scripts/crop_progress/
 
 ### Starting New Directory
 ```bash
-$ python scripts/04_batch_crop_tool.py _asian/
+$ python scripts/04_multi_crop_tool.py _asian/
 🎯 Starting crop session for '_asian/'
 📊 Found 150 images to process
 🚀 Beginning at image 1/150...
@@ -61,7 +61,7 @@ $ python scripts/04_batch_crop_tool.py _asian/
 
 ### Resuming Existing Directory
 ```bash
-$ python scripts/04_batch_crop_tool.py _asian/
+$ python scripts/04_multi_crop_tool.py _asian/
 🎯 Resuming crop session for '_asian/'
 📊 Progress: 73/150 images completed (48.7%)
 ⏰ Last session: 2 hours ago
@@ -72,7 +72,7 @@ $ python scripts/04_batch_crop_tool.py _asian/
 ```
 Processing: _asian/ [████████░░] 80% (120/150)
 Current: 20250803_172343_stage2_upscaled.png
-Session: 47 images processed, 2h 15m active
+Session: 47 images processed, 2h 15m work time
 ```
 
 ## Implementation Details
@@ -98,9 +98,9 @@ Session: 47 images processed, 2h 15m active
 
 ### Integration Points
 - **FileTracker**: Log all crop operations for audit trail
-- **Activity Timer**: Track active work time per directory
-- **Batch Crop Tool**: Modify to use progress system
-- **Web Interface**: Show progress bar and resume status
+- **File-Operation Timing**: Track work time based on file operations
+- **Multi-Crop Tool**: Modify to use progress system
+- **Base Desktop Tool**: Inherit progress tracking from base class
 
 ## File System Safety
 
@@ -128,13 +128,13 @@ Session: 47 images processed, 2h 15m active
 ### Examples
 ```bash
 # Normal usage (auto-resume)
-python scripts/04_batch_crop_tool.py _asian/
+python scripts/04_multi_crop_tool.py _asian/
 
 # Start fresh
-python scripts/04_batch_crop_tool.py _asian/ --reset-progress
+python scripts/04_multi_crop_tool.py _asian/ --reset-progress
 
 # Check status
-python scripts/04_batch_crop_tool.py _asian/ --show-progress
+python scripts/04_multi_crop_tool.py _asian/ --show-progress
 ```
 
 ## Benefits
@@ -153,7 +153,7 @@ python scripts/04_batch_crop_tool.py _asian/ --show-progress
 
 ### Workflow Integration
 - **Systematic processing** - supports methodical directory-by-directory approach
-- **Activity tracking** - integrates with existing timer system
+- **File-operation timing** - integrates with new intelligent timing system
 - **File logging** - works with FileTracker for complete audit trail
 - **Scalable** - handles directories from 10 to 10,000+ images
 
@@ -173,11 +173,14 @@ python scripts/04_batch_crop_tool.py _asian/ --show-progress
 
 ## Implementation Priority
 1. **Core progress tracking** - basic save/resume functionality
-2. **CLI integration** - modify batch crop tool to use progress system
+2. **CLI integration** - modify multi-crop tool to use progress system
 3. **Error handling** - robust recovery from interruptions
 4. **Progress display** - visual feedback during processing
 5. **Advanced features** - statistics, web interface, etc.
 
 ---
+
+*Last Updated: October 3, 2025*
+*This document reflects the current multi-crop tool architecture and file-operation-based timing system.*
 
 This system transforms the crop tool from a "start over every time" process into a professional, resumable workflow that scales with large image processing jobs.

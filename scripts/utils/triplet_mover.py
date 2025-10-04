@@ -33,17 +33,9 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
-
-def detect_stage(filename: str) -> str:
-    """Detect the stage of an image file."""
-    if "stage1_generated" in filename:
-        return "stage1_generated"
-    elif "stage1.5_face_swapped" in filename:
-        return "stage1.5_face_swapped"
-    elif "stage2_upscaled" in filename:
-        return "stage2_upscaled"
-    else:
-        return "unknown"
+# Import standardized companion file utilities
+sys.path.append(str(Path(__file__).parent))
+from companion_file_utils import find_all_companion_files, move_file_with_all_companions, detect_stage
 
 
 def scan_images_recursive(folder: Path) -> List[Path]:
@@ -96,7 +88,7 @@ def check_conflicts(triplet: Tuple[Path, Path, Path], dest_dir: Path) -> List[st
 
 
 def move_triplet_with_yamls(triplet: Tuple[Path, Path, Path], dest_dir: Path) -> bool:
-    """Move a triplet of PNG files and their corresponding YAML files."""
+    """Move a triplet of PNG files and ALL their corresponding companion files."""
     # First check for conflicts
     conflicts = check_conflicts(triplet, dest_dir)
     if conflicts:
@@ -109,21 +101,10 @@ def move_triplet_with_yamls(triplet: Tuple[Path, Path, Path], dest_dir: Path) ->
     moved_files = []
     try:
         for png_path in triplet:
-            # Move PNG file
-            dest_png = dest_dir / png_path.name
-            shutil.move(str(png_path), str(dest_png))
-            moved_files.append(dest_png)
-            print(f"✓ Moved: {png_path.name}")
-            
-            # Move corresponding YAML file if it exists
-            yaml_path = png_path.parent / f"{png_path.stem}.yaml"
-            if yaml_path.exists():
-                dest_yaml = dest_dir / yaml_path.name
-                shutil.move(str(yaml_path), str(dest_yaml))
-                moved_files.append(dest_yaml)
-                print(f"✓ Moved: {yaml_path.name}")
-            else:
-                print(f"⚠ No YAML found for: {png_path.name}")
+            # Use wildcard logic to move PNG and ALL companion files
+            files_moved = move_file_with_all_companions(png_path, dest_dir, dry_run=False)
+            moved_files.extend(files_moved)
+            print(f"✓ Moved {len(files_moved)} files for: {png_path.name}")
         
         return True
         
@@ -133,7 +114,7 @@ def move_triplet_with_yamls(triplet: Tuple[Path, Path, Path], dest_dir: Path) ->
         for moved_file in moved_files:
             try:
                 original_dir = triplet[0].parent  # Assume all from same dir
-                shutil.move(str(moved_file), str(original_dir / moved_file.name))
+                shutil.move(str(dest_dir / moved_file), str(original_dir / moved_file))
             except:
                 pass
         return False

@@ -75,6 +75,7 @@ import numpy as np
 # Add the project root to the path for importing
 sys.path.append(str(Path(__file__).parent.parent))
 from utils.base_desktop_image_tool import BaseDesktopImageTool
+from utils.companion_file_utils import format_image_display_name
 
 
 class MultiDirectoryProgressTracker:
@@ -426,15 +427,8 @@ class MultiCropTool(BaseDesktopImageTool):
                 image_path = self.current_images[i]['path']
                 filename = image_path.stem  # Remove extension
                 
-                # Trim timestamp from beginning if it's too long (first 14 chars are usually timestamp)
-                if len(filename) > 20 and filename[:14].replace('_', '').isdigit():
-                    display_name = filename[14:]  # Remove timestamp
-                else:
-                    display_name = filename
-                
-                # Limit display name length
-                if len(display_name) > 25:
-                    display_name = display_name[:22] + "..."
+                # Use centralized image name formatting
+                display_name = format_image_display_name(filename, max_length=25, context="desktop")
                 
                 status = self.image_states[i].get('status', 'selected')
                 if status == 'selected':
@@ -559,9 +553,6 @@ class MultiCropTool(BaseDesktopImageTool):
         if not self.current_images:
             return
             
-        self.activity_timer.mark_batch(f"Crop group {self.current_batch + 1}")
-        self.activity_timer.mark_activity()
-            
         print(f"\nProcessing batch {self.current_batch + 1}...")
         
         processed_count = 0
@@ -600,8 +591,6 @@ class MultiCropTool(BaseDesktopImageTool):
             self.current_batch += 1
             # Also update progress tracker since load_batch uses it as source of truth
             self.progress_tracker.current_file_index = self.current_batch * 3
-        
-        self.activity_timer.end_batch(f"Completed {processed_count} operations")
         
         # Move to next batch or directory
         if self.has_next_batch():

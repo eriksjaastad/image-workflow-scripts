@@ -8,7 +8,7 @@ Provides cross-script reporting and detailed productivity metrics.
 
 FEATURES:
 ---------
-• 10-minute idle detection (configurable)
+• 1-minute idle detection (configurable)
 • Manual batch markers for accurate productivity metrics
 • Cross-script time totals and per-script breakdowns
 • Real-time activity monitoring
@@ -77,7 +77,7 @@ class ActivityTimer:
     Activity timer with intelligent idle detection and cross-script reporting
     """
     
-    def __init__(self, script_name: str, idle_threshold: int = 600):  # 10 minutes default
+    def __init__(self, script_name: str, idle_threshold: int = 60):  # 1 minute default
         self.script_name = script_name
         self.idle_threshold = idle_threshold  # seconds
         self.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")

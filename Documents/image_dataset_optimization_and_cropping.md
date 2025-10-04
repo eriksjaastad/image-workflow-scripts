@@ -1,18 +1,28 @@
 # Image Dataset Optimization & Assisted Editing
 
-*This document merges the clustering/optimization workflow and the assist‑first cropping/triage add‑on, so you only have to keep one file.*
+*This document describes advanced clustering optimization and AI-assisted cropping workflows. Note: Some components may be outdated or archived.*
+
+---
+
+## ⚠️ **CURRENT STATUS (October 2025)**
+
+### **Archived Components:**
+- `02_face_grouper.py` - Moved to `scripts/archive/` (ineffective for AI-generated artwork)
+- Face clustering optimization - Not suitable for AI-generated images
+
+### **Active Components:**
+- `tool_similar_image_grouper.py` - Color-based image grouping (active)
+- `tool_face_grouper.py` - General face grouping (active)
+- Manual cropping tools - `01_web_image_selector.py`, `04_multi_crop_tool.py`
+
+### **Recommendation:**
+This document describes advanced clustering workflows that may not be suitable for the current AI-generated artwork processing pipeline. Consider archiving or updating based on current needs.
 
 ---
 
 # Automated Clustering Optimization Across Multiple Image Directories
 
-This document describes a **single, rigorous workflow** to:
-1. Run a broad bell-curve of clustering parameter sweeps on **each dataset directory** (~1000 images each).
-2. Generate **per-directory consensus partitions** and stability measures (to avoid guessing).
-3. Cross-reference runs across **multiple directories** to find robust, generalizable parameter settings.
-4. Optionally add a **small human evaluation layer** to calibrate metrics with “ground-truth-ish” feedback.
-
----
+*Note: This section describes clustering optimization that may not be applicable to current AI-generated artwork workflow.*
 
 ## 0. Cache embeddings (once per directory)
 
@@ -333,3 +343,36 @@ group_id,winner,loser1,loser2,tags,time_ms
 ```
 
 These tiny, human‑readable files let your existing tools slot together and improve over time.
+
+---
+
+# Current Workflow (October 2025)
+
+## **Active Image Processing Pipeline:**
+
+### **1. Image Selection & Cropping:**
+- `01_web_image_selector.py` - Web-based image selection with cropping
+- `01_desktop_image_selector_crop.py` - Desktop image selection with cropping
+- `04_multi_crop_tool.py` - Multi-image batch cropping tool
+
+### **2. Character Sorting:**
+- `02_web_character_sorter.py` - Web-based character sorting by groups
+
+### **3. Image Grouping (Alternative to Clustering):**
+- `tool_similar_image_grouper.py` - Color-based image grouping
+- `tool_face_grouper.py` - General face grouping
+
+### **4. File Management:**
+- `05_web_multi_directory_viewer.py` - Multi-directory file viewing
+- `06_web_duplicate_finder.py` - Duplicate file detection
+
+## **Key Changes from Original Design:**
+1. **Face clustering abandoned** - Ineffective for AI-generated artwork
+2. **Manual workflow preferred** - More reliable than automated clustering
+3. **File-operation timing** - Intelligent work time calculation
+4. **Centralized utilities** - Shared functions across all tools
+
+---
+
+*Last Updated: October 3, 2025*
+*This document has been updated to reflect the current state of the image processing workflow.*

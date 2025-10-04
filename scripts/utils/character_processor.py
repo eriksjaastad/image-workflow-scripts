@@ -67,10 +67,13 @@ except ImportError:
 
 try:
     from utils.activity_timer import ActivityTimer, FileTracker
+    from utils.companion_file_utils import find_all_companion_files, move_file_with_all_companions, extract_timestamp_from_filename, sort_image_files_by_timestamp_and_stage
 except ImportError:
     # Graceful fallback if activity timer not available
     ActivityTimer = None
     FileTracker = None
+    find_all_companion_files = None
+    move_file_with_all_companions = None
 
 
 # ============================================================================
@@ -535,13 +538,6 @@ def analyze_yaml(directory: str, output_file: Optional[str] = None, quiet: bool 
 # STAGE 2: SEQUENTIAL CONTEXT ANALYSIS
 # ============================================================================
 
-def extract_timestamp_from_filename(filename: str) -> Optional[str]:
-    """Extract timestamp from filename for sequential ordering."""
-    # Match pattern: YYYYMMDD_HHMMSS
-    match = re.match(r'(\d{8}_\d{6})', filename)
-    return match.group(1) if match else None
-
-
 def find_sequential_neighbors(target_file: str, all_files: List[str], window_size: int = 5) -> Tuple[List[str], List[str]]:
     """Find files before and after target file in sequential order."""
     # Sort files by timestamp
@@ -693,26 +689,41 @@ def add_sequential_context(analysis_data: Dict, quiet: bool = False) -> Dict:
 # ============================================================================
 
 def move_file_pair(png_path: Path, yaml_path: Path, target_dir: Path, dry_run: bool = False, tracker: Optional = None) -> bool:
-    """Move PNG + YAML pair to target directory."""
+    """Move PNG and ALL its companion files to target directory."""
     try:
         if not dry_run:
-            # Create target directory if it doesn't exist
-            target_dir.mkdir(parents=True, exist_ok=True)
-            
-            # Move PNG file
-            png_target = target_dir / png_path.name
-            png_path.rename(png_target)
-            
-            # Move YAML file if it exists
-            if yaml_path.exists():
-                yaml_target = target_dir / yaml_path.name
-                yaml_path.rename(yaml_target)
-            
-            # Track file operations
-            if tracker:
-                tracker.track_file_operation('move', str(png_path), str(png_target))
+            # Use wildcard logic to move PNG and ALL companion files
+            if move_file_with_all_companions:
+                moved_files = move_file_with_all_companions(png_path, target_dir, dry_run=False)
+                
+                # Track file operations
+                if tracker:
+                    for moved_file in moved_files:
+                        tracker.track_file_operation('move', str(png_path.parent / moved_file), str(target_dir / moved_file))
+            else:
+                # Fallback to old logic if companion utilities not available
+                target_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Move PNG file (skip if target already exists)
+                png_target = target_dir / png_path.name
+                if not png_target.exists():
+                    png_path.rename(png_target)
+                else:
+                    print(f"⚠️  SKIPPING: {png_path.name} (already exists in destination)")
+                
+                # Move YAML file if it exists (skip if target already exists)
                 if yaml_path.exists():
-                    tracker.track_file_operation('move', str(yaml_path), str(yaml_target))
+                    yaml_target = target_dir / yaml_path.name
+                    if not yaml_target.exists():
+                        yaml_path.rename(yaml_target)
+                    else:
+                        print(f"⚠️  SKIPPING: {yaml_path.name} (already exists in destination)")
+                
+                # Track file operations
+                if tracker:
+                    tracker.track_file_operation('move', str(png_path), str(png_target))
+                    if yaml_path.exists():
+                        tracker.track_file_operation('move', str(yaml_path), str(yaml_target))
         
         return True
         

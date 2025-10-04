@@ -23,12 +23,12 @@ Multi-directory character sorting (RECOMMENDED):
   # Automatically processes all subdirectories (emily/, mia/, etc.) with auto-advance
 
 Basic character sorting (single directory):
-  python scripts/03_web_character_sorter.py selected/emily
-  python scripts/03_web_character_sorter.py _sort_again
-  python scripts/03_web_character_sorter.py face_groups/person_0001
+  python scripts/02_web_character_sorter.py selected/emily
+  python scripts/02_web_character_sorter.py _sort_again
+  python scripts/02_web_character_sorter.py face_groups/person_0001
 
 Enhanced sorting with similarity maps (RECOMMENDED after face grouper):
-  python scripts/03_web_character_sorter.py face_groups/person_0001 --similarity-map face_groups
+  python scripts/02_web_character_sorter.py face_groups/person_0001 --similarity-map face_groups
 
 FEATURES:
 ---------
@@ -99,7 +99,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from file_tracker import FileTracker
-from utils.activity_timer import ActivityTimer
+from utils.companion_file_utils import find_all_companion_files, move_file_with_all_companions, launch_browser, generate_thumbnail, get_error_display_html, format_image_display_name
 
 try:
     from flask import Flask, Response, jsonify, render_template_string, request, redirect
@@ -184,7 +184,12 @@ class MultiDirectoryProgressTracker:
             
             # Validate and restore state
             if 'current_directory_index' in self.session_data:
-                self.current_directory_index = self.session_data['current_directory_index']
+                saved_index = self.session_data['current_directory_index']
+                # Find the first directory that actually has images, starting from saved position
+                self.current_directory_index = self._find_next_directory_with_images(saved_index)
+            else:
+                # Start from beginning if no saved state
+                self.current_directory_index = self._find_next_directory_with_images(0)
             
             # Ensure indices are valid
             if self.current_directory_index >= len(self.directories):
@@ -228,6 +233,30 @@ class MultiDirectoryProgressTracker:
         if self.current_directory_index < len(self.directories):
             return self.directories[self.current_directory_index]
         return None
+    
+    def _find_next_directory_with_images(self, start_index: int) -> int:
+        """Find the next directory that actually has images, starting from start_index."""
+        for i in range(start_index, len(self.directories)):
+            dir_path = self.base_directory / self.directories[i]['name']
+            if dir_path.exists() and dir_path.is_dir():
+                # Check if directory has images
+                image_files = list(dir_path.glob("*.png")) + list(dir_path.glob("*.jpg")) + list(dir_path.glob("*.jpeg"))
+                if image_files:
+                    print(f"[*] Found directory with images: {self.directories[i]['name']} ({len(image_files)} images)")
+                    return i
+        
+        # If no directory with images found from start_index, search from beginning
+        for i in range(0, start_index):
+            dir_path = self.base_directory / self.directories[i]['name']
+            if dir_path.exists() and dir_path.is_dir():
+                image_files = list(dir_path.glob("*.png")) + list(dir_path.glob("*.jpg")) + list(dir_path.glob("*.jpeg"))
+                if image_files:
+                    print(f"[*] Found directory with images (wrapped): {self.directories[i]['name']} ({len(image_files)} images)")
+                    return i
+        
+        # Fallback to start_index if no images found anywhere
+        print(f"[!] No directories with images found, using start index: {start_index}")
+        return start_index
     
     def advance_directory(self):
         """Move to next directory."""
@@ -442,25 +471,10 @@ def get_review_notes() -> str:
 
 @lru_cache(maxsize=100)
 def _generate_thumbnail(image_path: str, mtime_ns: int, size: int) -> bytes:
-    """Generate thumbnail with caching based on file modification time and size."""
-    try:
-        with Image.open(image_path) as img:
-            img.thumbnail((THUMBNAIL_MAX_DIM, THUMBNAIL_MAX_DIM), Image.Resampling.LANCZOS)
-            if img.mode != "RGB":
-                img = img.convert("RGB")
-            
-            buf = BytesIO()
-            img.save(buf, format="JPEG", quality=85, optimize=True)
-            return buf.getvalue()
-    except Exception as e:
-        print(f"[!] Error generating thumbnail for {image_path}: {e}")
-        # Return a simple error placeholder
-        error_img = Image.new("RGB", (400, 300), color=(64, 64, 64))
-        buf = BytesIO()
-        error_img.save(buf, format="JPEG")
-        return buf.getvalue()
+    """Generate thumbnail using shared function."""
+    return generate_thumbnail(image_path, mtime_ns, size, max_dim=THUMBNAIL_MAX_DIM, quality=85)
 
-def safe_delete(png_path: Path, hard_delete: bool = False, tracker: Optional[FileTracker] = None, activity_timer: Optional[ActivityTimer] = None) -> None:
+def safe_delete(png_path: Path, hard_delete: bool = False, tracker: Optional[FileTracker] = None) -> None:
     """Delete PNG and corresponding metadata file (.yaml or .caption)."""
     # Try .yaml first, then .caption
     yaml_path = png_path.parent / f"{png_path.stem}.yaml"
@@ -491,32 +505,13 @@ def safe_delete(png_path: Path, hard_delete: bool = False, tracker: Optional[Fil
             files=deleted_files,
             notes="User chose to delete"
         )
-        
-        # Log operation in activity timer
-        if activity_timer:
-            activity_timer.log_operation("delete", file_count=len(deleted_files))
 
-def move_with_metadata(src_path: Path, dest_dir: Path, tracker: FileTracker, group_name: str, activity_timer: Optional[ActivityTimer] = None) -> List[str]:
-    """Move PNG and corresponding metadata file (.yaml or .caption) to destination directory."""
+def move_with_metadata(src_path: Path, dest_dir: Path, tracker: FileTracker, group_name: str) -> List[str]:
+    """Move PNG and ALL corresponding companion files to destination directory."""
     dest_dir.mkdir(exist_ok=True)
     
-    # Try .yaml first, then .caption
-    yaml_path = src_path.parent / f"{src_path.stem}.yaml"
-    if not yaml_path.exists():
-        yaml_path = src_path.parent / f"{src_path.stem}.caption"
-    
-    moved_files = []
-    
-    # Move PNG
-    dest_png = dest_dir / src_path.name
-    src_path.rename(dest_png)
-    moved_files.append(src_path.name)
-    
-    # Move metadata file if it exists
-    if yaml_path.exists():
-        dest_yaml = dest_dir / yaml_path.name
-        yaml_path.rename(dest_yaml)
-        moved_files.append(yaml_path.name)
+    # Use wildcard logic to move PNG and ALL companion files
+    moved_files = move_file_with_all_companions(src_path, dest_dir, dry_run=False)
     
     # Log the operation
     tracker.log_operation(
@@ -528,16 +523,12 @@ def move_with_metadata(src_path: Path, dest_dir: Path, tracker: FileTracker, gro
         notes=f"User selected {group_name}"
     )
     
-    # Log operation in activity timer
-    if activity_timer:
-        activity_timer.log_operation("sort", file_count=len(moved_files))
-    
     return moved_files
 
 def launch_browser(host: str, port: int):
     """Launch browser after a short delay."""
-    time.sleep(1.5)
-    webbrowser.open(f"http://{host}:{port}")
+    from utils.companion_file_utils import launch_browser as shared_launch_browser
+    shared_launch_browser(host, port, delay=1.5)
 
 def detect_face_groups_context(folder: Path) -> dict:
     """Detect context when working in face_groups structure."""
@@ -609,7 +600,7 @@ def clean_similarity_maps(folder: Path, similarity_map_dir: Path) -> bool:
         info(f"Failed to clean similarity maps: {e}")
         return False
 
-def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Optional[Path] = None, activity_timer: Optional[ActivityTimer] = None, multi_directory_tracker: Optional[MultiDirectoryProgressTracker] = None) -> Flask:
+def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Optional[Path] = None, multi_directory_tracker: Optional[MultiDirectoryProgressTracker] = None) -> Flask:
     """Create and configure the Flask app."""
     app = Flask(__name__)
     
@@ -653,9 +644,6 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
     
     # Initialize FileTracker
     tracker = FileTracker("character_sorter")
-    
-    # Store activity timer in app config
-    app.config["ACTIVITY_TIMER"] = activity_timer
     
     # Set up target directories - always in project root
     project_root = Path(__file__).parent.parent  # scripts/.. -> project root
@@ -711,21 +699,8 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
                     
                     if next_dir_info:
                         print(f"DEBUG: Multi-directory mode - advancing to {next_dir_info['name']}")
-                        return render_template_string(AUTO_ADVANCE_TEMPLATE, 
-                                                    next_directory=next_dir_info['name'],
-                                                    current_dir=current_dir_info['name'] if current_dir_info else "Unknown",
-                                                    position=tracker.current_directory_index,
-                                                    total=len(tracker.directories))
-                    else:
-                        print(f"DEBUG: Multi-directory mode - all directories completed")
-                        tracker.cleanup_completed_session()
-                        return render_template_string(COMPLETION_TEMPLATE, 
-                                                    history=app.config["HISTORY"])
-                else:
-                    print(f"DEBUG: Multi-directory mode - no more directories")
-                    tracker.cleanup_completed_session()
-                    return render_template_string(COMPLETION_TEMPLATE, 
-                                                history=app.config["HISTORY"])
+                        # Direct redirect to next directory instead of showing countdown page
+                        return redirect(f'/switch-directory/{next_dir_info["name"]}')
             
             # Check for auto-advance in face groups mode
             elif app.config["IS_FACE_GROUPS_MODE"] and app.config["FACE_GROUPS_INFO"]:
@@ -733,11 +708,8 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
                 next_dir = find_next_person_directory(app.config["FACE_GROUPS_INFO"])
                 if next_dir:
                     print(f"DEBUG: Found next directory: {next_dir.name}")
-                    return render_template_string(AUTO_ADVANCE_TEMPLATE, 
-                                                next_directory=next_dir.name,
-                                                current_dir=app.config["FACE_GROUPS_INFO"]["current_dir"],
-                                                position=app.config["FACE_GROUPS_INFO"]["position"],
-                                                total=app.config["FACE_GROUPS_INFO"]["total"])
+                    # Direct redirect to next directory instead of showing countdown page
+                    return redirect(f'/switch-directory/{next_dir.name}')
                 else:
                     print(f"DEBUG: No next directory found, showing completion")
             else:
@@ -752,7 +724,7 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
             row_images = images[i:i + IMAGES_PER_BATCH]
             image_rows.append({
                 'id': i // IMAGES_PER_BATCH,
-                'images': [{'index': j, 'path': img, 'name': img.name, 'global_index': i + j} for j, img in enumerate(row_images)],
+                'images': [{'index': j, 'path': img, 'name': img.name, 'stage_name': format_image_display_name(img.name, context='web'), 'global_index': i + j} for j, img in enumerate(row_images)],
                 'start_index': i
             })
         
@@ -780,7 +752,8 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
             is_multi_directory_mode=app.config["IS_MULTI_DIRECTORY_MODE"],
             progress_info=progress_info,
             has_similarity_maps=app.config["SIMILARITY_MAP_DIR"] is not None,
-            current_dir_index=current_dir_index
+            current_dir_index=current_dir_index,
+            error_display_html=get_error_display_html()
         )
     
     @app.route("/image/<int:global_index>")
@@ -799,39 +772,9 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
         data = _generate_thumbnail(str(path), int(stat.st_mtime_ns), stat.st_size)
         return Response(data, mimetype="image/jpeg")
     
-    @app.route("/mark_activity", methods=["POST"])
-    def mark_activity():
-        """Mark user activity for timer tracking"""
-        activity_timer: Optional[ActivityTimer] = app.config.get("ACTIVITY_TIMER")
-        if activity_timer:
-            activity_timer.mark_activity()
-        return jsonify({"status": "ok"})
-    
-    @app.route("/timer_stats")
-    def timer_stats():
-        """Get current timer statistics"""
-        activity_timer: Optional[ActivityTimer] = app.config.get("ACTIVITY_TIMER")
-        if activity_timer:
-            stats = activity_timer.get_current_stats()
-            return jsonify(stats)
-        else:
-            return jsonify({
-                "active_time": 0,
-                "total_time": 0,
-                "efficiency": 100,
-                "is_active": False,
-                "files_processed": 0,
-                "total_operations": 0
-            })
-
     @app.route("/action", methods=["POST"])
     def handle_action():
         """Handle user actions (group1, group2, group3, delete, skip, back)."""
-        # Mark activity for timer
-        activity_timer: Optional[ActivityTimer] = app.config.get("ACTIVITY_TIMER")
-        if activity_timer:
-            activity_timer.mark_activity()
-            
         data = request.get_json() or {}
         action = data.get("action")
         
@@ -1162,12 +1105,8 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
             app.config["HISTORY"] = []
             app.config["BATCH_DECISIONS"] = {}
             
-            return jsonify({
-                "status": "success",
-                "message": f"Switched to {directory_name}",
-                "image_count": len(new_images),
-                "batch_count": len(new_image_batches)
-            })
+            # Redirect to main page to show the new directory
+            return redirect('/')
         
         # Handle face groups mode
         elif app.config["IS_FACE_GROUPS_MODE"]:
@@ -1602,10 +1541,10 @@ MAIN_TEMPLATE = """
             window.location.reload();
           }
         } else {
-          alert('Error: ' + result.message);
+          showError('Error: ' + result.message);
         }
       } catch (error) {
-        alert('Network error: ' + error.message);
+        showError('Network error: ' + error.message);
       } finally {
         isLoading = false;
         document.body.classList.remove('loading');
@@ -1616,7 +1555,7 @@ MAIN_TEMPLATE = """
       if (isLoading) return;
       
       if (reviewedIndices.size === 0) {
-        alert('No images reviewed yet. Make some decisions first!');
+        showError('No images reviewed yet. Make some decisions first!');
         return;
       }
       
@@ -1652,14 +1591,14 @@ MAIN_TEMPLATE = """
               document.body.innerHTML = '<div style="text-align:center;padding:4rem;"><h1>✅ All Images Processed!</h1><p>Character sorting complete.</p></div>';
             }
           } else {
-            alert(`Batch processed! ${result.message}`);
+            // Batch processed successfully, reload page
             window.location.reload();
           }
         } else {
-          alert('Error processing batch: ' + result.message);
+          showError('Error processing batch: ' + result.message);
         }
       } catch (error) {
-        alert('Network error: ' + error.message);
+        showError('Network error: ' + error.message);
       } finally {
         isLoading = false;
         document.body.classList.remove('loading');
@@ -1802,9 +1741,10 @@ GRID_TEMPLATE = """
     
     .image-name {
       font-size: 0.8rem;
-      color: var(--muted);
+      color: white;
       margin-bottom: 0.5rem;
       word-break: break-all;
+      font-weight: 500;
     }
     
     .action-buttons {
@@ -2003,7 +1943,7 @@ GRID_TEMPLATE = """
           <div class="image-container">
             <img src="/image/{{ current_batch.id }}/{{ image.index }}" alt="{{ image.name }}" loading="lazy">
           </div>
-          <div class="image-name">{{ image.name }}</div>
+          <div class="image-name">{{ image.stage_name }}</div>
           <div class="action-buttons">
             <button class="btn btn-group1" onclick="selectAction({{ current_batch.id }}, {{ image.index }}, 'group1')">
               Group 1
@@ -2062,13 +2002,11 @@ GRID_TEMPLATE = """
       
       const decisions = Object.keys(batchDecisions).length;
       if (decisions === 0) {
-        alert('Make some decisions first! Select actions for the images you want to process.');
+        showError('Make some decisions first! Select actions for the images you want to process.');
         return;
       }
       
-      if (!confirm(`Process ${decisions} image decisions? This will move/delete files immediately.`)) {
-        return;
-      }
+      // Confirmation dialog removed - proceed directly
       
       isLoading = true;
       document.body.classList.add('loading');
@@ -2087,15 +2025,15 @@ GRID_TEMPLATE = """
             // Refresh page to trigger auto-advance check in face groups mode
             window.location.reload();
           } else {
-            alert(`Batch processed! ${result.message}. ${result.remaining} images remaining.`);
+            // Batch processed successfully, reload page
             batchDecisions = {};
             window.location.reload();
           }
         } else {
-          alert('Error: ' + result.message);
+          showError('Error: ' + result.message);
         }
       } catch (error) {
-        alert('Network error: ' + error.message);
+        showError('Network error: ' + error.message);
       } finally {
         isLoading = false;
         document.body.classList.remove('loading');
@@ -2132,6 +2070,7 @@ VIEWPORT_TEMPLATE = """
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Web Character Sorter - Viewport Progressive</title>
+  {{ error_display_html }}
   <style>
     :root {
       color-scheme: dark;
@@ -2323,9 +2262,10 @@ VIEWPORT_TEMPLATE = """
     
     .image-name {
       font-size: 0.7rem;
-      color: var(--muted);
+      color: white;
       margin-bottom: 0.8rem;
       word-break: break-all;
+      font-weight: 500;
     }
     
     .action-buttons {
@@ -2519,6 +2459,7 @@ VIEWPORT_TEMPLATE = """
           <div class="image-container">
             <img src="/image/{{ image.global_index }}" alt="{{ image.name }}" loading="lazy" onclick="selectAction({{ image.global_index }}, 'delete')">
           </div>
+          <div class="image-name">{{ image.stage_name }}</div>
           <div class="action-buttons">
             <button class="btn btn-group1" onclick="selectAction({{ image.global_index }}, 'group1')">
               G1
@@ -2697,13 +2638,11 @@ VIEWPORT_TEMPLATE = """
       
       const decisionsCount = Object.keys(imageDecisions).length;
       if (decisionsCount === 0) {
-        alert('No decisions made yet! Make some selections first.');
+        showError('No decisions made yet! Make some selections first.');
         return;
       }
       
-      if (!confirm(`Process ${decisionsCount} image decisions? This will move/delete files immediately.`)) {
-        return;
-      }
+      // Confirmation dialog removed - proceed directly
       
       isLoading = true;
       document.body.classList.add('loading');
@@ -2722,16 +2661,15 @@ VIEWPORT_TEMPLATE = """
             // Refresh page to trigger auto-advance check in face groups mode
             window.location.reload();
           } else {
-            alert(`Batch processed! ${result.message}. ${result.remaining} images remaining.`);
-            // Clear decisions and reload page
+            // Batch processed successfully, reload page
             imageDecisions = {};
             window.location.reload();
           }
         } else {
-          alert('Error: ' + result.message);
+          showError('Error: ' + result.message);
         }
       } catch (error) {
-        alert('Network error: ' + error.message);
+        showError('Network error: ' + error.message);
       } finally {
         isLoading = false;
         document.body.classList.remove('loading');
@@ -2762,10 +2700,10 @@ VIEWPORT_TEMPLATE = """
           // Reload page to get updated layout
           window.location.reload();
         } else {
-          alert('Failed to refresh layout: ' + result.message);
+          showError('Failed to refresh layout: ' + result.message);
         }
       } catch (error) {
-        alert('Error refreshing layout: ' + error.message);
+        showError('Error refreshing layout: ' + error.message);
       } finally {
         refreshBtn.innerHTML = originalText;
         refreshBtn.disabled = false;
@@ -2785,12 +2723,12 @@ VIEWPORT_TEMPLATE = """
           // Navigate to previous directory
           window.location.href = result.redirect_url;
         } else if (result.status === 'first_directory') {
-          alert('Already at the first directory');
+          showError('Already at the first directory');
         } else {
-          alert('Error: ' + result.message);
+          showError('Error: ' + result.message);
         }
       } catch (error) {
-        alert('Error going to previous directory: ' + error.message);
+        showError('Error going to previous directory: ' + error.message);
       }
     }
     
@@ -2812,39 +2750,21 @@ VIEWPORT_TEMPLATE = """
             // Successfully switched directories, reload the page
             window.location.reload();
           } else {
-            alert('Error switching to next directory: ' + switchResult.message);
+            showError('Error switching to next directory: ' + switchResult.message);
           }
         } else if (result.status === 'complete') {
-          alert('All directories have been processed!');
+          showError('All directories have been processed!');
         } else {
-          alert('Error: ' + result.message);
+          showError('Error: ' + result.message);
         }
       } catch (error) {
-        alert('Error getting next directory: ' + error.message);
+        showError('Error getting next directory: ' + error.message);
       }
     }
     
-    // Add simple activity timer status to header
-    const header = document.querySelector('h1');
-    if (header) {
-        const timerStatus = document.createElement('span');
-        timerStatus.id = 'activity-status';
-        timerStatus.style.cssText = `
-            margin-left: 1rem;
-            font-size: 0.8rem;
-            font-weight: normal;
-            color: var(--text-secondary);
-        `;
-        timerStatus.innerHTML = '🟢 Active';
-        header.appendChild(timerStatus);
-    }
-
-    // Update timer display every 5 seconds
-    setInterval(updateTimerDisplay, 5000);
-    
     // Track user activity
     function markActivity() {
-        fetch('/mark_activity', { method: 'POST' });
+        // Activity tracking removed - using file-operation-based timing instead
     }
     
     // Activity tracking events
@@ -2862,24 +2782,6 @@ VIEWPORT_TEMPLATE = """
         }
     });
     
-    function updateTimerDisplay() {
-        fetch('/timer_stats')
-            .then(response => response.json())
-            .then(data => {
-                if (data.active_time !== undefined) {
-                    // Update simple status indicator in header
-                    const statusElement = document.getElementById('activity-status');
-                    if (statusElement) {
-                        statusElement.innerHTML = data.is_active ? '🟢 Active' : '⚫ Inactive';
-                    }
-                }
-            })
-            .catch(err => console.log('Timer update failed:', err));
-    }
-    
-    // Initial timer update
-    updateTimerDisplay();
-    
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
       if (isLoading) return;
@@ -2888,114 +2790,6 @@ VIEWPORT_TEMPLATE = """
         processViewportBatch();
       }
     });
-  </script>
-</body>
-</html>
-"""
-
-AUTO_ADVANCE_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Auto-Advance to Next Directory</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #101014;
-      color: white;
-      text-align: center;
-      padding: 4rem;
-    }
-    .advance-container {
-      background: #181821;
-      padding: 2rem;
-      border-radius: 12px;
-      margin: 2rem auto;
-      max-width: 600px;
-    }
-    .progress {
-      background: #1f1f2c;
-      border-radius: 8px;
-      padding: 1rem;
-      margin: 1rem 0;
-    }
-    .advance-btn {
-      background: #4f9dff;
-      color: white;
-      border: none;
-      padding: 1rem 2rem;
-      border-radius: 8px;
-      font-size: 1.1rem;
-      cursor: pointer;
-      margin: 0.5rem;
-    }
-    .advance-btn:hover {
-      background: #3a8ce6;
-    }
-    .countdown {
-      font-size: 2rem;
-      margin: 1rem 0;
-      color: #4f9dff;
-    }
-  </style>
-</head>
-<body>
-  <h1>✅ {{ current_dir }} Complete!</h1>
-  <div class="advance-container">
-    <div class="progress">
-      <h3>Progress: {{ position }}/{{ total }} directories</h3>
-      <p>All images in <strong>{{ current_dir }}</strong> have been processed.</p>
-    </div>
-    
-    <div class="countdown" id="countdown">5</div>
-    <p>Auto-advancing to <strong>{{ next_directory }}</strong> in <span id="countdown-text">5</span> seconds...</p>
-    
-    <button class="advance-btn" onclick="advanceNow()">Go Now</button>
-    <button class="advance-btn" onclick="stopAdvance()" style="background: #666;">Stay Here</button>
-  </div>
-
-  <script>
-    let countdown = 5;
-    const countdownEl = document.getElementById('countdown');
-    const countdownTextEl = document.getElementById('countdown-text');
-    let timer;
-
-    function updateCountdown() {
-      countdown--;
-      countdownEl.textContent = countdown;
-      countdownTextEl.textContent = countdown;
-      
-      if (countdown <= 0) {
-        advanceNow();
-      }
-    }
-
-    async function advanceNow() {
-      clearInterval(timer);
-      try {
-        const response = await fetch('/switch-directory/{{ next_directory }}');
-        const result = await response.json();
-        
-        if (result.status === 'success') {
-          // Successfully switched directories, reload the page
-          window.location.reload();
-        } else {
-          alert('Error switching directories: ' + result.message);
-        }
-      } catch (error) {
-        alert('Error advancing to next directory: ' + error.message);
-      }
-    }
-
-    function stopAdvance() {
-      clearInterval(timer);
-      countdownEl.textContent = '∞';
-      countdownTextEl.parentElement.innerHTML = '<p>Auto-advance stopped. <button class="advance-btn" onclick="advanceNow()">Go to {{ next_directory }}</button></p>';
-    }
-
-    // Start countdown
-    timer = setInterval(updateCountdown, 1000);
   </script>
 </body>
 </html>
@@ -3034,6 +2828,17 @@ COMPLETION_TEMPLATE = """
 </body>
 </html>
 """
+
+def extract_stage_name(filename: str) -> str:
+    """Extract stage name from filename after second underscore."""
+    parts = filename.split('_')
+    if len(parts) >= 3:
+        # Join everything after the second underscore
+        stage_name = '_'.join(parts[2:])
+        # Remove file extension
+        stage_name = stage_name.rsplit('.', 1)[0]
+        return stage_name
+    return filename.rsplit('.', 1)[0]  # Fallback to filename without extension
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -3088,11 +2893,7 @@ def main() -> None:
             info(f"Similarity map directory {similarity_map_dir} not found - using alphabetical order")
             similarity_map_dir = None
     
-    # Initialize activity timer
-    activity_timer = ActivityTimer("03_web_character_sorter")
-    activity_timer.start_session()
-    
-    app = create_app(folder, args.hard_delete, similarity_map_dir, activity_timer, multi_directory_tracker)
+    app = create_app(folder, args.hard_delete, similarity_map_dir, multi_directory_tracker)
     
     if not args.no_browser:
         threading.Thread(target=launch_browser, args=(args.host, args.port), daemon=True).start()
@@ -3103,10 +2904,7 @@ def main() -> None:
     except OSError as exc:
         human_err(f"Failed to start server: {exc}")
         sys.exit(1)
-    finally:
-        # End activity timer session
-        if 'activity_timer' in locals():
-            activity_timer.end_session()
+
 
 if __name__ == "__main__":
     main()

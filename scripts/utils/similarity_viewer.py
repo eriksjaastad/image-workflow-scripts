@@ -45,6 +45,7 @@ import argparse
 from pathlib import Path
 from flask import Flask, render_template_string, jsonify
 import webbrowser
+from companion_file_utils import launch_browser
 import threading
 import time
 
@@ -631,8 +632,12 @@ def create_app(output_dir):
 
 def open_browser(url):
     """Open browser after a short delay."""
-    time.sleep(1.5)
-    webbrowser.open(url)
+    # Extract host and port from URL for shared function
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    host = parsed.hostname or "localhost"
+    port = parsed.port or 5000
+    launch_browser(host, port, delay=1.5)
 
 def main():
     parser = argparse.ArgumentParser(description="Similarity-enhanced image viewer for clustering analysis")

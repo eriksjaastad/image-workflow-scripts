@@ -39,7 +39,7 @@ from send2trash import send2trash
 # Add the project root to the path for importing
 sys.path.append(str(Path(__file__).parent.parent.parent))
 from scripts.file_tracker import FileTracker
-from utils.activity_timer import ActivityTimer
+from utils.companion_file_utils import format_image_display_name
 
 
 class BaseDesktopImageTool:
@@ -54,8 +54,6 @@ class BaseDesktopImageTool:
         
         # Initialize trackers
         self.tracker = FileTracker(tool_name)
-        self.activity_timer = ActivityTimer(tool_name)
-        self.activity_timer.start_session()
         
         # Common state
         self.current_images = []
@@ -136,7 +134,6 @@ class BaseDesktopImageTool:
     
     def on_crop_select(self, eclick, erelease, image_idx: int):
         """Handle crop rectangle selection for a specific image."""
-        self.activity_timer.mark_activity()
         if image_idx >= len(self.current_images):
             return
             
@@ -196,7 +193,6 @@ class BaseDesktopImageTool:
     
     def on_key_press(self, event):
         """Handle keyboard input - common keys handled here, specific keys delegated to subclasses."""
-        self.activity_timer.mark_activity()
         key = event.key.lower()
         
         # Common global controls
@@ -231,7 +227,6 @@ class BaseDesktopImageTool:
             return
             
         print(f"Quitting {self.tool_name}...")
-        self.activity_timer.end_session()
         plt.close('all')
         sys.exit(0)
     
@@ -297,8 +292,6 @@ class BaseDesktopImageTool:
             [png_path.name]
         )
         
-        self.activity_timer.log_operation("crop", file_count=1)
-        
         print(f"Cropped and saved in place: {png_path.name}")
     
     def safe_delete(self, png_path: Path, yaml_path: Path):
@@ -312,12 +305,10 @@ class BaseDesktopImageTool:
             send2trash(str(yaml_path))
             files_deleted.append(yaml_path.name)
             
-        self.tracker.log_operation(
-            "delete", str(png_path.parent), "trash", len(files_deleted),
-            "Image deleted", files_deleted
-        )
-        
-        self.activity_timer.log_operation("delete", file_count=1)
+            self.tracker.log_operation(
+                "delete", str(png_path.parent), "trash", len(files_deleted),
+                "Image deleted", files_deleted
+            )
         print(f"Deleted: {png_path.name}")
     
     def move_to_cropped(self, png_path: Path, yaml_path: Path, reason: str):
@@ -332,7 +323,6 @@ class BaseDesktopImageTool:
             f"Image {reason} (left in place)", files
         )
         
-        self.activity_timer.log_operation("skip", file_count=1)
         print(f"Skipped (left in place): {png_path.name} ({reason})")
     
     def load_image_safely(self, png_path: Path, image_idx: int) -> bool:
@@ -364,7 +354,7 @@ class BaseDesktopImageTool:
             ax = self.axes[image_idx]
             ax.clear()
             ax.imshow(img_array, aspect='equal')
-            ax.set_title(f"Image {image_idx + 1}", fontsize=12)
+            ax.set_title(f"Image {image_idx + 1}: {format_image_display_name(png_path.name, context='desktop')}", fontsize=12)
             ax.set_xticks([])
             ax.set_yticks([])
             
@@ -411,7 +401,7 @@ class BaseDesktopImageTool:
             ax.text(0.5, 0.5, f'LOAD ERROR\n{png_path.name}\n{str(e)}', 
                    ha='center', va='center', fontsize=10, color='red',
                    transform=ax.transAxes, bbox=dict(boxstyle="round,pad=0.3", facecolor="yellow", alpha=0.7))
-            ax.set_title(f"Image {image_idx + 1}: LOAD ERROR", fontsize=10, color='red')
+            ax.set_title(f"Image {image_idx + 1}: LOAD ERROR - {format_image_display_name(png_path.name, context='desktop')}", fontsize=10, color='red')
             ax.set_xticks([])
             ax.set_yticks([])
             
@@ -446,11 +436,11 @@ class BaseDesktopImageTool:
             if i < len(self.axes) and isinstance(state, dict):
                 status = state.get('status', 'delete')
                 if status in ['keep', 'selected']:
-                    self.axes[i].set_title(f"Image {i + 1}: SELECTED", fontsize=12, color='blue', weight='bold')
+                    self.axes[i].set_title(f"Image {i + 1}: SELECTED - {format_image_display_name(self.current_images[i]['path'].name, context='desktop')}", fontsize=12, color='blue', weight='bold')
                 elif status == 'delete':
-                    self.axes[i].set_title(f"Image {i + 1}: DELETE", fontsize=12, color='red')
+                    self.axes[i].set_title(f"Image {i + 1}: DELETE - {format_image_display_name(self.current_images[i]['path'].name, context='desktop')}", fontsize=12, color='red')
                 else:
-                    self.axes[i].set_title(f"Image {i + 1}: {status.upper()}", fontsize=12, color='orange')
+                    self.axes[i].set_title(f"Image {i + 1}: {status.upper()} - {format_image_display_name(self.current_images[i]['path'].name, context='desktop')}", fontsize=12, color='orange')
     
     def clear_selectors(self):
         """Clear previous selectors."""

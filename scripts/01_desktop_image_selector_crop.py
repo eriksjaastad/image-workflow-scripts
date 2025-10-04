@@ -30,7 +30,7 @@ FEATURES:
 WORKFLOW:
 ---------
 1. View 3 images from triplet side-by-side
-2. Click or press [[]\ to select which image to keep
+2. Click or press [[]\\ to select which image to keep
 3. Crop the selected image by dragging rectangle
 4. Press [Enter] to crop selected image, delete others, next triplet
 5. Or press [R] to reset row (all back to delete), or [←] to go back
@@ -49,7 +49,7 @@ FILE HANDLING:
 
 CONTROLS:
 ---------
-Selection:  [ [ \ Keep Image (auto-shows crop rectangle)
+Selection:  [ [ \\ Keep Image (auto-shows crop rectangle)
 Reset:      [R] Reset Row (all back to delete, clear crops)
 Navigation: [←] Previous Triplet  [Enter] Submit & Next Triplet
 Global:     [Q] Quit  [H] Help
@@ -75,6 +75,7 @@ import shutil
 # Add the project root to the path for importing
 sys.path.append(str(Path(__file__).parent.parent))
 from utils.base_desktop_image_tool import BaseDesktopImageTool
+from utils.companion_file_utils import sort_image_files_by_timestamp_and_stage, format_image_display_name, extract_timestamp_from_filename
 
 # Triplet detection constants and functions (from web image selector)
 STAGE_NAMES = [
@@ -112,23 +113,25 @@ class TripletProgressTracker:
     
     def discover_triplets(self):
         """Discover all triplets in the directory."""
-        # Implementation from original file
-        all_files = sorted([f for f in self.base_directory.glob("*.png")])
+        # Use standardized sorting logic for consistent image ordering
+        all_files = sort_image_files_by_timestamp_and_stage([f for f in self.base_directory.glob("*.png")])
         triplets = []
         
-        # Group files by timestamp (first 14 characters of filename)
+        # Group files by timestamp using centralized extraction
         timestamp_groups = {}
         for file_path in all_files:
-            timestamp = file_path.stem[:14]
-            if timestamp not in timestamp_groups:
-                timestamp_groups[timestamp] = []
-            timestamp_groups[timestamp].append(file_path)
+            timestamp = extract_timestamp_from_filename(file_path.name)
+            if timestamp:
+                if timestamp not in timestamp_groups:
+                    timestamp_groups[timestamp] = []
+                timestamp_groups[timestamp].append(file_path)
         
         # Create triplets from groups
         for timestamp, files in timestamp_groups.items():
             if len(files) >= 2:  # At least 2 images to form a triplet
+                # Files are already sorted by timestamp + stage, so just use them as-is
                 triplet = Triplet(
-                    paths=sorted(files),
+                    paths=files,  # Already sorted by standardized logic
                     display_name=f"{timestamp} ({len(files)} images)",
                     timestamp=timestamp
                 )
@@ -322,27 +325,28 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
                 image_path = self.current_images[i]['path']
                 filename = image_path.stem  # Remove extension
                 
-                # Trim timestamp from beginning if it's too long (first 14 chars are usually timestamp)
-                if len(filename) > 20 and filename[:14].replace('_', '').isdigit():
-                    display_name = filename[14:]  # Remove timestamp
-                else:
-                    display_name = filename
-                
-                # Limit display name length
-                if len(display_name) > 25:
-                    display_name = display_name[:22] + "..."
+                # Use centralized image name formatting
+                display_name = format_image_display_name(filename, max_length=25, context="desktop")
                 
                 if status == 'selected':
                     control_text = f"{display_name} • [{i+1}] ✓ KEEP  [{reset_key}] Reset"
-        else:
+                else:
                     control_text = f"{display_name} • [{i+1}] DELETE  [{reset_key}] Reset"
                 ax.set_xlabel(control_text, fontsize=10)
     
     def handle_specific_keys(self, key: str):
         """Handle tool-specific keys."""
         # Image selection controls
-        if key in ['1', '2', '3']:
-            image_idx = int(key) - 1
+        if key == '[':
+            image_idx = 0  # First image
+            if image_idx < len(self.image_states):
+                self.select_image(image_idx)
+        elif key == ']':
+            image_idx = 1  # Second image
+            if image_idx < len(self.image_states):
+                self.select_image(image_idx)
+        elif key == '\\':
+            image_idx = 2  # Third image
             if image_idx < len(self.image_states):
                 self.select_image(image_idx)
         
@@ -403,13 +407,13 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
             ax = self.axes[i]
             status = state.get('status', 'delete')
             
-                if status == 'selected':
+            if status == 'selected':
                 # Green border for selected image
                 for spine in ax.spines.values():
                     spine.set_visible(True)
                     spine.set_color('green')
                     spine.set_linewidth(3)
-                else:
+            else:
                 # No border for unselected images
                 for spine in ax.spines.values():
                     spine.set_visible(False)
@@ -421,11 +425,11 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
         for i, state in enumerate(self.image_states):
             state['status'] = 'delete'
             state['action'] = None
-                
-                # Reset the visual crop rectangle
-                if i < len(self.selectors) and self.selectors[i]:
+            
+            # Reset the visual crop rectangle
+            if i < len(self.selectors) and self.selectors[i]:
                 img_width, img_height = self.current_images[i]['original_size']
-                    self.selectors[i].extents = (0, img_width, 0, img_height)
+                self.selectors[i].extents = (0, img_width, 0, img_height)
         
         # Update display
         self.update_visual_feedback()
@@ -469,9 +473,6 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
         if not self.current_images:
             return
         
-        self.activity_timer.mark_batch(f"Triplet {self.progress_tracker.current_triplet_index + 1}")
-        self.activity_timer.mark_activity()
-        
         print(f"\nProcessing triplet: {self.current_triplet.display_name}")
         
         processed_count = 0
@@ -488,8 +489,8 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
             self.progress_tracker.advance_triplet()
             if self.progress_tracker.has_more_triplets():
                 self.load_current_triplet()
-        else:
-            self.show_completion()
+            else:
+                self.show_completion()
             return
         
         # Process each image
@@ -558,7 +559,7 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
     def show_completion(self):
         """Show completion message."""
         plt.clf()
-            self.progress_tracker.cleanup_completed_session()
+        self.progress_tracker.cleanup_completed_session()
         
         plt.text(0.5, 0.5, "🎉 All triplets processed!\n\nImage selection and cropping complete.", 
                  ha='center', va='center', fontsize=20, 
