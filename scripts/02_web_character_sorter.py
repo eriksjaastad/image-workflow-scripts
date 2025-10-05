@@ -99,7 +99,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from file_tracker import FileTracker
-from utils.companion_file_utils import find_all_companion_files, move_file_with_all_companions, launch_browser, generate_thumbnail, get_error_display_html, format_image_display_name
+from utils.companion_file_utils import find_all_companion_files, move_file_with_all_companions, launch_browser, generate_thumbnail, get_error_display_html, format_image_display_name, sort_image_files_by_timestamp_and_stage
 
 try:
     from flask import Flask, Response, jsonify, render_template_string, request, redirect
@@ -332,7 +332,7 @@ def scan_images(folder: Path) -> List[Path]:
     for entry in sorted(folder.iterdir()):
         if entry.is_file() and entry.suffix.lower().lstrip(".") in allowed:
             results.append(entry)
-    return results
+    return sort_image_files_by_timestamp_and_stage(results)
 
 def load_similarity_neighbors(similarity_map_dir: Path) -> Dict[str, Dict]:
     """Load similarity neighbor data from face_groups/neighbors.jsonl"""

@@ -1,136 +1,150 @@
-# (Keep all your existing imports and helper functions as they are)
+"""
+AI Training Plan: Select + Crop Model (Desktop Selector Workflow)
+===============================================================
 
-# train_model.py
+This document lays out a concrete, step-by-step plan to train a model that
+learns your selection and cropping preferences from the desktop selector tool.
 
-# 1. READ THE DATA
-# The script will read your 'selections_log.csv' file.
-# It will load the images and create pairs for training:
-# (your_chosen_image, one_of_the_other_two)
-# It will label these pairs to teach the model that your chosen image is "better."
+Phases
+------
+1) Logging — capture supervision from real work (selection + crop)
+2) Dataset building — create ranking and crop regression samples
+3) Training — two-head model (ranking + bbox)
+4) Evaluation — Top-1, IoU, MAE
+5) Inference integration — suggest selection + crop in the desktop tool
 
-# 2. LOAD A PRE-TRAINED MODEL
-# It will use a pre-trained model like a Vision Transformer (ViT).
-# This is called transfer learning. It's like giving a student an advanced textbook 
-# instead of having them learn to read from scratch.
+Phase 1 — Logging (no workflow disruption)
+-----------------------------------------
+Desktop selector (authoritative labels):
+- On Enter:
+  - If one image is selected with a crop: append a row to
+    data/training/select_crop_log.csv
+  - If delete-all: optionally log a negative-only record
+- Columns (one row per submission):
+  - session_id: stable session identifier
+  - set_id: stable group id (triplet id)
+  - directory: base directory
+  - image_count: 2–4
+  - chosen_index: -1 if delete-all else 0..N-1
+  - chosen_path: full path (empty if delete-all)
+  - crop_x1, crop_y1, crop_x2, crop_y2: normalized [0..1] (empty if delete-all)
+  - image_i_path for i in 0..N-1 (full paths)
+  - image_i_stage for i in 0..N-1 (stage2_upscaled, etc.)
+  - width_i, height_i for i in 0..N-1
+  - timestamp: ISO8601
 
-# 3. FINE-TUNE THE MODEL
-# It will train the model using a "triplet loss" function. This loss function
-# is designed to bring the embeddings of your chosen images closer together 
-# in a feature space while pushing the embeddings of the "not chosen" images away.
-# 
+Web selector (optional negatives):
+- On batch finalize, for each group moved to selected/:
+  - Log the chosen image path and the other images from the group as negatives.
+- CSV path: data/training/selection_only_log.csv
+- Columns: session_id, set_id, chosen_path, neg_paths(list/JSON), timestamp
 
-# 4. SAVE THE TRAINED MODEL
-# Once training is complete, the script will save the final model.
-# This saved model can then be used in your main workflow to automatically 
-# rank new sets of images.
+Notes:
+- Timestamps are ONLY for sorting; logs/datasets must pre-sort via the centralized sorter
+- Normalize crop coords to [0..1] to be resolution-agnostic
 
+Phase 2 — Dataset builder
+-------------------------
+Create scripts/datasets/build_select_crop_dataset.py that:
+1) Reads select_crop_log.csv and selection_only_log.csv
+2) Validates files exist; drops broken entries
+3) Splits by set_id into train/val/test (e.g., 80/10/10)
+4) Emits two artifacts:
+   - A) Pairwise ranking samples: (anchor=chosen, negative=one other) with label=1
+   - B) Crop regression samples: (image, bbox normalized)
+5) Optional: generate COCO-style JSON for the crop head (bbox in absolute px and image size)
+6) Write a manifest JSONL for fast PyTorch/TF loading (one JSON per sample)
 
-def main():
-    parser = argparse.ArgumentParser(description="Review 3 images; keep 1 and log the selection.")
-    parser.add_argument("folder", type=str, help="Folder containing images")
-    parser.add_argument("--exts", type=str, default="png", help="Comma-separated list of extensions to include")
-    parser.add_argument("--print-triplets", action="store_true", help="Print grouped triplets and exit (debugging aid)")
-    args = parser.parse_args()
+Phase 3 — Model & training
+--------------------------
+Architecture (PyTorch, timm):
+- Backbone: ViT-B/16 (or ConvNeXt-T) pretrained (ImageNet-1k)
+- Shared encoder → two heads:
+  1) Ranking head (embedding of dimension D, e.g., 256). Loss: MarginRankingLoss
+     Use pair sampling from each group: (chosen, negative)
+  2) Crop head (bbox regression): 4 outputs (x1,y1,x2,y2 normalized). Loss: SmoothL1 + IoU loss
+- Total loss = ranking_loss_weight * L_rank + bbox_loss_weight * L_bbox
+  Start with 1.0 : 2.0 weighting (crop a bit heavier) and tune
 
-    folder = Path(args.folder).expanduser().resolve()
-    if not folder.exists() or not folder.is_dir():
-        human_err(f"Folder not found: {folder}")
-        sys.exit(1)
+Data pipeline:
+- Augmentations (Albumentations): random brightness/contrast, small color jitter, flips
+- IMPORTANT: Keep crop labels consistent if geometric transforms are applied
+- Normalize to backbone’s expected mean/std; resize preserving aspect ratio
 
-    exts = [e.strip() for e in args.exts.split(",") if e.strip()]
-    files = scan_images(folder, exts)
-    if not files:
-        human_err("No images found. Check --exts or folder path.")
-        sys.exit(1)
+Training schedule:
+- Optimizer: AdamW, lr ~3e-5–5e-5 for backbone, 1e-4 for heads
+- Cosine decay or step LR; epochs 10–30 depending on dataset size
+- Mixed precision (amp) enabled
 
-    triplets = find_triplets(files)
-    if not triplets:
-        human_err("No triplets found with the current grouping. Try a different flag or no grouping.")
-        sys.exit(1)
+Metrics:
+- Selection: Top-1 accuracy over groups; MRR as secondary
+- Crop: IoU@0.5, mean IoU, MAE in pixels (after denorm)
 
-    if args.print_triplets:
-        for idx, t in enumerate(triplets, 1):
-            print(f"\nTriplet {idx}:")
-            for p in t:
-                print("  -", p.name)
-        print(f"\nTotal triplets: {len(triplets)}")
-        return
+Phase 4 — Evaluation
+--------------------
+Add scripts/notebooks:
+- scripts/eval/eval_select_crop.py → prints Top-1, IoU metrics on val/test
+- notebooks/eval_select_crop.ipynb → qualitative plots (GT vs predicted crops)
 
-    # === NEW: Set up a dedicated training data directory ===
-    training_data_dir = folder.parent / "training_data"
-    training_data_dir.mkdir(exist_ok=True)
-    log_path = training_data_dir / "selections_log.csv"
-    
-    # Initialize log file with header if it doesn't exist
-    header_needed = not log_path.exists()
-    if header_needed:
-        with log_path.open('w', newline='') as f:
-            w = csv.writer(f)
-            w.writerow(["set_id", "chosen_path", "image_1_path", "image_2_path", "image_3_path"])
+Phase 5 — Inference integration (desktop tool)
+----------------------------------------------
+1) Load trained weights once on startup (lazy load with a flag: --ai-suggest)
+2) When showing a batch (2–4 images):
+   - Produce a ranking score for each image, pick top-1 as suggestion
+   - Produce a crop for the top-1 image; draw suggested rectangle in white
+   - Hotkeys:
+     - T → toggle AI suggestion on/off
+     - Y → accept suggestion (auto-select suggested image + set crop)
+3) UI affordance:
+   - Show “AI suggested: stage2_upscaled (92%)” small text under the image title
+4) Safety:
+   - Accepting suggestion never auto-submits; you can still tweak the crop
 
-    index = 0
-    total_triplets = len(triplets)
-    print(f"[*] Found {total_triplets} triplets. Starting at {folder}")
+Environment & commands
+----------------------
+Create a dedicated env (or use .venv311):
+  pip install torch torchvision timm albumentations scikit-learn pycocotools tqdm pyyaml rich
 
-    while 0 <= index < total_triplets:
-        t = triplets[index]
-        remaining = total_triplets - index
-        
-        memory_level = check_memory_warning()
-        memory_display = format_memory_display()
-        
-        if memory_level > 0:
-            print(f"\n⚠️  MEMORY WARNING{memory_display}")
-            
-        print(f"\n=== Triplet {index+1}/{total_triplets} • {remaining} remaining{memory_display} ===")
-        for i, p in enumerate(t, start=1):
-            print(f"{i}. {p.name}")
+Repository additions
+--------------------
+- scripts/datasets/build_select_crop_dataset.py     # builds manifests + COCO json
+- scripts/train/train_select_crop.py                # training loop (multi-head)
+- scripts/eval/eval_select_crop.py                  # metrics + reports
+- notebooks/eval_select_crop.ipynb                  # qualitative review
 
-        if _MEMORY_MONITORING_AVAILABLE and memory_level > 0:
-            gc.collect()
+Pseudocode (dataset builder)
+----------------------------
+for row in select_crop_log.csv:
+    if row.chosen_index >= 0:
+        chosen = row.image_[chosen_index]
+        for j in images_except(chosen):
+            yield ranking_sample(chosen, j)
+        yield crop_sample(chosen, bbox=row.crop)
 
-        choice = show_triplet(t, current=index + 1, total=total_triplets)
+Pseudocode (training loop)
+--------------------------
+for batch in loader:
+    # ranking branch
+    f_pos = enc(pos)
+    f_neg = enc(neg)
+    l_rank = margin_ranking_loss(f_pos, f_neg)
+    # bbox branch
+    pred_bbox = head_bbox(enc(img))
+    l_bbox = smooth_l1(pred_bbox, gt_bbox) + iou_loss(pred_bbox, gt_bbox)
+    total = w1*l_rank + w2*l_bbox
+    total.backward(); optimizer.step()
 
-        if choice in (0, 1, 2):
-            # === NEW: Don't delete or move. Just log the selection. ===
-            chosen_path = t[choice]
-            set_id = chosen_path.stem.split('_')[0]
-            
-            # This is the crucial part: log the full paths of all three images
-            with log_path.open('a', newline='') as f:
-                w = csv.writer(f)
-                w.writerow([
-                    set_id,
-                    str(chosen_path),
-                    str(t[0]),
-                    str(t[1]),
-                    str(t[2])
-                ])
-                
-            info(f"Logged selection for {set_id}. Chosen: {chosen_path.name}")
-            
-        elif choice == -4:  # Delete all three images
-            try:
-                # Retain the old behavior for "delete all" as it implies "terrible"
-                safe_delete(list(t), hard_delete=args.hard_delete)
-                # You might want to log this as well, as it's a valuable signal
-                with log_path.open('a', newline='') as f:
-                    w = csv.writer(f)
-                    w.writerow([f"set_{index+1}", "DELETED_ALL", str(t[0]), str(t[1]), str(t[2])])
-                
-            except RuntimeError as e:
-                human_err(str(e))
-                print("Aborting due to deletion method issue.")
-                break
+Rollout plan
+------------
+1) Implement logging in desktop selector (CSV write on Enter)
+2) Build dataset from a day of work; run a tiny training to validate pipeline
+3) Expand dataset with more sessions; increase epochs
+4) Integrate inference (behind --ai-suggest flag)
+5) Iterate on weights/augmentations based on IoU and Top-1 results
 
-        elif choice == -3:  # quit
-            print("Quitting.")
-            break
-        
-        index += 1
-
-    print("\nDone. All selections logged to:", log_path)
-
-
-if __name__ == "__main__":
-    main()
+Notes
+-----
+- Timestamps are ONLY for sorting; dataset builder must pre-sort via the centralized sorter
+- Always normalize crop coords to [0..1] to be resolution-agnostic
+- Keep train/val/test split by set_id to avoid leakage
+"""

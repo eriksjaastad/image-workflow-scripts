@@ -65,13 +65,16 @@ class BaseDesktopImageTool:
         
         # Matplotlib setup
         self.fig = None
-        self.setup_display()
+        self.current_num_images = 3
+        self.setup_display(self.current_num_images)
     
-    def setup_display(self):
-        """Setup the matplotlib figure with 3 subplots optimized for screen space."""
-        if self.fig:
-            plt.close(self.fig)
-            
+    def setup_display(self, num_images: int = 3):
+        """Setup/refresh the matplotlib figure with dynamic subplots (2–4) without closing the window."""
+        num_images = max(2, min(4, int(num_images or 3)))
+        if self.fig and self.current_num_images == num_images:
+            return
+        self.current_num_images = num_images
+
         # Get screen dimensions and calculate optimal figure size
         try:
             import tkinter as tk
@@ -83,12 +86,27 @@ class BaseDesktopImageTool:
             screen_width = 1920
             screen_height = 1080
         
-        # Calculate optimal figure size
-        max_width = screen_width * 0.9 / 100
-        max_height = (screen_height * 0.85) / 100
+        # Calculate optimal figure size in pixels – clamp to available screen area
+        width_factor = 0.90 if num_images <= 3 else 0.96
+        width_px = int(screen_width * width_factor) - 20  # small gutter
+        height_px = int(screen_height * 0.88) - 60        # leave room for title bar/dock
+        width_px = max(800, min(width_px, screen_width - 8))
+        height_px = max(600, min(height_px, screen_height - 40))
         
-        # Create figure with optimized dimensions
-        self.fig, self.axes = plt.subplots(1, 3, figsize=(max_width, max_height))
+        # Create or clear figure, but do NOT close it to avoid event-loop exits
+        if not self.fig:
+            dpi = matplotlib.rcParams.get('figure.dpi', 100)
+            self.fig = plt.figure(figsize=(width_px / dpi, height_px / dpi))
+        else:
+            try:
+                dpi = self.fig.get_dpi()
+                self.fig.set_size_inches(width_px / dpi, height_px / dpi, forward=True)
+            except Exception:
+                pass
+            self.fig.clf()
+        
+        # Create axes manually to keep the same Figure instance alive
+        self.axes = [self.fig.add_subplot(1, num_images, i + 1) for i in range(num_images)]
         self.fig.suptitle("", fontsize=14, y=0.98)
         
         # Hide the matplotlib toolbar completely
@@ -101,14 +119,35 @@ class BaseDesktopImageTool:
         
         # Center images with minimal margins and good spacing
         # Keep images large while centering them properly
-        self.fig.subplots_adjust(left=0.05, right=0.95, top=0.92, bottom=0.04, wspace=0.08)
-        print(f"🔧 Layout set: left=0.05, right=0.95, wspace=0.08")
+        # Tight, centered layout with minimal side gutters; single row always centered
+        if num_images == 4:
+            left, right, wspace = 0.02, 0.98, 0.03
+        elif num_images == 3:
+            left, right, wspace = 0.03, 0.97, 0.05
+        else:  # 2
+            left, right, wspace = 0.04, 0.96, 0.06
+        self.fig.subplots_adjust(left=left, right=right, top=0.92, bottom=0.10, wspace=wspace)
+        print(f"🔧 Layout set: left={left}, right={right}, wspace={wspace}")
+
+        # Also try resizing/moving the native window to fit available space (Qt5Agg)
+        try:
+            manager = plt.get_current_fig_manager()
+            if hasattr(manager, 'window'):
+                try:
+                    manager.window.move(0, 0)
+                    manager.window.resize(width_px, height_px)
+                except Exception:
+                    # Fallback for other backends
+                    if hasattr(manager, 'resize'):
+                        manager.resize(width_px, height_px)
+        except Exception:
+            pass
         
         # Connect keyboard events
         self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
         
         # Initialize selectors list
-        self.selectors = [None, None, None]
+        self.selectors = [None for _ in range(num_images)]
     
     def create_crop_selector(self, ax, image_idx: int, img_width: int, img_height: int):
         """Create a RectangleSelector for the given axis and image."""
@@ -131,6 +170,24 @@ class BaseDesktopImageTool:
         selector.extents = (0, img_width, 0, img_height)
         
         return selector
+
+    def _set_selector_extents_safely(self, image_idx: int, x1: int, x2: int, y1: int, y2: int):
+        """Avoid ghost/stacked handles by toggling visibility/active during updates."""
+        if image_idx >= len(self.selectors) or not self.selectors[image_idx]:
+            return
+        sel = self.selectors[image_idx]
+        try:
+            sel.set_active(False)
+            sel.set_visible(False)
+        except Exception:
+            pass
+        sel.extents = (x1, x2, y1, y2)
+        try:
+            sel.set_visible(True)
+            sel.set_active(True)
+        except Exception:
+            pass
+        plt.draw()
     
     def on_crop_select(self, eclick, erelease, image_idx: int):
         """Handle crop rectangle selection for a specific image."""
@@ -173,8 +230,7 @@ class BaseDesktopImageTool:
                     x2 = x1 + new_width
                 
                 x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
-                self.selectors[image_idx].extents = (x1, x2, y1, y2)
-                plt.draw()
+                self._set_selector_extents_safely(image_idx, x1, x2, y1, y2)
         
         # Store crop coordinates
         self.image_states[image_idx]['crop_coords'] = (x1, y1, x2, y2)
@@ -260,7 +316,7 @@ class BaseDesktopImageTool:
         img_width, img_height = img.size
         
         if self.selectors[image_idx]:
-            self.selectors[image_idx].extents = (0, img_width, 0, img_height)
+            self._set_selector_extents_safely(image_idx, 0, img_width, 0, img_height)
             
         self.image_states[image_idx]['crop_coords'] = (0, 0, img_width, img_height)
         self.image_states[image_idx]['has_selection'] = True
@@ -408,24 +464,14 @@ class BaseDesktopImageTool:
             return False
     
     def hide_unused_subplots(self, num_images: int):
-        """Hide unused subplots and center the visible ones."""
-        # Hide unused subplots
-        for i in range(num_images, 3):
-            self.axes[i].clear()
-            self.axes[i].set_visible(False)
-        
-        # Center the visible subplots
-        if num_images == 2:
-            # For 2 images, center them by adjusting subplot positions
-            # Give more room for title at top - subplot height reduced to 0.88
-            self.axes[0].set_position([0.05, 0.04, 0.41, 0.88])  # left, bottom, width, height
-            self.axes[1].set_position([0.54, 0.04, 0.41, 0.88])  # left, bottom, width, height
-            print(f"🎯 Centered 2 images: pos1=[0.05, 0.04, 0.41, 0.88], pos2=[0.54, 0.04, 0.41, 0.88]")
-        elif num_images == 1:
-            # For 1 image, center it
-            self.axes[0].set_position([0.3, 0.04, 0.4, 0.88])  # left, bottom, width, height
-            print(f"🎯 Centered 1 image: pos=[0.3, 0.04, 0.4, 0.88]")
-        # For 3 images, use the default layout (already centered)
+        """Ensure subplot count matches and hide extras if any."""
+        num_images = max(2, min(4, int(num_images or 3)))
+        if len(self.axes) != num_images:
+            self.setup_display(num_images)
+            return
+        # Ensure all required axes are visible
+        for i, ax in enumerate(self.axes):
+            ax.set_visible(i < num_images)
     
     def update_image_titles(self, image_states):
         """Update image titles to show selection status instead of crop info."""
@@ -446,8 +492,16 @@ class BaseDesktopImageTool:
         """Clear previous selectors."""
         for selector in self.selectors:
             if selector:
-                selector.set_active(False)
-        self.selectors = [None, None, None]
+                try:
+                    selector.set_visible(False)
+                    selector.set_active(False)
+                    selector.disconnect_events()
+                except Exception:
+                    pass
+        # Reinitialize selector slots to current number of axes
+        desired = getattr(self, 'current_num_images', len(self.axes) if self.axes else 3)
+        desired = max(2, min(4, int(desired or 3)))
+        self.selectors = [None for _ in range(desired)]
     
     def reset_batch_flags(self):
         """Reset flags for new batch."""

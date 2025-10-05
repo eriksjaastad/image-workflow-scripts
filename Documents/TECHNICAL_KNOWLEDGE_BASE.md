@@ -187,6 +187,230 @@ class BaseDesktopImageTool:
 **Benefits:** More accurate, automatic break detection, no user interaction required
 **Implementation:** Analyze FileTracker logs with intelligent gap detection
 
+### **Triplet Detection Logic - SIMPLE IS BETTER**
+**Pattern:** Group images by strictly increasing stage numbers using simple comparison
+**Critical Rule:** Timestamps are ONLY for SORTING, stage numbers are for GROUPING
+**Revolutionary Insight:** Simple solutions are often better than "robust" over-engineered ones
+
+**The Problem with Over-Engineering:**
+1. **Complex lookup tables:** Unnecessary complexity for simple comparisons
+2. **Configuration parameters:** `consecutive_only`, `ordered_stages` - more things to get wrong
+3. **Brittle design:** Breaks if `ordered_stages` doesn't match your data
+4. **Hard to debug:** More moving parts to go wrong
+
+**The Simple Solution That Actually Works:**
+```python
+def group_progressive(files, stage_of, min_group_size=2):
+    """
+    Group files into progressive stage runs.
+    
+    Args:
+        files: list of file paths/objects sorted by timestamp (and then stage).
+        stage_of: callable that extracts the float stage from a file.
+        min_group_size: only emit groups >= this many files.
+        
+    Returns:
+        list of groups (each group is a list of files).
+    """
+    groups = []
+    n = len(files)
+    i = 0
+
+    while i < n:
+        # start a new group anywhere
+        cur_group = [files[i]]
+        prev_stage = stage_of(files[i])
+        i += 1
+
+        # extend the run while stage strictly increases
+        while i < n:
+            s = stage_of(files[i])
+            if s > prev_stage:  # strictly increasing, any jump allowed
+                cur_group.append(files[i])
+                prev_stage = s
+                i += 1
+            else:
+                break  # stage repeated or decreased — end group
+
+        if len(cur_group) >= min_group_size:
+            groups.append(cur_group)
+
+    return groups
+
+# Usage:
+files = sort_image_files_by_timestamp_and_stage([...])
+groups = group_progressive(
+    files,
+    stage_of=lambda p: get_stage_number(detect_stage(p.name)),
+    min_group_size=2,
+)
+```
+
+**Why This Is Revolutionary:**
+
+1. **Simplicity:** 15 lines of clear logic vs 50+ lines of complex lookup tables
+2. **Self-Documenting:** `if s > prev_stage:` - crystal clear intent
+3. **Robust:** Works with any stage numbering system, no configuration needed
+4. **Future-Proof:** Automatically handles new stages (like `stage4_final`)
+5. **No Configuration Errors:** No parameters to get wrong
+6. **Handles All Cases:** 1→2, 1→3, 1.5→3, 2→3, 1→1.5→2→3 - all work naturally
+
+**The Key Insight:**
+Your workflow is simple: **"Group files where each stage is greater than the previous stage."** 
+
+This code implements exactly that logic without any unnecessary complexity.
+
+**Real-World Example:**
+- Sorted files: `stage2_upscaled`, `stage2_upscaled`, `stage3_enhanced`, `stage2_upscaled`
+- Logic: `stage2_upscaled` (2.0) → `stage2_upscaled` (2.0) → `stage3_enhanced` (3.0)
+- Result: Groups `stage2_upscaled` → `stage2_upscaled` → `stage3_enhanced` (stops at next `stage2_upscaled`)
+
+**Centralized Implementation:**
+This logic is now in `companion_file_utils.py` as `find_consecutive_stage_groups()`, ensuring ALL tools use the same simple, robust algorithm.
+
+**CRITICAL RULE — TIMESTAMPS ARE ONLY FOR SORTING**
+Do not use timestamps for grouping boundaries or gap decisions. They are inherently unreliable for gap inference. We use timestamps strictly to sort files deterministically before grouping. Grouping itself is based ONLY on stage numbers and the nearest-up rule below.
+
+**Nearest-Up Grouping (Definitive Spec):**
+- Files are pre-sorted by `(timestamp, then stage)`.
+- A run starts at any file; at each step, pick the smallest stage strictly greater than the previous stage within a lookahead window.
+- Boundaries:
+  - If a duplicate or non-increasing stage is encountered, the current run ends.
+  - No time-gap boundaries in production. `time_gap_minutes` exists for rare analysis but defaults to `None` and should not be used in normal workflows.
+- Defaults: `min_group_size=2`, `lookahead=50`, `time_gap_minutes=None`.
+- Determinism: Sorting + nearest-up selection produces stable, predictable groups.
+
+**Practical Examples:**
+- Nearest-up with early stage3 present:
+  - Files: `1`, `3` (00:10), `2` (00:20), `3` (00:30)
+  - Group: `[1, 2, 3]` (the early `3` is ignored until `2` is found, then the later `3` completes the run)
+- Duplicate stage splits runs:
+  - Files: `1`, `1.5`, `2`, `2`, `3`
+  - Groups: `[1, 1.5, 2]`, `[2, 3]`
+- Large timestamp gaps are ignored for grouping (sorting only):
+  - Files: `1` (00:00), `2` (00:10), `3` (01:00)
+  - Group: `[1, 2, 3]` in production (no time-gap cutoffs)
+
+**Critical Lessons Learned:**
+1. **Simple, direct solutions are often better** than "robust" over-engineered ones
+2. **Don't solve problems you don't have** - avoid unnecessary complexity
+3. **Configuration parameters are liabilities** - more things to get wrong
+4. **Self-documenting code is better** than complex algorithms with explanations
+5. **Simplicity is the ultimate sophistication**
+
+**Date:** October 3, 2025 (learned that simple solutions are often better than complex ones)
+
+### **Critical Testing Lessons - Why Tests Were Failing Us**
+**Problem:** Our tests were passing when they should have been failing, allowing bugs to persist for weeks
+**Root Cause:** Tests were testing "does it run?" instead of "does it work correctly?"
+
+**The Terrible Test Pattern (What NOT to do):**
+```python
+# BAD TEST - This passes even with completely broken logic!
+assert any("stage1" in f for f in filenames), "Should have stage1 files"
+assert len(groups) > 0, "Should detect at least some triplet groups"
+```
+
+**Why This Test Was Terrible:**
+1. **Weak Assertions:** `any("stage1" in f for f in filenames)` - passes even with random grouping
+2. **No Edge Case Testing:** Doesn't test same stages, backwards progression, or specific requirements
+3. **No Validation of Grouping Logic:** Only checks that some files were found, not HOW they were grouped
+4. **No Comprehensive Coverage:** Doesn't test all valid combinations (1→2, 1→3, 1.5→3, etc.)
+
+**The Excellent Test Pattern (What TO do):**
+```python
+# GOOD TEST - Tests specific expected behavior
+test_cases = [
+    ("1→1.5", ["stage1_generated.png", "stage1.5_face_swapped.png"], 1, [2]),
+    ("1→2", ["stage1_generated.png", "stage2_upscaled.png"], 1, [2]),
+    ("1→3", ["stage1_generated.png", "stage3_enhanced.png"], 1, [2]),
+    ("1.5→2", ["stage1.5_face_swapped.png", "stage2_upscaled.png"], 1, [2]),
+    ("1.5→3", ["stage1.5_face_swapped.png", "stage3_enhanced.png"], 1, [2]),
+    ("2→3", ["stage2_upscaled.png", "stage3_enhanced.png"], 1, [2]),
+    # ... all combinations
+]
+
+for description, test_files, expected_groups, expected_sizes in test_cases:
+    groups = find_consecutive_stage_groups(file_paths)
+    assert len(groups) == expected_groups, f"{description}: Expected {expected_groups} groups, got {len(groups)}"
+    actual_sizes = [len(group) for group in groups]
+    assert actual_sizes == expected_sizes, f"{description}: Expected group sizes {expected_sizes}, got {actual_sizes}"
+```
+
+**Why This Test Is Excellent:**
+1. **Tests ALL valid combinations:** Every possible consecutive stage progression
+2. **Validates exact group counts:** Not just "some groups exist"
+3. **Validates stage progression:** Ensures stages are actually consecutive and in order
+4. **Tests edge cases:** Same stages (should NOT group), backwards progression (should break groups)
+5. **Would catch bugs immediately:** Same stage grouping would fail the first test
+
+**Critical Testing Principles:**
+1. **Test specific expected behavior** - not just "does it run without crashing"
+2. **Test edge cases** - same stages, backwards progression, invalid data
+3. **Test all valid combinations** - don't assume only one pattern works
+4. **Validate exact outputs** - group counts, group sizes, stage progressions
+5. **Test would catch the bug** - if the test passes with broken logic, it's a bad test
+
+**The Lesson:** A test that passes with broken logic is worse than no test at all - it gives false confidence and hides bugs for weeks.
+
+### **The Final Testing Insight**
+**Critical Discovery:** Comprehensive tests that validate specific behavior are essential
+
+**What Makes Our Tests Excellent Now:**
+1. **Tests ALL valid combinations:** 1→1.5, 1→2, 1→3, 1.5→2, 1.5→3, 2→3, 1→1.5→2, 1→1.5→3, 1→2→3, 1.5→2→3, 1→1.5→2→3
+2. **Validates exact group counts:** Not just "some groups exist"
+3. **Validates stage progression:** Ensures stages are actually consecutive and in order
+4. **Tests edge cases:** Same stages (should NOT group), backwards progression (should break groups)
+5. **Would catch bugs immediately:** Same stage grouping would fail the first test
+
+**The Test That Would Have Caught the Bug:**
+```python
+def test_same_stage_not_grouped():
+    """Test that same stages are NOT grouped together (this would catch the bug)"""
+    test_files = [
+        "20250705_214626_stage2_upscaled.png",
+        "20250705_214953_stage2_upscaled.png",  # Same stage
+        "20250705_215137_stage2_upscaled.png",  # Same stage
+        "20250705_215319_stage2_upscaled.png",  # Same stage
+    ]
+    
+    groups = find_consecutive_stage_groups(file_paths)
+    
+    # CRITICAL TEST: Same stages should NOT be grouped together
+    # This test would have FAILED with the old broken logic!
+    assert len(groups) == 0, f"Same stages should not be grouped, but got {len(groups)} groups"
+```
+
+**Why This Test Is Perfect:**
+- **Specific:** Tests exact behavior (same stages should not group)
+- **Clear failure:** Would immediately show the bug
+- **Edge case:** Tests the exact scenario that was broken
+- **Comprehensive:** Tests all valid combinations plus edge cases
+
+**Date:** October 3, 2025 (learned that comprehensive tests prevent weeks of broken functionality)
+
+### Testing Playbook (Triplet Grouping)
+
+- Always pre-sort input with `sort_image_files_by_timestamp_and_stage(files)` before grouping.
+- Validate exact behavior with strong assertions (group counts, sizes, and strict stage sequences).
+- Covered cases in `scripts/tests/test_triplet_detection_logic.py`:
+  - All valid consecutive combinations (1→1.5, 1→2, 1→3, etc.)
+  - Same-stage NOT grouped
+  - Strictly increasing order within a group
+  - Backwards stage breaks the group
+  - Nearest-up selection (e.g., 1,3,2,3-later → [1,2,3])
+  - Duplicate stage ends run
+  - Integration check against real data in `mojo1`
+
+Production stance: Do not use time gaps in grouping tests. Timestamps are for sorting only.
+
+### Centralized Sorting - Non-Negotiable Rule
+
+- All human-facing tools MUST call `sort_image_files_by_timestamp_and_stage(files)` before any display or grouping.
+- Determinism: Sorting is by (timestamp, then stage number, then filename) to produce stable order.
+- Where to use: web image selector, desktop selector + crop, multi-crop tool, character sorter, viewers.
+- Unit test added: `scripts/tests/test_sorting_determinism.py` to validate ordering on a known 4-file set.
+
 ### **Test Suite Maintenance**
 **Pattern:** Always catalog changes made without corresponding test updates
 **Implementation:** Use todo list to track changes that need test updates later
@@ -216,6 +440,197 @@ except Exception as e:
     matplotlib.use('Agg', force=True)
     backend_interactive = False
 ```
+
+### **Progress Tracking & Session Management Patterns**
+**Pattern:** Robust progress tracking with stable IDs and graceful error handling
+**Critical Insight:** Progress files need to be stable, portable, and handle edge cases gracefully
+
+**Key Components:**
+
+1. **Stable ID Generation (Path-Portable):**
+```python
+def make_triplet_id(paths):
+    """Create stable ID that works across Windows/POSIX systems."""
+    # Use as_posix() for cross-platform compatibility
+    s = "|".join(p.resolve().as_posix() for p in paths)
+    return "t_" + hashlib.sha1(s.encode("utf-8")).hexdigest()[:12]
+```
+
+2. **Normalized Progress Filenames:**
+```python
+# Avoid path drift and super-long filenames
+abs_base = self.base_directory.resolve()
+safe_name = re.sub(r'[^A-Za-z0-9._-]+', '_', abs_base.as_posix())[:200]
+self.progress_file = self.progress_dir / f"{safe_name}_progress.json"
+```
+
+3. **Immediate Persistence After Reconciliation:**
+```python
+def load_progress(self):
+    # ... load existing data ...
+    self.ensure_all_triplets_in_session_data()
+    self.save_progress()  # CRITICAL: Persist immediately
+    self.migrate_old_keys()  # One-time migration
+```
+
+4. **Graceful Error Handling:**
+```python
+def cleanup_completed_session(self):
+    try:
+        if self.progress_file.exists():
+            self.progress_file.unlink()
+    except PermissionError:
+        print("[!] Could not remove progress file (locked); ignoring.")
+    except Exception as e:
+        print(f"[!] Error cleaning up progress file: {e}")
+```
+
+5. **Status Distinction & Helper Methods:**
+```python
+def mark_status(self, status):
+    """Mark current triplet with specific status (completed/skipped)."""
+    ct = self.get_current_triplet()
+    if not ct: return
+    
+    d = self.session_data.setdefault('triplets', {})
+    key = ct.id if ct.id in d else ct.display_name
+    d.setdefault(key, {
+        'display_name': ct.display_name,
+        'files_processed': 0,
+        'total_files': len(ct.paths),
+    })
+    d[key]['status'] = status
+    self.save_progress()
+```
+
+6. **One-Time Migration for Backward Compatibility:**
+```python
+def migrate_old_keys(self):
+    """Migrate old display_name keys to stable IDs."""
+    trips = self.session_data.get('triplets', {})
+    changed = False
+    for t in self.triplets:
+        if t.display_name in trips and t.id not in trips:
+            trips[t.id] = trips.pop(t.display_name)
+            changed = True
+    if changed:
+        self.save_progress()
+```
+
+**Why These Patterns Matter:**
+1. **Cross-Platform Stability:** `as_posix()` prevents hash changes between Windows/POSIX
+2. **Immediate Persistence:** Prevents data loss if tool crashes during reconciliation
+3. **Graceful Degradation:** File locks don't crash the tool
+4. **Status Tracking:** Distinguish between completed vs skipped items
+5. **Backward Compatibility:** Migrate old progress files automatically
+6. **Clean Filenames:** Avoid filesystem issues with special characters
+
+**Critical Lessons:**
+- **Always persist immediately** after data reconciliation
+- **Use stable, content-derived IDs** instead of display names for keys
+- **Handle file system edge cases** (locks, permissions, long names)
+- **Plan for migration** when changing data structures
+- **Distinguish between different completion states** (completed vs skipped)
+
+**Date:** October 3, 2025 (learned from ChatGPT conversation about robust progress tracking)
+
+### **Code Improvement Patterns - Systematic Enhancement**
+**Pattern:** Apply systematic improvements to existing code based on external feedback
+**Critical Insight:** External code reviews often identify patterns that internal developers miss
+
+**The Systematic Improvement Process:**
+
+1. **External Code Review:** Get fresh perspective from experienced developers
+2. **Categorize Improvements:** Group suggestions by type (stability, portability, UX, robustness)
+3. **Implement Systematically:** Apply all improvements of the same type together
+4. **Document Patterns:** Capture the patterns for future reference
+
+**Example: Progress Tracking Improvements (October 2025)**
+
+**External Feedback Identified:**
+- Persist immediately after reconciliation
+- Normalize progress filenames
+- Make IDs path-portable
+- Distinguish skipped vs completed
+- Add migration for old keys
+- Handle file locks gracefully
+
+**Systematic Implementation:**
+```python
+# 1. Stable ID Generation
+def make_triplet_id(paths):
+    s = "|".join(p.resolve().as_posix() for p in paths)
+    return "t_" + hashlib.sha1(s.encode("utf-8")).hexdigest()[:12]
+
+# 2. Normalized Filenames
+abs_base = self.base_directory.resolve()
+safe_name = re.sub(r'[^A-Za-z0-9._-]+', '_', abs_base.as_posix())[:200]
+
+# 3. Immediate Persistence
+self.ensure_all_triplets_in_session_data()
+self.save_progress()  # CRITICAL: Persist immediately
+
+# 4. Status Distinction
+def mark_status(self, status):
+    # Mark as 'completed' or 'skipped'
+
+# 5. Migration Support
+def migrate_old_keys(self):
+    # One-time migration for backward compatibility
+
+# 6. Graceful Error Handling
+except PermissionError:
+    print("[!] Could not remove progress file (locked); ignoring.")
+```
+
+**Why This Pattern Works:**
+1. **Fresh Perspective:** External reviewers see patterns internal developers miss
+2. **Systematic Application:** All related improvements applied together
+3. **Pattern Documentation:** Future developers can apply same patterns
+4. **Comprehensive Coverage:** Addresses stability, portability, UX, and robustness
+
+**When to Use This Pattern:**
+- After major feature development
+- When code has been in production for a while
+- Before refactoring or major changes
+- When external feedback is available
+
+**Critical Success Factors:**
+1. **Don't cherry-pick:** Apply all improvements of the same category
+2. **Document the patterns:** Capture why each improvement matters
+3. **Test thoroughly:** Systematic changes need comprehensive testing
+4. **Update documentation:** Keep knowledge base current with new patterns
+
+**Date:** October 3, 2025 (learned from systematic application of external code review feedback)
+
+### Tool Behavior at a Glance
+
+- Web Image Selector (`scripts/01_web_image_selector.py`):
+  - Modern batch UI; exactly one selection per group; selected items move to `selected/`, others go to Trash by default (`send2trash`).
+  - Requires `send2trash` unless `--hard-delete` is explicitly used (dangerous).
+  - Uses centralized grouping; timestamps used only for sorting.
+
+- Desktop Image Selector + Crop (`scripts/01_desktop_image_selector_crop.py`):
+  - Single-selection per triplet with immediate cropping; unselected files go to Trash.
+  - Progress is persisted with stable, path-portable IDs; immediate persistence after reconciliation.
+  - Uses the same centralized grouping and sorting rules as the web selector.
+  - New flag: `--reset-progress` clears saved progress for the directory and rediscover groups from scratch.
+  - Enter behavior: If no image is selected, Enter deletes all images in the current triplet and advances. If one image is selected, Enter crops it, deletes the others, and advances.
+
+### Glossary
+
+- Group: Sequence of images with strictly increasing stage numbers (min size 2).
+- Pair/Triplet: Group of size 2/3.
+- Selected: The image chosen to keep for a group.
+- Skipped: Leave files in place (web) or mark triplet as skipped (desktop).
+- Trash/Delete: Non-selected images are sent to system Trash by default; hard delete is opt-in and risky.
+
+### Troubleshooting (Quick List)
+
+- “No groups found” → Ensure filenames have timestamps and stage tokens; confirm inputs are pre-sorted.
+- “Unexpected grouping” → Check for duplicates or backward stage steps before expected completion.
+- “Trash not available” → Install `send2trash` or run with `--hard-delete` (dangerous, avoid if unsure).
+- Desktop crashes on navigation → Verify backend initialization and avoid recreating displays when count unchanged.
 
 ---
 

@@ -15,12 +15,23 @@ import webbrowser
 from io import BytesIO
 from functools import lru_cache
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import Iterable
+import csv
+import json
+
 
 try:
     from PIL import Image
 except ImportError:
     Image = None
+
+_SEND2TRASH_AVAILABLE = False
+try:
+    from send2trash import send2trash  # type: ignore
+    _SEND2TRASH_AVAILABLE = True
+except Exception:
+    _SEND2TRASH_AVAILABLE = False
 
 
 class Logger:
@@ -269,6 +280,111 @@ def extract_stage_name(filename: str) -> str:
     return filename.rsplit('.', 1)[0]  # Fallback to filename without extension
 
 
+def sort_image_files_by_timestamp_and_stage(image_files: List[Path]) -> List[Path]:
+    """
+    Sort image files by timestamp first, then stage order, then filename.
+    
+    This is the STANDARD sorting logic for all image processing tools.
+    Ensures consistent ordering: stage1 → stage1.5 → stage2 → stage3
+    
+    Args:
+        image_files: List of image file paths to sort
+        
+    Returns:
+        Sorted list of image file paths
+    """
+    def sort_key(path: Path) -> Tuple[str, float, str]:
+        timestamp = extract_timestamp_from_filename(path.name) or "99999999_999999"
+        stage = detect_stage(path.name)
+        stage_num = get_stage_number(stage)
+        return (timestamp, stage_num, path.name)
+    
+    return sorted(image_files, key=sort_key)
+
+
+def find_consecutive_stage_groups(files: List[Path],
+                                  stage_of=lambda p: float(get_stage_number(detect_stage(p.name))),
+                                  dt_of=lambda p: extract_datetime_from_filename(p.name),
+                                  min_group_size=2,
+                                  time_gap_minutes=None,
+                                  lookahead=50) -> List[List[Path]]:
+    """
+    NEAREST-UP grouping:
+      - Files MUST be pre-sorted by (timestamp, then stage).
+      - A run starts anywhere.
+      - Next pick = the smallest stage > prev_stage among the upcoming window.
+      - Window ends when we hit a stage <= prev_stage (series reset),
+        or the optional time_gap is exceeded, or we exhaust `lookahead` items.
+      - Duplicates (same stage again) end the run.
+
+    This prevents 1→3 "stealing" when a 2 exists a bit later, but still allows 1→3 if no 1.5/2 show up.
+    
+    Args:
+        files: List of image file paths (must be pre-sorted by timestamp)
+        stage_of: Function to extract stage number from file path
+        dt_of: Function to extract timestamp from file path
+        min_group_size: Minimum number of files required to form a group
+        time_gap_minutes: Optional time window limit for grouping
+        lookahead: Maximum number of files to look ahead
+        
+    Returns:
+        List of groups, where each group is a list of consecutive stage files
+        
+    Example:
+        Files: ['stage1_generated.png', 'stage3_enhanced.png', 'stage2_upscaled.png']
+        Result: [['stage1_generated.png', 'stage2_upscaled.png', 'stage3_enhanced.png']]
+        (waits for stage2 instead of jumping to stage3)
+    """
+    time_gap = (timedelta(minutes=time_gap_minutes) if time_gap_minutes else None)
+
+    def boundary(prev_stage, prev_dt, item):
+        s = stage_of(item)
+        if s <= prev_stage:
+            return True
+        if time_gap and prev_dt and dt_of(item):
+            if (dt_of(item) - prev_dt) > time_gap:
+                return True
+        return False
+
+    groups = []
+    n, i = len(files), 0
+
+    while i < n:
+        g = [files[i]]
+        prev_s = stage_of(files[i])
+        prev_dt = dt_of(files[i])
+        i += 1
+
+        while i < n:
+            # scan forward window to collect candidates > prev_s until boundary/limits
+            candidates = []
+            k = i
+            steps = 0
+            while k < n and steps < lookahead and not boundary(prev_s, prev_dt, files[k]):
+                s = stage_of(files[k])
+                if s > prev_s:
+                    candidates.append((s, k))
+                k += 1
+                steps += 1
+
+            if not candidates:
+                break  # no valid next stage in window
+
+            # choose the smallest stage > prev_s, earliest occurrence
+            min_s = min(candidates, key=lambda t: t[0])[0]
+            chosen_k = next(k for s, k in candidates if s == min_s)
+
+            g.append(files[chosen_k])
+            prev_s = min_s
+            prev_dt = dt_of(files[chosen_k])
+            i = chosen_k + 1  # advance past chosen; earlier larger stages are intentionally skipped
+
+        if len(g) >= min_group_size:
+            groups.append(g)
+
+    return groups
+
+
 def get_stage_number(stage: str) -> float:
     """
     Extract numeric stage number from stage string.
@@ -391,6 +507,171 @@ def move_multiple_files_with_companions(image_files: List[Path], dest_dir: Path,
         'skipped': skipped_count, 
         'errors': error_count
     }
+
+
+def safe_delete_paths(paths: Iterable[Path], hard_delete: bool = False, tracker=None) -> List[str]:
+    """
+    Delete or send a list of file paths to Trash. Optionally logs via tracker.
+
+    Args:
+        paths: Iterable of file paths to remove
+        hard_delete: If True, permanently delete files. Otherwise use system Trash.
+        tracker: Optional FileTracker-like object with log_operation(operation, source_dir, dest_dir, file_count, notes, files)
+
+    Returns:
+        List of deleted file names
+    """
+    deleted: List[str] = []
+
+    if hard_delete:
+        for p in paths:
+            try:
+                if p.exists():
+                    p.unlink()
+                    deleted.append(p.name)
+            except Exception as exc:
+                logger.error_with_exception(f"Failed to delete {p}", exc)
+    else:
+        if not _SEND2TRASH_AVAILABLE:
+            raise RuntimeError(
+                "send2trash is not installed. Install with: pip install send2trash\n"
+                "Or set hard_delete=True to permanently delete files (dangerous)."
+            )
+        for p in paths:
+            try:
+                if p.exists():
+                    send2trash(str(p))
+                    deleted.append(p.name)
+            except Exception as exc:
+                logger.error_with_exception(f"Failed to send to Trash {p}", exc)
+
+    if tracker and deleted:
+        source_dir = str(Path(paths.__iter__().__next__()).parent.name) if paths else "unknown"  # best-effort
+        try:
+            tracker.log_operation(
+                operation="delete" if hard_delete else "send_to_trash",
+                source_dir=source_dir,
+                dest_dir="trash" if not hard_delete else "",
+                file_count=len(deleted),
+                files=deleted,
+                notes="Deleted by shared safe_delete_paths",
+            )
+        except Exception:
+            pass  # tracker is best-effort
+
+    return deleted
+
+
+def safe_delete_image_and_yaml(png_path: Path, hard_delete: bool = False, tracker=None) -> List[str]:
+    """
+    Delete an image and its .yaml companion (if present). Uses Trash by default.
+
+    Args:
+        png_path: Path to the .png image
+        hard_delete: Permanently delete if True, else send to Trash
+        tracker: Optional FileTracker-like object
+
+    Returns:
+        List of deleted file names
+    """
+    files: List[Path] = [png_path]
+    yaml_path = png_path.with_suffix('.yaml')
+    if yaml_path.exists():
+        files.append(yaml_path)
+    return safe_delete_paths(files, hard_delete=hard_delete, tracker=tracker)
+
+
+# ============================
+# Training data logging helpers
+# ============================
+
+def get_training_dir() -> Path:
+    """Ensure and return the training data directory."""
+    d = Path("data") / "training"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _append_csv_row(csv_path: Path, header: list, row: dict) -> None:
+    """Append a row to CSV with header creation. Fail-open."""
+    try:
+        need_header = not csv_path.exists()
+        with csv_path.open("a", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=header)
+            if need_header:
+                w.writeheader()
+            w.writerow(row)
+    except Exception as exc:
+        logger.error_with_exception(f"Training log write failed: {csv_path}", exc)
+
+
+def log_select_crop_entry(
+    session_id: str,
+    set_id: str,
+    directory: str,
+    image_paths: list,
+    image_stages: list,
+    image_sizes: list,
+    chosen_index: int,
+    crop_norm: Optional[Tuple[float, float, float, float]],
+) -> None:
+    """Log a single select+crop supervision row. crop_norm is None if delete-all.
+
+    image_sizes: list of (width, height)
+    """
+    td = get_training_dir()
+    csv_path = td / "select_crop_log.csv"
+    from datetime import datetime as _dt
+    header = [
+        "session_id","set_id","directory","image_count","chosen_index","chosen_path",
+        "crop_x1","crop_y1","crop_x2","crop_y2","timestamp",
+    ]
+    # dynamic fields for each image
+    for i in range(len(image_paths)):
+        header += [f"image_{i}_path", f"image_{i}_stage", f"width_{i}", f"height_{i}"]
+
+    row = {
+        "session_id": session_id,
+        "set_id": set_id,
+        "directory": directory,
+        "image_count": len(image_paths),
+        "chosen_index": chosen_index,
+        "chosen_path": image_paths[chosen_index] if 0 <= chosen_index < len(image_paths) else "",
+        "crop_x1": crop_norm[0] if crop_norm else "",
+        "crop_y1": crop_norm[1] if crop_norm else "",
+        "crop_x2": crop_norm[2] if crop_norm else "",
+        "crop_y2": crop_norm[3] if crop_norm else "",
+        "timestamp": _dt.utcnow().isoformat() + "Z",
+    }
+    for i, p in enumerate(image_paths):
+        w, h = image_sizes[i] if i < len(image_sizes) else ("", "")
+        row[f"image_{i}_path"] = p
+        row[f"image_{i}_stage"] = image_stages[i] if i < len(image_stages) else ""
+        row[f"width_{i}"] = w
+        row[f"height_{i}"] = h
+
+    _append_csv_row(csv_path, header, row)
+
+
+def log_selection_only_entry(
+    session_id: str,
+    set_id: str,
+    chosen_path: str,
+    negative_paths: list,
+) -> None:
+    """Log a selection-only row from the web selector."""
+    td = get_training_dir()
+    csv_path = td / "selection_only_log.csv"
+    from datetime import datetime as _dt
+    header = ["session_id","set_id","chosen_path","neg_paths","timestamp"]
+    row = {
+        "session_id": session_id,
+        "set_id": set_id,
+        "chosen_path": chosen_path,
+        "neg_paths": json.dumps(negative_paths),
+        "timestamp": _dt.utcnow().isoformat() + "Z",
+    }
+    _append_csv_row(csv_path, header, row)
 
 
 @lru_cache(maxsize=2048)
@@ -534,6 +815,26 @@ def extract_timestamp_from_filename(filename: str) -> Optional[str]:
     return match.group(1) if match else None
 
 
+def extract_datetime_from_filename(filename: str) -> Optional[datetime]:
+    """
+    Extract datetime object from filename (YYYYMMDD_HHMMSS format).
+    
+    Args:
+        filename: The filename to extract datetime from
+        
+    Returns:
+        Datetime object or None if not found
+    """
+    timestamp_str = extract_timestamp_from_filename(filename)
+    if not timestamp_str:
+        return None
+    
+    try:
+        return datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S")
+    except ValueError:
+        return None
+
+
 def get_date_from_timestamp(timestamp_str: Optional[str]) -> Optional[str]:
     """
     Extract date part from timestamp string.
@@ -547,28 +848,6 @@ def get_date_from_timestamp(timestamp_str: Optional[str]) -> Optional[str]:
     if not timestamp_str or len(timestamp_str) != 15:
         return None
     return timestamp_str.split("_")[0]
-
-
-def sort_image_files_by_timestamp_and_stage(image_files: List[Path]) -> List[Path]:
-    """
-    Sort image files by timestamp first, then stage order, then filename.
-    
-    This is the STANDARD sorting logic for all image processing tools.
-    Ensures consistent ordering: stage1 → stage1.5 → stage2 → stage3
-    
-    Args:
-        image_files: List of image file paths to sort
-        
-    Returns:
-        Sorted list of image file paths
-    """
-    def sort_key(path: Path) -> Tuple[str, float, str]:
-        timestamp = extract_timestamp_from_filename(path.name) or "99999999_999999"
-        stage = detect_stage(path.name)
-        stage_num = get_stage_number(stage)
-        return (timestamp, stage_num, path.name)
-    
-    return sorted(image_files, key=sort_key)
 
 
 def extract_base_timestamp(filename: str) -> Optional[str]:

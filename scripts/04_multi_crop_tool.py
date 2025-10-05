@@ -75,7 +75,7 @@ import numpy as np
 # Add the project root to the path for importing
 sys.path.append(str(Path(__file__).parent.parent))
 from utils.base_desktop_image_tool import BaseDesktopImageTool
-from utils.companion_file_utils import format_image_display_name
+from utils.companion_file_utils import format_image_display_name, sort_image_files_by_timestamp_and_stage
 
 
 class MultiDirectoryProgressTracker:
@@ -190,9 +190,9 @@ class MultiDirectoryProgressTracker:
         if not current_dir:
             return []
         
-        # Return ALL files - let load_batch() handle the indexing
-        all_files = sorted(current_dir['path'].glob("*.png"))
-        return all_files
+        # Return ALL files (centrally sorted) - let load_batch() handle the indexing
+        all_files = list(current_dir['path'].glob("*.png"))
+        return sort_image_files_by_timestamp_and_stage(all_files)
     
     def advance_file(self, count: int = 1):
         """Advance file index by count."""
@@ -276,7 +276,7 @@ class MultiCropTool(BaseDesktopImageTool):
         
         if self.single_directory_mode:
             print("[*] Single directory mode detected")
-            self.png_files = sorted([f for f in self.base_directory.glob("*.png")])
+            self.png_files = sort_image_files_by_timestamp_and_stage([f for f in self.base_directory.glob("*.png")])
             if not self.png_files:
                 raise ValueError(f"No PNG files found in {directory}")
         else:
@@ -291,7 +291,7 @@ class MultiCropTool(BaseDesktopImageTool):
                 # Check if we're truly at the end or if there's a tracking issue
                 current_dir = self.progress_tracker.get_current_directory()
                 if current_dir:
-                    all_files = sorted(current_dir['path'].glob("*.png"))
+                    all_files = sort_image_files_by_timestamp_and_stage(list(current_dir['path'].glob("*.png")))
                     if all_files:
                         print(f"[!] Progress tracking issue detected in {current_dir['name']}")
                         print(f"[!] Directory has {len(all_files)} files but current_file_index is {self.progress_tracker.current_file_index}")

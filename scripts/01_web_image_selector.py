@@ -20,6 +20,7 @@ USAGE:
 ------
 Run on directories containing triplets (after quality filtering):
   python scripts/01_web_image_selector.py XXX_CONTENT/
+  python scripts/01_web_image_selector.py XXX_CONTENT/ --log-training  # log selection-only to data/training/
 
 FEATURES:
 ---------
@@ -94,7 +95,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
 from file_tracker import FileTracker
-from utils.companion_file_utils import find_all_companion_files, move_file_with_all_companions, launch_browser, generate_thumbnail, format_image_display_name, get_error_display_html, extract_timestamp_from_filename, timestamp_to_minutes, get_date_from_timestamp, detect_stage, get_stage_number, sort_image_files_by_timestamp_and_stage
+from utils.companion_file_utils import find_all_companion_files, move_file_with_all_companions, launch_browser, generate_thumbnail, format_image_display_name, get_error_display_html, extract_timestamp_from_filename, timestamp_to_minutes, get_date_from_timestamp, detect_stage, get_stage_number, sort_image_files_by_timestamp_and_stage, find_consecutive_stage_groups, safe_delete_image_and_yaml, log_selection_only_entry
 
 try:
     from flask import Flask, Response, jsonify, render_template_string, request
@@ -201,101 +202,21 @@ def _basekey(p: Path) -> str:
     return n
 
 def find_flexible_groups(files: List[Path]) -> List[Tuple[Path, ...]]:
-    """Find groups by detecting stage number decreases (new group when stage < previous stage)."""
-    groups: List[Tuple[Path, ...]] = []
+    """Find groups by consecutive stage numbers in sorted order (uses centralized logic)."""
+    # Use centralized triplet detection logic
+    groups = find_consecutive_stage_groups(files)
     
-    # Use standardized sorting logic for consistent image ordering
-    sorted_files = sort_image_files_by_timestamp_and_stage(files)
-    
-    if not sorted_files:
-        return groups
-    
-    current_group = []
-    prev_stage_num = None  # Start with None to handle first file properly
-    
-    for file in sorted_files:
-        stage = detect_stage(file.name)
-        if not stage:
-            continue  # Skip files that don't match expected patterns
-            
-        stage_num = get_stage_number(stage)
-        
-        # If this is the first file or stage equal/decreased, start a new group
-        if prev_stage_num is None or (stage_num <= prev_stage_num and current_group):
-            # Finish current group if it exists and has enough files
-            if current_group and len(current_group) >= 2:
-                groups.append(tuple(current_group))
-            current_group = [file]  # Start new group with current file
-        else:
-            # Continue current group
-            current_group.append(file)
-        
-        prev_stage_num = stage_num
-    
-    # Add the final group if it has 2+ images
-    if len(current_group) >= 2:
-        groups.append(tuple(current_group))
-    
-    # Filter out orphan groups (no ascending stage progression)
-    filtered_groups = []
-    for group in groups:
-        # Check if group has ascending stage progression
-        stage_nums = [get_stage_number(detect_stage(f.name)) for f in group]
-        has_progression = any(stage_nums[i] < stage_nums[i+1] for i in range(len(stage_nums)-1))
-        
-        if has_progression:
-            filtered_groups.append(group)
-    
-    return filtered_groups
+    # Convert to tuple format expected by this function
+    return [tuple(group) for group in groups]
 
 
 def safe_delete(paths: Iterable[Path], hard_delete: bool = False, tracker: Optional[FileTracker] = None) -> None:
-    all_files_to_delete: List[Path] = []
-
+    # Delegate to shared utils for consistency across tools
     for png_path in paths:
-        if not png_path.exists():
-            continue
-        all_files_to_delete.append(png_path)
-        yaml_path = png_path.parent / f"{png_path.stem}.yaml"
-        if yaml_path.exists():
-            all_files_to_delete.append(yaml_path)
-
-    if not all_files_to_delete:
-        return
-
-    deleted_files: List[str] = []
-
-    if hard_delete:
-        for path in all_files_to_delete:
-            try:
-                path.unlink()
-                info(f"Deleted: {path.name}")
-                deleted_files.append(path.name)
-            except Exception as exc:
-                human_err(f"Failed to delete {path}: {exc}")
-    else:
-        if not _SEND2TRASH_AVAILABLE:
-            raise RuntimeError(
-                "send2trash is not installed. Install with: pip install send2trash\n"
-                "Or rerun with --hard-delete to permanently delete files."
-            )
-        for path in all_files_to_delete:
-            try:
-                send2trash(str(path))
-                info(f"Sent to Trash: {path.name}")
-                deleted_files.append(path.name)
-            except Exception as exc:
-                human_err(f"Failed to send to Trash {path}: {exc}")
-
-    if tracker and deleted_files:
-        source_dir = str(all_files_to_delete[0].parent.name) if all_files_to_delete else "unknown"
-        tracker.log_operation(
-            operation="delete" if hard_delete else "send_to_trash",
-            source_dir=source_dir,
-            file_count=len(deleted_files),
-            files=deleted_files,
-            notes="Rejected images from triplet selection",
-        )
+        try:
+            safe_delete_image_and_yaml(png_path, hard_delete=hard_delete, tracker=tracker)
+        except Exception as exc:
+            human_err(f"Failed to delete {png_path}: {exc}")
 
 
 def write_log(csv_path: Path, action: str, kept: Optional[Path], deleted: List[Path]) -> None:
@@ -414,7 +335,7 @@ def build_app(
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <title>Image Version Selector</title>
-      {{ error_display_html }}
+      {{ error_display_html|safe }}
       <style>
         :root {
           color-scheme: dark;
@@ -694,10 +615,9 @@ def build_app(
               <p>Use right sidebar or keys: 1,2,3 (select) • Enter (next) • ↑ (back)</p>
         </div>
         <div class="summary" id="summary">
-          <span>Selected: <strong id="summary-selected">0</strong></span>
-          <span>Selected: <strong id="summary-selected-count">0</strong></span>
-          <span>Skipped: <strong id="summary-skipped">0</strong></span>
-              <span>Deleting: <strong id="summary-delete">{{ groups|length }}</strong></span>
+          <span>Kept groups: <strong id="summary-selected">0</strong></span>
+          <span>Skipped groups: <strong id="summary-skipped">0</strong></span>
+          <span>Delete groups: <strong id="summary-delete">{{ groups|length }}</strong></span>
         </div>
         <button id="process-batch" class="process-batch">Process Current Batch</button>
         <div id="batch-info" class="batch-info">
@@ -715,12 +635,15 @@ def build_app(
             {% endif %}
           </header>
           <div class="image-row">
-            <div class="images-container">
+              <div class="images-container">
                   {% for image in group.images %}
               <figure class="image-card" data-image-index="{{ image.index }}" onclick="handleImageClick(this)">
               <div class="stage">{{ image.stage }}</div>
               <img src="{{ image.src }}" alt="{{ image.name }}" loading="lazy">
               <figcaption class="filename">{{ format_image_display_name(image.name, context='web') }}</figcaption>
+              <div style="display:flex; gap:0.3rem; justify-content:center; margin:0.2rem 0 0.4rem 0;">
+                <button class="action-btn" onclick="event.stopPropagation(); perImageSkip({{ image.index }}, '{{ group.id }}')">Skip</button>
+              </div>
             </figure>
             {% endfor %}
           </div>
@@ -730,6 +653,10 @@ def build_app(
               {% if group.images|length >= 3 %}
               <button class="action-btn row-btn-3" onclick="selectImage(2, '{{ group.id }}')">3</button>
               {% endif %}
+              {% if group.images|length >= 4 %}
+              <button class="action-btn row-btn-4" onclick="selectImage(3, '{{ group.id }}')">4</button>
+              {% endif %}
+              <button class="action-btn row-btn-skip" onclick="skipGroup('{{ group.id }}')">Skip</button>
               <button class="action-btn row-btn-next" onclick="nextGroup()">▼</button>
             </div>
           </div>
@@ -744,7 +671,6 @@ def build_app(
       <script>
         const groups = Array.from(document.querySelectorAll('section.group'));
         const summarySelected = document.getElementById('summary-selected');
-        const summarySelectedCount = document.getElementById('summary-selected-count');
         const summarySkipped = document.getElementById('summary-skipped');
         const summaryDelete = document.getElementById('summary-delete');
         const processBatchButton = document.getElementById('process-batch');
@@ -759,10 +685,14 @@ def build_app(
           const deleteCount = groups.length - selectedCount - skippedCount;
           
           summarySelected.textContent = selectedCount;
-          summarySelectedCount.textContent = selectedCount;
           summarySkipped.textContent = skippedCount;
           summaryDelete.textContent = Math.max(0, deleteCount);
           batchCount.textContent = selectedCount;
+        }
+        function skipGroup(groupId) {
+          groupStates[groupId] = { skipped: true };
+          updateVisualState();
+          updateSummary();
         }
         
         function updateButtonStates(groupId) {
@@ -828,6 +758,15 @@ def build_app(
             // Update button states for this group
             updateButtonStates(groupId);
           });
+        }
+
+        function perImageSkip(imageIndex, groupId) {
+          const state = groupStates[groupId] || {};
+          state.perImage = state.perImage || {};
+          state.perImage[imageIndex] = 'skip';
+          groupStates[groupId] = state;
+          updateVisualState();
+          updateSummary();
         }
         
         function selectImage(imageIndex, groupId) {
@@ -951,6 +890,10 @@ def build_app(
             case '3':
               e.preventDefault();
               selectImage(2, currentGroupId);
+              break;
+            case '4':
+              e.preventDefault();
+              selectImage(3, currentGroupId);
               break;
             case 'Enter':
               e.preventDefault();
@@ -1337,6 +1280,20 @@ def build_app(
                 write_log(log_path, action_label, target_path, others)
                 kept_count += 1
 
+                # Training log (selection-only) — fail-open
+                try:
+                    import argparse as _argparse  # to access args in closure we rely on main scope
+                except Exception:
+                    pass
+                try:
+                    # We can't see args here directly; mirror via app.config
+                    if app.config.get("LOG_TRAINING"):
+                        session_id = tracker.session_id
+                        set_id = f"group_{group_id}"
+                        log_selection_only_entry(session_id, set_id, str(selected_path), [str(p) for p in others])
+                except Exception:
+                    pass
+
         except Exception as exc:
             return jsonify({"status": "error", "message": str(exc)}), 500
 
@@ -1434,6 +1391,7 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8080, help="Port for the local web server")
     parser.add_argument("--no-browser", action="store_true", help="Do not auto-open the browser")
     parser.add_argument("--no-recursive", action="store_true", help="Do not scan subdirectories recursively")
+    parser.add_argument("--log-training", action="store_true", help="Log selection-only supervision to data/training/selection_only_log.csv on batch process")
     args = parser.parse_args()
 
     folder = Path(args.folder).expanduser().resolve()
@@ -1450,7 +1408,17 @@ def main() -> None:
         human_err("No images found. Check --exts or folder path.")
         sys.exit(1)
 
+    # Pre-sort to ensure deterministic order
+    files = sort_image_files_by_timestamp_and_stage(files)
     group_paths = find_flexible_groups(files)
+    # Cap groups to 4 images per row for consistency with desktop
+    capped_group_paths = []
+    for g in group_paths:
+        if len(g) <= 4:
+            capped_group_paths.append(g)
+        else:
+            for i in range(0, len(g), 4):
+                capped_group_paths.append(tuple(g[i:i+4]))
     if not group_paths:
         human_err("No groups found with the current grouping. Try adjusting filenames or timestamps.")
         sys.exit(1)
@@ -1472,7 +1440,7 @@ def main() -> None:
         sys.exit(1)
 
     records: List[GroupRecord] = []
-    for idx, group in enumerate(group_paths):
+    for idx, group in enumerate(capped_group_paths):
         first_parent = group[0].parent
         try:
             relative = str(first_parent.relative_to(folder))
@@ -1488,6 +1456,8 @@ def main() -> None:
 
     log_path = folder / "triplet_culler_log.csv"
     app = build_app(records, folder, tracker, log_path, hard_delete=args.hard_delete, batch_size=args.batch_size)
+    # Surface log-training flag to app context for logging in routes
+    app.config["LOG_TRAINING"] = bool(args.log_training)
 
     # Calculate batch info for logging
     total_groups = len(records)

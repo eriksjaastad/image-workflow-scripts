@@ -1,5 +1,94 @@
 # Current TODO List - September 24, 2025
 
+## 📅 Update — October 5, 2025
+
+### ✅ Completed today
+- Desktop selector: 4-up single row layout with centered, tight gutters
+- Copyable timestamps + hotkeys (1–4) and per-image skip (A/S/D/F), B=Skip All
+- Enter behavior: no selection deletes all; selection crops one, deletes others
+- Selector stability: no "ghost" handles; safe extent updates; transition guard for Skip
+- Window sizing: fit-to-screen without overflow; Qt window resize
+- Centralized sorter enforced in human-facing tools (desktop, web selector, multi-crop, character sorter)
+- Web selector: 4th button + key; cap groups to 4 per row; pre-sort before grouping
+- Shared delete utility: `safe_delete_image_and_yaml` used by web/desktop
+- Tests: desktop behavior tests; sorting determinism test
+- Knowledge base: nearest‑up spec, timestamps-only-for-sorting, centralized sorting rule
+
+### 🔜 Next
+- Sweep remaining utilities/viewers for centralized sorter (confirm no stragglers)
+- Add a short section in KB for new desktop hotkeys (p [ ] \\ and A/S/D/F/B)
+- Optional: regression runner to exercise desktop 4-up flows + copy/skip
+
+## 🧠 AI Select+Crop Training Plan (authoritative source)
+
+### Phase 1 — Logging (no workflow disruption)
+1. Desktop: add `--log-training` flag; on Enter write one CSV row to `data/training/select_crop_log.csv`
+   - Columns: session_id, set_id, directory, image_count, chosen_index, chosen_path,
+     crop_x1,y1,x2,y2 (normalized), image_i_path/stage, width_i/height_i, timestamp
+   - Fail-open (try/except); create directory if missing; append mode
+2. Web selector: on batch finalize write selection-only rows to `data/training/selection_only_log.csv`
+   - Columns: session_id, set_id, chosen_path, neg_paths(list/JSON), timestamp
+3. KB: add short section documenting flags, file locations, schemas
+
+### Phase 2 — Dataset builder
+1. Script: `scripts/datasets/build_select_crop_dataset.py`
+2. Inputs: the two CSVs; validate file existence
+3. Split by set_id into train/val/test (80/10/10)
+4. Outputs:
+   - Ranking pairs (chosen, negative) JSONL
+   - Crop samples (image, bbox) JSONL
+   - (Optional) COCO JSON for bbox visualization
+
+### Phase 3 — Training (two-head)
+1. Script: `scripts/train/train_select_crop.py` (PyTorch+timm)
+2. Backbone ViT-B/16; heads: ranking (embedding+MarginRankingLoss) + bbox (SmoothL1+IoU)
+3. Loss: total = 1.0*L_rank + 2.0*L_bbox (tunable)
+4. Optimizer: AdamW (backbone 3e-5..5e-5; heads 1e-4); cosine decay; 10–30 epochs; amp
+
+### Phase 4 — Evaluation
+1. Script: `scripts/eval/eval_select_crop.py` (Top-1, IoU@0.5, mean IoU, MAE)
+2. Notebook: `notebooks/eval_select_crop.ipynb` with qualitative side-by-sides
+
+### Phase 5 — Inference integration (desktop)
+1. Flag `--ai-suggest` to enable
+2. On batch: score images → suggest top-1; predict crop for top-1; draw suggested rect
+3. Hotkeys: T toggle suggestions; Y accept suggested selection+crop (user can tweak)
+4. No auto-submit; always user-controlled
+
+### Environment & repos
+- pip: torch torchvision timm albumentations scikit-learn pycocotools tqdm pyyaml rich
+- Sorting rule: ALWAYS pre-sort with `sort_image_files_by_timestamp_and_stage`
+- Normalize crop coords to [0..1]; split by set_id to avoid leakage
+
+## 🔐 Data Backup Plan (new project)
+
+Goal: Automated, reliable off-repo backups of important CSV/log data.
+
+Scope (include):
+- `data/training/*.csv` (select_crop_log.csv, selection_only_log.csv)
+- `data/file_operations_logs/*.log`
+- Optional: manifests (hashes/counts) for verification
+
+Out of scope (exclude):
+- All image assets and large binaries (already backed up elsewhere)
+
+Tasks:
+1. Choose backend (S3 or Backblaze B2; fallback: Google Drive)
+2. Create backup script `scripts/backup/backup_training_data.py`
+   - Packages files into a timestamped tar.gz (UTC)
+   - Writes a manifest with sha256 + row counts
+   - Uploads to backend with lifecycle policy (e.g., keep 8 weekly)
+3. Add restore script `scripts/backup/restore_training_data.py` (id or latest)
+4. Schedule weekly cron (Sun 02:00 local)
+5. Run an end‑to‑end test: backup → delete temp copy → restore → verify manifest
+6. Document in KB (runbook + env vars)
+
+Defaults:
+- Frequency: Weekly (daily is unnecessary for current volume)
+- Retention: 8 weeks
+- Encryption: Server‑side (S3 SSE) or key‑based client encryption (optional)
+
+
 ## ⚠️ **IMPORTANT WORKFLOW RULE**
 **ONE TODO ITEM AT A TIME** - Complete one task, check in with Erik, get approval before moving to the next item. Never complete multiple TODO items in sequence without user input. This prevents issues and ensures quality control.
 
@@ -144,15 +233,42 @@ The dashboard system is **complete and production-ready**! Future sessions could
 
 ## 🚀 **CURRENT PRIORITIES**
 
+### **🐛 Bug Fixes (High Priority)**
+1. **Fix desktop image selector crop tool selection toggle** - When one image is selected by hotkey and then another image's crop position is modified, the original image doesn't toggle back to delete
+   - **Issue**: Only one image should be kept at a time, but selection doesn't auto-toggle
+   - **Impact**: UX issue during long image processing sessions
+   - **Priority**: High - affects daily workflow
+
+### **🔧 Technical Improvements**
+2. ~~**Implement canonical stage ladder approach**~~ - **CANCELLED** - Would break existing workflow
+   - **Decision**: Current system works well for 7,000+ image processing workflow
+   - **Current behavior**: Groups `1→2→3` (skips 1.5) - this is what we want
+   - **Canonical approach**: Would NOT group `1→2→3` (requires `1→1.5→2→3`) - too strict
+   - **Conclusion**: Current "any increasing stages" approach is better for this workflow
+
+2. **Improve test coverage and quality** - Current tests are good but could be more comprehensive
+   - **Current test strengths**: Tests all valid combinations, edge cases, comprehensive coverage
+   - **Test improvements needed**:
+     - **Add unsorted input tests** - Verify pre-sorting requirement is enforced
+     - **Add unknown stage handling** - Test behavior with unexpected stage numbers
+     - **Add min_group_size variations** - Test different grouping thresholds
+     - **Add two-runs-in-sequence tests** - Test multiple separate groups
+     - **Add edge case tests** - Test same stages, backwards progression, gaps
+   - **Test quality insights**:
+     - Current tests use `tempfile.TemporaryDirectory()` - good practice
+     - Current tests validate exact group counts and sizes - excellent
+     - Need tests that would catch the "same stage grouping" bug we had
+   - **Priority**: Medium - improve test robustness and coverage
+
 ### **📚 Future Analysis & Development**
-1. **Create missing test files** - Need tests for: `02_face_grouper.py`, `04_multi_crop_tool.py`, `06_web_duplicate_finder.py`
-2. **Create utility tests** - Need tests for: `utils/character_processor.py`, `utils/duplicate_checker.py`, `utils/recursive_file_mover.py`, `utils/similarity_viewer.py`, `utils/triplet_deduplicator.py`, `utils/triplet_mover.py`
-3. **Analyze coverage report** - Review `scripts/tests/htmlcov/index.html` for coverage gaps
-4. **Improve code coverage** - Focus on increasing test coverage for critical scripts
-5. **Catalog conventions** - Analyze all scripts for reusable patterns and create reference docs
-6. **Root directory cleanup** - Check files in root directory to see if they need to be cleaned out or moved to a special directory
-7. **Create local homepage** - Build custom homepage in Documents directory with links to all AI systems and tools from Google homepage
-8. **Investigate Claude memory configuration** - Look into enabling memory tool in Cursor/Claude settings to improve session continuity and knowledge retention
+4. **Create missing test files** - Need tests for: `02_face_grouper.py`, `04_multi_crop_tool.py`, `06_web_duplicate_finder.py`
+5. **Create utility tests** - Need tests for: `utils/character_processor.py`, `utils/duplicate_checker.py`, `utils/recursive_file_mover.py`, `utils/similarity_viewer.py`, `utils/triplet_deduplicator.py`, `utils/triplet_mover.py`
+6. **Analyze coverage report** - Review `scripts/tests/htmlcov/index.html` for coverage gaps
+7. **Improve code coverage** - Focus on increasing test coverage for critical scripts
+8. **Catalog conventions** - Analyze all scripts for reusable patterns and create reference docs
+9. **Root directory cleanup** - Check files in root directory to see if they need to be cleaned out or moved to a special directory
+10. **Create local homepage** - Build custom homepage in Documents directory with links to all AI systems and tools from Google homepage
+11. **Investigate Claude memory configuration** - Look into enabling memory tool in Cursor/Claude settings to improve session continuity and knowledge retention
 
 ## 📚 MAJOR ANALYSIS PROJECT: Code Conventions & Patterns
 

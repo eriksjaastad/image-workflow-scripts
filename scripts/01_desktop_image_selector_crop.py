@@ -14,7 +14,8 @@ USAGE:
 ------
 Process directories containing image triplets:
   python scripts/01_desktop_image_selector_crop.py XXX_CONTENT/
-  python scripts/01_desktop_image_selector_crop.py XXX_CONTENT/ --aspect-ratio 16:9
+  python scripts/01_desktop_image_selector_crop.py XXX_CONTENT/ --reset-progress
+  python scripts/01_desktop_image_selector_crop.py XXX_CONTENT/ --log-training  # log selection+crop to data/training/
 
 FEATURES:
 ---------
@@ -58,6 +59,7 @@ NOTE: Moving any crop handle automatically selects that image!
 """
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -75,7 +77,8 @@ import shutil
 # Add the project root to the path for importing
 sys.path.append(str(Path(__file__).parent.parent))
 from utils.base_desktop_image_tool import BaseDesktopImageTool
-from utils.companion_file_utils import sort_image_files_by_timestamp_and_stage, format_image_display_name, extract_timestamp_from_filename
+from utils.companion_file_utils import sort_image_files_by_timestamp_and_stage, format_image_display_name, extract_timestamp_from_filename, detect_stage, get_stage_number, find_consecutive_stage_groups, safe_delete_image_and_yaml, log_select_crop_entry
+from datetime import datetime, timedelta
 
 # Triplet detection constants and functions (from web image selector)
 STAGE_NAMES = [
@@ -85,9 +88,16 @@ STAGE_NAMES = [
     "stage3_enhanced"
 ]
 
+def make_triplet_id(paths):
+    """Create a stable ID for a triplet based on file paths (path-portable)."""
+    # Use absolute paths normalized to POSIX for Windows/POSIX compatibility
+    s = "|".join(p.resolve().as_posix() for p in paths)
+    return "t_" + hashlib.sha1(s.encode("utf-8")).hexdigest()[:12]
+
 @dataclass
 class Triplet:
     """Represents a triplet of related images."""
+    id: str
     paths: List[Path]
     display_name: str
     timestamp: str
@@ -100,8 +110,9 @@ class TripletProgressTracker:
         self.progress_dir = Path("data/sorter_progress")
         self.progress_dir.mkdir(exist_ok=True)
         
-        # Create progress file name based on base directory
-        safe_name = str(base_directory).replace('/', '_').replace(' ', '_').replace('(', '').replace(')', '')
+        # Create progress file name based on base directory (normalized and shortened)
+        abs_base = self.base_directory.resolve()
+        safe_name = re.sub(r'[^A-Za-z0-9._-]+', '_', abs_base.as_posix())[:200]
         self.progress_file = self.progress_dir / f"{safe_name}_progress.json"
         
         self.triplets = []
@@ -117,23 +128,26 @@ class TripletProgressTracker:
         all_files = sort_image_files_by_timestamp_and_stage([f for f in self.base_directory.glob("*.png")])
         triplets = []
         
-        # Group files by timestamp using centralized extraction
-        timestamp_groups = {}
-        for file_path in all_files:
-            timestamp = extract_timestamp_from_filename(file_path.name)
-            if timestamp:
-                if timestamp not in timestamp_groups:
-                    timestamp_groups[timestamp] = []
-                timestamp_groups[timestamp].append(file_path)
+        # Use centralized triplet detection logic
+        groups = find_consecutive_stage_groups(all_files)
         
-        # Create triplets from groups
-        for timestamp, files in timestamp_groups.items():
-            if len(files) >= 2:  # At least 2 images to form a triplet
-                # Files are already sorted by timestamp + stage, so just use them as-is
+        def stage_str(x: float) -> str:
+            # Consistent formatting avoids 1 vs 1.0 drift
+            return f"{x:.1f}".rstrip('0').rstrip('.') if '.' in f"{x:.1f}" else f"{x:.1f}"
+        
+        # Convert groups into chunks of up to 4 images for the desktop UI
+        for group in groups:
+            # Chunk long groups into subgroups of size <= 4 so the UI always shows up to four images
+            for i in range(0, len(group), 4):
+                subgroup = group[i:i+4]
+                start = get_stage_number(detect_stage(subgroup[0].name))
+                end = get_stage_number(detect_stage(subgroup[-1].name))
+                stage_range = f"{stage_str(start)}-{stage_str(end)}"
                 triplet = Triplet(
-                    paths=files,  # Already sorted by standardized logic
-                    display_name=f"{timestamp} ({len(files)} images)",
-                    timestamp=timestamp
+                    id=make_triplet_id(subgroup),
+                    paths=subgroup,
+                    display_name=f"Stages {stage_range} ({len(subgroup)} images)",
+                    timestamp=f"stages_{stage_range}"
                 )
                 triplets.append(triplet)
         
@@ -156,11 +170,36 @@ class TripletProgressTracker:
             if self.current_triplet_index >= len(self.triplets):
                 self.current_triplet_index = 0
             
+            # Ensure all discovered triplets are in session data
+            self.ensure_all_triplets_in_session_data()
+            
+            # Persist immediately so JSON stabilizes
+            self.save_progress()
+            
+            # One-time migration for old display_name keys
+            self.migrate_old_keys()
+            
             print(f"[*] Resumed session from: {self.progress_file}")
             
         except Exception as e:
             print(f"[!] Error loading progress: {e}")
             self.initialize_progress()
+    
+    def ensure_all_triplets_in_session_data(self):
+        """Ensure all discovered triplets are in the session data."""
+        if 'triplets' not in self.session_data:
+            self.session_data['triplets'] = {}
+        
+        # Add any missing triplets to session data using stable ID
+        for triplet in self.triplets:
+            if triplet.id not in self.session_data['triplets']:
+                self.session_data['triplets'][triplet.id] = {
+                    'display_name': triplet.display_name,
+                    'status': 'pending',
+                    'files_processed': 0,
+                    'total_files': len(triplet.paths)
+                }
+                print(f"[*] Added missing triplet to session data: {triplet.display_name}")
     
     def initialize_progress(self):
         """Initialize new progress tracking session."""
@@ -168,14 +207,18 @@ class TripletProgressTracker:
             'base_directory': str(self.base_directory),
             'session_start': time.strftime('%Y-%m-%d %H:%M:%S'),
             'current_triplet_index': 0,
-            'triplets': {
-                triplet.display_name: {
-                    'status': 'pending',
-                    'files_processed': 0,
-                    'total_files': len(triplet.paths)
-                } for triplet in self.triplets
-            }
+            'triplets': {}
         }
+        
+        # Add all discovered triplets to session data using stable ID
+        for triplet in self.triplets:
+            self.session_data['triplets'][triplet.id] = {
+                'display_name': triplet.display_name,
+                'status': 'pending',
+                'files_processed': 0,
+                'total_files': len(triplet.paths)
+            }
+        
         self.save_progress()
     
     def save_progress(self):
@@ -200,7 +243,24 @@ class TripletProgressTracker:
         if self.current_triplet_index < len(self.triplets):
             current_triplet = self.get_current_triplet()
             if current_triplet:
-                self.session_data['triplets'][current_triplet.display_name]['status'] = 'completed'
+                triplets_dict = self.session_data.get('triplets', {})
+
+                # Prefer stable ID
+                if current_triplet.id in triplets_dict:
+                    triplets_dict[current_triplet.id]['status'] = 'completed'
+                # Back-compat: old files keyed by display_name
+                elif current_triplet.display_name in triplets_dict:
+                    triplets_dict[current_triplet.display_name]['status'] = 'completed'
+                else:
+                    # If missing (schema changed mid-run), create the entry on the fly
+                    triplets_dict[current_triplet.id] = {
+                        'display_name': current_triplet.display_name,
+                        'status': 'completed',
+                        'files_processed': 0,
+                        'total_files': len(current_triplet.paths),
+                    }
+
+                self.session_data['triplets'] = triplets_dict
         
         self.current_triplet_index += 1
         self.save_progress()
@@ -223,12 +283,41 @@ class TripletProgressTracker:
             'total_triplets': len(self.triplets)
         }
         
+    def mark_status(self, status):
+        """Mark current triplet with specific status."""
+        ct = self.get_current_triplet()
+        if not ct:
+            return
+        
+        d = self.session_data.setdefault('triplets', {})
+        key = ct.id if ct.id in d else ct.display_name
+        d.setdefault(key, {
+            'display_name': ct.display_name,
+            'files_processed': 0,
+            'total_files': len(ct.paths),
+        })
+        d[key]['status'] = status
+        self.save_progress()
+    
+    def migrate_old_keys(self):
+        """One-time migration for old progress files keyed by display_name."""
+        trips = self.session_data.get('triplets', {})
+        changed = False
+        for t in self.triplets:
+            if t.display_name in trips and t.id not in trips:
+                trips[t.id] = trips.pop(t.display_name)
+                changed = True
+        if changed:
+            self.save_progress()
+    
     def cleanup_completed_session(self):
         """Remove progress file when session is complete."""
         try:
             if self.progress_file.exists():
                 self.progress_file.unlink()
                 print(f"[*] Session complete - removed progress file: {self.progress_file}")
+        except PermissionError:
+            print("[!] Could not remove progress file (locked); ignoring.")
         except Exception as e:
             print(f"[!] Error cleaning up progress file: {e}")
 
@@ -236,16 +325,22 @@ class TripletProgressTracker:
 class DesktopImageSelectorCrop(BaseDesktopImageTool):
     """Desktop image selector with cropping - inherits from BaseDesktopImageTool."""
     
-    def __init__(self, directory, aspect_ratio=None, exts=["png"]):
+    def __init__(self, directory, aspect_ratio=None, exts=["png"], reset_progress: bool = False):
         """Initialize desktop image selector."""
         super().__init__(directory, aspect_ratio, "desktop_image_selector_crop")
         
         self.exts = exts
         self.current_triplet = None
         self.previous_batch_confirmed = False
+        self.is_transitioning = False
         
-        # Initialize progress tracker
+        # Initialize progress tracker (with optional reset)
         self.progress_tracker = TripletProgressTracker(self.base_directory)
+        if reset_progress:
+            print("[*] --reset-progress specified: clearing existing session progress and starting fresh…")
+            # Remove existing progress file and rebuild tracker cleanly
+            self.progress_tracker.cleanup_completed_session()
+            self.progress_tracker = TripletProgressTracker(self.base_directory)
         
         # Check if we have triplets to process
         if not self.progress_tracker.has_more_triplets():
@@ -258,6 +353,7 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
     
     def load_current_triplet(self):
         """Load the current triplet of images."""
+        self.is_transitioning = False
         self.current_triplet = self.progress_tracker.get_current_triplet()
         if not self.current_triplet:
             self.show_completion()
@@ -271,10 +367,10 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
         self.reset_batch_flags()
         self.clear_selectors()
         
-        # Load each image in the triplet
-        for i, png_path in enumerate(self.current_triplet.paths):
-            if i >= 3:  # Only process up to 3 images
-                break
+        # Load each image in the triplet (support up to 4 per screen)
+        desired_count = min(4, len(self.current_triplet.paths))
+        self.setup_display(desired_count)
+        for i, png_path in enumerate(self.current_triplet.paths[:desired_count]):
             
             success = self.load_image_safely(png_path, i)
             if not success:
@@ -284,8 +380,8 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
             if i < len(self.image_states):
                 self.image_states[i]['status'] = 'delete'  # Default to delete
         
-        # Hide unused subplots
-        self.hide_unused_subplots(len(self.current_triplet.paths))
+        # Ensure subplot layout matches the number of loaded images
+        self.hide_unused_subplots(desired_count)
         
         # Update display
         self.update_title()
@@ -304,7 +400,11 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
         selected_count = sum(1 for state in self.image_states if state.get('status') == 'selected')
         delete_count = len(self.image_states) - selected_count
         
-        triplet_info = f"Triplet {self.progress_tracker.current_triplet_index + 1}/{progress['total_triplets']} • {self.current_triplet.display_name if self.current_triplet else 'Loading...'}"
+        triplet_info = "Triplet {} of {} • {}".format(
+            self.progress_tracker.current_triplet_index + 1,
+            progress['total_triplets'],
+            self.current_triplet.display_name if self.current_triplet else 'Loading...'
+        )
         selection_info = f"Keep: {selected_count} • Delete: {delete_count}"
         
         title = f"{triplet_info} • {selection_info} • [R] Reset • [S] Skip • [Enter] Submit • [Q] Quit{aspect_info}"
@@ -320,33 +420,35 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
             if i < len(self.current_images):
                 status = self.image_states[i]['status']
                 reset_key = reset_keys[i] if i < len(reset_keys) else 'R'
-                
-                # Get image filename and trim it
-                image_path = self.current_images[i]['path']
-                filename = image_path.stem  # Remove extension
-                
-                # Use centralized image name formatting
-                display_name = format_image_display_name(filename, max_length=25, context="desktop")
-                
-                if status == 'selected':
-                    control_text = f"{display_name} • [{i+1}] ✓ KEEP  [{reset_key}] Reset"
-                else:
-                    control_text = f"{display_name} • [{i+1}] DELETE  [{reset_key}] Reset"
-                ax.set_xlabel(control_text, fontsize=10)
+                ts = extract_timestamp_from_filename(self.current_images[i]['path'].name) or ""
+                ts_hint = f" • [{i+1}] Copy timestamp" if ts else ""
+                # Per-image skip hotkeys: A/S/D/F for images 1..4
+                skip_key = ['A','S','D','F'][i] if i < 4 else ''
+                action = "✓ KEEP" if status == 'selected' else "DELETE"
+                control_text = f"[{i+1}] {action}   [{reset_key}] Reset   [{skip_key}] Skip{ts_hint}"
+                # Allow wrapping: use smaller font and allow multiple lines
+                ax.set_xlabel(control_text, fontsize=9, wrap=True)
+                # Add copyable timestamp text below image (in axes coordinates)
+                if ts:
+                    ax.text(0.5, -0.08, ts, ha='center', va='top', transform=ax.transAxes, fontsize=9, family='monospace')
     
     def handle_specific_keys(self, key: str):
         """Handle tool-specific keys."""
-        # Image selection controls
-        if key == '[':
+        # Image selection controls (4 images): p, [, ], \
+        if key == 'p':
             image_idx = 0  # First image
             if image_idx < len(self.image_states):
                 self.select_image(image_idx)
-        elif key == ']':
+        elif key == '[':
             image_idx = 1  # Second image
             if image_idx < len(self.image_states):
                 self.select_image(image_idx)
-        elif key == '\\':
+        elif key == ']':
             image_idx = 2  # Third image
+            if image_idx < len(self.image_states):
+                self.select_image(image_idx)
+        elif key == '\\':
+            image_idx = 3  # Fourth image (when present)
             if image_idx < len(self.image_states):
                 self.select_image(image_idx)
         
@@ -362,6 +464,48 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
         elif key == 's':
             self.skip_triplet()
         
+        # Copy timestamp hotkeys 1-4
+        elif key in ['1', '2', '3', '4']:
+            idx = int(key) - 1
+            if idx < len(self.current_images):
+                ts = extract_timestamp_from_filename(self.current_images[idx]['path'].name)
+                if ts:
+                    try:
+                        import pyperclip
+                        pyperclip.copy(ts)
+                        print(f"[*] Copied timestamp {ts} to clipboard")
+                    except Exception:
+                        print(ts)
+        # Per-image skip hotkeys A/S/D/F and B=skip all
+        elif key in ['a','s','d','f']:
+            idx = {'a':0,'s':1,'d':2,'f':3}[key]
+            if idx < len(self.current_images):
+                print(f"[*] Skipping image {idx+1}")
+                # Mark and delete that single image; leave others
+                image_info = self.current_images[idx]
+                png_path = image_info['path']
+                try:
+                    safe_delete_image_and_yaml(png_path, hard_delete=False, tracker=self.tracker)
+                    # Remove from current lists gracefully
+                    del self.current_images[idx]
+                    del self.image_states[idx]
+                    # Re-render the batch after removal
+                    desired_count = len(self.current_images)
+                    self.setup_display(desired_count)
+                    # Reload remaining images into axes
+                    self.clear_selectors()
+                    for j, info in enumerate(self.current_images):
+                        self.load_image_safely(info['path'], j)
+                    self.hide_unused_subplots(desired_count)
+                    self.update_title()
+                    self.update_image_titles(self.image_states)
+                    self.update_control_labels()
+                    self.fig.canvas.draw_idle()
+                except Exception as e:
+                    print(f"Error skipping image {idx+1}: {e}")
+        elif key == 'b':
+            # Skip entire triplet (existing behavior)
+            self.skip_triplet()
         # Help
         elif key == 'h':
             self.show_help()
@@ -445,8 +589,9 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
     
     def skip_triplet(self):
         """Skip current triplet entirely - move to next without processing."""
-        if not self.current_triplet:
+        if self.is_transitioning or not self.current_triplet:
             return
+        self.is_transitioning = True
             
         print(f"[*] Skipping {self.current_triplet.display_name} - moving to next triplet")
         
@@ -467,6 +612,7 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
             self.load_current_triplet()
         else:
             self.show_completion()
+        self.is_transitioning = False
     
     def submit_batch(self):
         """Process current triplet - crop selected image, delete others."""
@@ -485,7 +631,19 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
                 break
         
         if selected_image_idx is None:
-            print("No image selected - skipping triplet")
+            # No selection means delete all images in this triplet, then advance
+            print("No image selected - deleting all images in triplet")
+            for i, image_info in enumerate(self.current_images):
+                png_path = image_info['path']
+                try:
+                    safe_delete_image_and_yaml(png_path, hard_delete=False, tracker=self.tracker)
+                    processed_count += 1
+                except Exception as e:
+                    print(f"Error deleting image {i + 1}: {e}")
+
+            # Clear pending changes and advance
+            self.has_pending_changes = False
+            self.quit_confirmed = False
             self.progress_tracker.advance_triplet()
             if self.progress_tracker.has_more_triplets():
                 self.load_current_triplet()
@@ -508,13 +666,39 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
                         print(f"Image {i + 1}: Selected but no crop selection, skipping...")
                 else:
                     # Delete unselected images
-                    self.safe_delete(png_path, yaml_path)
+                    safe_delete_image_and_yaml(png_path, hard_delete=False, tracker=self.tracker)
                     processed_count += 1
                     
             except Exception as e:
                 print(f"Error processing image {i + 1}: {e}")
         
         print(f"Processed {processed_count}/{len(self.current_images)} images in triplet")
+
+        # Training log (fail-open): only one write per submission
+        try:
+            if getattr(self, 'log_training', False):
+                session_id = getattr(self.progress_tracker, 'session_data', {}).get('session_start', '')
+                set_id = self.current_triplet.id if self.current_triplet else ''
+                directory = str(self.base_directory)
+                image_paths = [str(ci['path']) for ci in self.current_images]
+                image_stages = [detect_stage(Path(p).name) for p in image_paths]
+                image_sizes = [ci.get('original_size', (0,0)) for ci in self.current_images]
+                if selected_image_idx is None:
+                    chosen_idx = -1
+                    crop_norm = None
+                else:
+                    chosen_idx = selected_image_idx
+                    # Normalize crop to [0..1]
+                    sel_state = self.image_states[selected_image_idx]
+                    x1,y1,x2,y2 = sel_state['crop_coords'] if sel_state.get('crop_coords') else (0,0,*self.current_images[selected_image_idx]['original_size'])
+                    w,h = self.current_images[selected_image_idx]['original_size']
+                    if w and h:
+                        crop_norm = (x1/max(1,w), y1/max(1,h), x2/max(1,w), y2/max(1,h))
+                    else:
+                        crop_norm = None
+                log_select_crop_entry(session_id, set_id, directory, image_paths, image_stages, image_sizes, chosen_idx, crop_norm)
+        except Exception as _e:
+            pass
         
         # Clear pending changes flag after successful submission
         self.has_pending_changes = False
@@ -592,7 +776,11 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
         """Main execution loop."""
         progress = self.progress_tracker.get_progress_info()
         print(f"Starting desktop image selector on {self.base_directory}")
-        print(f"Triplet {self.progress_tracker.current_triplet_index + 1} of {progress['total_triplets']}: {progress['current_triplet']}")
+        print("Triplet {} of {}: {}".format(
+            self.progress_tracker.current_triplet_index + 1, 
+            progress['total_triplets'], 
+            progress['current_triplet'] or 'No more triplets'
+        ))
         
         print("\nControls:")
         print("  Selection: [ [ \\ Keep image (default: all DELETE)")
@@ -631,6 +819,8 @@ Session Persistence:
     )
     parser.add_argument("directory", help="Directory containing image triplets to process")
     parser.add_argument("--aspect-ratio", help="Target aspect ratio (e.g., '16:9', '4:3', '1:1')")
+    parser.add_argument("--reset-progress", action="store_true", help="Ignore previous session and start fresh (clears saved progress for this directory)")
+    parser.add_argument("--log-training", action="store_true", help="Log selection+crop supervision to data/training/select_crop_log.csv on Enter")
     
     args = parser.parse_args()
     
@@ -645,7 +835,8 @@ Session Persistence:
         sys.exit(1)
     
     try:
-        tool = DesktopImageSelectorCrop(directory, args.aspect_ratio)
+        tool = DesktopImageSelectorCrop(directory, args.aspect_ratio, reset_progress=args.reset_progress)
+        tool.log_training = bool(args.log_training)
         tool.run()
     except Exception as e:
         print(f"Error: {e}")
