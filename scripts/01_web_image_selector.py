@@ -1096,6 +1096,26 @@ def build_app(
         if (groups.length > 0) {
           groups[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
+        
+        // Safety: bind click handlers programmatically in case inline handlers are blocked
+        try {
+          groups.forEach((group) => {
+            const groupId = group.dataset.groupId;
+            group.querySelectorAll('.image-card').forEach((card) => {
+              card.addEventListener('click', function() { handleImageClick(this); });
+            });
+            const btn1 = group.querySelector('.row-btn-1'); if (btn1) btn1.addEventListener('click', () => selectImage(0, groupId));
+            const btn2 = group.querySelector('.row-btn-2'); if (btn2) btn2.addEventListener('click', () => selectImage(1, groupId));
+            const btn3 = group.querySelector('.row-btn-3'); if (btn3) btn3.addEventListener('click', () => selectImage(2, groupId));
+            const btn4 = group.querySelector('.row-btn-4'); if (btn4) btn4.addEventListener('click', () => selectImage(3, groupId));
+            const skipBtn = group.querySelector('.row-btn-skip'); if (skipBtn) skipBtn.addEventListener('click', () => skipGroup(groupId));
+            group.querySelectorAll('.action-btn').forEach((btn) => {
+              btn.addEventListener('click', (e) => e.stopPropagation());
+            });
+          });
+        } catch (e) {
+          console.error('Binding error', e);
+        }
       </script>
     </body>
     </html>
