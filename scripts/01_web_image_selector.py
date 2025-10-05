@@ -284,6 +284,18 @@ def move_to_selected(src_path: Path, tracker: FileTracker) -> Path:
     )
 
 
+def move_to_crop(src_path: Path, tracker: FileTracker) -> Path:
+    project_root = find_project_root(src_path.parent)
+    crop_dir = project_root / "crop"
+    return move_with_yaml(
+        src_path,
+        crop_dir,
+        tracker,
+        dest_label="crop",
+        notes="Selected for crop during selector",
+    )
+
+
 @lru_cache(maxsize=2048)
 def _generate_thumbnail(path_str: str, mtime_ns: int, file_size: int) -> bytes:
     """Generate thumbnail using shared function."""
@@ -613,6 +625,7 @@ def build_app(
         <div>
           <h1>Image version selector</h1>
               <p>Use right sidebar or keys: 1,2,3 (select) • Enter (next) • ↑ (back)</p>
+              <p>Q,W,E,R = Select for Crop (toggle; second press returns to delete)</p>
         </div>
         <div class="summary" id="summary">
           <span>Kept groups: <strong id="summary-selected">0</strong></span>
@@ -738,8 +751,12 @@ def build_app(
               const selectedCard = group.querySelectorAll('.image-card')[state.selectedImage];
               if (selectedCard) {
                 selectedCard.classList.add('selected');
-                // All selected images automatically go to selected
-                selectedCard.classList.add('crop-selected');
+                // Indicate crop intent when flagged
+                if (state.crop) {
+                  selectedCard.classList.add('crop-selected');
+                } else {
+                  selectedCard.classList.remove('crop-selected');
+                }
               }
               
               // Show delete hint on other images
@@ -782,10 +799,25 @@ def build_app(
             delete groupStates[groupId]; // Deselect (back to delete)
           } else {
             // Update state - select image (automatically goes to selected)
-            groupStates[groupId] = { selectedImage: imageIndex, skipped: false };
+            groupStates[groupId] = { selectedImage: imageIndex, skipped: false, crop: false };
           }
           
           // Update everything immediately
+          updateVisualState();
+          updateSummary();
+        }
+        
+        function selectImageWithCrop(imageIndex, groupId) {
+          const group = document.querySelector(`section.group[data-group-id="${groupId}"]`);
+          if (!group) return;
+          const imageCount = group.querySelectorAll('.image-card').length;
+          if (imageIndex >= imageCount) return;
+          const currentState = groupStates[groupId];
+          if (currentState && currentState.selectedImage === imageIndex && currentState.crop) {
+            delete groupStates[groupId];
+          } else {
+            groupStates[groupId] = { selectedImage: imageIndex, skipped: false, crop: true };
+          }
           updateVisualState();
           updateSummary();
         }
@@ -891,6 +923,22 @@ def build_app(
               e.preventDefault();
               selectImage(2, currentGroupId);
               break;
+            case 'q':
+              e.preventDefault();
+              selectImageWithCrop(0, currentGroupId);
+              break;
+            case 'w':
+              e.preventDefault();
+              selectImageWithCrop(1, currentGroupId);
+              break;
+            case 'e':
+              e.preventDefault();
+              selectImageWithCrop(2, currentGroupId);
+              break;
+            case 'r':
+              e.preventDefault();
+              selectImageWithCrop(3, currentGroupId);
+              break;
             case '4':
               e.preventDefault();
               selectImage(3, currentGroupId);
@@ -945,7 +993,7 @@ def build_app(
           processBatchButton.disabled = true;
           setStatus('Processing batch…');
           
-          // For batch processing, only send selections for current batch groups
+          # For batch processing, only send selections for current batch groups
           const selections = groups.map(group => {
             const groupId = parseInt(group.dataset.groupId);
             const state = groupStates[groupId];
@@ -954,6 +1002,7 @@ def build_app(
               selectedIndex: state ? state.selectedImage : null,
               selected: state ? (state.selectedImage !== undefined) : false, // All selections go to selected
               skipped: state ? state.skipped : false,
+              crop: state ? !!state.crop : false,
             };
           });
           
@@ -970,36 +1019,36 @@ def build_app(
             
             setStatus(`Batch processed! ${payload.moved || 0} moved, ${payload.deleted || 0} deleted`, 'success');
             
-            // Check if this batch is complete and auto-advance
+            # Check if this batch is complete and auto-advance
             if (payload.remaining === 0) {
-              // Batch is empty, check for next batch
+              # Batch is empty, check for next batch
               setTimeout(async () => {
                 try {
                   const nextResponse = await fetch('/next-batch', { method: 'POST' });
                   const nextResult = await nextResponse.json();
                   
                   if (nextResult.status === 'success') {
-                    // Switch to next batch
+                    # Switch to next batch
                     const switchResponse = await fetch('/switch-batch/' + nextResult.next_batch);
                     const switchResult = await switchResponse.json();
                     
                     if (switchResult.status === 'success') {
-                      window.scrollTo(0, 0); // Scroll to top before reload
+                      window.scrollTo(0, 0); # Scroll to top before reload
                       window.location.reload();
                     }
                   } else if (nextResult.status === 'complete') {
                     setStatus('All batches processed! 🎉', 'success');
                   }
                 } catch (error) {
-                  // Fallback to simple reload
-                  window.scrollTo(0, 0); // Scroll to top before reload
+                  # Fallback to simple reload
+                  window.scrollTo(0, 0); # Scroll to top before reload
                   window.location.reload();
                 }
               }, 1000);
             } else {
-              // Still have groups in current batch, just reload
+              # Still have groups in current batch, just reload
               setTimeout(() => {
-                window.scrollTo(0, 0); // Scroll to top before reload
+                window.scrollTo(0, 0); # Scroll to top before reload
                 window.location.reload();
               }, 1000);
             }
@@ -1011,21 +1060,21 @@ def build_app(
           }
         });
         
-        // Initialize
+        # Initialize
         updateVisualState();
         updateSummary();
         
-        // Track user activity
+        # Track user activity
         function markActivity() {
-            // Activity tracking removed - using file-operation-based timing instead
+            # Activity tracking removed - using file-operation-based timing instead
         }
         
-        // Activity tracking events
+        # Activity tracking events
         document.addEventListener('click', markActivity);
         document.addEventListener('keydown', markActivity);
         document.addEventListener('scroll', markActivity);
         
-        // Throttled mouse movement tracking
+        # Throttled mouse movement tracking
         let mouseThrottle = false;
         document.addEventListener('mousemove', function() {
             if (!mouseThrottle) {
@@ -1035,7 +1084,7 @@ def build_app(
             }
         });
         
-        // Scroll to first group
+        # Scroll to first group
         if (groups.length > 0) {
           groups[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
@@ -1271,10 +1320,14 @@ def build_app(
                 selected_path = record.paths[selected_index]
                 others = [p for idx, p in enumerate(record.paths) if idx != selected_index]
 
-                # Always move selected images to selected directory
-                target_path = move_to_selected(selected_path, tracker=tracker)
-                crop_count += 1
-                action_label = "keep_one_to_selected"
+                # Move selected image to selected or crop based on flag
+                if crop_flag:
+                    target_path = move_to_crop(selected_path, tracker=tracker)
+                    action_label = "keep_one_to_crop"
+                    crop_count += 1
+                else:
+                    target_path = move_to_selected(selected_path, tracker=tracker)
+                    action_label = "keep_one_to_selected"
 
                 safe_delete(others, hard_delete=hard_delete, tracker=tracker)
                 write_log(log_path, action_label, target_path, others)
