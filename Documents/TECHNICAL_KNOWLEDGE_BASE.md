@@ -675,5 +675,261 @@ except PermissionError:
 
 ---
 
-*Last Updated: October 3, 2025*
+## 🧪 **Testing Patterns & Infrastructure**
+
+### **Selenium Integration Testing (October 2025)**
+**Achievement:** Complete Selenium test infrastructure for all web tools
+**Impact:** Automated end-to-end verification of all Flask applications
+
+**Infrastructure Components:**
+
+1. **Base Selenium Test Class** (`test_base_selenium.py`):
+```python
+class BaseSeleniumTest(unittest.TestCase):
+    """Base class with headless Chrome + Flask server management."""
+    
+    @classmethod
+    def setUpClass(cls):
+        # Set up Chrome driver once for all tests
+        chrome_options = ChromeOptions()
+        chrome_options.add_argument('--headless')
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+        cls.driver = webdriver.Chrome(service=service, options=chrome_options)
+    
+    def setUp(self):
+        # Create temp directory, start Flask server on free port
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.server_port = find_free_port()
+        app = self.get_flask_app()  # Subclass implements
+        self.server_thread = threading.Thread(
+            target=lambda: app.run(port=self.server_port),
+            daemon=True
+        )
+        self.server_thread.start()
+        self.wait_for_server()
+```
+
+2. **Smoke Tests for All Web Tools** (`test_web_tools_smoke.py`):
+- Tests that each tool starts without errors
+- Verifies page loads and displays content
+- Checks that key UI elements are present
+- Uses subprocess to launch actual Python scripts
+- Runs in ~10 seconds for all 4 tools
+
+3. **Key Features:**
+- **Headless mode:** No browser windows pop up
+- **Automatic port management:** Finds free ports automatically
+- **Test isolation:** Each test gets temp directory + unique port
+- **Clean teardown:** Servers terminated, pipes closed, no orphans
+- **Real integration:** Actually launches your Flask apps as subprocesses
+
+**Critical Lessons:**
+
+1. **Coverage Limitation (Expected):**
+Selenium tests that launch subprocesses don't show up in coverage reports. This is normal and fine:
+- **Selenium tests verify:** Integration/functionality (does it work end-to-end?)
+- **Unit tests verify:** Code coverage (are all code paths tested?)
+- Both types of tests are important and complementary
+
+2. **Subprocess Testing Pattern:**
+```python
+# Launch actual script as subprocess
+self.process = subprocess.Popen(
+    [sys.executable, str(script_path), args],
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    cwd=project_root
+)
+
+# Wait for server to start
+self.wait_for_server(port)
+
+# Use Selenium to verify UI
+self.driver.get(f"http://127.0.0.1:{port}")
+self.assertIn("Expected Title", self.driver.title)
+
+# Always clean up
+def tearDown(self):
+    if self.process:
+        self.process.terminate()
+        self.process.wait(timeout=5)
+        # Close pipes to prevent ResourceWarning
+        if self.process.stdout:
+            self.process.stdout.close()
+        if self.process.stderr:
+            self.process.stderr.close()
+```
+
+3. **Port Management:**
+```python
+def find_free_port() -> int:
+    """Find a free port for the Flask server."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('', 0))
+        s.listen(1)
+        port = s.getsockname()[1]
+    return port
+```
+
+4. **Test Data Naming Conventions:**
+For image grouping tests, use proper file naming:
+```python
+# Correct naming for grouping tests
+descriptors = {1: "generated", 2: "upscaled", 3: "enhanced"}
+for stage in [1, 2, 3]:
+    filename = f"20250101_000000_stage{stage}_{descriptors[stage]}.png"
+```
+
+**Test Suite Organization:**
+
+- `test_base_selenium.py` - Infrastructure base class
+- `test_selenium_simple.py` - Infrastructure verification (3 tests)
+- `test_web_tools_smoke.py` - Web tool smoke tests (4 tests)
+- Total: 7 Selenium tests, all passing, ~10 second runtime
+
+**Benefits:**
+- Catch integration issues before production
+- Verify tools actually start and work
+- Test real browser interactions
+- No manual testing needed for basic functionality
+
+**When to Use:**
+- Verifying Flask apps start correctly
+- Testing UI elements are present
+- Integration testing (multiple systems working together)
+- Regression testing after major changes
+
+**When NOT to Use:**
+- Testing internal logic (use unit tests)
+- Testing individual functions (use unit tests)
+- Measuring code coverage (use unit tests)
+
+---
+
+### **Test Isolation Patterns**
+
+**Critical Pattern:** Every test must run in complete isolation to prevent contamination.
+
+**Implementation:**
+```python
+def setUp(self):
+    # Create isolated temp directory
+    self.temp_dir = tempfile.TemporaryDirectory()
+    self.temp_path = Path(self.temp_dir.name)
+    
+    # Set environment variable for test data root
+    os.environ['EM_TEST_DATA_ROOT'] = str(self.temp_path)
+    
+    # Prepare test data in isolation
+    self.prepare_test_data()
+
+def tearDown(self):
+    # Clean up environment variable
+    if 'EM_TEST_DATA_ROOT' in os.environ:
+        del os.environ['EM_TEST_DATA_ROOT']
+    
+    # Clean up temp directory
+    if self.temp_dir:
+        self.temp_dir.cleanup()
+```
+
+**Why This Matters:**
+- Tests don't interfere with each other
+- Tests don't pollute production data directories
+- Tests are reproducible (same result every time)
+- Can run tests in parallel safely
+
+**Application Code Support:**
+Production code should respect `EM_TEST_DATA_ROOT`:
+```python
+def get_data_directory():
+    """Get data directory, respecting test environment."""
+    if 'EM_TEST_DATA_ROOT' in os.environ:
+        return Path(os.environ['EM_TEST_DATA_ROOT']) / 'data'
+    return Path(__file__).parent.parent / 'data'
+```
+
+---
+
+### **Flask App Testing Pattern**
+
+**For simple unit tests (without browser):**
+```python
+def test_flask_route():
+    app = create_app(test_data)
+    client = app.test_client()
+    response = client.get('/')
+    assert response.status_code == 200
+```
+
+**For integration tests (with browser):**
+Use BaseSeleniumTest pattern shown above - actually launch the app as a subprocess and test with real browser.
+
+---
+
+### **Headless Browser Configuration**
+
+**Chrome Options for CI/CD:**
+```python
+chrome_options = ChromeOptions()
+chrome_options.add_argument('--headless')          # No GUI
+chrome_options.add_argument('--no-sandbox')        # Required for containers
+chrome_options.add_argument('--disable-dev-shm-usage')  # Prevent crashes
+chrome_options.add_argument('--disable-gpu')       # Not needed in headless
+chrome_options.add_argument('--window-size=1920,1080')  # Set viewport
+chrome_options.add_argument('--disable-extensions')     # Faster startup
+chrome_options.add_argument('--disable-logging')        # Less noise
+chrome_options.add_argument('--log-level=3')            # Errors only
+```
+
+**Why These Options:**
+- `--headless`: No browser window (essential for automated testing)
+- `--no-sandbox`: Required when running in Docker/CI environments
+- `--disable-dev-shm-usage`: Prevents crashes when /dev/shm is too small
+- Others: Performance and noise reduction
+
+---
+
+### **Coverage Report Interpretation**
+
+**Expected Coverage Patterns:**
+- **High coverage (>80%):** Utility functions, business logic, data processing
+- **Medium coverage (40-80%):** Complex workflows, error handling paths
+- **Low/Zero coverage (0%):** GUI tools, subprocess-launched apps, integration points
+
+**Why Some Files Show 0% Coverage:**
+1. **Desktop tools (tkinter):** Require GUI automation or headless X
+2. **Web tools (Flask):** Routes not exercised by subprocess launches
+3. **Integration tests:** Selenium launches subprocesses (separate Python process)
+
+**This is NORMAL and EXPECTED.** Different test types serve different purposes:
+- **Unit tests:** Code coverage, logic verification
+- **Integration tests:** End-to-end functionality, system behavior
+- **Smoke tests:** Does it start? Does it work basically?
+
+---
+
+### **Test Maintenance Workflow**
+
+**During Active Development:**
+1. Make functional changes
+2. Log test impact in TODO list
+3. Don't stop to fix tests immediately
+
+**End of Day:**
+1. Fix test failures caused by changes
+2. Add new tests for new features
+3. Update test data if schemas changed
+4. Run full test suite before committing
+
+**After Major Changes:**
+1. Review test coverage report
+2. Add tests for uncovered edge cases
+3. Update test documentation
+4. Consider integration tests if behavior changed
+
+---
+
+*Last Updated: October 5, 2025*
 *This file should be updated whenever new technical solutions are discovered or patterns are established.*
