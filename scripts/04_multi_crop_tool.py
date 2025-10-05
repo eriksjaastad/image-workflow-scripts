@@ -75,7 +75,13 @@ import numpy as np
 # Add the project root to the path for importing
 sys.path.append(str(Path(__file__).parent.parent))
 from utils.base_desktop_image_tool import BaseDesktopImageTool
-from utils.companion_file_utils import format_image_display_name, sort_image_files_by_timestamp_and_stage
+from utils.companion_file_utils import (
+    format_image_display_name, 
+    sort_image_files_by_timestamp_and_stage,
+    log_select_crop_entry,
+    extract_timestamp_from_filename,
+    detect_stage
+)
 
 
 class MultiDirectoryProgressTracker:
@@ -622,6 +628,34 @@ class MultiCropTool(BaseDesktopImageTool):
         plt.draw()
         
         print("\n🎉 All images processed! Multi-directory cropping complete.")
+    
+    def crop_and_save(self, image_info: Dict, crop_coords: Tuple[int, int, int, int]):
+        """Override to add training logging for multi-crop tool."""
+        # Call parent implementation for actual cropping
+        super().crop_and_save(image_info, crop_coords)
+        
+        # Log training data
+        try:
+            png_path = image_info['path']
+            session_id = getattr(self.progress_tracker, 'session_data', {}).get('session_start', '')
+            set_id = f"{png_path.parent.name}_{png_path.stem}"  # Use directory + filename as set_id
+            directory = str(png_path.parent)
+            
+            # For multi-crop, we process images individually, so treat each as its own "set"
+            image_paths = [str(png_path)]
+            image_stages = [detect_stage(png_path.name)]
+            image_sizes = [image_info.get('size', (0, 0))]
+            chosen_idx = 0  # Always 0 since we're logging individual crops
+            
+            # Normalize crop coordinates
+            w, h = image_info.get('size', (1, 1))
+            x1, y1, x2, y2 = crop_coords
+            crop_norm = (x1/max(1,w), y1/max(1,h), x2/max(1,w), y2/max(1,h))
+            
+            log_select_crop_entry(session_id, set_id, directory, image_paths, image_stages, image_sizes, chosen_idx, crop_norm)
+        except Exception as e:
+            # Don't let logging errors break the workflow
+            pass
     
     def run(self):
         """Main execution loop"""

@@ -59,7 +59,7 @@ import argparse
 from pathlib import Path
 from flask import Flask, render_template_string, request, jsonify
 import webbrowser
-from utils.companion_file_utils import launch_browser, generate_thumbnail, get_error_display_html, format_image_display_name
+from utils.companion_file_utils import launch_browser, generate_thumbnail, get_error_display_html, format_image_display_name, move_file_with_all_companions, find_all_companion_files
 import threading
 import time
 import shutil
@@ -644,7 +644,7 @@ def create_app(output_dir):
             
             try:
                 if action == 'crop':
-                    # Move to crop directory
+                    # Move to crop directory with ALL companion files
                     crop_dir = output_path.parent / 'crop'
                     crop_dir.mkdir(exist_ok=True)
                     
@@ -658,31 +658,24 @@ def create_app(output_dir):
                         dest_path = crop_dir / f"{stem}_{counter:03d}{suffix}"
                         counter += 1
                     
-                    shutil.move(str(source_path), str(dest_path))
-                    
-                    # Also move metadata file if it exists (.yaml or .caption)
-                    yaml_source = source_path.with_suffix('.yaml')
-                    if not yaml_source.exists():
-                        yaml_source = source_path.with_suffix('.caption')
-                    
-                    if yaml_source.exists():
-                        yaml_dest = dest_path.with_suffix(yaml_source.suffix)
-                        shutil.move(str(yaml_source), str(yaml_dest))
+                    # Use companion file utilities to move image and ALL companions
+                    moved_files = move_file_with_all_companions(source_path, crop_dir, dry_run=False)
                     
                     tracker.log_move(source_path, dest_path, "crop_action")
                     
                 elif action == 'delete':
-                    # Move to trash
+                    # Move to trash with ALL companion files
                     if _SEND2TRASH_AVAILABLE:
+                        # Find all companion files
+                        companions = find_all_companion_files(source_path)
+                        
+                        # Delete the image
                         send2trash.send2trash(str(source_path))
                         
-                        # Also delete metadata file if it exists (.yaml or .caption)
-                        yaml_source = source_path.with_suffix('.yaml')
-                        if not yaml_source.exists():
-                            yaml_source = source_path.with_suffix('.caption')
-                        
-                        if yaml_source.exists():
-                            send2trash.send2trash(str(yaml_source))
+                        # Delete all companions
+                        for companion in companions:
+                            if companion.exists():
+                                send2trash.send2trash(str(companion))
                         
                         tracker.log_delete(source_path, "delete_action")
                     else:

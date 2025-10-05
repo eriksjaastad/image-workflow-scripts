@@ -23,6 +23,19 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from collections import defaultdict
 
+# Import DashboardDataEngine at module level for testability
+try:
+    # Try direct import first (when running from project root)
+    sys.path.insert(0, str(Path(__file__).parent / "dashboard"))
+    from data_engine import DashboardDataEngine
+except ImportError:
+    try:
+        # Fallback for test environment
+        from scripts.dashboard.data_engine import DashboardDataEngine
+    except ImportError:
+        # Will be mocked in tests
+        DashboardDataEngine = None
+
 def consolidate_daily_data(target_date: str, dry_run: bool = False):
     """
     Consolidate file operations for a specific date into daily summary.
@@ -164,11 +177,7 @@ def consolidate_daily_data(target_date: str, dry_run: bool = False):
     if operations:
         print("🔍 Verifying dashboard can read consolidated data...")
         try:
-            # Test dashboard data engine
-            sys.path.insert(0, str(Path(__file__).parent / "dashboard"))
-            from data_engine import DashboardDataEngine
-            
-            # Use parent of data_dir for the engine (it expects project root)
+            # Test dashboard data engine (use module-level import for testability)
             engine = DashboardDataEngine(data_dir=str(data_dir.parent))
             test_records = engine.load_file_operations(target_date, target_date)
             
@@ -242,9 +251,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-else:
-    # Re-export for tests patching
-    try:
-        from scripts.dashboard.data_engine import DashboardDataEngine as DashboardDataEngine  # type: ignore
-    except Exception:
-        pass

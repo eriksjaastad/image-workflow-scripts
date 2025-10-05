@@ -61,7 +61,8 @@ import argparse
 from pathlib import Path
 from flask import Flask, render_template_string, request, jsonify
 import webbrowser
-from utils.companion_file_utils import launch_browser, generate_thumbnail, logger, get_error_display_html
+from utils.companion_file_utils import launch_browser, generate_thumbnail, logger, get_error_display_html, get_training_dir, _append_csv_row
+from datetime import datetime
 import threading
 import time
 import shutil
@@ -712,6 +713,22 @@ def create_app(left_dir, right_dir):
                             send2trash(str(yaml_source))
                         
                         tracker.log_operation("delete", source_dir=str(source_path.parent), dest_dir="trash", file_count=1)
+                        
+                        # Log training data for duplicate detection
+                        try:
+                            training_dir = get_training_dir()
+                            log_path = training_dir / "duplicate_detection_log.csv"
+                            header = ['timestamp', 'session_id', 'left_directory', 'right_directory', 'deleted_image']
+                            row = {
+                                'timestamp': datetime.now().isoformat(),
+                                'session_id': datetime.now().strftime('%Y%m%d_%H%M%S'),
+                                'left_directory': str(left_path),
+                                'right_directory': str(right_path),
+                                'deleted_image': str(source_path)
+                            }
+                            _append_csv_row(log_path, header, row)
+                        except Exception:
+                            pass  # Don't let logging errors break the workflow
                     else:
                         errors.append(f"send2trash not available for {image}")
                         continue

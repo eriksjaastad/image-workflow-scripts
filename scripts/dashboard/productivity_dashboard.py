@@ -113,6 +113,13 @@ class ProductivityDashboard:
                 by_script_data[display_name]['dates'].append(date)
                 by_script_data[display_name]['counts'].append(count)
             
+            # Sort dates and counts for each script to ensure chronological order
+            for script_name in by_script_data:
+                dates_counts = sorted(zip(by_script_data[script_name]['dates'], 
+                                         by_script_data[script_name]['counts']))
+                by_script_data[script_name]['dates'] = [d for d, c in dates_counts]
+                by_script_data[script_name]['counts'] = [c for d, c in dates_counts]
+            
             chart_data['charts']['by_script'] = by_script_data
         
         # Transform file operations by type
@@ -128,6 +135,13 @@ class ProductivityDashboard:
                 
                 by_operation_data[operation]['dates'].append(date)
                 by_operation_data[operation]['counts'].append(count)
+            
+            # Sort dates and counts for each operation to ensure chronological order
+            for operation_name in by_operation_data:
+                dates_counts = sorted(zip(by_operation_data[operation_name]['dates'], 
+                                         by_operation_data[operation_name]['counts']))
+                by_operation_data[operation_name]['dates'] = [d for d, c in dates_counts]
+                by_operation_data[operation_name]['counts'] = [c for d, c in dates_counts]
             
             chart_data['charts']['by_operation'] = by_operation_data
         

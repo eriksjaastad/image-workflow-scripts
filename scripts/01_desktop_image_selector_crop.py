@@ -15,7 +15,6 @@ USAGE:
 Process directories containing image triplets:
   python scripts/01_desktop_image_selector_crop.py XXX_CONTENT/
   python scripts/01_desktop_image_selector_crop.py XXX_CONTENT/ --reset-progress
-  python scripts/01_desktop_image_selector_crop.py XXX_CONTENT/ --log-training  # log selection+crop to data/training/
 
 FEATURES:
 ---------
@@ -828,7 +827,6 @@ Session Persistence:
     parser.add_argument("directory", help="Directory containing image triplets to process")
     parser.add_argument("--aspect-ratio", help="Target aspect ratio (e.g., '16:9', '4:3', '1:1')")
     parser.add_argument("--reset-progress", action="store_true", help="Ignore previous session and start fresh (clears saved progress for this directory)")
-    parser.add_argument("--log-training", action="store_true", help="Log selection+crop supervision to data/training/select_crop_log.csv on Enter")
     
     args = parser.parse_args()
     
@@ -844,7 +842,7 @@ Session Persistence:
     
     try:
         tool = DesktopImageSelectorCrop(directory, args.aspect_ratio, reset_progress=args.reset_progress)
-        tool.log_training = bool(args.log_training)
+        tool.log_training = True  # Training logging always enabled
         tool.run()
     except Exception as e:
         print(f"Error: {e}")

@@ -179,22 +179,30 @@ def move_duplicate_groups_to_subdirs(analysis_results: Dict, dry_run: bool = Fal
         
         for caption_file in group['files']:
             try:
-                # Move caption file
-                caption_dest = group_dir_path / caption_file.name
-                if not dry_run:
-                    shutil.move(str(caption_file), str(caption_dest))
-                print(f"  • {caption_file.name}")
-                group_files_moved += 1
-                
-                # Move corresponding PNG file if it exists
+                # Move caption and find corresponding PNG file
                 png_file = caption_file.with_suffix('.png')
+                
                 if png_file.exists():
-                    png_dest = group_dir_path / png_file.name
+                    # Use companion file utilities to move PNG and ALL companions
+                    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+                    from scripts.utils.companion_file_utils import move_file_with_all_companions
+                    
                     if not dry_run:
-                        shutil.move(str(png_file), str(png_dest))
-                    print(f"  • {png_file.name}")
-                    group_files_moved += 1
+                        moved_files = move_file_with_all_companions(png_file, group_dir_path, dry_run=False)
+                        for moved_file in moved_files:
+                            print(f"  • {moved_file}")
+                            group_files_moved += 1
+                    else:
+                        print(f"  • {caption_file.name} (would move)")
+                        print(f"  • {png_file.name} (would move)")
+                        group_files_moved += 2
                 else:
+                    # Just move the caption file if no PNG exists
+                    caption_dest = group_dir_path / caption_file.name
+                    if not dry_run:
+                        shutil.move(str(caption_file), str(caption_dest))
+                    print(f"  • {caption_file.name}")
+                    group_files_moved += 1
                     print(f"  • {png_file.name} (not found)")
                 
             except Exception as e:

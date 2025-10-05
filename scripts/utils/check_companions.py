@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Utility: Check Pairs - Orphaned Files Audit Tool
-=================================================
-Find and optionally clean up orphaned PNG/metadata files in directory trees.
-Identifies files missing their corresponding pair for data integrity.
-Supports both .yaml and .caption metadata files.
+Utility: Check Companions - Orphaned Files Audit Tool
+======================================================
+Find and optionally clean up orphaned PNG/companion files in directory trees.
+Identifies files missing their corresponding companions for data integrity.
+Supports ALL companion file types (.yaml, .caption, etc.).
 
 VIRTUAL ENVIRONMENT:
 --------------------
@@ -13,16 +13,17 @@ Activate virtual environment first:
 
 USAGE:
 ------
-Audit file pairs in directories:
-  python scripts/utils/check_pairs.py [directory]
-  python scripts/utils/check_pairs.py --recursive .
-  python scripts/utils/check_pairs.py --recursive face_groups
+Audit companion files in directories:
+  python scripts/utils/check_companions.py [directory]
+  python scripts/utils/check_companions.py --recursive .
+  python scripts/utils/check_companions.py --recursive face_groups
 
 FEATURES:
 ---------
-• Recursively scans directory trees for PNG/metadata files
-• Identifies orphaned files (PNG without metadata, metadata without PNG)
-• Supports both .yaml and .caption metadata files
+• Recursively scans directory trees for PNG/companion files
+• Identifies orphaned files (PNG without companions, companions without PNG)
+• Supports ALL companion file types (.yaml, .caption, .txt, .json, etc.)
+• Accepts ANY companion type - no false positives if one type exists
 • Detailed report grouped by directory
 • Optional cleanup with user confirmation
 • Safe deletion using send2trash (recoverable)

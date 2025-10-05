@@ -571,7 +571,7 @@ def safe_delete_paths(paths: Iterable[Path], hard_delete: bool = False, tracker=
 
 def safe_delete_image_and_yaml(png_path: Path, hard_delete: bool = False, tracker=None) -> List[str]:
     """
-    Delete an image and its .yaml companion (if present). Uses Trash by default.
+    Delete an image and ALL its companion files (yaml, caption, etc.). Uses Trash by default.
 
     Args:
         png_path: Path to the .png image
@@ -581,10 +581,10 @@ def safe_delete_image_and_yaml(png_path: Path, hard_delete: bool = False, tracke
     Returns:
         List of deleted file names
     """
+    # Use wildcard logic to find ALL companion files
     files: List[Path] = [png_path]
-    yaml_path = png_path.with_suffix('.yaml')
-    if yaml_path.exists():
-        files.append(yaml_path)
+    companions = find_all_companion_files(png_path)
+    files.extend(companions)
     return safe_delete_paths(files, hard_delete=hard_delete, tracker=tracker)
 
 

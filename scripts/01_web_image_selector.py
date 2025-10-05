@@ -20,7 +20,6 @@ USAGE:
 ------
 Run on directories containing triplets (after quality filtering):
   python scripts/01_web_image_selector.py XXX_CONTENT/
-  python scripts/01_web_image_selector.py XXX_CONTENT/ --log-training  # log selection-only to data/training/
 
 FEATURES:
 ---------
@@ -1565,7 +1564,6 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8080, help="Port for the local web server")
     parser.add_argument("--no-browser", action="store_true", help="Do not auto-open the browser")
     parser.add_argument("--no-recursive", action="store_true", help="Do not scan subdirectories recursively")
-    parser.add_argument("--log-training", action="store_true", help="Log selection-only supervision to data/training/selection_only_log.csv on batch process")
     args = parser.parse_args()
 
     folder = Path(args.folder).expanduser().resolve()
@@ -1635,8 +1633,8 @@ def main() -> None:
 
     log_path = folder / "triplet_culler_log.csv"
     app = build_app(records, folder, tracker, log_path, hard_delete=args.hard_delete, batch_size=args.batch_size)
-    # Surface log-training flag to app context for logging in routes
-    app.config["LOG_TRAINING"] = bool(args.log_training)
+    # Training logging is always enabled
+    app.config["LOG_TRAINING"] = True
 
     # Calculate batch info for logging
     total_groups = len(records)
