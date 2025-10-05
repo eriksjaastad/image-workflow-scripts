@@ -19,7 +19,7 @@ Activate virtual environment first:
 USAGE:
 ------
 Multi-directory character sorting (RECOMMENDED):
-  python scripts/03_web_character_sorter.py selected
+  python scripts/02_web_character_sorter.py selected
   # Automatically processes all subdirectories (emily/, mia/, etc.) with auto-advance
 
 Basic character sorting (single directory):
@@ -2070,7 +2070,7 @@ VIEWPORT_TEMPLATE = """
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Web Character Sorter - Viewport Progressive</title>
-  {{ error_display_html }}
+  {{ error_display_html|safe }}
   <style>
     :root {
       color-scheme: dark;
