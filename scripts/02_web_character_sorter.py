@@ -804,7 +804,7 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
             group_name = f"character_{action}"
             
             try:
-                moved_files = move_with_metadata(current_image, target_dir, tracker, group_name, activity_timer)
+                moved_files = move_with_metadata(current_image, target_dir, tracker, group_name)
                 history.append((current_image.name, group_name, moved_files))
                 
                 # Remove from images list
@@ -829,7 +829,7 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
                 if yaml_file.exists():
                     files_to_delete.append(yaml_file.name)
                 
-                safe_delete(current_image, app.config["HARD_DELETE"], tracker, activity_timer)
+                safe_delete(current_image, app.config["HARD_DELETE"], tracker)
                 history.append((current_image.name, "DELETED", files_to_delete))
                 
                 # Remove from images list
@@ -947,7 +947,7 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
                 if action in ["group1", "group2", "group3"]:
                     target_dir = target_dirs[action]
                     group_name = f"character_{action}"
-                    moved_files = move_with_metadata(image_path, target_dir, tracker, group_name, activity_timer)
+                    moved_files = move_with_metadata(image_path, target_dir, tracker, group_name)
                     history.append((image_path.name, group_name, moved_files))
                     processed_count += 1
                     
@@ -957,7 +957,7 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
                     if yaml_file.exists():
                         files_to_delete.append(yaml_file.name)
                     
-                    safe_delete(image_path, hard_delete, tracker, activity_timer)
+                    safe_delete(image_path, hard_delete, tracker)
                     history.append((image_path.name, "DELETED", files_to_delete))
                     processed_count += 1
                     
@@ -965,7 +965,7 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
                     # Move to crop directory for further processing
                     crop_dir = Path.cwd() / "crop"
                     crop_dir.mkdir(exist_ok=True)
-                    moved_files = move_with_metadata(image_path, crop_dir, tracker, "crop_processing", activity_timer)
+                    moved_files = move_with_metadata(image_path, crop_dir, tracker, "crop_processing")
                     history.append((image_path.name, "SENT_TO_CROP", moved_files))
                     processed_count += 1
         
