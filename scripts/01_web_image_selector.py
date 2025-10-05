@@ -690,7 +690,9 @@ def build_app(
         const batchCount = document.getElementById('batch-count');
         const statusBox = document.getElementById('status');
         
-        let groupStates = {}; // { groupId: { selectedImage: 0|1|2, skipped: boolean } }
+        let groupStates = {}; // { groupId: { selectedImage: 0|1|2, skipped: boolean, crop?: boolean } }
+        // Expose for inline onclick handlers
+        window.groupStates = groupStates;
 
         function updateSummary() {
           const selectedCount = Object.values(groupStates).filter(state => state.selectedImage !== undefined && !state.skipped).length;
@@ -707,6 +709,8 @@ def build_app(
           updateVisualState();
           updateSummary();
         }
+        // Expose functions for inline handlers
+        window.skipGroup = skipGroup;
         
         function updateButtonStates(groupId) {
           const group = document.querySelector(`section.group[data-group-id="${groupId}"]`);
@@ -785,6 +789,7 @@ def build_app(
           updateVisualState();
           updateSummary();
         }
+        window.perImageSkip = perImageSkip;
         
         function selectImage(imageIndex, groupId) {
           const group = document.querySelector(`section.group[data-group-id="${groupId}"]`);
@@ -806,6 +811,7 @@ def build_app(
           updateVisualState();
           updateSummary();
         }
+        window.selectImage = selectImage;
         
         function selectImageWithCrop(imageIndex, groupId) {
           const group = document.querySelector(`section.group[data-group-id="${groupId}"]`);
@@ -821,6 +827,7 @@ def build_app(
           updateVisualState();
           updateSummary();
         }
+        window.selectImageWithCrop = selectImageWithCrop;
         
         // toggleCrop function removed - all selections automatically go to crop
         
@@ -847,6 +854,7 @@ def build_app(
           updateVisualState();
           updateSummary();
         }
+        window.handleImageClick = handleImageClick;
         
         function nextGroup() {
           // Find the currently visible group using the same logic as keyboard shortcuts
