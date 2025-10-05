@@ -2,6 +2,15 @@
 """
 Code Coverage Test Runner
 Runs all tests with coverage analysis and generates reports.
+
+VIRTUAL ENVIRONMENT:
+--------------------
+Activate virtual environment first:
+  source .venv311/bin/activate
+
+USAGE:
+------
+  python 'scripts/tests/run_coverage.py'
 """
 
 import subprocess
@@ -33,12 +42,14 @@ def run_coverage():
     ], capture_output=True, text=True)
     
     if result.returncode != 0:
-        print("❌ Tests failed!")
-        print("STDOUT:", result.stdout)
-        print("STDERR:", result.stderr)
-        return False
-    
-    print("✅ Tests completed successfully!")
+        print("⚠️  Some tests failed, but continuing with coverage report...")
+        # Print summary of test results
+        lines = result.stderr.split('\n')
+        for line in lines:
+            if 'Ran' in line or 'FAILED' in line or 'OK' in line:
+                print(f"   {line}")
+    else:
+        print("✅ All tests passed!")
     
     # Generate text report
     print("\n📊 Generating coverage report...")

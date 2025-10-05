@@ -351,57 +351,65 @@ class DashboardDataEngine:
                     with gzip.open(log_file, 'rt') as f:
                         for line in f:
                             if line.strip():
-                                data = json.loads(line)
-                                if data.get('type') == 'file_operation':
-                                    record = {
-                                        'timestamp_str': data.get('timestamp'),
-                                        'script': data.get('script'),
-                                        'session_id': data.get('session_id'),
-                                        'operation': data.get('operation'),
-                                        'source_dir': data.get('source_dir'),
-                                        'dest_dir': data.get('dest_dir'),
-                                        'file_count': data.get('file_count', 0),
-                                        'files': data.get('files', []),
-                                        'notes': data.get('notes', '')
-                                    }
-                                    
-                                    # Convert timestamp
-                                    try:
-                                        record['timestamp'] = datetime.fromisoformat(record['timestamp_str'])
-                                        record['date'] = record['timestamp'].date()
-                                    except:
-                                        record['timestamp'] = None
-                                        record['date'] = None
-                                    
-                                    records.append(record)
+                                try:
+                                    data = json.loads(line)
+                                    if data.get('type') == 'file_operation':
+                                        record = {
+                                            'timestamp_str': data.get('timestamp'),
+                                            'script': data.get('script'),
+                                            'session_id': data.get('session_id'),
+                                            'operation': data.get('operation'),
+                                            'source_dir': data.get('source_dir'),
+                                            'dest_dir': data.get('dest_dir'),
+                                            'file_count': data.get('file_count', 0),
+                                            'files': data.get('files', []),
+                                            'notes': data.get('notes', '')
+                                        }
+                                        
+                                        # Convert timestamp
+                                        try:
+                                            record['timestamp'] = datetime.fromisoformat(record['timestamp_str'])
+                                            record['date'] = record['timestamp'].date()
+                                        except:
+                                            record['timestamp'] = None
+                                            record['date'] = None
+                                        
+                                        records.append(record)
+                                except json.JSONDecodeError:
+                                    # Skip malformed JSON lines
+                                    continue
                 else:
                     # Handle regular files
                     with open(log_file, 'r') as f:
                         for line in f:
                             if line.strip():
-                                data = json.loads(line)
-                                if data.get('type') == 'file_operation':
-                                    record = {
-                                        'timestamp_str': data.get('timestamp'),
-                                        'script': data.get('script'),
-                                        'session_id': data.get('session_id'),
-                                        'operation': data.get('operation'),
-                                        'source_dir': data.get('source_dir'),
-                                        'dest_dir': data.get('dest_dir'),
-                                        'file_count': data.get('file_count', 0),
-                                        'files': data.get('files', []),
-                                        'notes': data.get('notes', '')
-                                    }
-                                    
-                                    # Convert timestamp
-                                    try:
-                                        record['timestamp'] = datetime.fromisoformat(record['timestamp_str'])
-                                        record['date'] = record['timestamp'].date()
-                                    except:
-                                        record['timestamp'] = None
-                                        record['date'] = None
-                                    
-                                    records.append(record)
+                                try:
+                                    data = json.loads(line)
+                                    if data.get('type') == 'file_operation':
+                                        record = {
+                                            'timestamp_str': data.get('timestamp'),
+                                            'script': data.get('script'),
+                                            'session_id': data.get('session_id'),
+                                            'operation': data.get('operation'),
+                                            'source_dir': data.get('source_dir'),
+                                            'dest_dir': data.get('dest_dir'),
+                                            'file_count': data.get('file_count', 0),
+                                            'files': data.get('files', []),
+                                            'notes': data.get('notes', '')
+                                        }
+                                        
+                                        # Convert timestamp
+                                        try:
+                                            record['timestamp'] = datetime.fromisoformat(record['timestamp_str'])
+                                            record['date'] = record['timestamp'].date()
+                                        except:
+                                            record['timestamp'] = None
+                                            record['date'] = None
+                                        
+                                        records.append(record)
+                                except json.JSONDecodeError:
+                                    # Skip malformed JSON lines
+                                    continue
             except Exception as e:
                 print(f"Warning: Could not process {log_file}: {e}")
         

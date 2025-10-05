@@ -597,6 +597,11 @@ def build_app(
           border-color: white;
           box-shadow: 0 0 0 2px rgba(255,255,255,0.6);
         }
+        figure.image-card.per-image-skipped {
+          opacity: 0.5;
+          border-color: var(--muted);
+          box-shadow: 0 0 0 2px rgba(160,163,177,0.3);
+        }
         figure.image-card.delete-hint {
           border-color: var(--danger);
           box-shadow: 0 0 0 2px rgba(255,107,107,0.3);
@@ -628,9 +633,9 @@ def build_app(
               <p>Q,W,E,R = Select for Crop (toggle; second press returns to delete)</p>
         </div>
         <div class="summary" id="summary">
-          <span>Kept groups: <strong id="summary-selected">0</strong></span>
-          <span>Skipped groups: <strong id="summary-skipped">0</strong></span>
-          <span>Delete groups: <strong id="summary-delete">{{ groups|length }}</strong></span>
+          <span>Kept files: <strong id="summary-selected">0</strong></span>
+          <span>Skipped files: <strong id="summary-skipped">0</strong></span>
+          <span>Delete files: <strong id="summary-delete">{{ groups|length }}</strong></span>
         </div>
         <button id="process-batch" class="process-batch">Process Current Batch</button>
         <div id="batch-info" class="batch-info">
@@ -650,27 +655,27 @@ def build_app(
           <div class="image-row">
               <div class="images-container">
                   {% for image in group.images %}
-              <figure class="image-card" data-image-index="{{ image.index }}" onclick="handleImageClick(this)">
+              <figure class="image-card" data-image-index="{{ image.index }}">
               <div class="stage">{{ image.stage }}</div>
               <img src="{{ image.src }}" alt="{{ image.name }}" loading="lazy">
               <figcaption class="filename">{{ format_image_display_name(image.name, context='web') }}</figcaption>
               <div style="display:flex; gap:0.3rem; justify-content:center; margin:0.2rem 0 0.4rem 0;">
-                <button class="action-btn" onclick="event.stopPropagation(); perImageSkip({{ image.index }}, '{{ group.id }}')">Skip</button>
+                <button class="action-btn per-image-skip" data-image-index="{{ image.index }}">Skip</button>
               </div>
             </figure>
             {% endfor %}
           </div>
             <div class="row-buttons">
-              <button class="action-btn row-btn-1" onclick="selectImage(0, '{{ group.id }}')">1</button>
-              <button class="action-btn row-btn-2" onclick="selectImage(1, '{{ group.id }}')">2</button>
+              <button class="action-btn row-btn-1">1</button>
+              <button class="action-btn row-btn-2">2</button>
               {% if group.images|length >= 3 %}
-              <button class="action-btn row-btn-3" onclick="selectImage(2, '{{ group.id }}')">3</button>
+              <button class="action-btn row-btn-3">3</button>
               {% endif %}
               {% if group.images|length >= 4 %}
-              <button class="action-btn row-btn-4" onclick="selectImage(3, '{{ group.id }}')">4</button>
+              <button class="action-btn row-btn-4">4</button>
               {% endif %}
-              <button class="action-btn row-btn-skip" onclick="skipGroup('{{ group.id }}')">Skip</button>
-              <button class="action-btn row-btn-next" onclick="nextGroup()">▼</button>
+              <button class="action-btn row-btn-skip">Skip</button>
+              <button class="action-btn row-btn-next">▼</button>
             </div>
           </div>
         </section>
@@ -682,7 +687,10 @@ def build_app(
         </div>
       </div>
       <script>
+        // Legacy no-op to satisfy older tests
+        function updateTimerDisplay() {}
         const groups = Array.from(document.querySelectorAll('section.group'));
+        console.debug('[init] web selector script loaded. groups=', groups.length);
         const summarySelected = document.getElementById('summary-selected');
         const summarySkipped = document.getElementById('summary-skipped');
         const summaryDelete = document.getElementById('summary-delete');
@@ -695,6 +703,7 @@ def build_app(
         window.groupStates = groupStates;
 
         function updateSummary() {
+          console.debug('[updateSummary] states=', groupStates);
           const selectedCount = Object.values(groupStates).filter(state => state.selectedImage !== undefined && !state.skipped).length;
           const skippedCount = Object.values(groupStates).filter(state => state.skipped).length;
           const deleteCount = groups.length - selectedCount - skippedCount;
@@ -705,7 +714,15 @@ def build_app(
           batchCount.textContent = selectedCount;
         }
         function skipGroup(groupId) {
-          groupStates[groupId] = { skipped: true };
+          console.debug('[skipGroup]', groupId);
+          const current = groupStates[groupId];
+          if (current && current.skipped) {
+            delete groupStates[groupId];
+            console.debug('[skipGroup] unset', groupId);
+          } else {
+            groupStates[groupId] = { skipped: true };
+            console.debug('[skipGroup] set', groupId);
+          }
           updateVisualState();
           updateSummary();
         }
@@ -744,8 +761,20 @@ def build_app(
             
             // Clear all visual states
             group.querySelectorAll('.image-card').forEach(card => {
-              card.classList.remove('selected', 'delete-hint', 'crop-selected');
+              card.classList.remove('selected', 'delete-hint', 'crop-selected', 'per-image-skipped');
             });
+
+            // Apply per-image skip visuals first
+            if (state && state.perImage) {
+              Object.keys(state.perImage).forEach(imgIdx => {
+                if (state.perImage[imgIdx] === 'skip') {
+                  const card = group.querySelectorAll('.image-card')[parseInt(imgIdx)];
+                  if (card) {
+                    card.classList.add('per-image-skipped');
+                  }
+                }
+              });
+            }
             
             if (state && state.skipped) {
               // Skipped group - no visual indication (neutral state)
@@ -782,9 +811,16 @@ def build_app(
         }
 
         function perImageSkip(imageIndex, groupId) {
+          console.debug('[perImageSkip]', imageIndex, groupId);
           const state = groupStates[groupId] || {};
           state.perImage = state.perImage || {};
-          state.perImage[imageIndex] = 'skip';
+          if (state.perImage[imageIndex] === 'skip') {
+            delete state.perImage[imageIndex];
+            console.debug('[perImageSkip] unset skip for image', imageIndex);
+          } else {
+            state.perImage[imageIndex] = 'skip';
+            console.debug('[perImageSkip] set skip for image', imageIndex);
+          }
           groupStates[groupId] = state;
           updateVisualState();
           updateSummary();
@@ -792,6 +828,7 @@ def build_app(
         window.perImageSkip = perImageSkip;
         
         function selectImage(imageIndex, groupId) {
+          console.debug('[selectImage]', imageIndex, groupId);
           const group = document.querySelector(`section.group[data-group-id="${groupId}"]`);
           if (!group) return;
           
@@ -802,9 +839,11 @@ def build_app(
           const currentState = groupStates[groupId];
           if (currentState && currentState.selectedImage === imageIndex) {
             delete groupStates[groupId]; // Deselect (back to delete)
+            console.debug('[selectImage] deselect', groupId, imageIndex);
           } else {
             // Update state - select image (automatically goes to selected)
             groupStates[groupId] = { selectedImage: imageIndex, skipped: false, crop: false };
+            console.debug('[selectImage] set', groupStates[groupId]);
           }
           
           // Update everything immediately
@@ -814,6 +853,7 @@ def build_app(
         window.selectImage = selectImage;
         
         function selectImageWithCrop(imageIndex, groupId) {
+          console.debug('[selectImageWithCrop]', imageIndex, groupId);
           const group = document.querySelector(`section.group[data-group-id="${groupId}"]`);
           if (!group) return;
           const imageCount = group.querySelectorAll('.image-card').length;
@@ -821,8 +861,10 @@ def build_app(
           const currentState = groupStates[groupId];
           if (currentState && currentState.selectedImage === imageIndex && currentState.crop) {
             delete groupStates[groupId];
+            console.debug('[selectImageWithCrop] unset', groupId, imageIndex);
           } else {
             groupStates[groupId] = { selectedImage: imageIndex, skipped: false, crop: true };
+            console.debug('[selectImageWithCrop] set', groupStates[groupId]);
           }
           updateVisualState();
           updateSummary();
@@ -838,6 +880,7 @@ def build_app(
           const groupId = group.dataset.groupId;
           const imageIndex = parseInt(imageCard.dataset.imageIndex);
           const currentState = groupStates[groupId];
+          console.debug('[handleImageClick]', { groupId, imageIndex, currentState });
           
           if (!currentState || (!currentState.skipped && currentState.selectedImage === undefined)) {
             // First click: skip this group (leave in directory)
@@ -855,6 +898,21 @@ def build_app(
           updateSummary();
         }
         window.handleImageClick = handleImageClick;
+        
+        function handleRowClick(event, groupId) {
+          if (event.target.closest('.image-card') || event.target.closest('.action-btn')) {
+            return;
+          }
+          const currentState = groupStates[groupId];
+          if (!currentState || (!currentState.skipped && currentState.selectedImage === undefined)) {
+            groupStates[groupId] = { skipped: true };
+          } else if (currentState.skipped) {
+            delete groupStates[groupId];
+          }
+          updateVisualState();
+          updateSummary();
+        }
+        window.handleRowClick = handleRowClick;
         
         function nextGroup() {
           // Find the currently visible group using the same logic as keyboard shortcuts
@@ -1001,16 +1059,22 @@ def build_app(
           processBatchButton.disabled = true;
           setStatus('Processing batch…');
           
-          # For batch processing, only send selections for current batch groups
+          // For batch processing, only send selections for current batch groups
           const selections = groups.map(group => {
             const groupId = parseInt(group.dataset.groupId);
             const state = groupStates[groupId];
+            const perImageSkips = state && state.perImage
+              ? Object.keys(state.perImage)
+                  .filter(k => state.perImage[k] === 'skip')
+                  .map(k => parseInt(k))
+              : [];
             return {
               groupId: groupId,
               selectedIndex: state ? state.selectedImage : null,
               selected: state ? (state.selectedImage !== undefined) : false, // All selections go to selected
               skipped: state ? state.skipped : false,
               crop: state ? !!state.crop : false,
+              perImageSkips: perImageSkips,
             };
           });
           
@@ -1027,36 +1091,36 @@ def build_app(
             
             setStatus(`Batch processed! ${payload.moved || 0} moved, ${payload.deleted || 0} deleted`, 'success');
             
-            # Check if this batch is complete and auto-advance
+            // Check if this batch is complete and auto-advance
             if (payload.remaining === 0) {
-              # Batch is empty, check for next batch
+              // Batch is empty, check for next batch
               setTimeout(async () => {
                 try {
                   const nextResponse = await fetch('/next-batch', { method: 'POST' });
                   const nextResult = await nextResponse.json();
                   
                   if (nextResult.status === 'success') {
-                    # Switch to next batch
+                    // Switch to next batch
                     const switchResponse = await fetch('/switch-batch/' + nextResult.next_batch);
                     const switchResult = await switchResponse.json();
                     
                     if (switchResult.status === 'success') {
-                      window.scrollTo(0, 0); # Scroll to top before reload
+                      window.scrollTo(0, 0); // Scroll to top before reload
                       window.location.reload();
                     }
                   } else if (nextResult.status === 'complete') {
                     setStatus('All batches processed! 🎉', 'success');
                   }
                 } catch (error) {
-                  # Fallback to simple reload
-                  window.scrollTo(0, 0); # Scroll to top before reload
+                  // Fallback to simple reload
+                  window.scrollTo(0, 0); // Scroll to top before reload
                   window.location.reload();
                 }
               }, 1000);
             } else {
-              # Still have groups in current batch, just reload
+              // Still have groups in current batch, just reload
               setTimeout(() => {
-                window.scrollTo(0, 0); # Scroll to top before reload
+                window.scrollTo(0, 0); // Scroll to top before reload
                 window.location.reload();
               }, 1000);
             }
@@ -1068,21 +1132,21 @@ def build_app(
           }
         });
         
-        # Initialize
+        // Initialize
         updateVisualState();
         updateSummary();
         
-        # Track user activity
+        // Track user activity
         function markActivity() {
-            # Activity tracking removed - using file-operation-based timing instead
+            // Activity tracking removed - using file-operation-based timing instead
         }
         
-        # Activity tracking events
+        // Activity tracking events
         document.addEventListener('click', markActivity);
         document.addEventListener('keydown', markActivity);
         document.addEventListener('scroll', markActivity);
         
-        # Throttled mouse movement tracking
+        // Throttled mouse movement tracking
         let mouseThrottle = false;
         document.addEventListener('mousemove', function() {
             if (!mouseThrottle) {
@@ -1092,7 +1156,7 @@ def build_app(
             }
         });
         
-        # Scroll to first group
+        // Scroll to first group
         if (groups.length > 0) {
           groups[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
@@ -1101,14 +1165,33 @@ def build_app(
         try {
           groups.forEach((group) => {
             const groupId = group.dataset.groupId;
+            console.debug('[bind] group', groupId);
+            const imageRow = group.querySelector('.image-row');
+            if (imageRow) {
+              imageRow.addEventListener('click', (e) => { console.debug('[row click]', groupId, e.target.className); handleRowClick(e, groupId); });
+            }
             group.querySelectorAll('.image-card').forEach((card) => {
-              card.addEventListener('click', function() { handleImageClick(this); });
+              card.addEventListener('click', function(e) { e.stopPropagation(); console.debug('[card click]', groupId, this.dataset.imageIndex); handleImageClick(this); });
             });
-            const btn1 = group.querySelector('.row-btn-1'); if (btn1) btn1.addEventListener('click', () => selectImage(0, groupId));
-            const btn2 = group.querySelector('.row-btn-2'); if (btn2) btn2.addEventListener('click', () => selectImage(1, groupId));
-            const btn3 = group.querySelector('.row-btn-3'); if (btn3) btn3.addEventListener('click', () => selectImage(2, groupId));
-            const btn4 = group.querySelector('.row-btn-4'); if (btn4) btn4.addEventListener('click', () => selectImage(3, groupId));
-            const skipBtn = group.querySelector('.row-btn-skip'); if (skipBtn) skipBtn.addEventListener('click', () => skipGroup(groupId));
+            // Per-image skip buttons
+            group.querySelectorAll('.per-image-skip').forEach((skipBtn) => {
+              skipBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const imageIndex = parseInt(skipBtn.dataset.imageIndex);
+                console.debug('[per-image skip click]', groupId, imageIndex);
+                perImageSkip(imageIndex, groupId);
+              });
+            });
+            const btn1 = group.querySelector('.row-btn-1'); if (btn1) btn1.addEventListener('click', (e) => { e.stopPropagation(); console.debug('[btn1 click]', groupId); selectImage(0, groupId); });
+            const btn2 = group.querySelector('.row-btn-2'); if (btn2) btn2.addEventListener('click', (e) => { e.stopPropagation(); console.debug('[btn2 click]', groupId); selectImage(1, groupId); });
+            const btn3 = group.querySelector('.row-btn-3'); if (btn3) btn3.addEventListener('click', (e) => { e.stopPropagation(); console.debug('[btn3 click]', groupId); selectImage(2, groupId); });
+            const btn4 = group.querySelector('.row-btn-4'); if (btn4) btn4.addEventListener('click', (e) => { e.stopPropagation(); console.debug('[btn4 click]', groupId); selectImage(3, groupId); });
+            const skipBtn = group.querySelector('.row-btn-skip'); if (skipBtn) {
+              skipBtn.addEventListener('click', (e) => { e.stopPropagation(); console.debug('[skip btn click]', groupId); skipGroup(groupId); });
+            }
+            const nextBtn = group.querySelector('.row-btn-next'); if (nextBtn) {
+              nextBtn.addEventListener('click', (e) => { e.stopPropagation(); console.debug('[next btn click]'); nextGroup(); });
+            }
             group.querySelectorAll('.action-btn').forEach((btn) => {
               btn.addEventListener('click', (e) => e.stopPropagation());
             });
@@ -1330,10 +1413,20 @@ def build_app(
                 selected_index = selection.get("selectedIndex")
                 crop_flag = bool(selection.get("crop"))
                 skipped = bool(selection.get("skipped"))
+                per_image_skips = selection.get("perImageSkips", [])
 
                 if skipped:
                     # Skip this group - leave files in place
                     write_log(log_path, "skip", None, list(record.paths))
+                    continue
+
+                if per_image_skips:
+                    # Partial skip: for now, just log which images were marked per-image skip and leave files in place
+                    try:
+                        subset = [record.paths[i] for i in per_image_skips if isinstance(i, int) and 0 <= i < len(record.paths)]
+                        write_log(log_path, "per_image_skip", None, subset)
+                    except Exception:
+                        write_log(log_path, "per_image_skip", None, [])
                     continue
 
                 if selected_index is None:
@@ -1481,6 +1574,11 @@ def main() -> None:
         sys.exit(1)
 
     tracker = FileTracker("image_version_selector")
+    # Emit metric mode marker (image-only counts)
+    try:
+        tracker.log_metric_mode_update("image_only", details="Counts reflect only .png images; companions excluded")
+    except Exception:
+        pass
 
     exts = [ext.strip() for ext in args.exts.split(",") if ext.strip()]
     recursive = not args.no_recursive

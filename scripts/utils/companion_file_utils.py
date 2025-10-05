@@ -485,10 +485,17 @@ def move_multiple_files_with_companions(image_files: List[Path], dest_dir: Path,
                 # Use wildcard logic to move image and ALL companion files
                 moved_files = move_file_with_all_companions(image_file, dest_dir, dry_run=False)
                 
-                # Log the operations if tracker provided
+                # Log the operations if tracker provided (image-only count)
                 if tracker:
-                    for moved_file in moved_files:
-                        tracker.log_operation("move", str(image_file.parent / moved_file), str(dest_dir / moved_file))
+                    pngs = [str(f) for f in moved_files if str(f).lower().endswith('.png')]
+                    tracker.log_operation(
+                        "move",
+                        str(image_file.parent.name),
+                        str(dest_dir.name),
+                        file_count=len(pngs),
+                        files=pngs[:5],
+                        notes="image-only count",
+                    )
                 
                 moved_count += 1
                 
@@ -546,15 +553,15 @@ def safe_delete_paths(paths: Iterable[Path], hard_delete: bool = False, tracker=
                 logger.error_with_exception(f"Failed to send to Trash {p}", exc)
 
     if tracker and deleted:
-        source_dir = str(Path(paths.__iter__().__next__()).parent.name) if paths else "unknown"  # best-effort
+        source_dir = str(Path(list(paths)[0]).parent.name) if paths else "unknown"  # best-effort
         try:
             tracker.log_operation(
                 operation="delete" if hard_delete else "send_to_trash",
                 source_dir=source_dir,
                 dest_dir="trash" if not hard_delete else "",
-                file_count=len(deleted),
+                file_count=len([n for n in deleted if n.lower().endswith('.png')]),
                 files=deleted,
-                notes="Deleted by shared safe_delete_paths",
+                notes="image-only count",
             )
         except Exception:
             pass  # tracker is best-effort
@@ -975,6 +982,8 @@ def get_file_operation_metrics(file_operations: List[Dict]) -> Dict[str, any]:
     return {
         'total_work_time_seconds': work_time_seconds,
         'total_work_time_minutes': work_time_minutes,
+        'work_time_seconds': work_time_seconds,  # Alias for compatibility
+        'work_time_minutes': work_time_minutes,  # Alias for compatibility
         'total_operations': len(file_operations),
         'operation_types': operation_types,
         'files_processed': total_files,

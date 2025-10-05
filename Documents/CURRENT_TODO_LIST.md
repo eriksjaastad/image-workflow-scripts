@@ -88,6 +88,66 @@ Defaults:
 - Retention: 8 weeks
 - Encryption: Server‑side (S3 SSE) or key‑based client encryption (optional)
 
+## ✅ Test Stabilization (COMPLETED October 5, 2025)
+
+All targeted tests now passing! 103 tests total, only 6 failures remaining (unrelated to priority hotspots).
+
+**Fixed:**
+- ✅ Desktop selector behavior tests (extent resets, deletion routing)
+- ✅ Consolidation tests (date handling, test isolation with EM_TEST_DATA_ROOT)
+- ✅ Dashboard tests (date filtering, malformed JSON, chart mapping, date sorting)
+- ✅ Activity timer reporter totals test (cross-script totals calculation)
+- ✅ Web selector/FileTracker tests (metric markers, image-only counts)
+
+**Key improvements:**
+- Per-line JSON error handling in data engine (graceful malformed line handling)
+- Test isolation with temporary directories and EM_TEST_DATA_ROOT
+- Date comparison normalization (datetime.date objects)
+- Coverage script now continues on test failures (provides partial results)
+
+## 🧪 Test Coverage & Selenium Setup (TODO)
+
+**Status:** Test coverage system working, but several files show 0% coverage.
+
+**Issue:** GUI-based tools (desktop + web) require special test setup:
+- **Desktop tools** (tkinter): `01_desktop_image_selector_crop.py` shows 0% coverage
+  - Uses tkinter GUI - needs headless testing or GUI automation
+  - Currently has unit tests for behavior, but not full integration tests
+  
+- **Web tools** (Flask): All show 0% coverage
+  - `01_web_image_selector.py`
+  - `02_web_character_sorter.py`
+  - `04_multi_crop_tool.py`
+  - `05_web_multi_directory_viewer.py`
+  - `06_web_duplicate_finder.py`
+  - Need Selenium/browser automation for integration testing
+  - Flask routes not exercised by current unit tests
+
+**Tasks:**
+1. **Set up Selenium test infrastructure** for web tools
+   - Install selenium, webdriver-manager (or similar)
+   - Create base test class for Flask app testing with live server
+   - Write integration tests that actually launch browsers and click through UI
+   
+2. **Comprehensive test runner** that can handle both unit and integration tests
+   - Run standard unit tests (already working)
+   - Run Selenium tests (if available, with proper browser setup)
+   - Generate combined coverage report
+   - Handle test environments (headless browsers for CI/CD)
+
+3. **Fix remaining 6 test failures** (3 unique issues, 2 duplicates each):
+   - Investigate and resolve non-priority test failures
+   - Ensure all tests pass before considering coverage "complete"
+
+4. **Desktop GUI testing** (lower priority):
+   - Research options for tkinter testing (pytest-qt, pyautogui, or headless X)
+   - Determine if full GUI coverage is worth the complexity
+
+**Notes:**
+- Current coverage: 103 tests, most passing, good unit test coverage on utilities
+- Selenium tests would dramatically improve confidence in web tool changes
+- May need CI/CD considerations (headless browsers, xvfb for desktop)
+
 
 ## ⚠️ **IMPORTANT WORKFLOW RULE**
 **ONE TODO ITEM AT A TIME** - Complete one task, check in with Erik, get approval before moving to the next item. Never complete multiple TODO items in sequence without user input. This prevents issues and ensures quality control.

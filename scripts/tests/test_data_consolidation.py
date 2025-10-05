@@ -74,6 +74,7 @@ class TestDataConsolidation(unittest.TestCase):
     def test_consolidate_daily_data_basic(self):
         """Test basic daily data consolidation"""
         from cleanup_logs import consolidate_daily_data
+        import os
         
         # Create test log file
         log_file = self.file_ops_dir / "file_operations_20251003.log"
@@ -81,8 +82,15 @@ class TestDataConsolidation(unittest.TestCase):
             for op in self.sample_operations:
                 f.write(json.dumps(op) + '\n')
         
-        # Test consolidation
-        consolidate_daily_data("20251003", dry_run=True)
+        # Set test environment variable
+        os.environ['EM_TEST_DATA_ROOT'] = str(self.temp_dir / "data")
+        try:
+            # Test consolidation
+            consolidate_daily_data("20251003", dry_run=True)
+        finally:
+            # Clean up environment variable
+            if 'EM_TEST_DATA_ROOT' in os.environ:
+                del os.environ['EM_TEST_DATA_ROOT']
         
         # Check that summary file was created
         summary_file = self.summaries_dir / "daily_summary_20251003.json"
@@ -106,6 +114,7 @@ class TestDataConsolidation(unittest.TestCase):
     def test_consolidate_daily_data_with_timing(self):
         """Test consolidation includes work time calculation"""
         from cleanup_logs import consolidate_daily_data
+        import os
         
         # Create test log file with timing data
         log_file = self.file_ops_dir / "file_operations_20251003.log"
@@ -113,7 +122,12 @@ class TestDataConsolidation(unittest.TestCase):
             for op in self.sample_operations:
                 f.write(json.dumps(op) + '\n')
         
-        consolidate_daily_data("20251003", dry_run=True)
+        os.environ['EM_TEST_DATA_ROOT'] = str(self.temp_dir / "data")
+        try:
+            consolidate_daily_data("20251003", dry_run=True)
+        finally:
+            if 'EM_TEST_DATA_ROOT' in os.environ:
+                del os.environ['EM_TEST_DATA_ROOT']
         
         # Check timing data
         summary_file = self.summaries_dir / "daily_summary_20251003.json"
@@ -128,6 +142,7 @@ class TestDataConsolidation(unittest.TestCase):
     def test_consolidate_daily_data_session_counting(self):
         """Test session counting in consolidation"""
         from cleanup_logs import consolidate_daily_data
+        import os
         
         # Create test log with multiple sessions
         operations_with_sessions = self.sample_operations + [
@@ -146,7 +161,12 @@ class TestDataConsolidation(unittest.TestCase):
             for op in operations_with_sessions:
                 f.write(json.dumps(op) + '\n')
         
-        consolidate_daily_data("20251003", dry_run=True)
+        os.environ['EM_TEST_DATA_ROOT'] = str(self.temp_dir / "data")
+        try:
+            consolidate_daily_data("20251003", dry_run=True)
+        finally:
+            if 'EM_TEST_DATA_ROOT' in os.environ:
+                del os.environ['EM_TEST_DATA_ROOT']
         
         # Check session counting
         summary_file = self.summaries_dir / "daily_summary_20251003.json"
@@ -159,6 +179,7 @@ class TestDataConsolidation(unittest.TestCase):
     def test_consolidate_daily_data_file_counting(self):
         """Test accurate file counting in consolidation"""
         from cleanup_logs import consolidate_daily_data
+        import os
         
         # Create test log with various file counts
         operations = [
@@ -193,7 +214,12 @@ class TestDataConsolidation(unittest.TestCase):
             for op in operations:
                 f.write(json.dumps(op) + '\n')
         
-        consolidate_daily_data("20251003", dry_run=True)
+        os.environ['EM_TEST_DATA_ROOT'] = str(self.temp_dir / "data")
+        try:
+            consolidate_daily_data("20251003", dry_run=True)
+        finally:
+            if 'EM_TEST_DATA_ROOT' in os.environ:
+                del os.environ['EM_TEST_DATA_ROOT']
         
         # Check file counting
         summary_file = self.summaries_dir / "daily_summary_20251003.json"
@@ -208,6 +234,7 @@ class TestDataConsolidation(unittest.TestCase):
     def test_consolidate_daily_data_handles_null_file_count(self):
         """Test consolidation handles null/None file_count gracefully"""
         from cleanup_logs import consolidate_daily_data
+        import os
         
         # Create test log with null file_count
         operations_with_null = [
@@ -235,7 +262,12 @@ class TestDataConsolidation(unittest.TestCase):
                 f.write(json.dumps(op) + '\n')
         
         # Should not crash
-        consolidate_daily_data("20251003", dry_run=True)
+        os.environ['EM_TEST_DATA_ROOT'] = str(self.temp_dir / "data")
+        try:
+            consolidate_daily_data("20251003", dry_run=True)
+        finally:
+            if 'EM_TEST_DATA_ROOT' in os.environ:
+                del os.environ['EM_TEST_DATA_ROOT']
         
         # Check that it handled the null gracefully
         summary_file = self.summaries_dir / "daily_summary_20251003.json"
@@ -248,6 +280,7 @@ class TestDataConsolidation(unittest.TestCase):
     def test_consolidate_daily_data_archives_old_logs(self):
         """Test that old logs are archived after consolidation"""
         from cleanup_logs import consolidate_daily_data
+        import os
         
         # Create old log file (3 days ago)
         old_date = "20250930"
@@ -262,7 +295,12 @@ class TestDataConsolidation(unittest.TestCase):
             f.write(json.dumps(self.sample_operations[0]) + '\n')
         
         # Consolidate current date (this should archive the old log)
-        consolidate_daily_data(current_date, dry_run=False)
+        os.environ['EM_TEST_DATA_ROOT'] = str(self.temp_dir / "data")
+        try:
+            consolidate_daily_data(current_date, dry_run=False)
+        finally:
+            if 'EM_TEST_DATA_ROOT' in os.environ:
+                del os.environ['EM_TEST_DATA_ROOT']
         
         # Check that old log was archived
         archived_file = self.archives_dir / f"file_operations_{old_date}.log.gz"
@@ -277,6 +315,7 @@ class TestDataConsolidation(unittest.TestCase):
     def test_consolidate_daily_data_dry_run_mode(self):
         """Test that dry run mode doesn't modify files"""
         from cleanup_logs import consolidate_daily_data
+        import os
         
         # Create test log file
         log_file = self.file_ops_dir / "file_operations_20251003.log"
@@ -289,7 +328,12 @@ class TestDataConsolidation(unittest.TestCase):
             f.write(json.dumps(self.sample_operations[0]) + '\n')
         
         # Run in dry run mode
-        consolidate_daily_data("20251003", dry_run=True)
+        os.environ['EM_TEST_DATA_ROOT'] = str(self.temp_dir / "data")
+        try:
+            consolidate_daily_data("20251003", dry_run=True)
+        finally:
+            if 'EM_TEST_DATA_ROOT' in os.environ:
+                del os.environ['EM_TEST_DATA_ROOT']
         
         # Check that summary was created (dry run still creates summaries)
         summary_file = self.summaries_dir / "daily_summary_20251003.json"
@@ -305,13 +349,21 @@ class TestDataConsolidation(unittest.TestCase):
     def test_consolidate_daily_data_handles_missing_files(self):
         """Test consolidation handles missing log files gracefully"""
         from cleanup_logs import consolidate_daily_data
+        import os
         
-        # Try to consolidate a date with no data
-        consolidate_daily_data("20250999", dry_run=True)
-        
-        # Should not crash and should create empty summary
-        summary_file = self.summaries_dir / "daily_summary_20250999.json"
-        self.assertTrue(summary_file.exists())
+        # Set test environment variable
+        os.environ['EM_TEST_DATA_ROOT'] = str(self.temp_dir / "data")
+        try:
+            # Try to consolidate a date with no data
+            consolidate_daily_data("20250999", dry_run=True)
+            
+            # Should not crash and should create empty summary
+            summary_file = self.summaries_dir / "daily_summary_20250999.json"
+            self.assertTrue(summary_file.exists())
+        finally:
+            # Clean up environment variable
+            if 'EM_TEST_DATA_ROOT' in os.environ:
+                del os.environ['EM_TEST_DATA_ROOT']
         
         with open(summary_file, 'r') as f:
             summary = json.load(f)
@@ -322,16 +374,22 @@ class TestDataConsolidation(unittest.TestCase):
     def test_consolidate_daily_data_handles_malformed_json(self):
         """Test consolidation handles malformed JSON gracefully"""
         from cleanup_logs import consolidate_daily_data
+        import os
         
-        # Create log file with malformed JSON
+        # Create log file with malformed JSON with proper file operation format
         log_file = self.file_ops_dir / "file_operations_20251003.log"
         with open(log_file, 'w') as f:
-            f.write('{"valid": "json"}\n')
+            f.write('{"type": "file_operation", "timestamp": "2025-10-03T10:00:00Z", "script": "test", "operation": "test", "file_count": 1}\n')
             f.write('invalid json line\n')
-            f.write('{"another": "valid"}\n')
+            f.write('{"type": "file_operation", "timestamp": "2025-10-03T11:00:00Z", "script": "test", "operation": "test", "file_count": 1}\n')
         
         # Should not crash
-        consolidate_daily_data("20251003", dry_run=True)
+        os.environ['EM_TEST_DATA_ROOT'] = str(self.temp_dir / "data")
+        try:
+            consolidate_daily_data("20251003", dry_run=True)
+        finally:
+            if 'EM_TEST_DATA_ROOT' in os.environ:
+                del os.environ['EM_TEST_DATA_ROOT']
         
         # Should process valid records
         summary_file = self.summaries_dir / "daily_summary_20251003.json"
@@ -341,6 +399,7 @@ class TestDataConsolidation(unittest.TestCase):
     def test_consolidate_daily_data_dashboard_verification(self, mock_dashboard_class):
         """Test dashboard verification in consolidation"""
         from cleanup_logs import consolidate_daily_data
+        import os
         
         # Mock the dashboard data engine
         mock_engine = MagicMock()
@@ -355,7 +414,12 @@ class TestDataConsolidation(unittest.TestCase):
             f.write(json.dumps(self.sample_operations[0]) + '\n')
         
         # Test consolidation with verification
-        consolidate_daily_data("20251003", dry_run=True)
+        os.environ['EM_TEST_DATA_ROOT'] = str(self.temp_dir / "data")
+        try:
+            consolidate_daily_data("20251003", dry_run=True)
+        finally:
+            if 'EM_TEST_DATA_ROOT' in os.environ:
+                del os.environ['EM_TEST_DATA_ROOT']
         
         # Verify that dashboard verification was called
         mock_engine.load_file_operations.assert_called_once()
@@ -368,6 +432,7 @@ class TestDataConsolidation(unittest.TestCase):
     def test_consolidate_daily_data_verification_failure(self, mock_dashboard_class):
         """Test that verification failure prevents consolidation"""
         from cleanup_logs import consolidate_daily_data
+        import os
         
         # Mock the dashboard data engine to fail verification
         mock_engine = MagicMock()
@@ -380,8 +445,13 @@ class TestDataConsolidation(unittest.TestCase):
             f.write(json.dumps(self.sample_operations[0]) + '\n')
         
         # Test that verification failure raises exception
-        with self.assertRaises(Exception) as context:
-            consolidate_daily_data("20251003", dry_run=True)
+        os.environ['EM_TEST_DATA_ROOT'] = str(self.temp_dir / "data")
+        try:
+            with self.assertRaises(Exception) as context:
+                consolidate_daily_data("20251003", dry_run=True)
+        finally:
+            if 'EM_TEST_DATA_ROOT' in os.environ:
+                del os.environ['EM_TEST_DATA_ROOT']
         
         self.assertIn("Dashboard verification failed", str(context.exception))
         
@@ -413,6 +483,7 @@ class TestConsolidationIntegration(unittest.TestCase):
     def test_end_to_end_consolidation_workflow(self):
         """Test complete consolidation workflow from logs to dashboard"""
         from cleanup_logs import consolidate_daily_data
+        import os
         
         # Create comprehensive test data
         operations = [
@@ -449,7 +520,12 @@ class TestConsolidationIntegration(unittest.TestCase):
                 f.write(json.dumps(op) + '\n')
         
         # Run consolidation
-        consolidate_daily_data("20251003", dry_run=False)
+        os.environ['EM_TEST_DATA_ROOT'] = str(self.temp_dir / "data")
+        try:
+            consolidate_daily_data("20251003", dry_run=False)
+        finally:
+            if 'EM_TEST_DATA_ROOT' in os.environ:
+                del os.environ['EM_TEST_DATA_ROOT']
         
         # Verify summary was created
         summary_file = self.summaries_dir / "daily_summary_20251003.json"
@@ -482,6 +558,7 @@ class TestConsolidationIntegration(unittest.TestCase):
     def test_multiple_days_consolidation(self):
         """Test consolidating multiple days of data"""
         from cleanup_logs import consolidate_daily_data
+        import os
         
         # Create data for multiple days
         for day in ['20251001', '20251002', '20251003']:
@@ -489,7 +566,7 @@ class TestConsolidationIntegration(unittest.TestCase):
             with open(log_file, 'w') as f:
                 op = {
                     "type": "file_operation",
-                    "timestamp": f"2025-10-{day[-2:]}:10:00:00Z",
+                    "timestamp": f"2025-10-{day[-2:]}T10:00:00Z",
                     "script": "test_script",
                     "session_id": f"session_{day}",
                     "operation": "move",
@@ -498,8 +575,13 @@ class TestConsolidationIntegration(unittest.TestCase):
                 f.write(json.dumps(op) + '\n')
         
         # Consolidate each day
-        for day in ['20251001', '20251002', '20251003']:
-            consolidate_daily_data(day, dry_run=True)
+        os.environ['EM_TEST_DATA_ROOT'] = str(self.temp_dir / "data")
+        try:
+            for day in ['20251001', '20251002', '20251003']:
+                consolidate_daily_data(day, dry_run=True)
+        finally:
+            if 'EM_TEST_DATA_ROOT' in os.environ:
+                del os.environ['EM_TEST_DATA_ROOT']
         
         # Verify all summaries were created
         for day in ['20251001', '20251002', '20251003']:
@@ -515,6 +597,7 @@ class TestConsolidationIntegration(unittest.TestCase):
     def test_consolidation_with_archived_data(self):
         """Test consolidation with existing archived data"""
         from cleanup_logs import consolidate_daily_data
+        import os
         
         # Create existing archived file
         archived_file = self.archives_dir / "file_operations_20250930.log.gz"
@@ -539,7 +622,12 @@ class TestConsolidationIntegration(unittest.TestCase):
             }) + '\n')
         
         # Consolidate current date
-        consolidate_daily_data("20251003", dry_run=False)
+        os.environ['EM_TEST_DATA_ROOT'] = str(self.temp_dir / "data")
+        try:
+            consolidate_daily_data("20251003", dry_run=False)
+        finally:
+            if 'EM_TEST_DATA_ROOT' in os.environ:
+                del os.environ['EM_TEST_DATA_ROOT']
         
         # Verify archived file still exists
         self.assertTrue(archived_file.exists())

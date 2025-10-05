@@ -136,6 +136,17 @@ class FileTracker:
             entry["files_sample"] = files[:5]  # Just first 5 as sample
             
         self._log_entry(entry)
+
+    def log_metric_mode_update(self, mode: str, details: str = ""):
+        """Record a change in how metrics are counted (e.g., image-only)."""
+        self._log_entry({
+            "type": "metric_mode_update",
+            "script": self.script_name,
+            "session_id": self.session_id,
+            "timestamp": datetime.now().isoformat(),
+            "mode": mode,
+            "details": details,
+        })
     
     def log_directory_state(self, directory: str, description: str = ""):
         """Log the current state of a directory"""

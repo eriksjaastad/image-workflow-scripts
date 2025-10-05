@@ -303,20 +303,20 @@ class TestTimerReporter(unittest.TestCase):
         
     def test_cross_script_totals(self):
         """Test cross-script totals calculation"""
-        # Create test data for multiple days
-        self._create_test_daily_data("20250924")
-        self._create_test_daily_data("20250923")
+        # Create test data for today and yesterday using actual current date
+        from datetime import datetime, timedelta
+        today = datetime.now().strftime('%Y%m%d')
+        yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y%m%d')
+        
+        self._create_test_daily_data(today)
+        self._create_test_daily_data(yesterday)
         
         reporter = TimerReporter()
         reporter.data_dir = self.test_dir / "timer_data"
         
-        # Mock datetime to control "today"
-        with patch('scripts.utils.activity_timer.datetime') as mock_datetime:
-            mock_datetime.now.return_value.strftime.return_value = "20250924"
-            mock_datetime.now.return_value.__sub__ = lambda self, other: MagicMock(strftime=lambda fmt: "20250923")
-            
-            totals = reporter.cross_script_totals(2)  # Last 2 days
-            
+        # Get totals for last 2 days
+        totals = reporter.cross_script_totals(2)
+        
         # Should have data from both days
         self.assertEqual(totals['total_active_time'], 10000.0)  # 2 * 5000
         self.assertEqual(totals['total_files_processed'], 34)   # 2 * 17
