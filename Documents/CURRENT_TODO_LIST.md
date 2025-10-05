@@ -474,6 +474,9 @@ Build custom homepage in Documents with links to all AI systems and tools
 ### 6. Web Interface Template System Investigation
 Evaluate if template would simplify web tool maintenance vs add complexity
 
+### 7. Experiment: Hand/Foot Anomaly Scripts
+General line item to check out/test hand and foot anomaly scripts when time allows. Purpose: see if they catch any of my mistakes or produce signals our AI could use. Not urgent; exploratory—run on recent batches and jot a brief note on usefulness and potential integration.
+
 ---
 
 ## 📊 **Dashboard Enhancements (Optional)**
