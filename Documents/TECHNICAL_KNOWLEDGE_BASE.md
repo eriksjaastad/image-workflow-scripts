@@ -609,6 +609,7 @@ except PermissionError:
   - Modern batch UI; exactly one selection per group; selected items move to `selected/`, others go to Trash by default (`send2trash`).
   - Requires `send2trash` unless `--hard-delete` is explicitly used (dangerous).
   - Uses centralized grouping; timestamps used only for sorting.
+  - Moves companion files with images: YAML and/or caption files (when present).
 
 - Desktop Image Selector + Crop (`scripts/01_desktop_image_selector_crop.py`):
   - Single-selection per triplet with immediate cropping; unselected files go to Trash.
@@ -616,6 +617,7 @@ except PermissionError:
   - Uses the same centralized grouping and sorting rules as the web selector.
   - New flag: `--reset-progress` clears saved progress for the directory and rediscover groups from scratch.
   - Enter behavior: If no image is selected, Enter deletes all images in the current triplet and advances. If one image is selected, Enter crops it, deletes the others, and advances.
+  - Moves companion files with images: YAML and/or caption files (when present).
 
 ### Glossary
 

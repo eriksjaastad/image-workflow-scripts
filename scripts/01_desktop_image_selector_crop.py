@@ -45,7 +45,7 @@ FILE HANDLING:
 --------------
 • Selected & cropped images: Moved to selected/ directory
 • Unselected images: Deleted (moved to trash)
-• YAML files: Moved with their corresponding images
+• Companion files: Same-stem metadata (e.g., .yaml and/or .caption) moved with images
 
 CONTROLS:
 ---------

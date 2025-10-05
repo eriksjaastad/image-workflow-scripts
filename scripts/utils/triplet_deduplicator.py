@@ -69,7 +69,7 @@ def find_triplets_in_directory(directory):
     return triplets
 
 def remove_triplet_files(triplet_files):
-    """Remove all files in a triplet (PNG + YAML)."""
+    """Remove all files in a triplet (PNG + companion files)."""
     removed_files = []
     
     for stage, png_file in triplet_files.items():

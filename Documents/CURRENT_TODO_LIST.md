@@ -192,7 +192,7 @@ data/ai_data/
 **Priority Order (each item depends on previous):**
 
 **1️⃣ Create AI Data Structure** ⚠️ **DO THIS FIRST**
-- Create `/Users/eriksjaastad/projects/Eros Mate/data/ai_data/` directory
+- Create `/absolute/path/to/project-root/data/ai_data/` directory
 - Subdirectories: `embeddings/`, `hashes/`, `saliency/`, `hands/`, `observations/sessions/`, `models/`
 - Safe operation: just creates empty directories, can't break anything
 - **Status:** Ready to implement
@@ -413,6 +413,48 @@ data/ai_data/
 - `utils/similarity_viewer.py`
 - `utils/triplet_deduplicator.py`
 - `utils/triplet_mover.py`
+
+### 4. Companion file deletion parity (standardize deletes)
+**Issue:** Some delete paths still handle only `.yaml`. We should always delete image + ALL companion files using centralized utilities.
+
+**Files & examples:**
+- `scripts/utils/base_desktop_image_tool.py` — YAML-only delete in base method used by inheritors.
+  - Example:
+    ```
+    def safe_delete(self, png_path: Path, yaml_path: Path):
+        send2trash(str(png_path))
+        if yaml_path.exists():
+            send2trash(str(yaml_path))
+    ```
+  - Impact: Tools calling base `safe_delete` won’t remove `.caption` sidecars.
+
+- `scripts/04_multi_crop_tool.py` — Calls base `safe_delete(png_path, yaml_path)` during delete flow.
+  - Example: `self.safe_delete(png_path, yaml_path)`
+  - Note: Fixing base method fixes this tool automatically.
+
+- `scripts/utils/triplet_deduplicator.py` — Dry-run and removal reference only `.yaml`.
+  - Example dry-run:
+    ```
+    yaml_file = png_file.parent / f"{png_file.stem}.yaml"
+    if yaml_file.exists():
+        print(f"    🗑️  {yaml_file.name}")
+    ```
+  - Expected: Use wildcard companions (YAML and/or caption) for print and removal.
+
+- `scripts/archive/04_batch_crop_tool.py` — Legacy; uses `safe_delete(png_path, yaml_path)`.
+  - Note: Mark as legacy; optional to update.
+
+**Actions:**
+- Replace base `safe_delete` implementation with centralized utility:
+  - `safe_delete_image_and_yaml(png_path, hard_delete=False, tracker=self.tracker)` (already deletes ALL companions)
+- Update `triplet_deduplicator.py` to:
+  - Use `find_all_companion_files(png_file)` for dry-run printing and actual deletion
+  - Use `safe_delete_paths([png] + companions, ...)` or `safe_delete_image_and_yaml`
+- Ensure FileTracker logging preserved (source dir, file_count, files list)
+
+**Notes:**
+- `01_desktop_image_selector_crop.py` already delegates deletes to the centralized companion delete — no change needed.
+- Add tests for caption-delete paths in `utils/triplet_deduplicator.py` after changes.
 
 ---
 

@@ -204,7 +204,7 @@ Operation: Batch Image Selection (Batch #47)
 FileTracker Data:
 ├─ Files moved: 127 (source: XXX_CONTENT/ → dest: Reviewed/)
 ├─ Files deleted: 43 (sent to trash)
-├─ YAML files: 127 (moved with images)
+├─ Companion files: 127 YAML and/or caption files (moved with images)
 └─ Operation time: 14:23:15 - 14:31:42
 
 Intelligent Work Time Calculation:

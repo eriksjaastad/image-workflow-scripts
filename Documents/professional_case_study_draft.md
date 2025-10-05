@@ -34,8 +34,8 @@ Hired as an image retoucher/cropper on a large-scale generative media project pr
 - **Individual button overrides** for precise control
 - **Performance**: Cropped directory completed in 23 minutes
 
-### 4. YAML-Driven Grouping & Fuzzy Sorting
-- **Automated metadata processing** from accompanying YAML files
+### 4. Metadata-Driven Grouping & Fuzzy Sorting
+- **Automated metadata processing** from accompanying YAML and/or caption files
 - **Intelligent grouping** by name and description patterns
 - **Reduced manual categorization** through smart algorithms
 - **Integration** with prompt metadata for enhanced organization

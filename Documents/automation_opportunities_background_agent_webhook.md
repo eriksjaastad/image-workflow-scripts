@@ -1,3 +1,9 @@
+---
+title: Automation Opportunities – Background Agent & Webhook Concepts
+status: Current (concepts); Project-tailoring needed
+audience: MANAGER, DEVELOPER
+tags: [automation, background-agents, webhooks]
+---
 
 # Automation Opportunities – Background Agent & Webhook Concepts
 
@@ -58,5 +64,10 @@ Claude could look for:
 
 ---
 
+### Project-Tailored Starters (This Repo)
+- GitHub PR opened → trigger AI doc audit report using `DOCUMENTS_AUDIT_SYSTEM.md` rules; output to `Documents/`.
+- Daily 02:30 → run `scripts/cleanup_logs.py` and post delta summary into `data/log_archives/cron_consolidation.log`.
+- Weekly Sun 02:00 → backup training logs per `scripts/backup/` with manifest and hashes.
+
 ### Prompt to Claude
-> “Read this project and suggest which of these concepts (code generation, scheduled refactors, webhooks, background agents) could save time here. Focus on practical, low‑risk automations first.”
+> “Read this project and suggest which of these concepts (code generation, scheduled refactors, webhooks, background agents) could save time here. Focus on practical, low‑risk automations first. Use canonical filenames from Documents/ and scripts/.”

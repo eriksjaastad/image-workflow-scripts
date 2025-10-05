@@ -3,7 +3,7 @@
 Utility: Triplet Mover
 =======================
 Find and move complete triplets (stage1/stage1.5/stage2) to destination directory.
-Maintains file integrity by moving complete sets with their YAML metadata.
+Maintains file integrity by moving complete sets with their companion files (same-stem metadata, e.g., .yaml/.caption).
 
 VIRTUAL ENVIRONMENT:
 --------------------
@@ -19,7 +19,7 @@ Move complete triplets to new directory:
 FEATURES:
 ---------
 • Detects complete triplet sequences (stage1→stage1.5→stage2)
-• Moves PNG files with corresponding YAML metadata
+• Moves PNG files with corresponding companion metadata
 • Creates destination directory if needed
 • Reports incomplete triplets for manual review
 • Safe file operations with progress tracking

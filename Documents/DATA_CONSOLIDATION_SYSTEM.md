@@ -1,3 +1,10 @@
+---
+title: Data Consolidation & Cron Job System
+status: Current
+audience: DEVELOPER
+tags: [file-operations, consolidation, cron, daily-summaries]
+---
+
 # Data Consolidation & Cron Job System
 
 ## Overview
@@ -31,7 +38,7 @@ Scripts write → Detailed logs (2+ days) → Cron job processes → Daily summa
 
 ### Schedule
 ```bash
-0 2 * * * cd "/Users/eriksjaastad/projects/Image Processing" && python scripts/cleanup_logs.py --process-date $(date -d "2 days ago" +%Y%m%d) >> data/log_archives/cron_consolidation.log 2>&1
+0 2 * * * cd "/absolute/path/to/project-root" && python scripts/cleanup_logs.py --process-date $(date -d "2 days ago" +%Y%m%d) >> data/log_archives/cron_consolidation.log 2>&1
 ```
 
 ### What It Does

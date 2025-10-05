@@ -1,3 +1,13 @@
+---
+title: Live Web Interface - Activity Timer Integration
+status: Legacy
+superseded_by: ACTIVITY_TIMER_SYSTEM_OVERVIEW.md
+audience: USER, HISTORICAL
+tags: [activity-timer, legacy, ui, analytics]
+---
+
+[LEGACY] This document describes the pre file-operation timing ActivityTimer UI. Kept for historical reference. See ACTIVITY_TIMER_SYSTEM_OVERVIEW.md for the current system.
+
 # Live Web Interface - Activity Timer Integration
 
 ## 🖥️ What You'll See in Your Browser

@@ -18,7 +18,7 @@
 - **Apple Silicon acceleration:** Use **PyTorch MPS** (Metal) for any training; most value comes from pretrained models + your ongoing approvals, so compute is modest.
 
 **Data you have vs. need:**
-- **Have:** PNGs, YAML prompts; your approve/crop/delete actions (implicit supervision).
+- **Have:** PNGs with companion metadata (YAML prompts and/or caption files); your approve/crop/delete actions (implicit supervision).
 - **Need to log:** set membership, chosen winner, final crop box (orig coords), anomaly tags (checkboxes) and deletions.
 
 **Success & promotion to batch:**

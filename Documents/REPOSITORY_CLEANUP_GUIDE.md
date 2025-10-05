@@ -1,3 +1,11 @@
+---
+title: Repository Cleanup Guide
+status: Current
+audience: DEVELOPER
+tags: [cleanup, policy, repository, protected-files]
+last_updated: 2025-09-01
+---
+
 # Repository Cleanup Guide - Updated September 2025
 
 ## Purpose
@@ -15,13 +23,13 @@ Keep the repository clean and organized by removing temporary files while preser
 
 #### Production Workflow Scripts
 - `scripts/01_web_image_selector.py` - Primary workflow tool ✅
-- `scripts/03_web_character_sorter.py` - Character sorting tool ✅
-- `scripts/04_batch_crop_tool.py` - Batch cropping tool ✅
+- `scripts/02_web_character_sorter.py` - Character sorting tool ✅
+- `scripts/04_multi_crop_tool.py` - Batch cropping tool ✅
 - `scripts/05_web_multi_directory_viewer.py` - Review tool ✅
 - `scripts/utils/activity_timer.py` - Shared timer utility ✅
 - `scripts/utils/triplet_deduplicator.py` - Triplet deduplication utility ✅
 - `scripts/file_tracker.py` - Operation logging utility ✅
-- All other `scripts/util_*.py` files - Workflow utilities ✅
+- All other `scripts/utils/*.py` files - Workflow utilities ✅
 
 #### Dashboard System (Complete - Keep All)
 - `scripts/dashboard/` - **Entire directory is essential** ✅
@@ -42,7 +50,7 @@ Keep the repository clean and organized by removing temporary files while preser
 
 #### Productivity System Documentation (Keep)
 - `ACTIVITY_TIMER_SYSTEM_OVERVIEW.md` - Timer system architecture ✅
-- `TIMER_WEB_INTERFACE_DEMO.md` - UI documentation ✅
+- `TIMER_WEB_INTERFACE_DEMO.md` - UI documentation (Legacy) ✅
 - `image_workflow_case_study.md` - **Living document** - Update with dashboard insights ✅
 
 #### Test Infrastructure (Keep)
@@ -56,7 +64,7 @@ Keep the repository clean and organized by removing temporary files while preser
 #### Superseded Planning Documents
 - `timer_dashboard_plan.md` - ❌ Remove (dashboard now complete)
 - `clustering_optimization_workflow.md` - ❌ Remove if clustering work complete
-- `IMAGE_PROCESSING_WORKFLOW_FLOWCHART.md` - ❌ Remove if superseded by main workflow doc
+- `IMAGE_PROCESSING_WORKFLOW_FLOWCHART.md` - ❌ Remove or mark Legacy if superseded by main workflow doc
 
 #### Old Experiment Documentation
 - `image_dataset_optimization_and_cropping.md` - ❌ Remove if superseded

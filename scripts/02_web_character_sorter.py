@@ -49,7 +49,7 @@ WORKFLOW:
 3. Click Skip to move to next image without action
 4. Use Back to return to previous image
 5. The script will:
-   • Move chosen images (+ YAML files) to character_group_1/2/3/ directories in project root
+   • Move chosen images (+ companion files) to character_group_1/2/3/ directories in project root
    • Delete images using send2trash (recoverable)
    • Log all actions in FileTracker logs
 

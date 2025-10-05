@@ -57,7 +57,7 @@ FEATURES:
 • Aspect ratio lock/unlock with [Space] - constrains crops to maintain proportions
 • Batch submission processes all 3 at once
 • FileTracker integration for operation logging
-• Automatic PNG+YAML file handling
+• Automatic PNG + companion file handling
 • Progress tracking (Batch X/Y format)
 • Significant speed improvement over single-image tool
 """

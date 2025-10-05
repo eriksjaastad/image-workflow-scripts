@@ -28,6 +28,7 @@ FEATURES:
 • Advanced triplet detection with precise timestamp matching
 • Integrated FileTracker logging for complete audit trail
 • Selected images are automatically moved to selected/ folder for processing
+• Companion files = same-stem metadata such as .yaml and/or .caption
 • Safe deletion with send2trash (recoverable from system trash)
 • Support for PNG and HEIC/HEIF formats
 
@@ -49,7 +50,7 @@ HOW IT WORKS:
 3. Selected images are automatically moved to selected/ folder
 4. Press **Finalize selections** when done
 5. The script will:
-   • Move chosen images (+ YAML files) to selected/
+   • Move chosen images (+ companion files) to selected/
    • Delete unselected images using send2trash (recoverable)
    • Log all actions in triplet_culler_log.csv and FileTracker logs
 

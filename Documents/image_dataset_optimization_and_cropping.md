@@ -1,28 +1,35 @@
+---
+title: Image Dataset Optimization & Assisted Editing
+status: Archived (clustering sections); Current (assist-first cropping)
+audience: HISTORICAL, DEVELOPER
+tags: [clustering, archived, assist-first-cropping]
+---
+
 # Image Dataset Optimization & Assisted Editing
 
-*This document describes advanced clustering optimization and AI-assisted cropping workflows. Note: Some components may be outdated or archived.*
+This document describes advanced clustering optimization and AI-assisted cropping workflows. Clustering optimization sections are archived; assist-first cropping sections remain relevant.
 
 ---
 
-## ⚠️ **CURRENT STATUS (October 2025)**
+## ⚠️ CURRENT STATUS (October 2025)
 
-### **Archived Components:**
+### Archived Components
 - `02_face_grouper.py` - Moved to `scripts/archive/` (ineffective for AI-generated artwork)
 - Face clustering optimization - Not suitable for AI-generated images
 
-### **Active Components:**
+### Active Components
 - `tool_similar_image_grouper.py` - Color-based image grouping (active)
 - `tool_face_grouper.py` - General face grouping (active)
 - Manual cropping tools - `01_web_image_selector.py`, `04_multi_crop_tool.py`
 
-### **Recommendation:**
+### Recommendation
 This document describes advanced clustering workflows that may not be suitable for the current AI-generated artwork processing pipeline. Consider archiving or updating based on current needs.
 
 ---
 
-# Automated Clustering Optimization Across Multiple Image Directories
+## [ARCHIVED] Automated Clustering Optimization Across Multiple Image Directories
 
-*Note: This section describes clustering optimization that may not be applicable to current AI-generated artwork workflow.*
+Note: This section describes clustering optimization that is not applicable to current AI-generated artwork workflow.
 
 ## 0. Cache embeddings (once per directory)
 
@@ -40,7 +47,7 @@ Each directory now has:
 
 ---
 
-## 1. Parameter sweep (bell-curve search)
+### 1. Parameter sweep (bell-curve search)
 
 For each directory, run ~200–300 trials across **Agglomerative** (your flow) and **Leiden** (graph-based).
 
@@ -69,7 +76,7 @@ Outputs for each directory:
 
 ---
 
-## 2. Within-directory consensus and stability
+### 2. Within-directory consensus and stability
 
 Instead of trusting one metric:
 
@@ -81,7 +88,7 @@ This provides a **label-free truth proxy** per directory.
 
 ---
 
-## 3. Cross-directory robustness
+### 3. Cross-directory robustness
 
 Aggregate results from all directories:
 
@@ -112,7 +119,7 @@ score =
 
 ---
 
-## 4. Optional human evaluation (light but powerful)
+### 4. Optional human evaluation (light but powerful)
 
 - From top runs, auto-select ~150 **ambiguous pairs**:
   - Borderline merges (near merge threshold)
@@ -127,7 +134,7 @@ This converts your “shade of gray” intuition into measurable accuracy.
 
 ---
 
-## 5. Reporting
+### 5. Reporting
 
 For each directory and globally:
 
@@ -140,7 +147,7 @@ For each directory and globally:
 
 ---
 
-## 6. Aggregator script
+### 6. Aggregator script
 
 After sweeps, run:
 
@@ -241,7 +248,7 @@ print(f"\nSaved: {out/'all_runs.csv'}")
 
 ---
 
-# Part B — Assist‑First Cropping (Same‑Ratio) & Speed Review
+## Part B — Assist‑First Cropping (Same‑Ratio) & Speed Review
 
 This add‑on turns your existing “crop three at once” tool and triage flow into a **one‑tap‑most‑of‑the‑time** workflow—without going full auto. It keeps the **original aspect ratio**, helps you hide AI oddities (extra fingers/toes, phantom limbs), and learns from every Accept/Override.
 
@@ -300,7 +307,7 @@ These tiny signals are enough to steer future suggestions toward your style.
 
 ---
 
-# Part C — Putting it all together (2‑hour day target)
+## Part C — Putting it all together (2‑hour day target)
 
 1) **Pre‑sort trios by “obviousness.”** Clear winners first; top pick pre‑selected. One tap moves you along.
 2) **Run the “Same person?” queue** (face → body/age). You only see borderline pairs.
@@ -311,7 +318,7 @@ These tiny signals are enough to steer future suggestions toward your style.
 
 ---
 
-# Appendix — Minimal file formats (so tools interoperate)
+## Appendix — Minimal file formats (so tools interoperate)
 
 ## A1. Crop suggestions sidecar (`*.crop_suggestions.json`)
 ```json

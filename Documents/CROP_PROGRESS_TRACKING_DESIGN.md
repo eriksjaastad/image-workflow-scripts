@@ -107,7 +107,7 @@ Session: 47 images processed, 2h 15m work time
 ### Client Directory Protection
 - **No tracking files** in work directories (`_asian/`, `character_group_1/`, etc.)
 - **All progress data** stored in `scripts/crop_progress/`
-- **Clean deliverables** - only images and YAML files sent to client
+- **Clean deliverables** - only images and companion metadata (YAML and/or caption files) sent to client
 
 ### Data Integrity
 - **Directory hashing**: Detect if source directory changes
