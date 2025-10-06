@@ -62,6 +62,7 @@ Reviewed/
 Hailey/
 tattersail-*/
 00_*/
+selected/
 
 # Content Directories (large datasets - do not track)
 mojo1/
@@ -75,6 +76,7 @@ mojo1/
 *.csv
 *.pt
 *.content
+*.caption
 
 # Character Analysis Output (contains project paths)
 analysis_*.json
@@ -87,6 +89,7 @@ workflow*.md
 
 
 # IDE and Editor Files
+.cursor/
 .vscode/
 .idea/
 *.swp
