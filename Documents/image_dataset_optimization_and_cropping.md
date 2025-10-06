@@ -18,8 +18,8 @@ This document describes advanced clustering optimization and AI-assisted croppin
 - Face clustering optimization - Not suitable for AI-generated images
 
 ### Active Components
-- `tool_similar_image_grouper.py` - Color-based image grouping (active)
-- `tool_face_grouper.py` - General face grouping (active)
+- `scripts/tools/similar_image_grouper.py` - Color-based image grouping (active)
+- `scripts/tools/face_grouper.py` - General face grouping (active)
 - Manual cropping tools - `01_web_image_selector.py`, `04_multi_crop_tool.py`
 
 ### Recommendation
@@ -37,7 +37,7 @@ Run the grouper once per dataset to save embeddings, so optimization is fast:
 
 ```bash
 for d in data/*; do
-  python scripts/02_face_grouper.py     --images "$d"     --out "$d/.fg"     --save-embeddings --dry-run
+  python scripts/tools/face_grouper.py     --images "$d"     --out "$d/.fg"     --save-embeddings --dry-run
 done
 ```
 
@@ -366,8 +366,8 @@ These tiny, human‑readable files let your existing tools slot together and imp
 - `02_web_character_sorter.py` - Web-based character sorting by groups
 
 ### **3. Image Grouping (Alternative to Clustering):**
-- `tool_similar_image_grouper.py` - Color-based image grouping
-- `tool_face_grouper.py` - General face grouping
+- `scripts/tools/similar_image_grouper.py` - Color-based image grouping
+- `scripts/tools/face_grouper.py` - General face grouping
 
 ### **4. File Management:**
 - `05_web_multi_directory_viewer.py` - Multi-directory file viewing
