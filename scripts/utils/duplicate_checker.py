@@ -2,8 +2,8 @@
 """
 Utility: Duplicate File Checker
 ================================
-Find exact duplicate files across directories by comparing filenames.
-Useful for verifying file integrity after operations like face grouping.
+Find exact duplicate files by comparing filenames (not file content).
+Useful for verifying file integrity after operations like selection/sorting.
 
 VIRTUAL ENVIRONMENT:
 --------------------
@@ -12,19 +12,21 @@ Activate virtual environment first:
 
 USAGE:
 ------
-Check for duplicates in project:
-  python scripts/utils/duplicate_checker.py
+Single-directory scan (recursive):
+  python scripts/utils/duplicate_checker.py /path/to/root
 
-Check specific directory:
-  python scripts/utils/duplicate_checker.py --root-dir face_groups
+Two-directory comparison (recursive; show filenames that exist in BOTH):
+  python scripts/utils/duplicate_checker.py /path/dirA /path/dirB
+
+Options:
+  --extensions png            # default: png (comma-separated if you need more)
 
 FEATURES:
 ---------
-• Scans all subdirectories recursively
-• Finds files with identical names (not content comparison)
-• Reports duplicate locations with full paths
-• Supports PNG and YAML file filtering
-• Clear summary statistics and actionable results
+• Scans subdirectories recursively
+• Finds duplicate filenames across a tree, or intersection between two trees
+• Defaults to PNG files (companions can be added via --extensions)
+• Clear summary with example paths
 """
 
 import argparse
@@ -37,7 +39,7 @@ from typing import Dict, List, Set
 def find_all_files(root_dir: Path, extensions: List[str] = None) -> Dict[str, List[Path]]:
     """Find all files and group them by filename."""
     if extensions is None:
-        extensions = ['.png', '.yaml']
+        extensions = ['.png']
     
     file_map = defaultdict(list)
     
@@ -64,7 +66,7 @@ def find_duplicates(file_map: Dict[str, List[Path]]) -> Dict[str, List[Path]]:
     return duplicates
 
 
-def analyze_directories(root_dir: Path) -> None:
+def analyze_directories(root_dir: Path, extensions: List[str]) -> None:
     """Analyze all directories for duplicate files."""
     print("🔍 DUPLICATE FILE CHECKER")
     print("=" * 50)
@@ -72,7 +74,7 @@ def analyze_directories(root_dir: Path) -> None:
     print()
     
     # Find all files
-    file_map = find_all_files(root_dir)
+    file_map = find_all_files(root_dir, extensions)
     
     total_files = sum(len(paths) for paths in file_map.values())
     unique_filenames = len(file_map)
@@ -131,12 +133,61 @@ def analyze_directories(root_dir: Path) -> None:
         print(f"   • {directory}: {count} duplicate files")
 
 
+def analyze_two_directories(dir_a: Path, dir_b: Path, extensions: List[str]) -> None:
+    """Compare two roots and report filenames present in both (recursive)."""
+    print("🔍 DUPLICATE FILE CHECKER — TWO-DIRECTORY COMPARISON")
+    print("=" * 50)
+    print(f"📁 Dir A: {dir_a}")
+    print(f"📁 Dir B: {dir_b}")
+    print()
+
+    map_a = find_all_files(dir_a, extensions)
+    map_b = find_all_files(dir_b, extensions)
+
+    total_a = sum(len(paths) for paths in map_a.values())
+    total_b = sum(len(paths) for paths in map_b.values())
+    print("📊 SUMMARY:")
+    print(f"   • Dir A files: {total_a}")
+    print(f"   • Dir B files: {total_b}")
+    print()
+
+    common_names = set(map_a.keys()) & set(map_b.keys())
+    if not common_names:
+        print("✅ NO INTERSECTING FILENAMES FOUND BETWEEN THE TWO DIRECTORIES!")
+        return
+
+    print(f"⚠️  FILENAMES PRESENT IN BOTH: {len(common_names)}")
+    print()
+    shown = 0
+    for name in sorted(common_names):
+        paths_a = sorted(map_a[name])
+        paths_b = sorted(map_b[name])
+        print(f"📄 {name}")
+        print("   A:")
+        for p in paths_a[:5]:
+            print(f"     - {p}")
+        if len(paths_a) > 5:
+            print(f"     ... and {len(paths_a) - 5} more in A")
+        print("   B:")
+        for p in paths_b[:5]:
+            print(f"     - {p}")
+        if len(paths_b) > 5:
+            print(f"     ... and {len(paths_b) - 5} more in B")
+        print()
+        shown += 1
+        if shown >= 50:
+            print(f"   ... and {len(common_names) - shown} more filenames intersecting")
+            break
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Find duplicate files across directories")
+    parser = argparse.ArgumentParser(description="Find duplicate filenames (single dir) or intersections (two dirs)")
     parser.add_argument("root_dir", nargs="?", default=".", 
-                       help="Root directory to scan (default: current directory)")
-    parser.add_argument("--extensions", default="png,yaml",
-                       help="Comma-separated file extensions to check (default: png,yaml)")
+                       help="Root directory to scan (single-directory mode)")
+    parser.add_argument("second_dir", nargs="?", default=None,
+                       help="Optional: second directory for two-directory comparison")
+    parser.add_argument("--extensions", default="png",
+                       help="Comma-separated file extensions to check (default: png)")
     args = parser.parse_args()
     
     root_dir = Path(args.root_dir).expanduser().resolve()
@@ -144,18 +195,19 @@ def main():
         print(f"[!] Directory not found: {root_dir}")
         sys.exit(1)
     
-    extensions = [f".{ext.strip()}" for ext in args.extensions.split(",")]
-    
-    # Override the find_all_files function to use custom extensions
-    global find_all_files
-    original_find_all_files = find_all_files
-    
-    def find_all_files_custom(root_dir: Path, extensions_param=None):
-        return original_find_all_files(root_dir, extensions)
-    
-    find_all_files = find_all_files_custom
-    
-    analyze_directories(root_dir)
+    extensions = [f".{ext.strip()}" for ext in args.extensions.split(",") if ext.strip()]
+    if not extensions:
+        extensions = [".png"]
+
+    if args.second_dir:
+        dir_b = Path(args.second_dir).expanduser().resolve()
+        if not dir_b.exists() or not dir_b.is_dir():
+            print(f"[!] Directory not found: {dir_b}")
+            sys.exit(1)
+        analyze_two_directories(root_dir, dir_b, extensions)
+        return
+
+    analyze_directories(root_dir, extensions)
 
 
 if __name__ == "__main__":

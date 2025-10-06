@@ -9,6 +9,178 @@
 
 ## 🔥 **HIGH PRIORITY**
 
+### **Create Mojo1 Project File (Start/Finish Tracking) — Immediate**
+- **Create manifest**: `data/projects/mojo1.project.json` with fields: projectId, status, createdAt, startedAt, finishedAt, steps[], metrics, counts, removeFileOnFinish.
+- **Purpose**: Enables end-to-end images/hour KPI and per-step breakdown now, even mid-project.
+- **Finish protocol**: On completion, compute metrics, archive summary, and delete or archive the project file.
+- **Next**: Later hook into FileTracker to auto-update steps and finish.
+
+### **Project Throughput Metric (Top Priority) — Images/Hour End-to-End**
+- **Goal:** Single-project throughput: total images processed ÷ total project time, from batch arrival to final completion.
+- **Define project boundary (planning):** What constitutes a project (e.g., a dated batch folder or manifest) and its ID convention.
+- **Capture Start event (planning):** Add an explicit “project_start” marker (CLI or small script) that records timestamp, project_id, initial counts.
+- **Capture Finish event (planning):** Add “project_finish” marker when last required stage completes; store timestamp and final counts.
+- **Per-process breakdown (planning):** Use existing `FileTracker` logs + step tags (selector, sorter, crop, dedupe, etc.) to compute time per step and items/hour per step.
+- **Storage (planning):** Persist project session records under `data/timer_data/projects/PROJECT_ID.json` (or consolidate with existing timer data) and/or append to `data/daily_summaries/`.
+- **Aggregator (planning):** Build `scripts/dashboard/project_metrics_aggregator.py` to compute: end-to-end images/hour, step-level rates, ahead/behind vs baseline.
+- **Dashboard (planning):** Add a top-level KPI card “Images/hour (project)” with live session progress (on track / behind / ahead), sparkline over time, and breakdown table by step.
+- **Baseline & tracking (planning):** Establish baseline from recent N projects; flag deviations >±10%.
+- **Safety:** Planning-only; no destructive operations. Implement start/finish markers and aggregator first; dashboard UI follows.
+
+### **Historical Throughput Backfill from Timesheets (Planning + Partial)**
+- **Goal:** Build historical images/hour baseline from Erik's timesheets to compare current/future projects.
+- **Input doc:** Incoming blueprint (timesheet-to-history). Reference when available.
+- **Schema (planning):** `project_id`, `date`, `task/step`, `start_time`, `end_time`, `images_processed(optional)`, `notes`.
+- **Mapping (planning):** Map timesheet categories to pipeline steps (selector, sorter, crop, dedupe, review).
+- **Converter (planning):** `scripts/tools/import_timesheet_history.py` to ingest CSV/JSON and emit project-level aggregates under `data/timer_data/history/`.
+- **Baselines (planning):** Compute per-project and rolling baseline images/hour; store for dashboard.
+- **Mojo1 partial now:** If starting numbers are available, update `mojo1/Mojo1.project.json` counts.initialImages and, if applicable, adjust `startedAt`.
+- **Dashboard integration (planning):** Extend aggregator to include historical comparisons (ahead/behind vs historical baseline).
+
+### **Sandbox Automation Orchestrator (Tomorrow)**
+- **Create sandbox copy**: copy remaining images from `mojo1/` into `sandbox/` (read-only source, safe target)
+- **Run thinning steps**: pHash near-dup → FAISS semantic → timestamp-window clusters (reports + `_review_dupes/` staging only)
+- **Grading metrics**: counts kept/flagged, estimated review saved, thresholds summary
+- **Multi-source grouping**: extend similar-image grouper to accept `selected/` + `crop/` in one pass
+- **Sidecar visual cues**: generate `.cropped` sidecars and add badge in Character Sorter
+- **One-shot script**: single CLI to run all steps with dry-run/stage modes
+
+### **Sidecar crop flag + UI badge + multi-source grouping**
+- **Add sidecar flag**: create `.cropped` sidecar files next to PNGs in `crop/` (same-stem). No image changes; travels with file during moves.
+- **Character sorter badge**: detect `.cropped` companions and render a small “Cropped” badge on thumbnails.
+- **Similar-image grouper support**: add optional multi-source input (e.g., `selected/` + `crop/`) and preserve/propagate sidecars.
+- **CLI helper**: simple script/command to generate sidecars for existing `crop/` PNGs.
+- **Safety**: read-only marker; never modifies image bytes.
+
+### **Quick UI wins – Web Image Selector header**
+- **Add separate counters**: show "Kept approved" vs "Kept to crop" in the header summary
+- **Add progress bar**: small inline bar for remaining files (current batch + overall)
+- **Accuracy rules**: file-count based; default-delete for untouched; per-image-skip treated consistently with server
+- **Style**: follow `Documents/WEB_STYLE_GUIDE.md` (colors, spacing, typography)
+- **Scope**: UI only; no behavioral changes to move/delete
+- **Why**: faster feedback during long sessions; reduces mental load during tedious passes
+
+### **Cross-timestamp duplicate set pruning (safe staging)**
+- **Goal**: detect visually identical sets with same stage lineup (1, 1.5, 2, 3) but different timestamps; keep one set, stage others for review.
+- **Approach**: per-stage CLIP embedding similarity within candidate clusters; require same stage names across compared sets; cross-check YAML similarity.
+- **Pipeline**: build candidate pairs via similar-image grouper; verify stage-by-stage match; produce report.
+- **Action**: move redundant whole-set (image + all companions) into `delete_review/` (not Trash) for manual confirmation.
+- **Modes**: dry-run report, conservative thresholds, manual approve step.
+
+---
+
+## 🧠 **Automation Pipeline Plan (Planning Only)**
+
+> Goal: Reduce Erik's manual review time by auto-picking winners in 2–4 near-duplicate sets and staging non-keepers safely for quick review. AI photography issues (blur, exposure) are irrelevant; we focus on AI anomalies (hands/feet, missing belly button, extra fingers, etc.).
+
+### **A. Objectives & Success Criteria**
+- **Primary objective**: Auto-select a best image per near-duplicate set with high precision; present only ambiguous sets for review.
+- **Safety**: Non-destructive by default; move non-keepers to review folders with companions; never alter image bytes.
+- **Companion integrity**: Always move image + `.yaml`/`.caption` and any same-stem companions together.
+- **Measurable success**:
+  - Manual time reduction ≥ 50% on duplicate thinning passes.
+  - Auto-pick agreement with Erik’s choice ≥ 98% on calibrated sets.
+  - False-positive staging (wrongly moved a keeper) ≤ 1 per 1,000 images.
+
+### **B. What Tools Do What (Human vs Automation)**
+- **Human-in-the-loop tools (existing/updated)**
+  - `scripts/01_web_image_selector.py`: stays primary for version selection; may receive a “AI pick” hint later (optional).
+  - `scripts/02_web_character_sorter.py`: add optional badges (e.g., “cropped” sidecar indicator already planned) and a future “AI suspect” tag.
+  - New: `scripts/07_auto_pick_review.py` (planning only): web UI to review auto-pick reports, show chosen vs staged, approve/override by group.
+  - `scripts/06_web_duplicate_finder.py`: remains useful for visual comparisons on tough clusters.
+- **Automation scripts (offline, reversible)**
+  - `scripts/tools/compute_phash.py`: compute pHash; write to `data/ai_data/hashes/`.
+  - `scripts/tools/compute_embeddings.py`: OpenCLIP ViT-B/32; write to `data/ai_data/embeddings/`.
+  - `scripts/tools/detect_hands_feet.py`: MediaPipe Hands (+ optional Pose feet presence); output per-image presence/anomaly hints to `data/ai_data/hands/`.
+  - `scripts/utils/phash_group_near_dupes.py`: group pairs/sets by Hamming distance (≤ 8–10).
+  - `scripts/utils/clip_group_near_dupes.py`: group pairs/sets by CLIP cosine (≥ 0.95; tunable).
+  - `scripts/utils/auto_pick_near_dupes.py`: merge groupers, apply stage-aware ranking + anomaly gates, generate report; optional staging to `_review_dupes/`.
+  - `scripts/orchestrators/automation_pipeline.py`: one CLI to run the pipeline in dry-run/stage modes, with metrics summary.
+
+### **C. Selection Logic (Stage-aware + Anomaly-aware)**
+- Candidate groups = filename stage runs + pHash near-exacts + CLIP semantic near-dupes.
+- Rank within group:
+  1) Highest stage number wins if it passes anomaly gate.
+  2) If tie, prefer fewer detected hands/feet in-frame; if present, require anomaly checks to pass.
+  3) Break ties by larger resolution, then latest mtime.
+- Anomaly gate (AI-specific):
+  - Hands/feet presence signal (fast): presence = higher risk; down-rank unless scores are strong.
+  - Simple hand heuristics from keypoints: flag likely extra/fused fingers if geometry inconsistent (see doc below).
+  - Optional “missing belly button” is future work; keep placeholder tag.
+
+References: `Documents/hand_foot_anomaly_scripts.md` (approaches and two‑stage pipeline ideas).
+
+### **D. Thresholds (initial; calibrate on sample)**
+- pHash Hamming: near-exact ≤ 8; lenient ≤ 10.
+- CLIP cosine: ≥ 0.95 to group; raise to 0.97 if too broad.
+- Ambiguity margin: if top two scores within 0.05 → send to human review.
+- Hands/feet presence: treat as risk booster; always route borderline groups with hands/feet for review.
+
+### **E. Milestones & Tasks (Planning → Calibration → Tools → Review UI)**
+1) Planning & calibration set (no code changes)
+   - Define 100–200 image calibration subset across multiple characters and stages.
+   - Enumerate anomaly tags we care about first (hands/feet, belly button missing, facial stacking).
+   - Decide reporting schema fields for auto-pick report (group_id, chosen, losers, scores, reasons).
+2) Offline feature tools (standalone; safe)
+   - Build: `compute_phash.py`, `compute_embeddings.py`, `detect_hands_feet.py`.
+   - Run on calibration subset; store outputs under `data/ai_data/`.
+3) Grouping + auto-pick (reports only)
+   - Build: `phash_group_near_dupes.py`, `clip_group_near_dupes.py`, `auto_pick_near_dupes.py` (report only).
+   - Validate groups and picks on calibration subset; tune thresholds.
+4) Staging mode (non-keepers → `_review_dupes/`)
+   - Extend `auto_pick_near_dupes.py` with `--stage` flag; default is dry-run.
+   - Ensure companion handling via `move_file_with_all_companions`.
+   - Metrics: counts kept/staged/ambiguous; false-positive sampling plan.
+5) Review UI (human approval loop)
+   - Plan `07_auto_pick_review.py` for tabular review of auto-pick decisions with thumbnails and approve/override.
+   - Keep it optional; start with CSV/Markdown report + `06_web_duplicate_finder.py` for hard cases.
+6) Orchestrator & metrics
+   - `automation_pipeline.py` to chain steps and emit a summary (precision/recall estimates on calibration set, time saved).
+
+### **F. Testing & Evaluation (before any wide run)**
+- Golden fixtures for grouping/selection rules (small fixture dirs committed to `scripts/tests/fixtures/`).
+- Dry-run as default; CI-style check that no file moves occur without `--stage`.
+- Companion integrity tests (image + sidecars preserved through moves).
+- Calibration evaluation: report agreement with Erik’s picks on the subset; adjust thresholds until ≥98%.
+
+### **G. Risks & Safeguards**
+- CLIP over-grouping across pose changes → mitigate with higher cosine threshold + stage-name parity.
+- Hands detection false positives in stylized cases → treat presence as a review trigger, not an auto-reject.
+- Always stage to review, never hard-delete; centralized logging via FileTracker.
+
+### **H. Deliverables**
+- Auto-pick report (CSV/Markdown) with reasons per decision.
+- `_review_dupes/` staging structure mirroring sources (dry-run off).
+- Optional review UI plan + wireframe before implementation.
+
+### **I. References**
+- `Documents/hand_foot_anomaly_scripts.md`
+- `image_batch_culling_pipeline.md`, `similar_image_dedup_automation_plan.md`, `stage_aware_image_culling_workflow_v2.md`
+
+> Note: This section is planning-only. No scripts will be created until we review and approve this plan.
+
+### **J. Portrait Fast‑Track via MediaPipe Pose (Planning + Experiment)**
+- **Hypothesis**: Images that are clearly head‑and‑shoulders portraits rarely need cropping; selecting the highest stage is typically sufficient.
+- **Goal**: Automatically identify portrait (head+shoulders) images and route them into a fast lane, reducing intermixing with images that need crop decisions.
+- **Detection approach (planning)**:
+  - MediaPipe Pose + Face for head box + shoulder keypoints; simple heuristics: face area fraction, shoulder span band, hips mostly out of frame.
+  - Fallback: face‑area‑only heuristic for speed; escalate ambiguous cases to full Pose.
+- **Proposed pipeline (planning)**:
+  1) Offline classify portrait vs non‑portrait (dry‑run → CSV of flags).
+  2) Option A: Pre‑stage portraits into a `portraits_fastpass/` review dir.
+  3) Option B: Tag portraits and surface a “Portrait fast pass” filter in the web selector.
+  4) In fast pass, default selection rule = highest stage that passes anomaly gate; do not send to `crop/`.
+- **Calibration plan (planning)**: Build a 100–200 image labeled subset to tune thresholds and confirm ≥98% agreement with Erik on portrait identification.
+- **Safety**: Planning‑only; if approved, first build as dry‑run report with zero file moves.
+
+### **K. Workflow Concepts — Pros/Cons and Throughput Modeling (Planning)**
+- Compare workflows to maximize “quick wins” first without harming overall throughput:
+  - Portrait fast‑pass first vs after near‑dupe thinning.
+  - Stage‑aware auto‑pick before/after character sorting.
+  - Routing by hands/feet presence early vs late.
+- Define evaluation metrics: items/hour, percent auto‑finalized, review queue size, context‑switch cost.
+- Run small A/B sessions and log timings to confirm which sequence actually yields faster end‑to‑end results (avoid “feels fast but is slower”).
+
 ## 🤖 **AI Training - Comprehensive Implementation Plan**
 
 > 📖 **Master Reference:** `Documents/image_cropping_ranking_training_plan.md`  

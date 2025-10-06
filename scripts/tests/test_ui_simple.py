@@ -180,7 +180,7 @@ def test_help_text_accuracy():
     
     # Check that help text mentions the right keys
     expected_help_parts = [
-        "1,2,3 (select)",
+        "1,2,3,4 (select)",
         "Enter (next)"
     ]
     

@@ -629,13 +629,13 @@ def build_app(
       <header class="toolbar">
         <div>
           <h1>Image version selector</h1>
-              <p>Use right sidebar or keys: 1,2,3 (select) • Enter (next) • ↑ (back)</p>
+              <p>Use right sidebar or keys: 1,2,3,4 (select) • Enter (next) • ↑ (back)</p>
               <p>Q,W,E,R = Select for Crop (toggle; second press returns to delete)</p>
         </div>
         <div class="summary" id="summary">
           <span>Kept files: <strong id="summary-selected">0</strong></span>
           <span>Skipped files: <strong id="summary-skipped">0</strong></span>
-          <span>Delete files: <strong id="summary-delete">{{ groups|length }}</strong></span>
+          <span>Delete files: <strong id="summary-delete">0</strong></span>
         </div>
         <button id="process-batch" class="process-batch">Process Current Batch</button>
         <div id="batch-info" class="batch-info">
@@ -704,14 +704,35 @@ def build_app(
 
         function updateSummary() {
           console.debug('[updateSummary] states=', groupStates);
-          const selectedCount = Object.values(groupStates).filter(state => state.selectedImage !== undefined && !state.skipped).length;
-          const skippedCount = Object.values(groupStates).filter(state => state.skipped).length;
-          const deleteCount = groups.length - selectedCount - skippedCount;
-          
-          summarySelected.textContent = selectedCount;
-          summarySkipped.textContent = skippedCount;
-          summaryDelete.textContent = Math.max(0, deleteCount);
-          batchCount.textContent = selectedCount;
+          let keptFiles = 0;
+          let skippedFiles = 0;
+          let deleteFiles = 0;
+
+          groups.forEach((group) => {
+            const groupId = group.dataset.groupId;
+            const state = groupStates[groupId];
+            const imageCount = group.querySelectorAll('.image-card').length;
+
+            if (state && state.skipped) {
+              // Entire group skipped: all images remain in place
+              skippedFiles += imageCount;
+            } else if (state && state.perImage && state.selectedImage === undefined) {
+              // Per-image skip mode currently results in no file operations server-side
+              // Treat entire group as skipped to reflect actual outcome
+              skippedFiles += imageCount;
+            } else if (state && state.selectedImage !== undefined) {
+              // One image kept (selected or crop), others deleted
+              keptFiles += 1;
+              deleteFiles += Math.max(0, imageCount - 1);
+            } else {
+              // No state: all images deleted by default
+              deleteFiles += imageCount;
+            }
+          });
+
+          summarySelected.textContent = keptFiles;
+          summarySkipped.textContent = skippedFiles;
+          summaryDelete.textContent = Math.max(0, deleteFiles);
         }
         function skipGroup(groupId) {
           console.debug('[skipGroup]', groupId);

@@ -722,9 +722,20 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
         image_rows = []
         for i in range(0, len(images), IMAGES_PER_BATCH):
             row_images = images[i:i + IMAGES_PER_BATCH]
+            row_list = []
+            for j, img in enumerate(row_images):
+                cropped = img.with_suffix('.cropped').exists()
+                row_list.append({
+                    'index': j,
+                    'path': img,
+                    'name': img.name,
+                    'stage_name': format_image_display_name(img.name, context='web'),
+                    'global_index': i + j,
+                    'cropped': cropped
+                })
             image_rows.append({
                 'id': i // IMAGES_PER_BATCH,
-                'images': [{'index': j, 'path': img, 'name': img.name, 'stage_name': format_image_display_name(img.name, context='web'), 'global_index': i + j} for j, img in enumerate(row_images)],
+                'images': row_list,
                 'start_index': i
             })
         
@@ -2458,6 +2469,9 @@ VIEWPORT_TEMPLATE = """
         <div class="image-item" data-global-index="{{ image.global_index }}">
           <div class="image-container">
             <img src="/image/{{ image.global_index }}" alt="{{ image.name }}" loading="lazy" onclick="selectAction({{ image.global_index }}, 'delete')">
+            {% if image.cropped %}
+            <div style="position:absolute; top:6px; left:6px; background: white; color: black; padding: 2px 6px; border-radius: 6px; font-size: 10px; font-weight: 700;">Cropped</div>
+            {% endif %}
           </div>
           <div class="image-name">{{ image.stage_name }}</div>
           <div class="action-buttons">

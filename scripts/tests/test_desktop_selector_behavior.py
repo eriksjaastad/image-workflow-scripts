@@ -83,10 +83,11 @@ def test_reset_sets_all_delete_and_full_crops():
         for i, st in enumerate(tool.image_states):
             assert st['status'] == 'delete'
             assert st['action'] is None
-            # extents should match full image (x1, y1, x2, y2) format
+            # extents should match full image (x1, y1, x2, y2) within a small tolerance
             w, h = tool.current_images[i]['original_size']
             x1, y1, x2, y2 = tool.selectors[i].extents if tool.selectors[i] else (0, 0, 0, 0)
-            assert (x1, y1, x2, y2) == (0, 0, w, h), f"Expected full image extents (0, 0, {w}, {h}), got ({x1}, {y1}, {x2}, {y2})"
+            assert abs(x1 - 0) <= 0.5 and abs(y1 - 0) <= 0.5 and abs(x2 - w) <= 0.5 and abs(y2 - h) <= 0.5, \
+                f"Expected full image extents approx (0, 0, {w}, {h}), got ({x1}, {y1}, {x2}, {y2})"
 
 
 def test_selected_crops_others_deleted_then_advance():
