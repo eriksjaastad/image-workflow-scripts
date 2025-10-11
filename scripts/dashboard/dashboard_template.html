@@ -51,11 +51,15 @@
         .dashboard-header {
             background: var(--surface);
             border-bottom: 1px solid var(--border);
-            padding: 1.5rem 2rem;
+            padding: 1rem 2rem;
             position: sticky;
             top: 0;
             z-index: 100;
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
         }
         
         .dashboard-title {
@@ -144,7 +148,7 @@
         
         .charts-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+            grid-template-columns: 1fr; /* Single column at all widths */
             gap: 2rem;
             margin-bottom: 2rem;
         }
@@ -218,7 +222,7 @@
         
         .stats-overview {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
@@ -282,42 +286,38 @@
 </head>
 <body>
     <div class="dashboard-header">
-        <h1 class="dashboard-title">🚀 Productivity Dashboard</h1>
-        <p class="dashboard-subtitle">Real-time workflow analytics for image processing tools</p>
-    </div>
-    
-    <div class="controls-section">
-        <div class="control-group">
-            <span class="control-label">Time Scale:</span>
+        <div class="header-left">
+            <h1 class="dashboard-title">🚀 Productivity Dashboard</h1>
+        </div>
+        <div class="header-right" style="display:flex; align-items:center; gap:0.5rem;">
+            <select id="project-select" class="time-selector">
+                <option value="">All Projects</option>
+            </select>
             <div class="time-controls">
-                <button class="time-btn" data-slice="15T">15min</button>
-                <button class="time-btn" data-slice="H">1hr</button>
+                <button class="time-btn" data-slice="15min">15min</button>
+                <button class="time-btn" data-slice="1H">1hr</button>
                 <button class="time-btn active" data-slice="D">Daily</button>
                 <button class="time-btn" data-slice="W">Weekly</button>
                 <button class="time-btn" data-slice="M">Monthly</button>
             </div>
-        </div>
-        
-        <div class="control-group">
-            <span class="control-label">Lookback Days:</span>
+            <span class="control-label">Lookback:</span>
             <input type="number" class="lookback-input" id="lookback-days" value="30" min="1" max="365">
-        </div>
-        
-        <div class="control-group">
             <button class="time-btn" id="refresh-btn">🔄 Refresh</button>
         </div>
     </div>
+    
+    <!-- Removed secondary controls bar -->
     
     <div class="dashboard-content">
         <!-- Stats Overview -->
         <div class="stats-overview" id="stats-overview">
             <div class="stat-card">
-                <div class="stat-value" id="total-files">-</div>
-                <div class="stat-label">Total Files Processed</div>
+                <div class="stat-value" id="avg-files">-</div>
+                <div class="stat-label">Average Files / Slice</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value" id="total-work-time">-</div>
-                <div class="stat-label">Total Work Time</div>
+                <div class="stat-value" id="avg-work-time">-</div>
+                <div class="stat-label">Average Work Time / Day</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" id="active-days">-</div>
@@ -331,10 +331,51 @@
                 <div class="stat-value" id="top-script">-</div>
                 <div class="stat-label">Most Used Tool</div>
             </div>
+            <div class="stat-card">
+                <div class="stat-value" id="hourly-crop-kpi">-</div>
+                <div class="stat-label">Hourly Crop Average</div>
+            </div>
         </div>
         
         <!-- Charts Grid -->
         <div class="charts-grid">
+            <!-- Project KPI Card -->
+            <div class="chart-container">
+                <div class="chart-header">
+                    <div>
+                        <h3 class="chart-title">📈 Project Throughput KPI</h3>
+                        <p class="chart-subtitle">Images/hour (selected project)</p>
+                    </div>
+                </div>
+                <div class="stats-overview" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+                    <div class="stat-card">
+                        <div class="stat-value" id="project-kpi-iph">-</div>
+                        <div class="stat-label">Images/hour</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="project-kpi-total">-</div>
+                        <div class="stat-label">Images processed</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="project-kpi-title">-</div>
+                        <div class="stat-label">Project</div>
+                    </div>
+                </div>
+                <div class="chart-canvas">
+                    <canvas id="project-kpi-sparkline" height="100"></canvas>
+                </div>
+                <div class="chart-controls" style="margin-top: 0.75rem; overflow-x:auto;">
+                    <table id="project-kpi-breakdown" style="width:100%; color: var(--text-secondary); border-collapse: collapse;">
+                        <thead>
+                            <tr style="text-align:left; border-bottom: 1px solid var(--border);">
+                                <th style="padding: 6px 4px;">Operation</th>
+                                <th style="padding: 6px 4px;">Count</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
             <!-- Files by Script Chart -->
             <div class="chart-container">
                 <div class="chart-header">
@@ -350,6 +391,15 @@
                 </div>
                 <div class="chart-canvas">
                     <canvas id="files-by-script-chart"></canvas>
+                </div>
+                <div class="chart-controls" id="tool-toggles" style="margin-top: 0.75rem; gap: 0.75rem; flex-wrap: wrap;">
+                    <!-- Tool toggles will be populated dynamically based on data -->
+                </div>
+                <div class="chart-controls" style="margin-top: 0.5rem;">
+                    <label><input type="checkbox" id="tool-show-avg" checked> Show averages</label>
+                    <button class="chart-btn" id="tool-toggle-all">All</button>
+                    <button class="chart-btn" id="tool-toggle-none">None</button>
+                    <button class="chart-btn" id="tool-toggle-multicrop">Multi Crop only</button>
                 </div>
             </div>
             
@@ -368,6 +418,20 @@
                 <div class="chart-canvas">
                     <canvas id="operations-by-type-chart"></canvas>
                 </div>
+                <div class="chart-controls" style="margin-top: 0.75rem; gap: 0.75rem; flex-wrap: wrap;">
+                    <span class="chart-subtitle" style="margin-right: 0.5rem;">Filter operations:</span>
+                    <label><input type="checkbox" class="op-toggle" value="crop" checked> crop</label>
+                    <label><input type="checkbox" class="op-toggle" value="delete" checked> delete</label>
+                    <label><input type="checkbox" class="op-toggle" value="move" checked> move</label>
+                    <label><input type="checkbox" class="op-toggle" value="send_to_trash" checked> send_to_trash</label>
+                    <label><input type="checkbox" class="op-toggle" value="skip" checked> skip</label>
+                    <button class="chart-btn" id="op-toggle-all">All</button>
+                    <button class="chart-btn" id="op-toggle-none">None</button>
+                    <button class="chart-btn" id="op-toggle-crop">Crop only</button>
+                </div>
+                <div class="chart-controls" style="margin-top: 0.5rem;">
+                    <label><input type="checkbox" id="op-show-avg" checked> Show averages</label>
+                </div>
             </div>
         </div>
     </div>
@@ -378,12 +442,15 @@
         let currentLookbackDays = 30;
         let charts = {};
         let currentData = null;
+        let currentProjectId = '';
         
         // Chart.js Default Configuration
         Chart.defaults.color = '#b8b8b8';
         Chart.defaults.backgroundColor = 'rgba(74, 158, 255, 0.2)';
         Chart.defaults.borderColor = '#4a9eff';
         Chart.defaults.plugins.legend.labels.color = '#b8b8b8';
+        // Series color maps to keep label colors matching datasets
+        const seriesColors = { byScript: {}, byOperation: {} };
         
         // Color Palette for Charts
         const chartColors = [
@@ -440,6 +507,13 @@
             
             // Refresh button
             document.getElementById('refresh-btn').addEventListener('click', loadDashboardData);
+            // Project selector
+            const pjSel = document.getElementById('project-select');
+            pjSel.addEventListener('change', function() {
+                currentProjectId = this.value || '';
+                localStorage.setItem('dashboardProjectId', currentProjectId);
+                loadDashboardData();
+            });
             
             // Chart type controls
             document.querySelectorAll('.chart-btn[data-type]').forEach(btn => {
@@ -457,6 +531,120 @@
                     }
                 });
             });
+
+            // Operation toggles
+            const opToggles = document.querySelectorAll('.op-toggle');
+            const btnAll = document.getElementById('op-toggle-all');
+            const btnNone = document.getElementById('op-toggle-none');
+            const btnCropOnly = document.getElementById('op-toggle-crop');
+            const opAvg = document.getElementById('op-show-avg');
+
+            function getSelectedOps() {
+                return Array.from(opToggles)
+                    .filter(cb => cb.checked)
+                    .map(cb => cb.value);
+            }
+
+            function renderOperationsChart() {
+                if (!currentData || !currentData.charts || !currentData.charts.by_operation) return;
+                const selected = new Set(getSelectedOps());
+                const filtered = {};
+                Object.entries(currentData.charts.by_operation).forEach(([op, data]) => {
+                    if (selected.has(op)) filtered[op] = data;
+                });
+                createChart('by-operation', 'bar', filtered);
+            }
+
+            opToggles.forEach(cb => cb.addEventListener('change', renderOperationsChart));
+            if (opAvg) opAvg.addEventListener('change', renderOperationsChart);
+            if (btnAll) btnAll.addEventListener('click', () => {
+                opToggles.forEach(cb => cb.checked = true);
+                renderOperationsChart();
+            });
+            if (btnNone) btnNone.addEventListener('click', () => {
+                opToggles.forEach(cb => cb.checked = false);
+                renderOperationsChart();
+            });
+            if (btnCropOnly) btnCropOnly.addEventListener('click', () => {
+                opToggles.forEach(cb => cb.checked = (cb.value === 'crop'));
+                renderOperationsChart();
+            });
+
+            // Tool toggles presets and persistence
+            const toolContainer = document.getElementById('tool-toggles');
+            const toolAll = document.getElementById('tool-toggle-all');
+            const toolNone = document.getElementById('tool-toggle-none');
+            const toolMultiOnly = document.getElementById('tool-toggle-multicrop');
+            const toolAvg = document.getElementById('tool-show-avg');
+
+            function persistSelections() {
+                try {
+                    const ops = Array.from(document.querySelectorAll('.op-toggle')).map(cb => ({k: cb.value, v: cb.checked}));
+                    const tools = Array.from(document.querySelectorAll('.tool-toggle')).map(cb => ({k: cb.value, v: cb.checked}));
+                    const payload = {ops, tools, opAvg: !!opAvg?.checked, toolAvg: !!toolAvg?.checked};
+                    localStorage.setItem('dashboardSelections', JSON.stringify(payload));
+                } catch(e) {}
+            }
+
+            function restoreSelections() {
+                try {
+                    const raw = localStorage.getItem('dashboardSelections');
+                    if (!raw) return;
+                    const payload = JSON.parse(raw);
+                    if (payload.ops) payload.ops.forEach(({k,v}) => {
+                        const el = document.querySelector(`.op-toggle[value="${k}"]`);
+                        if (el) el.checked = !!v;
+                    });
+                    if (payload.tools) payload.tools.forEach(({k,v}) => {
+                        const el = document.querySelector(`.tool-toggle[value="${k}"]`);
+                        if (el) el.checked = !!v;
+                    });
+                    if (opAvg && 'opAvg' in payload) opAvg.checked = !!payload.opAvg;
+                    if (toolAvg && 'toolAvg' in payload) toolAvg.checked = !!payload.toolAvg;
+                } catch(e) {}
+            }
+
+            // Persist changes
+            document.addEventListener('change', (e) => {
+                if (e.target.matches('.op-toggle, .tool-toggle, #op-show-avg, #tool-show-avg')) {
+                    persistSelections();
+                }
+            });
+
+            if (toolAll) toolAll.addEventListener('click', () => {
+                toolContainer?.querySelectorAll('.tool-toggle').forEach(cb => cb.checked = true);
+                persistSelections();
+                // Re-render tools chart via synthetic change
+                document.querySelectorAll('.tool-toggle').forEach(cb => cb.dispatchEvent(new Event('change')));
+            });
+            if (toolNone) toolNone.addEventListener('click', () => {
+                toolContainer?.querySelectorAll('.tool-toggle').forEach(cb => cb.checked = false);
+                persistSelections();
+                document.querySelectorAll('.tool-toggle').forEach(cb => cb.dispatchEvent(new Event('change')));
+            });
+            if (toolMultiOnly) toolMultiOnly.addEventListener('click', () => {
+                const all = Array.from(toolContainer?.querySelectorAll('.tool-toggle') || []);
+                all.forEach(cb => cb.checked = /Multi Crop Tool/i.test(cb.value));
+                persistSelections();
+                all.forEach(cb => cb.dispatchEvent(new Event('change')));
+            });
+
+            // Default intraday charts to line type
+            if (['15min','1H'].includes(currentTimeSlice)) {
+                document.querySelectorAll('.chart-btn[data-chart="by-operation"][data-type="bar"]').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.chart-btn[data-chart="by-operation"][data-type="line"]').forEach(b => b.classList.add('active'));
+            }
+
+            // Restore persisted selections on load, then redraw
+            restoreSelections();
+            // Re-render charts to reflect restored selections after first load
+            setTimeout(() => {
+                // Simulate toggles to trigger handlers
+                document.querySelectorAll('.tool-toggle').forEach(cb => cb.dispatchEvent(new Event('change')));
+                document.querySelectorAll('.op-toggle').forEach(cb => cb.dispatchEvent(new Event('change')));
+            }, 0);
+            // Restore selected project
+            currentProjectId = localStorage.getItem('dashboardProjectId') || '';
         }
         
         async function loadDashboardData() {
@@ -464,7 +652,8 @@
                 console.log('Loading dashboard data...');
                 showLoading();
                 
-                const response = await fetch(`/api/data/${currentTimeSlice}?lookback_days=${currentLookbackDays}`);
+                const pid = encodeURIComponent(currentProjectId||'');
+                const response = await fetch(`/api/data/${currentTimeSlice}?lookback_days=${currentLookbackDays}&project_id=${pid}`);
                 console.log('Response status:', response.status);
                 
                 const data = await response.json();
@@ -475,6 +664,20 @@
                 }
                 
                 currentData = data;
+                // Populate project options
+                const pjSel = document.getElementById('project-select');
+                if (data.projects && Array.isArray(data.projects)) {
+                    pjSel.innerHTML = '<option value="">All Projects</option>';
+                    data.projects.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.projectId || '';
+                        opt.textContent = p.title || p.projectId || 'unknown';
+                        pjSel.appendChild(opt);
+                    });
+                    pjSel.value = data.metadata?.active_project || currentProjectId || '';
+                    currentProjectId = pjSel.value;
+                    try { localStorage.setItem('dashboardProjectId', currentProjectId); } catch(e) {}
+                }
                 updateStatsOverview(data);
                 updateCharts(data);
                 
@@ -489,6 +692,10 @@
         function showLoading() {
             // Show loading message in chart containers, preserve canvas elements
             document.querySelectorAll('.chart-canvas').forEach(container => {
+                // Do not touch the KPI sparkline container; it manages its own rendering
+                if (container.querySelector('#project-kpi-sparkline')) {
+                    return;
+                }
                 // Clear any existing charts
                 const canvas = container.querySelector('canvas');
                 if (canvas) {
@@ -542,7 +749,7 @@
         }
         
         function updateStatsOverview(data) {
-            // Calculate total files and work time
+            // Calculate average files per slice and averages
             let totalFiles = 0;
             let totalWorkTimeMinutes = 0;
             let activeDays = new Set();
@@ -566,9 +773,18 @@
                 });
             }
             
+            // Average files per slice (based on by_script total labels count)
+            let totalSlices = 0;
+            if (data.charts.by_script) {
+                Object.values(data.charts.by_script).forEach(scriptData => {
+                    totalSlices = Math.max(totalSlices, (scriptData.dates || []).length);
+                });
+            }
+            const avgFilesPerSlice = totalSlices > 0 ? Math.round(totalFiles / totalSlices) : 0;
+
             // Update stat cards
-            document.getElementById('total-files').textContent = totalFiles.toLocaleString();
-            document.getElementById('total-work-time').textContent = formatWorkTime(totalWorkTimeMinutes);
+            document.getElementById('avg-files').textContent = avgFilesPerSlice.toLocaleString();
+            document.getElementById('avg-work-time').textContent = formatWorkTime(totalWorkTimeMinutes / (activeDays.size || 1));
             document.getElementById('active-days').textContent = activeDays.size;
             document.getElementById('avg-daily').textContent = activeDays.size > 0 ? 
                 Math.round(totalFiles / activeDays.size).toLocaleString() : '0';
@@ -580,6 +796,88 @@
             
             // Update timing method indicator
             updateTimingMethodIndicator(timingMethods);
+
+            // Hourly crop KPI: if current time slice is 1H and crop op visible
+            try {
+                const kpiEl = document.getElementById('hourly-crop-kpi');
+                let kpi = 0;
+                if (data.metadata && data.metadata.time_slice === '1H' && data.charts.by_operation && data.charts.by_operation.crop) {
+                    const counts = data.charts.by_operation.crop.counts || [];
+                    if (counts.length) kpi = Math.round(counts.reduce((a,b)=>a+(Number(b)||0),0)/counts.length);
+                }
+                kpiEl.textContent = kpi.toLocaleString();
+            } catch(e) {
+                // no-op
+            }
+
+            // Project KPI (images/hour and breakdown)
+            try {
+                const kpi = data.project_kpi || {};
+                const pmAll = data.project_metrics || {};
+                const activeId = data.metadata?.active_project || '';
+                const pm = pmAll[activeId] || null;
+                const iphEl = document.getElementById('project-kpi-iph');
+                const totalEl = document.getElementById('project-kpi-total');
+                const titleEl = document.getElementById('project-kpi-title');
+
+                // Fallbacks when no specific project is selected
+                let iphVal = 0;
+                let totalVal = 0;
+                let spark = [];
+                let byType = {};
+
+                if (pm) {
+                    iphVal = Number(kpi.images_per_hour ?? (pm?.throughput?.images_per_hour ?? 0)) || 0;
+                    totalVal = Number(kpi.images_processed ?? (pm?.totals?.images_processed ?? 0)) || 0;
+                    if (pm?.timeseries?.daily_files_processed) spark = pm.timeseries.daily_files_processed;
+                    byType = (pm?.totals?.operations_by_type) || {};
+                } else {
+                    // Aggregate from timing_data and by_operation across all projects
+                    try {
+                        // Total files from by_operation
+                        if (data.charts && data.charts.by_operation) {
+                            const totalsMap = {};
+                            Object.entries(data.charts.by_operation).forEach(([op, v]) => {
+                                const sum = (v.counts || []).reduce((a,b)=>a+(Number(b)||0),0);
+                                byType[op] = (byType[op]||0) + sum;
+                                // Build daily sparkline if dates are daily strings
+                                (v.dates||[]).forEach((d, idx) => {
+                                    const key = String(d);
+                                    const val = Number(v.counts[idx]) || 0;
+                                    totalsMap[key] = (totalsMap[key]||0) + val;
+                                });
+                            });
+                            totalVal = Object.values(byType).reduce((a,b)=>a+(Number(b)||0),0);
+                            spark = Object.entries(totalsMap).sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
+                        }
+                        // Images/hour from timing_data totals
+                        if (data.timing_data) {
+                            let workMin = 0;
+                            Object.values(data.timing_data).forEach(t => {
+                                workMin += Number(t.work_time_minutes||0);
+                            });
+                            if (workMin > 0) {
+                                iphVal = Math.round((totalVal / (workMin/60)) * 100) / 100;
+                            }
+                        }
+                    } catch(e) {}
+                }
+
+                if (iphEl) iphEl.textContent = (iphVal||0).toLocaleString();
+                if (totalEl) totalEl.textContent = (totalVal||0).toLocaleString();
+                if (titleEl) titleEl.textContent = pm?.title || activeId || 'All Projects';
+
+                renderProjectSparkline(spark);
+                const tbody = document.querySelector('#project-kpi-breakdown tbody');
+                if (tbody) {
+                    tbody.innerHTML = '';
+                    Object.entries(byType).sort((a,b)=>b[1]-a[1]).forEach(([op, cnt]) => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `<td style=\"padding:4px 4px;\">${op}</td><td style=\"padding:4px 4px;\">${Number(cnt).toLocaleString()}</td>`;
+                        tbody.appendChild(tr);
+                    });
+                }
+            } catch(e) {}
         }
         
         function updateTimingMethodIndicator(timingMethods) {
@@ -620,7 +918,64 @@
             
             if (data.charts.by_script) {
                 console.log('Creating by_script chart with data:', data.charts.by_script);
+                // Assign stable colors for tools
+                const toolNames = Object.keys(data.charts.by_script);
+                toolNames.forEach((tool, idx) => {
+                    if (!seriesColors.byScript[tool]) {
+                        seriesColors.byScript[tool] = chartColors[idx % chartColors.length];
+                    }
+                });
                 createChart('by-script', 'bar', data.charts.by_script);
+                // Build tool toggles based on keys
+                const container = document.getElementById('tool-toggles');
+                if (container) {
+                    container.innerHTML = '';
+                    Object.keys(data.charts.by_script).forEach(tool => {
+                        const id = `tool_${tool.replace(/[^a-z0-9]/gi,'_')}`;
+                        const label = document.createElement('label');
+                        const color = seriesColors.byScript[tool] || '#b8b8b8';
+                        label.style.color = color;
+                        label.innerHTML = `<input type=\"checkbox\" class=\"tool-toggle\" id=\"${id}\" value=\"${tool}\" checked> ${tool}`;
+                        container.appendChild(label);
+                    });
+
+                    // Restore persisted tool selections (persisted across time-frame changes)
+                    try {
+                        const raw = localStorage.getItem('dashboardSelections');
+                        if (raw) {
+                            const payload = JSON.parse(raw);
+                            if (payload.tools) payload.tools.forEach(({k,v}) => {
+                                const el = container.querySelector(`.tool-toggle[value="${k}"]`);
+                                if (el) el.checked = !!v;
+                            });
+                        }
+                    } catch(e) {}
+
+                    function getSelectedTools() {
+                        return Array.from(container.querySelectorAll('.tool-toggle'))
+                            .filter(cb => cb.checked)
+                            .map(cb => cb.value);
+                    }
+
+                    function renderToolsChart() {
+                        const selected = new Set(getSelectedTools());
+                        const filtered = {};
+                        Object.entries(data.charts.by_script).forEach(([tool, v]) => {
+                            if (selected.has(tool)) filtered[tool] = v;
+                        });
+                        createChart('by-script', 'bar', filtered);
+                    }
+
+                    container.querySelectorAll('.tool-toggle').forEach(cb => cb.addEventListener('change', () => {
+                        renderToolsChart();
+                        // persist after render
+                        const evt = new Event('change');
+                        cb.dispatchEvent(evt);
+                    }));
+
+                    // Initial render with restored selections
+                    renderToolsChart();
+                }
             } else {
                 console.warn('No by_script data available');
                 console.log('data.charts keys:', Object.keys(data.charts));
@@ -629,7 +984,46 @@
             
             if (data.charts.by_operation) {
                 console.log('Creating by_operation chart with data:', data.charts.by_operation);
-                createChart('by-operation', 'bar', data.charts.by_operation);
+                // Assign stable colors for operations (fixed order)
+                const opOrder = ['crop','delete','move','send_to_trash','skip'];
+                opOrder.forEach((op, idx) => {
+                    if (!seriesColors.byOperation[op]) {
+                        seriesColors.byOperation[op] = chartColors[idx % chartColors.length];
+                    }
+                });
+                // Color the static op labels to match datasets
+                document.querySelectorAll('.op-toggle').forEach(cb => {
+                    const label = cb.closest('label');
+                    if (label) {
+                        const color = seriesColors.byOperation[cb.value] || '#b8b8b8';
+                        label.style.color = color;
+                    }
+                });
+                // Restore persisted op selections on each update (persists across time frame changes)
+                try {
+                    const raw = localStorage.getItem('dashboardSelections');
+                    if (raw) {
+                        const payload = JSON.parse(raw);
+                        if (payload.ops) payload.ops.forEach(({k,v}) => {
+                            const el = document.querySelector(`.op-toggle[value="${k}"]`);
+                            if (el) el.checked = !!v;
+                        });
+                        if ('opAvg' in payload) {
+                            const opAvgEl = document.getElementById('op-show-avg');
+                            if (opAvgEl) opAvgEl.checked = !!payload.opAvg;
+                        }
+                    }
+                } catch(e) {}
+                // Respect current op toggles on initial render
+                const opToggles = document.querySelectorAll('.op-toggle');
+                if (opToggles && opToggles.length) {
+                    const selected = new Set(Array.from(opToggles).filter(cb => cb.checked).map(cb => cb.value));
+                    const filtered = {};
+                    Object.entries(data.charts.by_operation).forEach(([op, v]) => { if (selected.has(op)) filtered[op] = v; });
+                    createChart('by-operation', 'bar', filtered);
+                } else {
+                    createChart('by-operation', 'bar', data.charts.by_operation);
+                }
             } else {
                 console.warn('No by_operation data available');
                 showChartError('operations-by-type-chart', 'No operation data available');
@@ -714,11 +1108,30 @@
                     datasets.push({
                         label: key,
                         data: data.counts,
-                        backgroundColor: chartColors[index % chartColors.length] + '40',
-                        borderColor: chartColors[index % chartColors.length],
+                        backgroundColor: (chartName==='by-script' ? (seriesColors.byScript[key]||chartColors[index % chartColors.length]) : (seriesColors.byOperation[key]||chartColors[index % chartColors.length])) + '40',
+                        borderColor: (chartName==='by-script' ? (seriesColors.byScript[key]||chartColors[index % chartColors.length]) : (seriesColors.byOperation[key]||chartColors[index % chartColors.length])),
                         borderWidth: 2,
-                        tension: 0.4
+                        tension: 0.4,
+                        type: chartType
                     });
+                    // Add average line overlay if enabled
+                    const avgToggleId = chartName === 'by-operation' ? 'op-show-avg' : 'tool-show-avg';
+                    const showAvg = document.getElementById(avgToggleId)?.checked;
+                    if (showAvg && data.counts.length > 0) {
+                        const sum = data.counts.reduce((a,b) => a + (Number(b)||0), 0);
+                        const avg = sum / data.counts.length;
+                        const avgSeries = Array(data.counts.length).fill(avg);
+                        datasets.push({
+                            label: `${key} (avg)`,
+                            data: avgSeries,
+                            borderColor: (chartName==='by-script' ? (seriesColors.byScript[key]||chartColors[index % chartColors.length]) : (seriesColors.byOperation[key]||chartColors[index % chartColors.length])),
+                            borderWidth: 2,
+                            borderDash: [6,4],
+                            pointRadius: 0,
+                            fill: false,
+                            type: 'line'
+                        });
+                    }
                 });
                 
                 console.log('Datasets prepared:', datasets);
@@ -747,7 +1160,9 @@
                             position: 'top',
                             labels: {
                                 padding: 20,
-                                usePointStyle: true
+                                usePointStyle: true,
+                                color: '#e0e0e0',
+                                font: { size: 13, weight: '600' }
                             }
                         },
                         tooltip: {
@@ -755,25 +1170,45 @@
                             titleColor: '#ffffff',
                             bodyColor: '#b8b8b8',
                             borderColor: '#4a9eff',
-                            borderWidth: 1
+                            borderWidth: 1,
+                            callbacks: {
+                                title: (items) => {
+                                    const raw = items[0]?.label || '';
+                                    try {
+                                        const dt = new Date(raw);
+                                        if (!isNaN(dt)) {
+                                            return dt.toLocaleString();
+                                        }
+                                    } catch(e) {}
+                                    return raw;
+                                },
+                                label: (item) => {
+                                    const v = item.parsed.y;
+                                    return `${item.dataset.label}: ${Number(v).toLocaleString()}`;
+                                }
+                            }
                         }
                     },
                     scales: chartType !== 'doughnut' ? {
                         y: {
                             beginAtZero: true,
                             grid: {
-                                color: '#404040'
+                                color: '#303030'
                             },
                             ticks: {
-                                color: '#b8b8b8'
+                                color: '#c8c8c8',
+                                font: { size: 12 }
                             }
                         },
                         x: {
                             grid: {
-                                color: '#404040'
+                                color: '#303030'
                             },
                             ticks: {
-                                color: '#b8b8b8'
+                                color: '#b8b8b8',
+                                maxRotation: 0,
+                                autoSkip: true,
+                                font: { size: 12 }
                             }
                         }
                     } : {}
@@ -783,6 +1218,174 @@
             // Create chart
             console.log('Creating Chart.js instance with config:', config);
             charts[canvasId] = new Chart(canvas, config);
+
+            // Register intraday day-banding and project marker overlays (once)
+            try {
+                if (typeof window !== 'undefined') {
+                    if (!window.__dayBandsRegistered) {
+                        const dayBandsPlugin = {
+                            id: 'dayBands',
+                            beforeDatasetsDraw(chart) {
+                                // Only for intraday views
+                                if (!['15min','1H'].includes(currentTimeSlice)) return;
+                                const labels = chart.data?.labels || [];
+                                if (!labels.length) return;
+                                const xAxis = chart.scales?.x; const yAxis = chart.scales?.y;
+                                if (!xAxis || !yAxis) return;
+                                const ctx = chart.ctx;
+                                let prevKey = null; let startIdx = 0; let bandIndex = 0;
+                                const tickCenter = (i) => xAxis.getPixelForValue(i);
+                                const tickStep = (i) => {
+                                    if (labels.length > 1) {
+                                        if (i < labels.length - 1) return Math.abs(tickCenter(i+1) - tickCenter(i));
+                                        return Math.abs(tickCenter(i) - tickCenter(i-1));
+                                    }
+                                    return 10; // fallback minimal width
+                                };
+                                const leftEdge = (i) => tickCenter(i) - tickStep(i)/2;
+                                const rightEdge = (i) => tickCenter(i) + tickStep(i)/2;
+                                const flushBand = (from, to, idx) => {
+                                    if (to < from) return;
+                                    const x0 = Math.floor(leftEdge(from));
+                                    const x1 = Math.ceil(rightEdge(to));
+                                    ctx.save();
+                                    // Use style-guide primary accent blue in soft bands
+                                    ctx.fillStyle = idx % 2 === 0 ? 'rgba(79,157,255,0.08)' : 'rgba(79,157,255,0.18)';
+                                    ctx.fillRect(x0, yAxis.top, Math.max(0, x1 - x0), yAxis.bottom - yAxis.top);
+                                    // Day separator at band start (thin line precisely at left edge)
+                                    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+                                    ctx.lineWidth = 1;
+                                    ctx.beginPath();
+                                    ctx.moveTo(x0, yAxis.top);
+                                    ctx.lineTo(x0, yAxis.bottom);
+                                    ctx.stroke();
+                                    // Date label at band start (top-left)
+                                    try {
+                                        const raw = labels[from];
+                                        const d = new Date(raw);
+                                        if (!isNaN(d)) {
+                                            const mm = String(d.getMonth()+1).padStart(2,'0');
+                                            const dd = String(d.getDate()).padStart(2,'0');
+                                            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                                            ctx.font = '12px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+                                            ctx.fillText(`${mm}-${dd}`, x0 + 4, yAxis.top + 12);
+                                        }
+                                    } catch(e) {}
+                                    ctx.restore();
+                                };
+                                labels.forEach((raw, i) => {
+                                    const d = new Date(raw);
+                                    if (isNaN(d)) return;
+                                    // Robust local-day key at midnight to avoid string parsing quirks
+                                    const key = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+                                    if (prevKey === null) prevKey = key;
+                                    if (key !== prevKey) {
+                                        flushBand(startIdx, i - 1, bandIndex++);
+                                        prevKey = key; startIdx = i;
+                                    }
+                                    if (i === labels.length - 1) flushBand(startIdx, i, bandIndex++);
+                                });
+                            }
+                        };
+                        Chart.register(dayBandsPlugin);
+                        window.__dayBandsRegistered = true;
+                    }
+
+                    if (!window.__projectMarkersRegistered) {
+                        const projectMarkersPlugin = {
+                            id: 'projectMarkers',
+                            afterDatasetsDraw(chart) {
+                                const markers = (currentData && currentData.project_markers) || {};
+                                if (!markers.startedAt && !markers.finishedAt) return;
+                                const labels = chart.data?.labels || [];
+                                if (!labels.length) return;
+                                const xAxis = chart.scales?.x; const yAxis = chart.scales?.y; const ctx = chart.ctx;
+                                if (!xAxis || !yAxis) return;
+                                const labelTimes = labels.map(l => new Date(l).getTime());
+                                const drawMarker = (ts, color, label) => {
+                                    if (!ts) return;
+                                    const t = new Date(ts).getTime();
+                                    if (isNaN(t)) return;
+                                    let bestIdx = 0; let bestDist = Number.POSITIVE_INFINITY;
+                                    labelTimes.forEach((lt, i) => {
+                                        const d = Math.abs(lt - t);
+                                        if (d < bestDist) { bestDist = d; bestIdx = i; }
+                                    });
+                                    const x = xAxis.getPixelForTick(bestIdx);
+                                    ctx.save();
+                                    ctx.strokeStyle = color;
+                                    ctx.setLineDash([6,4]);
+                                    ctx.lineWidth = 2;
+                                    ctx.beginPath();
+                                    ctx.moveTo(x, yAxis.top);
+                                    ctx.lineTo(x, yAxis.bottom);
+                                    ctx.stroke();
+                                    // Label box
+                                    try {
+                                        const iso = new Date(ts).toISOString();
+                                        const text = `${label}: ${iso}`;
+                                        ctx.setLineDash([]);
+                                        ctx.font = '12px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+                                        const padding = 4;
+                                        const textWidth = ctx.measureText(text).width;
+                                        let lx = x + 6; // default nudge to the right
+                                        let ly = yAxis.top + 16;
+                                        // If would overflow right edge, flip to left
+                                        if (lx + textWidth + padding*2 > chart.chartArea.right) {
+                                            lx = x - textWidth - padding*2 - 6;
+                                        }
+                                        // If too close to left edge, clamp
+                                        if (lx < chart.chartArea.left) lx = chart.chartArea.left + 2;
+                                        // If lines overlap, nudge vertically
+                                        // Simple heuristic: if label is very close to top, push down a bit
+                                        if (ly < yAxis.top + 14) ly = yAxis.top + 14;
+                                        // Draw background
+                                        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                                        ctx.fillRect(lx, ly - 12, textWidth + padding*2, 16);
+                                        ctx.strokeStyle = color;
+                                        ctx.lineWidth = 1;
+                                        ctx.strokeRect(lx, ly - 12, textWidth + padding*2, 16);
+                                        // Text
+                                        ctx.fillStyle = '#ffffff';
+                                        ctx.fillText(text, lx + padding, ly);
+                                    } catch(e) {}
+                                    ctx.restore();
+                                };
+                                // Start (blue) and end (red) markers
+                                drawMarker(markers.startedAt, '#4a9eff', 'Start');
+                                drawMarker(markers.finishedAt, '#ff6b6b', 'End');
+                            }
+                        };
+                        Chart.register(projectMarkersPlugin);
+                        window.__projectMarkersRegistered = true;
+                    }
+                }
+            } catch (e) {
+                console.warn('Overlay plugin registration failed:', e);
+            }
+            // Improve x-axis tick callback for readability (12-hour for intraday)
+            if (charts[canvasId] && charts[canvasId].options && charts[canvasId].options.scales && charts[canvasId].options.scales.x) {
+                charts[canvasId].options.scales.x.ticks.callback = function(value, index) {
+                    const raw = charts[canvasId].data.labels[index];
+                    try {
+                        if (typeof raw === 'string' && raw.includes('T')) {
+                            const dt = new Date(raw);
+                            if (!isNaN(dt)) {
+                                const yyyy = dt.getFullYear();
+                                const mm = String(dt.getMonth()+1).padStart(2,'0');
+                                const dd = String(dt.getDate()).padStart(2,'0');
+                                let h = dt.getHours();
+                                const ampm = h >= 12 ? 'PM' : 'AM';
+                                h = h % 12; if (h === 0) h = 12;
+                                const m = String(dt.getMinutes()).padStart(2,'0');
+                                return `${yyyy}-${mm}-${dd} ${h}:${m} ${ampm}`;
+                            }
+                        }
+                    } catch(e) {}
+                    return raw;
+                };
+                charts[canvasId].update('none');
+            }
             console.log(`Chart created successfully for ${chartName}`);
                 
             } catch (error) {
@@ -791,6 +1394,24 @@
             }
         }
         
+        function renderProjectSparkline(series) {
+            try {
+                const canvas = document.getElementById('project-kpi-sparkline');
+                if (!canvas) return;
+                if (charts['project-kpi-sparkline']) {
+                    charts['project-kpi-sparkline'].destroy();
+                    delete charts['project-kpi-sparkline'];
+                }
+                const labels = (series || []).map(pair => pair[0]);
+                const values = (series || []).map(pair => pair[1]);
+                charts['project-kpi-sparkline'] = new Chart(canvas.getContext('2d'), {
+                    type: 'line',
+                    data: { labels, datasets: [{ label: 'Daily Files', data: values, borderColor: '#4a9eff', backgroundColor: 'rgba(74,158,255,0.15)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { display: false }, grid: { display: false } }, y: { ticks: { display: false }, grid: { display: false } } } }
+                });
+            } catch(e) {}
+        }
+
         function showChartError(canvasId, message) {
             const canvas = document.getElementById(canvasId);
             if (canvas) {
