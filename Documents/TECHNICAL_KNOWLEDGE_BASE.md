@@ -13,6 +13,29 @@
 **Key Functions:**
 - `find_all_companion_files()` - Wildcard companion file detection
 - `move_file_with_all_companions()` - Safe file movement with companions
+
+## Watchdog & Heartbeat (Sandbox Experiments)
+
+Runner: `scripts/tools/reducer.py` (sandbox-only)
+
+New CLI flags:
+- `--max-runtime <sec>`: hard wall-clock timeout (default 900s). Triggers abort.
+- `--stage-timeout <sec>`: per-phase time budget (reserved for future use in phases).
+- `--progress-interval <sec>`: terminal progress cadence (default 10s).
+- `--watchdog-threshold <sec>`: no-progress stall threshold (default 120s). Triggers abort if heartbeat doesn’t advance.
+- `--no-stack-dump`: disable stack dump on abort.
+- `--simulate-hang`: test hook that suppresses heartbeats to validate watchdog (E2E test uses this).
+
+Behavior:
+- Heartbeat tracks `files_scanned`, `groups_built`, `items_processed`, and updates timestamps.
+- Watchdog monitors heartbeats and max runtime; on stall/timeout it emits `ABORT <run-id> reason=<...>` and writes sandbox-only error artifacts:
+  - `sandbox/mojo2/logs/error_<run-id>.json` (reason, timers, last snapshot)
+  - `sandbox/mojo2/logs/stack_<run-id>.txt` (if stack dump enabled)
+- Clean shutdown ensures background threads stop; no FileTracker or global logs are written in harness runs.
+
+Tests:
+- `scripts/tests/test_watchdog.py`: unit test (stall and error report creation).
+- `scripts/tests/test_runner_watchdog_e2e.py`: end-to-end simulated hang; expects abort and sandbox logs.
 - `launch_browser()` - Centralized browser launching
 - `generate_thumbnail()` - Optimized thumbnail generation
 - `format_image_display_name()` - Consistent image name formatting
@@ -23,6 +46,63 @@
 **Benefits:** More accurate work time tracking, automatic break detection
 **Implementation:** Analyzes FileTracker logs to calculate actual work time
 **Tools Updated:** All file-heavy tools (image selector, character sorter, crop tools)
+
+### **Productivity Dashboard - Architecture & Patterns (October 2025)**
+**Goal:** A fast, reliable dashboard that surfaces production throughput from local logs only.
+
+Components:
+- `scripts/dashboard/data_engine.py` (backend data assembler)
+- `scripts/dashboard/productivity_dashboard.py` (Flask app, API + transform)
+- `scripts/dashboard/dashboard_template.html` (Chart.js UI)
+- `scripts/dashboard/project_metrics_aggregator.py` (per-project metrics)
+
+Data contracts (API /api/data/<time_slice>):
+- `metadata`: { generated_at, time_slice, lookback_days, scripts_found, projects_found, active_project, data_range }
+- `activity_data`: aggregated ActivityTimer metrics (when present)
+- `file_operations_data`: aggregated FileTracker metrics
+- `historical_averages`: pre-aggregated for overlays (optional)
+- `project_metrics`: map of projectId →
+  - `totals`: { images_processed, operations_by_type }
+  - `throughput`: { images_per_hour }
+  - `timeseries`: { daily_files_processed: [[YYYY-MM-DD, count], ...] }
+  - `startedAt`, `finishedAt`, `title`, `status`
+- `project_kpi`: convenience payload for the selected project
+- `timing_data`: per-display-tool timing with method source:
+  - { work_time_seconds, work_time_minutes, files_processed, efficiency_score, timing_method: 'file_operations'|'activity_timer' }
+
+Timing system and fallbacks:
+- Prefer file-operation timing for file-heavy tools; fallback to ActivityTimer sums if file ops absent for that tool.
+- `timing_data` exists even when ActivityTimer is missing; UI cards do not need extra flags.
+
+Timestamp policy:
+- Normalize ingested timestamps to naive `datetime` (drop tzinfo) to avoid mixed aware/naive comparisons.
+- UI formats dates in local time for display; intraday banding uses the label values directly.
+
+Intraday day-banding (15m/1h):
+- Early approach used tick centers → misaligned bands when ticks auto-skipped.
+- Final approach computes each bar group's left/right edges from adjacent tick spacing and draws bands from `leftEdge(firstIndexOfDay)` to `rightEdge(lastIndexOfDay)` with separator at the exact left edge. Result: bands flip exactly at midnight and align with bars for 15m/1h/D/W/M.
+
+KPI and project selection:
+- KPI shows per-project throughput if a project is selected and metrics exist.
+- When “All Projects” or no metrics: KPI falls back to aggregation from `by_operation` totals (sparkline from daily sums) and computes images/hour using total files divided by summed `timing_data` minutes.
+- Project markers: dashed start (blue) and end (red) lines with ISO tooltip labels.
+
+Selection persistence:
+- Persist operation/tool selections and project choice in `localStorage` under `dashboardSelections` and `dashboardProjectId`.
+- On each data reload, UI restores selections before re-rendering charts; toggles remain stable across time-frame changes.
+
+Hardening fixes (symptoms → fix):
+- 500 "can't compare offset-naive and offset-aware datetimes" → normalize all timestamps at load.
+- "'str' object cannot be interpreted as an integer" in companion metrics path → coerce `timestamp` fields to ISO strings before calling `get_file_operation_metrics`.
+- Bands showing multi-day spans on 15m/1h → switch to bar-edge calculations, not tick centers.
+
+Performance:
+- Keep rendering ≤100ms by pre-aggregating server-side and minimizing DOM churn. Chart rebuilds respect restored selections to avoid extra work.
+
+Testing additions:
+- Engine tests for project metrics aggregation, mixed tz, no-finishedAt, and presence of `timing_data`.
+- Core test for intraday slice alignment across midnight.
+
 
 ### **Desktop Tool Refactoring**
 **Achievement:** Created `BaseDesktopImageTool` base class
