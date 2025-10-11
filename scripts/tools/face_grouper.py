@@ -424,9 +424,19 @@ def move_image_metadata_pairs(out_dir: Path, paths: List[Path], labels: np.ndarr
                 if tracker: tracker.log_operation("error", notes=msg)
                 continue
             try:
-                shutil.move(str(image_path), str(group_dir / image_path.name))
-                shutil.move(str(yaml_path),  str(group_dir / yaml_path.name))
-                moved_files.extend([image_path.name, yaml_path.name])
+                # Move image and ALL companion files to destination directory
+                try:
+                    sys.path.insert(0, str(Path(__file__).parent.parent))
+                    from utils.companion_file_utils import move_file_with_all_companions
+                except Exception:
+                    move_file_with_all_companions = None  # type: ignore
+                if move_file_with_all_companions:
+                    moved = move_file_with_all_companions(image_path, group_dir, dry_run=False)
+                    moved_files.extend(moved)
+                else:
+                    shutil.move(str(image_path), str(group_dir / image_path.name))
+                    shutil.move(str(yaml_path),  str(group_dir / yaml_path.name))
+                    moved_files.extend([image_path.name, yaml_path.name])
                 total_pairs += 1
                 if tracker:
                     tracker.log_operation("move", source_dir=str(image_path.parent),
