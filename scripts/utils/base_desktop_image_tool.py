@@ -35,6 +35,7 @@ from matplotlib.widgets import RectangleSelector
 from PIL import Image
 import numpy as np
 from send2trash import send2trash
+from utils.companion_file_utils import safe_delete_image_and_yaml
 
 # Add the project root to the path for importing
 sys.path.append(str(Path(__file__).parent.parent.parent))
@@ -51,6 +52,11 @@ class BaseDesktopImageTool:
         self.aspect_ratio = aspect_ratio
         self.aspect_ratio_locked = True  # Always locked as per user preference
         self.tool_name = tool_name
+        
+        # Flexible panel bounds for tools that need 1–3 or up to 4 images
+        # Subclasses may override these before calling setup_display if desired
+        self.min_panels = 1
+        self.max_panels = 4
         
         # Initialize trackers
         self.tracker = FileTracker(tool_name)
@@ -69,8 +75,14 @@ class BaseDesktopImageTool:
         self.setup_display(self.current_num_images)
     
     def setup_display(self, num_images: int = 3):
-        """Setup/refresh the matplotlib figure with dynamic subplots (2–4) without closing the window."""
-        num_images = max(2, min(4, int(num_images or 3)))
+        """Setup/refresh the matplotlib figure with dynamic subplots (1–4) without closing the window."""
+        # Clamp to configured bounds (default 1–4); subclasses can set tighter bounds
+        try:
+            lower = int(getattr(self, 'min_panels', 1) or 1)
+            upper = int(getattr(self, 'max_panels', 4) or 4)
+        except Exception:
+            lower, upper = 1, 4
+        num_images = max(lower, min(upper, int(num_images or 3)))
         if self.fig and self.current_num_images == num_images:
             return
         self.current_num_images = num_images
@@ -97,6 +109,11 @@ class BaseDesktopImageTool:
         if not self.fig:
             dpi = matplotlib.rcParams.get('figure.dpi', 100)
             self.fig = plt.figure(figsize=(width_px / dpi, height_px / dpi))
+            try:
+                # Force a white background to avoid dark letterboxing from theme defaults
+                self.fig.set_facecolor('white')
+            except Exception:
+                pass
         else:
             try:
                 dpi = self.fig.get_dpi()
@@ -107,6 +124,12 @@ class BaseDesktopImageTool:
         
         # Create axes manually to keep the same Figure instance alive
         self.axes = [self.fig.add_subplot(1, num_images, i + 1) for i in range(num_images)]
+        # Ensure axes have white facecolor; some environments default to dark
+        for ax in self.axes:
+            try:
+                ax.set_facecolor('white')
+            except Exception:
+                pass
         self.fig.suptitle("", fontsize=14, y=0.98)
         
         # Hide the matplotlib toolbar completely
@@ -124,8 +147,10 @@ class BaseDesktopImageTool:
             left, right, wspace = 0.02, 0.98, 0.03
         elif num_images == 3:
             left, right, wspace = 0.03, 0.97, 0.05
-        else:  # 2
+        elif num_images == 2:
             left, right, wspace = 0.04, 0.96, 0.06
+        else:  # 1 image
+            left, right, wspace = 0.06, 0.94, 0.02
         self.fig.subplots_adjust(left=left, right=right, top=0.92, bottom=0.10, wspace=wspace)
         print(f"🔧 Layout set: left={left}, right={right}, wspace={wspace}")
 
@@ -351,20 +376,8 @@ class BaseDesktopImageTool:
         print(f"Cropped and saved in place: {png_path.name}")
     
     def safe_delete(self, png_path: Path, yaml_path: Path):
-        """Safely delete image files."""
-        files_deleted = []
-        
-        send2trash(str(png_path))
-        files_deleted.append(png_path.name)
-        
-        if yaml_path.exists():
-            send2trash(str(yaml_path))
-            files_deleted.append(yaml_path.name)
-            
-            self.tracker.log_operation(
-                "delete", str(png_path.parent), "trash", len(files_deleted),
-                "Image deleted", files_deleted
-            )
+        """Safely delete image and ALL companion files."""
+        _ = safe_delete_image_and_yaml(png_path, hard_delete=False, tracker=self.tracker)
         print(f"Deleted: {png_path.name}")
     
     def move_to_cropped(self, png_path: Path, yaml_path: Path, reason: str):
@@ -433,7 +446,11 @@ class BaseDesktopImageTool:
             return True
             
         except Exception as e:
-            print(f"Error loading {png_path}: {e}")
+            print(f"\n[ERROR] Failed to load image {image_idx + 1}: {png_path.name}")
+            print(f"[ERROR] {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
+            
             # Add placeholder for failed image to maintain index consistency
             self.current_images.append({
                 'path': png_path,
@@ -465,7 +482,12 @@ class BaseDesktopImageTool:
     
     def hide_unused_subplots(self, num_images: int):
         """Ensure subplot count matches and hide extras if any."""
-        num_images = max(2, min(4, int(num_images or 3)))
+        try:
+            lower = int(getattr(self, 'min_panels', 1) or 1)
+            upper = int(getattr(self, 'max_panels', 4) or 4)
+        except Exception:
+            lower, upper = 1, 4
+        num_images = max(lower, min(upper, int(num_images or 3)))
         if len(self.axes) != num_images:
             self.setup_display(num_images)
             return
@@ -500,7 +522,12 @@ class BaseDesktopImageTool:
                     pass
         # Reinitialize selector slots to current number of axes
         desired = getattr(self, 'current_num_images', len(self.axes) if self.axes else 3)
-        desired = max(2, min(4, int(desired or 3)))
+        try:
+            lower = int(getattr(self, 'min_panels', 1) or 1)
+            upper = int(getattr(self, 'max_panels', 4) or 4)
+        except Exception:
+            lower, upper = 1, 4
+        desired = max(lower, min(upper, int(desired or 3)))
         self.selectors = [None for _ in range(desired)]
     
     def reset_batch_flags(self):

@@ -328,6 +328,10 @@ class DesktopImageSelectorCrop(BaseDesktopImageTool):
         """Initialize desktop image selector."""
         super().__init__(directory, aspect_ratio, "desktop_image_selector_crop")
         
+        # This tool supports up to 4 images per screen; keep default min=1, max=4
+        self.min_panels = 1
+        self.max_panels = 4
+
         self.exts = exts
         self.current_triplet = None
         self.previous_batch_confirmed = False

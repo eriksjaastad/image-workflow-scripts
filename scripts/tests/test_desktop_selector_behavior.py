@@ -10,13 +10,18 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from importlib.machinery import SourceFileLoader
+import importlib.util
 
 
 def _load_desktop_tool(project_root: Path):
     """Dynamically load DesktopImageSelectorCrop from its script file."""
     script_path = project_root / "scripts/01_desktop_image_selector_crop.py"
-    mod = SourceFileLoader("desktop_selector_crop", str(script_path)).load_module()
-    return mod.DesktopImageSelectorCrop
+    loader = SourceFileLoader("desktop_selector_crop", str(script_path))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(module)  # type: ignore[attr-defined]
+    return module.DesktopImageSelectorCrop
 
 
 def _make_image(path: Path, size=(32, 32), color=(128, 128, 128)):
