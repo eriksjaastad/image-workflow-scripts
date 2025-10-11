@@ -99,7 +99,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from file_tracker import FileTracker
-from utils.companion_file_utils import find_all_companion_files, move_file_with_all_companions, launch_browser, generate_thumbnail, get_error_display_html, format_image_display_name, sort_image_files_by_timestamp_and_stage
+from utils.companion_file_utils import find_all_companion_files, move_file_with_all_companions, safe_delete_image_and_yaml, launch_browser, generate_thumbnail, get_error_display_html, format_image_display_name, sort_image_files_by_timestamp_and_stage
 
 try:
     from flask import Flask, Response, jsonify, render_template_string, request, redirect
@@ -475,36 +475,9 @@ def _generate_thumbnail(image_path: str, mtime_ns: int, size: int) -> bytes:
     return generate_thumbnail(image_path, mtime_ns, size, max_dim=THUMBNAIL_MAX_DIM, quality=85)
 
 def safe_delete(png_path: Path, hard_delete: bool = False, tracker: Optional[FileTracker] = None) -> None:
-    """Delete PNG and corresponding metadata file (.yaml or .caption)."""
-    # Try .yaml first, then .caption
-    yaml_path = png_path.parent / f"{png_path.stem}.yaml"
-    if not yaml_path.exists():
-        yaml_path = png_path.parent / f"{png_path.stem}.caption"
-    
-    files_to_delete = [png_path]
-    if yaml_path.exists():
-        files_to_delete.append(yaml_path)
-    
-    deleted_files = []
-    for file_path in files_to_delete:
-        try:
-            if hard_delete or not _SEND2TRASH_AVAILABLE:
-                file_path.unlink()
-            else:
-                send2trash(str(file_path))
-            deleted_files.append(file_path.name)
-        except Exception as e:
-            print(f"[!] Error deleting {file_path}: {e}")
-    
-    if tracker and deleted_files:
-        tracker.log_operation(
-            operation="delete",
-            source_dir=png_path.parent.name,
-            dest_dir=None,
-            file_count=len(deleted_files),
-            files=deleted_files,
-            notes="User chose to delete"
-        )
+    """Delete image and ALL companion sidecars (yaml, caption, etc.) via shared utility."""
+    # Delegate to shared companion-aware delete to ensure nothing is stranded
+    safe_delete_image_and_yaml(png_path, hard_delete=hard_delete, tracker=tracker)
 
 def move_with_metadata(src_path: Path, dest_dir: Path, tracker: FileTracker, group_name: str) -> List[str]:
     """Move PNG and ALL corresponding companion files to destination directory."""
