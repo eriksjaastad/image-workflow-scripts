@@ -19,6 +19,14 @@ import os
 sys.path.insert(0, str(Path(__file__).parent.parent / "dashboard"))
 
 from data_engine import DashboardDataEngine
+from project_metrics_aggregator import ProjectMetricsAggregator
+
+# Optional Flask presence for integration tests
+try:
+    import flask  # noqa: F401
+    HAS_FLASK = True
+except Exception:
+    HAS_FLASK = False
 
 
 class TestDashboardDataEngine(unittest.TestCase):
@@ -235,12 +243,117 @@ class TestDashboardDataEngine(unittest.TestCase):
         self.assertIn('file_operations_data', data)
         self.assertIn('by_script', data['file_operations_data'])
         self.assertIn('by_operation', data['file_operations_data'])
+        # Ensure timing_data present for mixed datasets
+        self.assertIn('timing_data', data)
         
         # Check metadata
         metadata = data['metadata']
         self.assertEqual(metadata['time_slice'], 'D')
         self.assertEqual(metadata['lookback_days'], 7)
         self.assertIn('scripts_found', metadata)
+
+        # Ensure project metrics keys exist in response
+        self.assertIn('project_metrics', data)
+        self.assertIn('project_kpi', data)
+
+    def test_project_metrics_aggregator_empty(self):
+        data_root = self.temp_dir
+        agg = ProjectMetricsAggregator(str(data_root))
+        out = agg.aggregate()
+        self.assertIsInstance(out, dict)
+        self.assertEqual(out, {})
+
+    def test_project_metrics_aggregator_basic(self):
+        # Arrange minimal project manifest and logs
+        projects_dir = self.data_dir.parent / 'data' / 'projects'
+        projects_dir.mkdir(parents=True, exist_ok=True)
+        manifest = {
+            "projectId": "pj1",
+            "title": "Test Project",
+            "status": "active",
+            "startedAt": "2025-01-01T00:00:00Z",
+            "paths": {"root": "/root/pj1"}
+        }
+        with open(projects_dir / 'pj1.project.json', 'w') as f:
+            json.dump(manifest, f)
+
+        log_file = self.file_ops_dir / '20250102.log'
+        with open(log_file, 'w') as f:
+            f.write(json.dumps({"type":"file_operation","timestamp":"2025-01-02T12:00:00Z","operation":"crop","file_count":10,"source_dir":"/root/pj1/a"}) + "\n")
+            f.write(json.dumps({"type":"file_operation","timestamp":"2025-01-02T13:00:00Z","operation":"delete","file_count":3,"source_dir":"/root/pj1/a"}) + "\n")
+
+        agg = ProjectMetricsAggregator(str(self.temp_dir))
+        out = agg.aggregate()
+        self.assertIn('pj1', out)
+        m = out['pj1']
+        self.assertEqual(m['projectId'], 'pj1')
+        self.assertEqual(m['totals']['images_processed'], 10)
+        self.assertEqual(m['totals']['operations_by_type']['delete'], 3)
+        self.assertIsInstance(m['throughput']['images_per_hour'], float)
+        self.assertIsInstance(m['timeseries']['daily_files_processed'], list)
+
+    def test_project_markers_present_when_project_selected(self):
+        # Arrange: manifest with start/finish
+        projects_dir = self.data_dir.parent / 'data' / 'projects'
+        projects_dir.mkdir(parents=True, exist_ok=True)
+        manifest = {
+            "projectId": "pjm1",
+            "title": "Markers Project",
+            "startedAt": "2025-02-01T00:00:00Z",
+            "finishedAt": "2025-02-10T00:00:00Z",
+            "paths": {"root": "/root/pjm1"}
+        }
+        with open(projects_dir / 'pjm1.project.json', 'w') as f:
+            json.dump(manifest, f)
+
+        data = self.engine.generate_dashboard_data(time_slice='D', lookback_days=30, project_id='pjm1')
+        self.assertIn('project_markers', data)
+        self.assertEqual(data['project_markers'].get('startedAt'), manifest['startedAt'])
+        self.assertEqual(data['project_markers'].get('finishedAt'), manifest['finishedAt'])
+
+    def test_project_metrics_aggregator_no_finished(self):
+        # No finishedAt -> uses now for throughput denominator
+        projects_dir = self.data_dir.parent / 'data' / 'projects'
+        projects_dir.mkdir(parents=True, exist_ok=True)
+        manifest = {
+            "projectId": "pj2",
+            "title": "Open Project",
+            "startedAt": "2025-01-01T00:00:00Z",
+            "paths": {"root": "/root/pj2"}
+        }
+        with open(projects_dir / 'pj2.project.json', 'w') as f:
+            json.dump(manifest, f)
+
+        agg = ProjectMetricsAggregator(str(self.temp_dir))
+        out = agg.aggregate()
+        self.assertIn('pj2', out)
+        m = out['pj2']
+        self.assertIsInstance(m['throughput']['images_per_hour'], float)
+
+    def test_project_metrics_aggregator_mixed_tz(self):
+        # Mixed timestamps with Z and offsets
+        projects_dir = self.data_dir.parent / 'data' / 'projects'
+        ops_dir = self.file_ops_dir
+        projects_dir.mkdir(parents=True, exist_ok=True)
+        manifest = {
+            "projectId": "pj3",
+            "title": "TZ Project",
+            "startedAt": "2025-01-01T00:00:00+02:00",
+            "finishedAt": "2025-01-02T00:00:00Z",
+            "paths": {"root": "/root/pj3"}
+        }
+        with open(projects_dir / 'pj3.project.json', 'w') as f:
+            json.dump(manifest, f)
+
+        with open(ops_dir / 'ops.log', 'w') as f:
+            f.write(json.dumps({"type":"file_operation","timestamp":"2025-01-01T02:30:00+02:00","operation":"crop","file_count":4,"source_dir":"/root/pj3"}) + "\n")
+            f.write(json.dumps({"type":"file_operation","timestamp":"2025-01-01T21:00:00Z","operation":"move","file_count":1,"source_dir":"/root/pj3"}) + "\n")
+
+        agg = ProjectMetricsAggregator(str(self.temp_dir))
+        out = agg.aggregate()
+        self.assertIn('pj3', out)
+        m = out['pj3']
+        self.assertGreaterEqual(m['totals']['images_processed'], 4)
 
     def test_date_filtering(self):
         """Test date range filtering"""
@@ -310,6 +423,7 @@ class TestDashboardDataEngine(unittest.TestCase):
 
 class TestDashboardIntegration(unittest.TestCase):
     """Integration tests for the complete dashboard system"""
+    @unittest.skipIf(not HAS_FLASK, "Flask not installed - skipping integration tests")
     
     def setUp(self):
         """Set up integration test environment"""

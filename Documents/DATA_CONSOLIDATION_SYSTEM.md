@@ -33,6 +33,7 @@ Scripts write → Detailed logs (2+ days) → Cron job processes → Daily summa
 - **`data/file_operations_logs/`** - Detailed logs (kept for 2+ days)
 - **`data/daily_summaries/`** - Consolidated daily summaries
 - **`data/log_archives/`** - Archived detailed logs (compressed)
+- **`data/projects/`** - Project manifests (`<id>.project.json`) with start/finish and step metadata
 
 ## Cron Job Details
 
@@ -99,6 +100,22 @@ bash scripts/setup_cron.sh
 ```
 
 ### Daily Summary Format
+### Project Manifest Format (reference)
+```json
+{
+  "schemaVersion": 1,
+  "projectId": "mojo1",
+  "status": "active",
+  "createdAt": "2025-10-01T00:00:00Z",
+  "startedAt": "2025-10-01T00:00:00Z",
+  "finishedAt": null,
+  "paths": { "root": "../../mojo1" },
+  "counts": { "initialImages": null, "finalImages": null },
+  "metrics": { "imagesPerHourEndToEnd": null, "stepRates": {} },
+  "steps": [ { "name": "crop", "startedAt": null, "finishedAt": null, "imagesProcessed": null } ]
+}
+```
+
 ```json
 {
   "date": "20251004",

@@ -1,6 +1,22 @@
 # Spec: Project Manifest CLI
 
 Goal: Provide simple, explicit commands to start a project, mark step boundaries, and finish a project by updating `data/projects/<id>.project.json` safely.
+## Location & Naming
+- Manifest lives in repo under: `data/projects/<projectId>.project.json`
+- Rationale: keep outside content/output so it never ships in deliverables and survives content cleanups.
+- Example found in repo: `data/projects/mojo1.project.json`
+
+## Required Fields
+- `schemaVersion`: integer (current: 1)
+- `projectId`: string (e.g., "mojo1")
+- `status`: `active|finished|archived`
+- `createdAt`, `startedAt`, `finishedAt`: ISO-8601 UTC
+- `paths`: `root`, optional `selectedDir`, `cropDir`, etc. (relative paths ok)
+- `counts`: `initialImages`, `finalImages`
+- `steps[]`: `{ name, startedAt, finishedAt, imagesProcessed }`
+- `metrics`: `imagesPerHourEndToEnd`, `stepRates`
+- `removeFileOnFinish`: bool (if true, CLI may archive/delete manifest on finish after summarization)
+
 
 ---
 

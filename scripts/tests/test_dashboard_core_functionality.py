@@ -108,6 +108,25 @@ class TestDashboardCoreFunctionality(unittest.TestCase):
         self.assertIn('scripts_found', metadata, "Should have scripts_found")
         self.assertIn('data_range', metadata, "Should have data_range")
 
+    def test_intraday_slice_alignment(self):
+        """Ensure intraday 15m slice keys align across midnight/day boundary"""
+        from data_engine import DashboardDataEngine
+        tmp_root = Path(tempfile.mkdtemp())
+        try:
+            ops_dir = tmp_root / 'data' / 'file_operations_logs'
+            ops_dir.mkdir(parents=True, exist_ok=True)
+            with open(ops_dir / 'ops.log', 'w') as f:
+                f.write(json.dumps({"type":"file_operation","timestamp":"2025-03-31T23:50:00Z","operation":"move","file_count":1})+"\n")
+                f.write(json.dumps({"type":"file_operation","timestamp":"2025-04-01T00:05:00Z","operation":"move","file_count":1})+"\n")
+            engine = DashboardDataEngine(str(tmp_root))
+            recs = engine.load_file_operations()
+            keys = [engine._get_time_slice_key(r, '15min') for r in recs]
+            self.assertTrue(len(keys) >= 2)
+            self.assertNotEqual(keys[0][:10], keys[1][:10])
+        finally:
+            import shutil
+            shutil.rmtree(tmp_root)
+
     def test_dashboard_can_transform_charts(self):
         """Test that the dashboard can transform data for charts"""
         from data_engine import DashboardDataEngine

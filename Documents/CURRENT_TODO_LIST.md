@@ -37,6 +37,17 @@
 - **Mojo1 partial now:** If starting numbers are available, update `mojo1/Mojo1.project.json` counts.initialImages and, if applicable, adjust `startedAt`.
 - **Dashboard integration (planning):** Extend aggregator to include historical comparisons (ahead/behind vs historical baseline).
 
+### **Shared Stage-Grouping Utility (Counting + API)**
+- **Goal:** Create a reusable grouping/counting function shared by selectors/sorters to compute stage groups over a directory.
+- **Scope:**
+  - Provide `group_by_consecutive_stages(files)` using centralized logic (timestamp+stage sorted; 1→1.5→2→3)
+  - CLI `scripts/tools/count_stage_groups.py <dir>` prints totals:
+    - pairs (1↔2, 1↔1.5, 1.5↔2), triplets (1↔2↔3, 1↔1.5↔2), quads (1↔1.5↔2↔3)
+    - overall group count and distribution
+  - Export API under `scripts/utils/companion_file_utils.py` for consistency with web selector logic
+- **Why:** Single source of truth for grouping across desktop/web selector and automation runs; quick sanity counts before/after runs.
+- **Safety:** Read-only; no moves/deletes. Unit tests for representative fixtures.
+
 ### **Sandbox Automation Orchestrator (Tomorrow)**
 - **Create sandbox copy**: copy remaining images from `mojo1/` into `sandbox/` (read-only source, safe target)
 - **Run thinning steps**: pHash near-dup → FAISS semantic → timestamp-window clusters (reports + `_review_dupes/` staging only)
@@ -640,6 +651,13 @@ data/ai_data/
 - Create ready-to-use code templates
 - Benefits: Consistency, maintainability, easier onboarding
 
+### 5. Scripts layout cleanup (planning)
+- Clarify conventions: `scripts/tools/` = runnable CLIs/automation; `scripts/utils/` = reusable libraries only.
+- Audit `scripts/tools/` for code that belongs in `scripts/utils/` and propose moves.
+- Refactor imports after moves; replace `project_root` path hacks with `sys.path.insert` only where necessary.
+- Add `scripts/README.md` summarizing directory purposes and import rules.
+- Add tests covering `utils/recursive_file_mover.py` CLI behaviors.
+
 ### 5. Create Local Homepage
 Build custom homepage in Documents with links to all AI systems and tools
 
@@ -651,12 +669,34 @@ General line item to check out/test hand and foot anomaly scripts when time allo
 
 ---
 
-## 📊 **Dashboard Enhancements (Optional)**
-1. Historical average overlays
+## 📊 **Dashboard Enhancements (In Progress + Planned)**
+
+### In Progress
+- Day-banding alignment on intraday (15min/1H)
+  - Status: In progress; alternating bands render, local-day boundary alignment needs final tweak for 1H.
+  - Considerations: Ticks vs dataset label spacing; ensure midnight boundaries map to tick indices reliably.
+- Project start/end markers
+  - Status: In progress; dashed blue/red lines render; labels and tooltips pending.
+  - Considerations: Label overlap, accessibility contrast, and hover tooltips with ISO time.
+
+### Completed (recent)
+- Project selector in header (persisted); backend manifest load + project_id filtering
+- Operation/tool toggles with persistence; average overlays per visible series
+- Single-column layout; readable local timestamps; hourly crop KPI; header lookback/timeframe/refresh
+
+### Planned
+1. Historical average overlays (longer-term historical bands)
 2. Script update correlation with productivity
 3. Pie chart time distribution
 4. CSV/JSON data export
 5. GitHub integration for change tracking
+
+### Testing
+- Add test coverage for:
+  - Project filtering (data_engine + API)
+  - Day band computation across DST and month boundaries
+  - Marker rendering presence when startedAt/finishedAt provided
+  - Toggle persistence for tools/ops and averages
 
 ---
 
