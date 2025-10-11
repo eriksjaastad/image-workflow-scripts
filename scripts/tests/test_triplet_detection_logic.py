@@ -77,11 +77,10 @@ def test_all_consecutive_combinations():
                             assert stages[i+1] in valid_stages, f"{description}: Stage {stages[i+1]} not in valid stages"
         
         print("✅ All consecutive combinations test PASSED")
-        return True
         
     except Exception as e:
         print(f"❌ All consecutive combinations test FAILED: {e}")
-        return False
+        assert False
 
 def test_same_stage_not_grouped():
     """Test that same stages are NOT grouped together (this would catch the bug)"""
@@ -122,11 +121,10 @@ def test_same_stage_not_grouped():
             assert len(groups) == 0, f"Same stages should not be grouped, but got {len(groups)} groups"
         
         print("✅ Same stage not grouped test PASSED")
-        return True
         
     except Exception as e:
         print(f"❌ Same stage not grouped test FAILED: {e}")
-        return False
+        assert False
 
 def test_stage_progression_order():
     """Test that stages must be in correct progression order"""
@@ -176,11 +174,10 @@ def test_stage_progression_order():
             assert stages == expected_stages, f"Expected {expected_stages}, got {stages}"
         
         print("✅ Stage progression order test PASSED")
-        return True
         
     except Exception as e:
         print(f"❌ Stage progression order test FAILED: {e}")
-        return False
+        assert False
 
 def test_backwards_stage_breaks_group():
     """Test that going backwards in stages breaks the group"""
@@ -228,11 +225,10 @@ def test_backwards_stage_breaks_group():
                     assert stages[i+1] > stages[i], f"Stages should increase strictly within a group: {stages}"
 
         print("✅ Backwards stage breaks group test PASSED")
-        return True
         
     except Exception as e:
         print(f"❌ Backwards stage breaks group test FAILED: {e}")
-        return False
+        assert False
 
 
 def test_nearest_up_behavior_with_lookahead():
@@ -265,10 +261,9 @@ def test_nearest_up_behavior_with_lookahead():
             assert stages == [1.0, 2.0, 3.0], f"Expected nearest-up [1,2,3], got {stages}"
         
         print("✅ Nearest-up behavior test PASSED")
-        return True
     except Exception as e:
         print(f"❌ Nearest-up behavior test FAILED: {e}")
-        return False
+        assert False
 
 
 def test_time_gap_breaks_group():
@@ -301,10 +296,9 @@ def test_time_gap_breaks_group():
             assert len(groups[0]) == 2, f"Expected first group size 2, got {len(groups[0])}"
         
         print("✅ Time gap breaks group test PASSED")
-        return True
     except Exception as e:
         print(f"❌ Time gap breaks group test FAILED: {e}")
-        return False
+        assert False
 
 
 def test_duplicate_stage_ends_run():
@@ -340,10 +334,9 @@ def test_duplicate_stage_ends_run():
             assert stages1 == [2.0, 3.0], f"Second group stages mismatch: {stages1}"
         
         print("✅ Duplicate stage ends run test PASSED")
-        return True
     except Exception as e:
         print(f"❌ Duplicate stage ends run test FAILED: {e}")
-        return False
+        assert False
 
 
 def test_mojo1_expected_pair_grouped():
@@ -357,14 +350,14 @@ def test_mojo1_expected_pair_grouped():
         mojo_dir = project_root / "mojo1"
         if not mojo_dir.exists():
             print("  ⚠️ mojo1 directory not found; skipping integration test.")
-            return True
+            return
         
         expected = {"20250705_231951_stage2_upscaled", "20250705_232142_stage3_enhanced"}
         
         files = sort_image_files_by_timestamp_and_stage(find_all_image_files(mojo_dir))
         if not files:
             print("  ⚠️ No files in mojo1; skipping integration test.")
-            return True
+            return
         
         groups = find_consecutive_stage_groups(files)
         name_groups = [[p.stem for p in g] for g in groups]
@@ -372,17 +365,15 @@ def test_mojo1_expected_pair_grouped():
         assert in_any, "Expected mojo1 pair not found in any group"
         
         print("✅ Mojo1 expected pair grouped test PASSED")
-        return True
     except Exception as e:
         print(f"❌ Mojo1 expected pair grouped test FAILED: {e}")
-        return False
+        assert False
         
         print("✅ Backwards stage breaks group test PASSED")
-        return True
         
     except Exception as e:
         print(f"❌ Backwards stage breaks group test FAILED: {e}")
-        return False
+        assert False
 
 def run_all_tests():
     """Run all triplet detection logic tests"""
@@ -427,10 +418,9 @@ def run_all_tests():
     
     if passed == total:
         print("\n🎉 ALL TRIPLET DETECTION LOGIC TESTS PASSED")
-        return True
     else:
         print(f"\n⚠️  {total - passed} tests failed")
-        return False
+        assert False
 
 if __name__ == "__main__":
     success = run_all_tests()
