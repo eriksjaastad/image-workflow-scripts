@@ -119,3 +119,8 @@ workflow*.md
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# Local scratch areas
+sandbox/
+
+dashboard_data_sample.json
