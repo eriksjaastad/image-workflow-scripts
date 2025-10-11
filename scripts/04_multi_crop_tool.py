@@ -14,7 +14,7 @@ USAGE:
 ------
 Multi-directory mode (NEW):
   python scripts/04_multi_crop_tool.py selected/
-  python scripts/04_multi_crop_tool.py selected/ --aspect-ratio 16:9
+  python scripts/04_multi_crop_tool.py crop/
 
 Single directory mode (legacy):
   python scripts/04_multi_crop_tool.py selected/kelly_mia/
@@ -79,8 +79,9 @@ from utils.companion_file_utils import (
     format_image_display_name, 
     sort_image_files_by_timestamp_and_stage,
     log_select_crop_entry,
-    extract_timestamp_from_filename,
-    detect_stage
+    detect_stage,
+    move_file_with_all_companions,
+    extract_timestamp_from_filename
 )
 
 
@@ -105,11 +106,16 @@ class MultiDirectoryProgressTracker:
         self.load_progress()
     
     def discover_directories(self):
-        """Discover all subdirectories containing PNG files, sorted alphabetically."""
+        """Discover all subdirectories containing PNG files, sorted alphabetically.
+        Skips directories ending with '_cropped' as those contain processed files."""
         subdirs = []
         
         for item in self.base_directory.iterdir():
             if item.is_dir():
+                # Skip directories ending with _cropped (processed files)
+                if item.name.endswith('_cropped'):
+                    continue
+                
                 # Check if directory contains PNG files
                 png_files = list(item.glob("*.png"))
                 if png_files:
@@ -128,7 +134,7 @@ class MultiDirectoryProgressTracker:
             print(f"    {i+1}. {dir_info['name']} ({dir_info['file_count']} images)")
     
     def load_progress(self):
-        """Load existing progress from file."""
+        """Load existing progress from file - uses directory name and rescans files."""
         if not self.progress_file.exists():
             self.initialize_progress()
             return
@@ -137,16 +143,46 @@ class MultiDirectoryProgressTracker:
             with open(self.progress_file, 'r') as f:
                 self.session_data = json.load(f)
             
-            # Validate and restore state
-            if 'current_directory_index' in self.session_data:
-                self.current_directory_index = self.session_data['current_directory_index']
-            if 'current_file_index' in self.session_data:
-                self.current_file_index = self.session_data['current_file_index']
+            # Get saved directory name
+            saved_dir_name = self.session_data.get('current_directory_name')
             
-            # Ensure indices are valid
-            if self.current_directory_index >= len(self.directories):
-                self.current_directory_index = 0
-                self.current_file_index = 0
+            # Find the directory by name in our discovered directories
+            self.current_directory_index = 0
+            if saved_dir_name:
+                for i, dir_info in enumerate(self.directories):
+                    if dir_info['name'] == saved_dir_name:
+                        self.current_directory_index = i
+                        break
+                else:
+                    # Saved directory not found - it might be complete or renamed
+                    print(f"[*] Saved directory '{saved_dir_name}' not found - starting at first available directory")
+                    self.current_directory_index = 0
+            
+            # Always start at file index 0 - we rescan to see what's actually left
+            self.current_file_index = 0
+            
+            # Ensure current directory has files
+            current_dir = self.get_current_directory()
+            if current_dir:
+                actual_files = list(current_dir['path'].glob("*.png"))
+                if not actual_files:
+                    # Current directory is empty, advance to next
+                    print(f"[*] Directory '{current_dir['name']}' is empty, advancing...")
+                    self.current_directory_index += 1
+                    if self.current_directory_index >= len(self.directories):
+                        self.current_directory_index = 0
+            
+            # Update/merge directories dictionary
+            if 'directories' not in self.session_data:
+                self.session_data['directories'] = {}
+            
+            for dir_info in self.directories:
+                dir_name = dir_info['name']
+                if dir_name not in self.session_data['directories']:
+                    self.session_data['directories'][dir_name] = {
+                        'status': 'pending',
+                        'total_files_initial': dir_info['file_count']
+                    }
             
             print(f"[*] Resumed session from: {self.progress_file}")
             self.print_resume_info()
@@ -160,22 +196,23 @@ class MultiDirectoryProgressTracker:
         self.session_data = {
             'base_directory': str(self.base_directory),
             'session_start': time.strftime('%Y-%m-%d %H:%M:%S'),
-            'current_directory_index': 0,
-            'current_file_index': 0,
+            'current_directory_name': self.directories[0]['name'] if self.directories else None,
             'directories': {
                 dir_info['name']: {
                     'status': 'pending',
-                    'files_processed': 0,
-                    'total_files': dir_info['file_count']
+                    'total_files_initial': dir_info['file_count']
                 } for dir_info in self.directories
             }
         }
+        self.current_directory_index = 0
+        self.current_file_index = 0
         self.save_progress()
     
     def save_progress(self):
-        """Save current progress to file."""
-        self.session_data['current_directory_index'] = self.current_directory_index
-        self.session_data['current_file_index'] = self.current_file_index
+        """Save current progress to file - only saves directory name, not file indices."""
+        current_dir = self.get_current_directory()
+        if current_dir:
+            self.session_data['current_directory_name'] = current_dir['name']
         self.session_data['last_updated'] = time.strftime('%Y-%m-%d %H:%M:%S')
         
         try:
@@ -210,7 +247,7 @@ class MultiDirectoryProgressTracker:
         if self.current_directory_index < len(self.directories):
             # Mark current directory as completed
             current_dir = self.get_current_directory()
-            if current_dir:
+            if current_dir and current_dir['name'] in self.session_data['directories']:
                 self.session_data['directories'][current_dir['name']]['status'] = 'completed'
         
         self.current_directory_index += 1
@@ -218,7 +255,7 @@ class MultiDirectoryProgressTracker:
         
         # Mark new directory as in progress
         current_dir = self.get_current_directory()
-        if current_dir:
+        if current_dir and current_dir['name'] in self.session_data['directories']:
             self.session_data['directories'][current_dir['name']]['status'] = 'in_progress'
         
         self.save_progress()
@@ -274,6 +311,10 @@ class MultiCropTool(BaseDesktopImageTool):
         """Initialize multi-directory crop tool."""
         super().__init__(directory, aspect_ratio, "multi_crop_tool")
         
+        # Configure panel bounds for this tool: support 1–3 images per batch
+        self.min_panels = 1
+        self.max_panels = 3
+
         # Initialize progress tracker
         self.progress_tracker = MultiDirectoryProgressTracker(self.base_directory)
         
@@ -323,16 +364,7 @@ class MultiCropTool(BaseDesktopImageTool):
         self.current_batch = 0  # Will be set by load_batch()
         self.total_batches = (len(self.png_files) + 2) // 3  # Round up division
         
-        # Debug output to help track the issue
-        if not self.single_directory_mode:
-            current_dir = self.progress_tracker.get_current_directory()
-            print(f"[DEBUG] Starting in directory: {current_dir['name'] if current_dir else 'None'}")
-            print(f"[DEBUG] Current file index: {self.progress_tracker.current_file_index}")
-            print(f"[DEBUG] Calculated current batch: {self.current_batch}")
-            print(f"[DEBUG] Files available: {len(self.png_files)}")
-            print(f"[DEBUG] Total batches: {self.total_batches}")
-        
-        # Load first batch
+        # Load first batch (file_index always starts at 0 after rescan in load_progress)
         self.load_batch()
     
     def _is_single_directory_mode(self) -> bool:
@@ -350,6 +382,14 @@ class MultiCropTool(BaseDesktopImageTool):
         
         return not has_subdirs_with_images
     
+    def get_cropped_directory(self, source_dir: Path) -> Path:
+        """Get the corresponding _cropped directory for a source directory.
+        Example: crop/dalia_hannah/ → crop/dalia_hannah_cropped/"""
+        parent = source_dir.parent
+        dir_name = source_dir.name
+        cropped_name = f"{dir_name}_cropped"
+        return parent / cropped_name
+    
     def load_batch(self):
         """Load the current batch of up to 3 images"""
         # Use progress tracker's file index as the source of truth
@@ -362,10 +402,15 @@ class MultiCropTool(BaseDesktopImageTool):
         # Get images for this batch
         batch_files = self.png_files[start_idx:end_idx]
         
-        # Debug: Show which files are being loaded
-        print(f"[DEBUG] Loading batch at file index {start_idx}:")
-        for i, file_path in enumerate(batch_files):
-            print(f"  Image {i+1}: {file_path.name}")
+        # Safety check: if no files in batch, don't try to load
+        if not batch_files:
+            print(f"[!] ERROR: No files in batch at index {start_idx}")
+            print(f"[!] Total files: {len(self.png_files)}, start: {start_idx}, end: {end_idx}")
+            return
+        
+        # IMPORTANT: Setup display for correct number of images BEFORE loading
+        # This prevents hide_unused_subplots from clearing already-loaded images
+        self.hide_unused_subplots(len(batch_files))
         
         # Reset state for new batch
         self.current_images = []
@@ -379,12 +424,10 @@ class MultiCropTool(BaseDesktopImageTool):
             if not success:
                 continue
         
-        # Set default status to 'selected' for multi crop tool (keep all unless specifically deleted)
+        # Set default action to None (crop) for multi crop tool - matches base class pattern
+        # Images will be cropped unless explicitly deleted
         for i in range(len(self.image_states)):
-            self.image_states[i]['status'] = 'selected'
-        
-        # Hide unused subplots
-        self.hide_unused_subplots(len(batch_files))
+            self.image_states[i]['action'] = None  # None means crop (default)
         
         # Update title with progress information
         self.update_title()
@@ -433,15 +476,37 @@ class MultiCropTool(BaseDesktopImageTool):
                 image_path = self.current_images[i]['path']
                 filename = image_path.stem  # Remove extension
                 
+                # Extract timestamp for display at bottom
+                timestamp = extract_timestamp_from_filename(filename) or "NO_TIMESTAMP"
+                
                 # Use centralized image name formatting
                 display_name = format_image_display_name(filename, max_length=25, context="desktop")
                 
-                status = self.image_states[i].get('status', 'selected')
-                if status == 'selected':
-                    control_text = f"{display_name} • [{i+1}] ✓ KEEP  [{reset_key}] Reset"
+                # Check action field (matches base class pattern: None = crop, 'delete' = delete)
+                action = self.image_states[i].get('action')
+                if action == 'delete':
+                    control_text = f"{display_name}\n{timestamp} • [{i+1}] DELETE  [{reset_key}] Reset"
                 else:
-                    control_text = f"{display_name} • [{i+1}] DELETE  [{reset_key}] Reset"
+                    control_text = f"{display_name}\n{timestamp} • [{i+1}] ✓ KEEP  [{reset_key}] Reset"
                 ax.set_xlabel(control_text, fontsize=10)
+
+    def update_image_titles(self, image_states):
+        """Override to ensure default state is KEEP/SELECTED, not DELETE."""
+        if not image_states:
+            return
+        
+        for i, state in enumerate(image_states):
+            if i >= len(self.axes) or i >= len(self.current_images) or not isinstance(state, dict):
+                continue
+            action = state.get('action')
+            has_selection = state.get('has_selection', False)
+            name = format_image_display_name(self.current_images[i]['path'].name, context='desktop')
+            if action == 'delete':
+                self.axes[i].set_title(f"Image {i + 1}: DELETE - {name}", fontsize=12, color='red')
+            elif has_selection:
+                self.axes[i].set_title(f"Image {i + 1}: SELECTED - {name}", fontsize=12, color='blue', weight='bold')
+            else:
+                self.axes[i].set_title(f"Image {i + 1}: READY - {name}", fontsize=12, color='black')
     
     def handle_specific_keys(self, key: str):
         """Handle tool-specific keys."""
@@ -470,18 +535,18 @@ class MultiCropTool(BaseDesktopImageTool):
                     self.set_image_action(image_idx, action)
     
     def set_image_action(self, image_idx, action):
-        """Toggle between selected and delete for a specific image"""
+        """Toggle between keep (None/crop) and delete for a specific image"""
         if image_idx >= len(self.current_images):
             return
             
-        # Toggle between selected and delete
-        current_status = self.image_states[image_idx].get('status', 'selected')
-        if current_status == 'selected':
-            self.image_states[image_idx]['status'] = 'delete'
-            print(f"[*] Image {image_idx + 1} marked for deletion")
+        # Toggle between None (crop) and 'delete' - matches base class pattern
+        current_action = self.image_states[image_idx].get('action')
+        if current_action == 'delete':
+            self.image_states[image_idx]['action'] = None  # None means crop
+            print(f"[*] Image {image_idx + 1} marked to keep/crop")
         else:
-            self.image_states[image_idx]['status'] = 'selected'
-            print(f"[*] Image {image_idx + 1} marked to keep")
+            self.image_states[image_idx]['action'] = 'delete'
+            print(f"[*] Image {image_idx + 1} marked for deletion")
             
         self.has_pending_changes = True
         
@@ -568,13 +633,17 @@ class MultiCropTool(BaseDesktopImageTool):
             yaml_path = png_path.with_suffix('.yaml')
             
             try:
-                if state['action'] == 'skip':
+                # Check action field (matches base class pattern: None = crop, 'delete' = delete, 'skip' = skip)
+                action = state.get('action')
+                
+                if action == 'skip':
                     self.move_to_cropped(png_path, yaml_path, "skipped")
                     processed_count += 1
-                elif state['action'] == 'delete':
+                elif action == 'delete':
                     self.safe_delete(png_path, yaml_path)
                     processed_count += 1
-                elif state['has_selection'] and state['crop_coords']:
+                elif action is None and state['has_selection'] and state['crop_coords']:
+                    # None means crop (default action)
                     self.crop_and_save(image_info, state['crop_coords'])
                     processed_count += 1
                 else:
@@ -630,16 +699,27 @@ class MultiCropTool(BaseDesktopImageTool):
         print("\n🎉 All images processed! Multi-directory cropping complete.")
     
     def crop_and_save(self, image_info: Dict, crop_coords: Tuple[int, int, int, int]):
-        """Override to add training logging for multi-crop tool."""
-        # Call parent implementation for actual cropping
+        """Override to crop, save, and move to _cropped directory."""
+        png_path = image_info['path']
+        source_dir = png_path.parent
+        
+        # Call parent implementation for actual cropping (saves in place)
         super().crop_and_save(image_info, crop_coords)
+        
+        # Move the cropped file (and all companions) to the _cropped directory
+        try:
+            cropped_dir = self.get_cropped_directory(source_dir)
+            moved_files = move_file_with_all_companions(png_path, cropped_dir, dry_run=False)
+            print(f"[*] Moved {len(moved_files)} file(s) to {cropped_dir.name}/")
+        except Exception as e:
+            print(f"[!] Error moving files to {cropped_dir.name}: {e}")
+            # Continue despite move errors
         
         # Log training data
         try:
-            png_path = image_info['path']
             session_id = getattr(self.progress_tracker, 'session_data', {}).get('session_start', '')
-            set_id = f"{png_path.parent.name}_{png_path.stem}"  # Use directory + filename as set_id
-            directory = str(png_path.parent)
+            set_id = f"{source_dir.name}_{png_path.stem}"  # Use directory + filename as set_id
+            directory = str(source_dir)
             
             # For multi-crop, we process images individually, so treat each as its own "set"
             image_paths = [str(png_path)]
