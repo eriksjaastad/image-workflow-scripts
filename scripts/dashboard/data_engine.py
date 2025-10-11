@@ -27,18 +27,42 @@ sys.path.insert(0, str(project_root))
 
 from scripts.utils.companion_file_utils import calculate_work_time_from_file_operations, get_file_operation_metrics
 from collections import defaultdict
+from scripts.dashboard.project_metrics_aggregator import ProjectMetricsAggregator
 
 class DashboardDataEngine:
     def __init__(self, data_dir: str = ".."):
         self.data_dir = Path(data_dir)
         self.timer_data_dir = self.data_dir / "data" / "timer_data"
         self.file_ops_dir = self.data_dir / "data" / "file_operations_logs"
+        self.projects_dir = self.data_dir / "data" / "projects"
         
         # Script update tracking (in dashboard directory)
         self.script_updates_file = Path(__file__).parent / "script_updates.csv"
         
         # Cache for processed data
         self._cache = {}
+
+    def load_projects(self) -> List[Dict[str, Any]]:
+        """Load project manifests from data/projects/*.project.json"""
+        projects: List[Dict[str, Any]] = []
+        if not self.projects_dir.exists():
+            return projects
+        for mf in sorted(self.projects_dir.glob("*.project.json")):
+            try:
+                with open(mf, 'r') as f:
+                    pj = json.load(f)
+                projects.append({
+                    'projectId': pj.get('projectId'),
+                    'title': pj.get('title') or pj.get('projectId'),
+                    'status': pj.get('status'),
+                    'startedAt': pj.get('startedAt'),
+                    'finishedAt': pj.get('finishedAt'),
+                    'paths': pj.get('paths', {}),
+                    'manifestPath': str(mf)
+                })
+            except Exception:
+                continue
+        return projects
         
     def get_display_name(self, script_name: str) -> str:
         """Convert script filename to human-readable display name"""
@@ -50,6 +74,7 @@ class DashboardDataEngine:
             '03_web_character_sorter': 'Web Character Sorter',
             '04_multi_crop_tool': 'Multi Crop Tool',
             '04_batch_crop_tool': 'Multi Crop Tool',
+            'multi_crop_tool': 'Multi Crop Tool',
             '05_web_multi_directory_viewer': 'Multi Directory Viewer',
             '06_web_duplicate_finder': 'Duplicate Finder',
             
@@ -105,43 +130,46 @@ class DashboardDataEngine:
         
         for daily_file in self.timer_data_dir.glob("daily_*.json"):
             date_str = daily_file.stem.replace('daily_', '')
-            
+
             # Filter by date range if specified
             if start_date and date_str < start_date.replace('-', ''):
                 continue
             if end_date and date_str > end_date.replace('-', ''):
                 continue
-                
+
             try:
                 with open(daily_file, 'r') as f:
                     data = json.load(f)
-                    
-                    # Process each script's data
-                    for script_name, script_data in data.get('scripts', {}).items():
-                        for session in script_data.get('sessions', []):
-                            record = {
-                                'date': date_str,
-                                'script': script_name,
-                                'session_id': session.get('session_id'),
-                                'start_time': session.get('start_time'),
-                                'end_time': session.get('end_time'),
-                                'active_time': session.get('active_time', 0),
-                                'total_time': session.get('total_time', 0),
-                                'efficiency': session.get('efficiency', 0),
-                                'files_processed': session.get('files_processed', 0),
-                                'operations': session.get('operations', {}),
-                                'batches_completed': session.get('batches_completed', 0)
-                            }
-                            
-                            # Convert timestamps to datetime objects
-                            if record['start_time']:
-                                record['start_datetime'] = datetime.fromtimestamp(record['start_time'])
-                            if record['end_time']:
-                                record['end_datetime'] = datetime.fromtimestamp(record['end_time'])
-                            
-                            records.append(record)
-            except Exception as e:
-                print(f"Warning: Could not process {daily_file}: {e}")
+                # Support list-shaped files (legacy or malformed); skip quietly
+                if isinstance(data, list):
+                    continue
+                scripts = data.get('scripts', {}) if isinstance(data, dict) else {}
+                for script_name, script_data in scripts.items():
+                    sessions = script_data.get('sessions', []) if isinstance(script_data, dict) else []
+                    for session in sessions:
+                        if not isinstance(session, dict):
+                            continue
+                        record = {
+                            'date': date_str,
+                            'script': script_name,
+                            'session_id': session.get('session_id'),
+                            'start_time': session.get('start_time'),
+                            'end_time': session.get('end_time'),
+                            'active_time': session.get('active_time', 0),
+                            'total_time': session.get('total_time', 0),
+                            'efficiency': session.get('efficiency', 0),
+                            'files_processed': session.get('files_processed', 0),
+                            'operations': session.get('operations', {}),
+                            'batches_completed': session.get('batches_completed', 0)
+                        }
+                        if record['start_time']:
+                            record['start_datetime'] = datetime.fromtimestamp(record['start_time'])
+                        if record['end_time']:
+                            record['end_datetime'] = datetime.fromtimestamp(record['end_time'])
+                        records.append(record)
+            except Exception:
+                # Silence malformed daily files
+                continue
         
         return records
     
@@ -169,8 +197,26 @@ class DashboardDataEngine:
                 'timing_method': 'file_operations'
             }
         
+        # Normalize records for companion utils: ensure 'timestamp' is a string
+        ops_for_metrics: List[Dict[str, Any]] = []
+        for op in file_operations:
+            try:
+                op_copy = dict(op)
+                ts = op_copy.get('timestamp')
+                if isinstance(ts, datetime):
+                    op_copy['timestamp'] = ts.isoformat()
+                elif not isinstance(ts, str):
+                    # Fallback to timestamp_str if available
+                    ts_str = op_copy.get('timestamp_str')
+                    if isinstance(ts_str, str):
+                        op_copy['timestamp'] = ts_str
+                ops_for_metrics.append(op_copy)
+            except Exception:
+                # Skip malformed entries quietly
+                continue
+
         # Use the centralized function from companion_file_utils
-        metrics = get_file_operation_metrics(file_operations)
+        metrics = get_file_operation_metrics(ops_for_metrics)
         
         # Add timing method identifier
         metrics['timing_method'] = 'file_operations'
@@ -307,8 +353,12 @@ class DashboardDataEngine:
                             
                             # Convert timestamp
                             try:
-                                record['timestamp'] = datetime.fromisoformat(record['timestamp_str'])
-                                record['date'] = record['timestamp'].date()
+                                ts = datetime.fromisoformat(record['timestamp_str'])
+                                # Normalize to naive datetime to avoid tz mixing downstream
+                                if getattr(ts, 'tzinfo', None) is not None:
+                                    ts = ts.replace(tzinfo=None)
+                                record['timestamp'] = ts
+                                record['date'] = ts.date()
                             except:
                                 record['timestamp'] = None
                                 record['date'] = None
@@ -368,8 +418,11 @@ class DashboardDataEngine:
                                         
                                         # Convert timestamp
                                         try:
-                                            record['timestamp'] = datetime.fromisoformat(record['timestamp_str'])
-                                            record['date'] = record['timestamp'].date()
+                                            ts = datetime.fromisoformat(record['timestamp_str'])
+                                            if getattr(ts, 'tzinfo', None) is not None:
+                                                ts = ts.replace(tzinfo=None)
+                                            record['timestamp'] = ts
+                                            record['date'] = ts.date()
                                         except:
                                             record['timestamp'] = None
                                             record['date'] = None
@@ -400,8 +453,11 @@ class DashboardDataEngine:
                                         
                                         # Convert timestamp
                                         try:
-                                            record['timestamp'] = datetime.fromisoformat(record['timestamp_str'])
-                                            record['date'] = record['timestamp'].date()
+                                            ts = datetime.fromisoformat(record['timestamp_str'])
+                                            if getattr(ts, 'tzinfo', None) is not None:
+                                                ts = ts.replace(tzinfo=None)
+                                            record['timestamp'] = ts
+                                            record['date'] = ts.date()
                                         except:
                                             record['timestamp'] = None
                                             record['date'] = None
@@ -514,6 +570,13 @@ class DashboardDataEngine:
             elif 'start_datetime' in record and record['start_datetime']:
                 timestamp = record['start_datetime']
             
+            # Normalize tz-aware to naive for comparison
+            if timestamp:
+                try:
+                    if getattr(timestamp, 'tzinfo', None) is not None:
+                        timestamp = timestamp.replace(tzinfo=None)
+                except Exception:
+                    pass
             if timestamp and timestamp < cutoff_date:
                 historical_records.append(record)
         
@@ -606,7 +669,8 @@ class DashboardDataEngine:
         print(f"Added script update: {script} - {description}")
     
     def generate_dashboard_data(self, time_slice: str = 'D', lookback_days: int = 30, 
-                               production_scripts: List[str] = None) -> Dict[str, Any]:
+                               production_scripts: List[str] = None,
+                               project_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Generate complete dashboard data package
         
@@ -624,6 +688,7 @@ class DashboardDataEngine:
                 '01_desktop_image_selector_crop',
                 '03_web_character_sorter',
                 '04_multi_crop_tool',
+                'multi_crop_tool',
                 
                 # Log script names (from actual data)
                 'desktop_image_selector_crop',
@@ -639,10 +704,34 @@ class DashboardDataEngine:
         activity_records = self.load_activity_data()
         file_ops_records = self.load_file_operations()
         script_updates = self.load_script_updates()
+        projects = self.load_projects()
+        # Aggregate project metrics (cached internally)
+        try:
+            proj_agg = ProjectMetricsAggregator(self.data_dir)
+            project_metrics = proj_agg.aggregate()
+        except Exception:
+            project_metrics = {}
         
         # Filter to production scripts only for dashboard
         activity_records = [r for r in activity_records if r.get('script') in production_scripts]
         file_ops_records = [r for r in file_ops_records if r.get('script') in production_scripts]
+
+        # Note: Do not filter raw records by lookback here to preserve backward-compatible
+        # expectations in tests. The UI/aggregation layer handles time slicing.
+
+        # Optional: filter by project using simple path heuristic
+        if project_id:
+            project = next((p for p in projects if p.get('projectId') == project_id), None)
+            root_hint = None
+            if project:
+                root_hint = project.get('paths', {}).get('root')
+            if root_hint:
+                def belongs(rec: Dict[str, Any]) -> bool:
+                    src = (rec.get('source_dir') or '')
+                    dst = (rec.get('dest_dir') or '')
+                    wd = (rec.get('working_dir') or '')
+                    return (str(root_hint) in src) or (str(root_hint) in dst) or (str(root_hint) in wd)
+                file_ops_records = [r for r in file_ops_records if belongs(r)]
         
         # Discover all scripts
         scripts = self.discover_scripts()
@@ -657,6 +746,8 @@ class DashboardDataEngine:
                 'time_slice': time_slice,
                 'lookback_days': lookback_days,
                 'scripts_found': scripts,
+                'projects_found': [p.get('projectId') for p in projects],
+                'active_project': project_id,
                 'data_range': {
                     'activity_start': min(activity_dates) if activity_dates else None,
                     'activity_end': max(activity_dates) if activity_dates else None,
@@ -667,8 +758,30 @@ class DashboardDataEngine:
             'activity_data': {},
             'file_operations_data': {},
             'historical_averages': {},
-            'script_updates': script_updates
+            'script_updates': script_updates,
+            'projects': projects,
+            'project_markers': {},
+            'project_metrics': project_metrics,
+            'project_kpi': {},
+            'timing_data': {}
         }
+
+        # Add project markers if applicable
+        if project_id:
+            pj = next((p for p in projects if p.get('projectId') == project_id), None)
+            if pj:
+                dashboard_data['project_markers'] = {
+                    'startedAt': pj.get('startedAt'),
+                    'finishedAt': pj.get('finishedAt')
+                }
+                # Compute KPI for selected project (images/hour)
+                pm = project_metrics.get(project_id)
+                if pm:
+                    dashboard_data['project_kpi'] = {
+                        'projectId': project_id,
+                        'images_per_hour': pm.get('throughput', {}).get('images_per_hour'),
+                        'images_processed': pm.get('totals', {}).get('images_processed')
+                    }
         
         # Process activity data
         if activity_records:
@@ -714,6 +827,42 @@ class DashboardDataEngine:
                 dashboard_data['file_operations_data']['deletions'] = self.aggregate_by_time_slice(
                     delete_ops, time_slice, 'file_count', 'script'
                 )
+
+        # Compute timing_data per display script for summary cards
+        # Prefer file-operation timing when available for a script; otherwise use activity timer sums
+        timing_by_display: Dict[str, Dict[str, Any]] = {}
+
+        # Group file ops by display script
+        if file_ops_records:
+            ops_by_display: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+            for r in file_ops_records:
+                display = self.get_display_name(r.get('script'))
+                ops_by_display[display].append(r)
+            for display, ops in ops_by_display.items():
+                metrics = self.calculate_file_operation_work_time(ops)
+                timing_by_display[display] = metrics
+
+        # Group activity by display script for scripts without file ops
+        if activity_records:
+            tmp_by_display: Dict[str, Dict[str, float]] = defaultdict(lambda: {'work_time_seconds': 0.0, 'files_processed': 0.0})
+            for r in activity_records:
+                display = self.get_display_name(r.get('script'))
+                if display in timing_by_display:
+                    continue
+                tmp_by_display[display]['work_time_seconds'] += float(r.get('active_time', 0) or 0)
+                tmp_by_display[display]['files_processed'] += float(r.get('files_processed', 0) or 0)
+            for display, vals in tmp_by_display.items():
+                secs = float(vals['work_time_seconds'])
+                timing_by_display[display] = {
+                    'work_time_seconds': secs,
+                    'work_time_minutes': secs / 60.0,
+                    'total_operations': 0,
+                    'files_processed': int(vals['files_processed']),
+                    'efficiency_score': (int(vals['files_processed']) / (secs / 60.0)) if secs > 0 else 0.0,
+                    'timing_method': 'activity_timer'
+                }
+
+        dashboard_data['timing_data'] = timing_by_display
         
         return dashboard_data
 

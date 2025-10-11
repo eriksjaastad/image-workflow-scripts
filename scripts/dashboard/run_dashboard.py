@@ -64,14 +64,18 @@ The dashboard shows:
     
     parser.add_argument(
         "--data-dir",
-        default="../..",
-        help="Path to project root directory (default: ../..)"
+        default=None,
+        help="Path to project root directory (default: repository root inferred from this script)"
     )
     
     args = parser.parse_args()
     
+    # Resolve data directory robustly: default to repo root based on this file's location
+    inferred_root = Path(__file__).resolve().parents[2]
+    data_dir = Path(args.data_dir).resolve() if args.data_dir else inferred_root
+
     print("🚀 Starting Productivity Dashboard...")
-    print(f"📊 Data source: {Path(args.data_dir).resolve()}")
+    print(f"📊 Data source: {data_dir}")
     print(f"🌐 URL: http://{args.host}:{args.port}")
     print(f"🎨 Theme: Dark mode with Erik's style guide")
     print()
@@ -85,7 +89,7 @@ The dashboard shows:
     
     try:
         # Create and run dashboard
-        dashboard = ProductivityDashboard(data_dir=args.data_dir)
+        dashboard = ProductivityDashboard(data_dir=str(data_dir))
         dashboard.run(host=args.host, port=args.port, debug=args.debug)
         
     except KeyboardInterrupt:

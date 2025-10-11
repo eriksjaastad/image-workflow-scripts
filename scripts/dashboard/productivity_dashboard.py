@@ -38,15 +38,23 @@ class ProductivityDashboard:
         def get_dashboard_data(time_slice):
             """API endpoint for dashboard data"""
             lookback_days = request.args.get('lookback_days', 30, type=int)
+            project_id = request.args.get('project_id', default=None, type=str)
             
             try:
                 data = self.data_engine.generate_dashboard_data(
                     time_slice=time_slice, 
-                    lookback_days=lookback_days
+                    lookback_days=lookback_days,
+                    project_id=project_id
                 )
                 
                 # Transform data for Chart.js format
                 chart_data = self.transform_for_charts(data)
+                chart_data['projects'] = data.get('projects', [])
+                chart_data['project_markers'] = data.get('project_markers', {})
+                chart_data['project_metrics'] = data.get('project_metrics', {})
+                chart_data['project_kpi'] = data.get('project_kpi', {})
+                chart_data['timing_data'] = data.get('timing_data', {})
+                chart_data['metadata']['active_project'] = data['metadata'].get('active_project')
                 return jsonify(chart_data)
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
