@@ -21,7 +21,7 @@ import shutil
 from pathlib import Path
 import json
 
-class TestRunner:
+class TestRunner:  # not a pytest test class (has __init__)
     def __init__(self, verbose=False):
         self.verbose = verbose
         self.passed = 0

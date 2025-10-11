@@ -24,8 +24,9 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 
 class FileTracker:
-    def __init__(self, script_name: str, log_file: str = "file_operations.log"):
+    def __init__(self, script_name: str, log_file: str = "file_operations.log", sandbox: bool = False):
         self.script_name = script_name
+        self.sandbox = sandbox
         # Create file_operations_logs directory if it doesn't exist
         log_dir = Path(__file__).parent.parent / "data" / "file_operations_logs"
         log_dir.mkdir(exist_ok=True)
@@ -36,7 +37,7 @@ class FileTracker:
         # Check if we need to start fresh for a new day
         self._check_and_clean_log()
         
-        # Log session start
+        # Log session start (suppressed in sandbox)
         self._log_entry({
             "type": "session_start",
             "script": script_name,
@@ -97,6 +98,8 @@ class FileTracker:
     
     def _log_entry(self, entry: Dict[str, Any]):
         """Write a log entry to the file"""
+        if self.sandbox:
+            return
         try:
             with open(self.log_file, 'a') as f:
                 f.write(json.dumps(entry) + '\n')
