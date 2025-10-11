@@ -61,7 +61,7 @@ import argparse
 from pathlib import Path
 from flask import Flask, render_template_string, request, jsonify
 import webbrowser
-from utils.companion_file_utils import launch_browser, generate_thumbnail, logger, get_error_display_html, get_training_dir, _append_csv_row
+from utils.companion_file_utils import launch_browser, generate_thumbnail, logger, get_error_display_html, get_training_dir, _append_csv_row, safe_delete_image_and_yaml
 from datetime import datetime
 import threading
 import time
@@ -129,7 +129,7 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Web Duplicate Finder - {{ output_dir }}</title>
-    {{ error_display_html }}
+    {{ error_display_html|safe }}
     <style>
         :root {
             color-scheme: dark;
@@ -700,38 +700,28 @@ def create_app(left_dir, right_dir):
             
             try:
                 if action == 'delete':
-                    # Move to trash
-                    if _SEND2TRASH_AVAILABLE:
-                        send2trash(str(source_path))
-                        
-                        # Also delete metadata file if it exists (.yaml or .caption)
-                        yaml_source = source_path.with_suffix('.yaml')
-                        if not yaml_source.exists():
-                            yaml_source = source_path.with_suffix('.caption')
-                        
-                        if yaml_source.exists():
-                            send2trash(str(yaml_source))
-                        
-                        tracker.log_operation("delete", source_dir=str(source_path.parent), dest_dir="trash", file_count=1)
-                        
-                        # Log training data for duplicate detection
-                        try:
-                            training_dir = get_training_dir()
-                            log_path = training_dir / "duplicate_detection_log.csv"
-                            header = ['timestamp', 'session_id', 'left_directory', 'right_directory', 'deleted_image']
-                            row = {
-                                'timestamp': datetime.now().isoformat(),
-                                'session_id': datetime.now().strftime('%Y%m%d_%H%M%S'),
-                                'left_directory': str(left_path),
-                                'right_directory': str(right_path),
-                                'deleted_image': str(source_path)
-                            }
-                            _append_csv_row(log_path, header, row)
-                        except Exception:
-                            pass  # Don't let logging errors break the workflow
-                    else:
-                        errors.append(f"send2trash not available for {image}")
+                    # Use shared companion-aware delete for image and ALL companions
+                    try:
+                        _ = safe_delete_image_and_yaml(source_path, hard_delete=False, tracker=tracker)
+                    except Exception as e:
+                        errors.append(f"send2trash not available or delete failed for {image}: {e}")
                         continue
+                    
+                    # Log training data for duplicate detection
+                    try:
+                        training_dir = get_training_dir()
+                        log_path = training_dir / "duplicate_detection_log.csv"
+                        header = ['timestamp', 'session_id', 'left_directory', 'right_directory', 'deleted_image']
+                        row = {
+                            'timestamp': datetime.now().isoformat(),
+                            'session_id': datetime.now().strftime('%Y%m%d_%H%M%S'),
+                            'left_directory': str(left_path),
+                            'right_directory': str(right_path),
+                            'deleted_image': str(source_path)
+                        }
+                        _append_csv_row(log_path, header, row)
+                    except Exception:
+                        pass  # Don't let logging errors break the workflow
                 
                 processed += 1
                 

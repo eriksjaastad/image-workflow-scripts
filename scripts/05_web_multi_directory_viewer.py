@@ -59,7 +59,7 @@ import argparse
 from pathlib import Path
 from flask import Flask, render_template_string, request, jsonify
 import webbrowser
-from utils.companion_file_utils import launch_browser, generate_thumbnail, get_error_display_html, format_image_display_name, move_file_with_all_companions, find_all_companion_files
+from utils.companion_file_utils import launch_browser, generate_thumbnail, get_error_display_html, format_image_display_name, move_file_with_all_companions, find_all_companion_files, safe_delete_image_and_yaml
 import threading
 import time
 import shutil
@@ -664,22 +664,11 @@ def create_app(output_dir):
                     tracker.log_move(source_path, dest_path, "crop_action")
                     
                 elif action == 'delete':
-                    # Move to trash with ALL companion files
-                    if _SEND2TRASH_AVAILABLE:
-                        # Find all companion files
-                        companions = find_all_companion_files(source_path)
-                        
-                        # Delete the image
-                        send2trash.send2trash(str(source_path))
-                        
-                        # Delete all companions
-                        for companion in companions:
-                            if companion.exists():
-                                send2trash.send2trash(str(companion))
-                        
-                        tracker.log_delete(source_path, "delete_action")
-                    else:
-                        errors.append(f"send2trash not available for {image}")
+                    # Use shared utility to delete image and ALL companions
+                    try:
+                        _ = safe_delete_image_and_yaml(source_path, hard_delete=False, tracker=tracker)
+                    except Exception as e:
+                        errors.append(f"Delete failed for {image}: {e}")
                         continue
                 
                 processed += 1
