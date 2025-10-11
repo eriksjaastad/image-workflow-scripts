@@ -58,6 +58,8 @@ import time
 from collections import Counter
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
+from pathlib import Path
+import sys
 
 try:
     import yaml
@@ -66,14 +68,39 @@ except ImportError:
     sys.exit(1)
 
 try:
+    # Prefer local package import
     from utils.activity_timer import ActivityTimer, FileTracker
-    from utils.companion_file_utils import find_all_companion_files, move_file_with_all_companions, extract_timestamp_from_filename, sort_image_files_by_timestamp_and_stage
-except ImportError:
-    # Graceful fallback if activity timer not available
-    ActivityTimer = None
-    FileTracker = None
-    find_all_companion_files = None
-    move_file_with_all_companions = None
+except Exception:
+    try:
+        # Fallback to absolute project-root based import
+        project_root = Path(__file__).parent.parent.parent
+        sys.path.insert(0, str(project_root))
+        from scripts.utils.activity_timer import ActivityTimer, FileTracker  # type: ignore
+    except Exception:
+        ActivityTimer = None  # type: ignore
+        FileTracker = None  # type: ignore
+
+try:
+    from utils.companion_file_utils import (
+        find_all_companion_files,
+        move_file_with_all_companions,
+        extract_timestamp_from_filename,
+        sort_image_files_by_timestamp_and_stage,
+    )
+except Exception:
+    try:
+        # Fallback to absolute project-root based import
+        project_root = Path(__file__).parent.parent.parent
+        sys.path.insert(0, str(project_root))
+        from scripts.utils.companion_file_utils import (  # type: ignore
+            find_all_companion_files,
+            move_file_with_all_companions,
+            extract_timestamp_from_filename,
+            sort_image_files_by_timestamp_and_stage,
+        )
+    except Exception as e:
+        print(f"[!] Failed to import companion utilities: {e}", file=sys.stderr)
+        raise
 
 
 # ============================================================================
