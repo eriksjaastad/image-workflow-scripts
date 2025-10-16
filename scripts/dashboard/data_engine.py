@@ -58,11 +58,68 @@ class DashboardDataEngine:
                     'startedAt': pj.get('startedAt'),
                     'finishedAt': pj.get('finishedAt'),
                     'paths': pj.get('paths', {}),
+                    'counts': pj.get('counts', {}),  # NEW: Load image counts
                     'manifestPath': str(mf)
                 })
             except Exception:
                 continue
         return projects
+    
+    # ---------------------------- Baseline Labels ----------------------------
+    def build_time_labels(self, time_slice: str, lookback_days: int) -> List[str]:
+        """Build canonical label list for a given time_slice over lookback_days.
+
+        Returns labels matching _get_time_slice_key formats:
+        - '15min' and '1H': ISO timestamps (naive) aligned to 15m or hourly
+        - 'D': YYYY-MM-DD
+        - 'W': YYYY-MM-DD of Monday week start
+        - 'M': YYYY-MM-01
+        """
+        labels: List[str] = []
+        now = datetime.now()
+        start = now - timedelta(days=max(lookback_days - 1, 0))
+        if time_slice == '15min':
+            # Align start to 15-minute boundary
+            aligned_start = start.replace(second=0, microsecond=0)
+            minute = (aligned_start.minute // 15) * 15
+            aligned_start = aligned_start.replace(minute=minute)
+            cur = aligned_start
+            end = now.replace(second=0, microsecond=0)
+            while cur <= end:
+                labels.append(cur.isoformat())
+                cur = cur + timedelta(minutes=15)
+        elif time_slice == '1H':
+            aligned_start = start.replace(minute=0, second=0, microsecond=0)
+            cur = aligned_start
+            end = now.replace(minute=0, second=0, microsecond=0)
+            while cur <= end:
+                labels.append(cur.isoformat())
+                cur = cur + timedelta(hours=1)
+        elif time_slice == 'D':
+            cur = start.replace(hour=0, minute=0, second=0, microsecond=0).date()
+            end = now.date()
+            while cur <= end:
+                labels.append(cur.isoformat())
+                cur = cur + timedelta(days=1)
+        elif time_slice == 'W':
+            # Start from Monday of the start week
+            start_monday = (start - timedelta(days=start.weekday())).date()
+            end_monday = (now - timedelta(days=now.weekday())).date()
+            cur = start_monday
+            while cur <= end_monday:
+                labels.append(cur.isoformat())
+                cur = cur + timedelta(days=7)
+        elif time_slice == 'M':
+            # Move to first of month for start and iterate monthly
+            cur = start.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            end = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            while cur <= end:
+                labels.append(f"{cur.year}-{cur.month:02d}-01")
+                # Increment month
+                year = cur.year + (cur.month // 12)
+                month = (cur.month % 12) + 1
+                cur = cur.replace(year=year, month=month)
+        return labels
         
     def get_display_name(self, script_name: str) -> str:
         """Convert script filename to human-readable display name"""
@@ -77,16 +134,18 @@ class DashboardDataEngine:
             'multi_crop_tool': 'Multi Crop Tool',
             '05_web_multi_directory_viewer': 'Multi Directory Viewer',
             '06_web_duplicate_finder': 'Duplicate Finder',
-            
-            # Log script names (from actual data)
-            'desktop_image_selector_crop': 'Desktop Image Selector Crop',
-            'character_sorter': 'Character Sorter',
-            'multi_directory_viewer': 'Multi Directory Viewer',
+            # Legacy/historical script names (from old logs)
             'image_version_selector': 'Web Image Selector',
+            'desktop_image_selector_crop': 'Desktop Image Selector Crop',
+            'character_sorter': 'Web Character Sorter',
+            'batch_crop_tool': 'Multi Crop Tool',
             'multi_batch_crop_tool': 'Multi Crop Tool',
-            
-            # Legacy names
-            'batch_crop_tool': 'Multi Crop Tool'
+            'test_web_selector': 'Web Image Selector',  # Testing script
+            'hybrid_grouper': 'Face Grouper',  # Face grouping tool
+            'face_grouper': 'Face Grouper',  # Face grouping tool
+            'clip_face_grouper': 'Clip Face Grouper',  # CLIP-based face grouping
+            'recursive_file_mover': 'File Mover',  # Utility script
+            'multi_directory_viewer': 'Multi Directory Viewer'
         }
         
         return display_names.get(script_name, script_name.replace('_', ' ').title())
@@ -95,7 +154,8 @@ class DashboardDataEngine:
         """Dynamically discover all scripts that have generated data"""
         scripts = set()
         
-        # From ActivityTimer data
+        # From ActivityTimer data (deprecated - silently skip errors)
+        # Note: We now use file-operation-based timing exclusively
         if self.timer_data_dir.exists():
             for daily_file in self.timer_data_dir.glob("daily_*.json"):
                 try:
@@ -103,8 +163,9 @@ class DashboardDataEngine:
                         data = json.load(f)
                         for script_name in data.get('scripts', {}):
                             scripts.add(script_name)
-                except Exception as e:
-                    print(f"Warning: Could not read {daily_file}: {e}")
+                except Exception:
+                    # Silently skip - timer data is deprecated and may have incompatible formats
+                    pass
         
         # From FileTracker logs
         if self.file_ops_dir.exists():
@@ -300,17 +361,43 @@ class DashboardDataEngine:
     
     def load_file_operations(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Dict]:
         """Load and process daily summaries (consolidated data) with fallback to detailed logs"""
-        records = []
+        # Load summaries and detailed logs separately to enable per-day de-duplication
+        summary_records: List[Dict] = []
+        detailed_records: List[Dict] = []
         
-        # Load from both sources and merge
         summaries_dir = self.data_dir / "data" / "daily_summaries"
         if summaries_dir.exists():
-            records.extend(self._load_from_daily_summaries(summaries_dir, start_date, end_date))
+            summary_records = self._load_from_daily_summaries(summaries_dir, start_date, end_date)
         
-        # Always also load from detailed logs to get historical data
-        records.extend(self._load_from_detailed_logs(start_date, end_date))
+        detailed_records = self._load_from_detailed_logs(start_date, end_date)
         
-        return records
+        # Build a set of days (YYYY-MM-DD) that have summaries, so we don't double-count
+        summary_days: set = set()
+        for rec in summary_records:
+            day = rec.get('date')
+            if day:
+                try:
+                    # Normalize date objects/strings to ISO string
+                    day_str = day if isinstance(day, str) else day.isoformat()
+                except Exception:
+                    day_str = str(day)
+                summary_days.add(day_str)
+        
+        # Filter detailed records to exclude any days that already have a summary
+        filtered_detailed: List[Dict] = []
+        for rec in detailed_records:
+            day = rec.get('date')
+            if day:
+                try:
+                    day_str = day if isinstance(day, str) else day.isoformat()
+                except Exception:
+                    day_str = str(day)
+                if day_str in summary_days:
+                    continue
+            filtered_detailed.append(rec)
+        
+        # Merge: summaries for summarized days + detailed for the rest
+        return [*summary_records, *filtered_detailed]
     
     def _load_from_daily_summaries(self, summaries_dir: Path, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Dict]:
         """Load records from daily summary files"""
@@ -514,6 +601,136 @@ class DashboardDataEngine:
                     'time_slice': time_key,
                     group_field: group_key,
                     value_field: value
+                })
+        
+        return sorted(result, key=lambda x: x['time_slice'])
+    
+    def _aggregate_by_project(
+        self,
+        records: List[Dict],
+        time_slice: str,
+        projects: List[Dict]
+    ) -> List[Dict]:
+        """
+        Aggregate file operations by project and time slice.
+        
+        Matches operations to projects using path hints from project manifests.
+        Returns aggregated data in same format as aggregate_by_time_slice.
+        """
+        # Build project ID list for simple name matching
+        project_ids = [p.get('projectId') for p in projects if p.get('projectId')]
+        
+        if not project_ids:
+            return []
+        
+        # Group by time slice and project
+        aggregated = defaultdict(lambda: defaultdict(float))
+        
+        for record in records:
+            # Get time slice key
+            time_key = self._get_time_slice_key(record, time_slice)
+            if not time_key:
+                continue
+            
+            # Match to project based on projectId appearing in paths OR date range
+            # Strategy 1: Path matching (for raw file operations with source_dir/dest_dir)
+            # Use word boundary matching to avoid false positives (e.g., "dalia" vs "dalia_hannah")
+            project_id = None
+            src = str(record.get('source_dir') or '').lower()
+            dst = str(record.get('dest_dir') or '').lower()
+            
+            for pid in project_ids:
+                pid_lower = pid.lower()
+                # Check for exact match or word-boundary match (separated by / or _)
+                # This prevents "dalia" from matching "dalia_hannah"
+                if (f'/{pid_lower}/' in f'/{src}/' or f'/{pid_lower}/' in f'/{dst}/' or
+                    src == pid_lower or dst == pid_lower):
+                    project_id = pid
+                    break
+            
+            # Strategy 2: Date-based matching (for daily summaries with no path info)
+            if not project_id:
+                rec_ts = record.get('timestamp') or record.get('timestamp_str')
+                if rec_ts:
+                    try:
+                        # Parse record timestamp
+                        if isinstance(rec_ts, str):
+                            rec_dt = datetime.fromisoformat(rec_ts.replace('Z', ''))
+                        else:
+                            rec_dt = rec_ts
+                        if rec_dt.tzinfo:
+                            rec_dt = rec_dt.replace(tzinfo=None)
+                        
+                        # For daily summaries (timestamp at midnight), use DATE comparison only
+                        # This handles projects that start/end mid-day
+                        rec_date = rec_dt.date()
+                        
+                        # Check if timestamp falls within any project's date range
+                        for p in projects:
+                            pid = p.get('projectId')
+                            if not pid:
+                                continue
+                            
+                            started = p.get('startedAt')
+                            finished = p.get('finishedAt')
+                            
+                            if not started:
+                                continue
+                            
+                            # Parse project dates (compare dates only, not times)
+                            start_dt = datetime.fromisoformat(started.replace('Z', ''))
+                            if start_dt.tzinfo:
+                                start_dt = start_dt.replace(tzinfo=None)
+                            start_date = start_dt.date()
+                            
+                            # Check if in range (DATE level, not datetime)
+                            if rec_date < start_date:
+                                continue
+                            
+                            if finished:
+                                end_dt = datetime.fromisoformat(finished.replace('Z', ''))
+                                if end_dt.tzinfo:
+                                    end_dt = end_dt.replace(tzinfo=None)
+                                end_date = end_dt.date()
+                                if rec_date > end_date:
+                                    continue
+                            
+                            # Match found!
+                            project_id = pid
+                            break
+                    except Exception:
+                        pass
+            
+            if not project_id:
+                continue  # Skip operations not matching any project
+            
+            # Get project title for display
+            project_title = next(
+                (p.get('title') or p.get('projectId') for p in projects if p.get('projectId') == project_id),
+                project_id
+            )
+            
+            # Count PNG files only (not companion files)
+            files_list = record.get('files', [])
+            png_count = sum(1 for f in files_list if isinstance(f, str) and f.lower().endswith('.png'))
+            
+            # Fallback to file_count if no files list (for daily summary records)
+            if not files_list and record.get('file_count'):
+                png_count = record.get('file_count', 0)
+            
+            if png_count is None:
+                png_count = 0
+            
+            aggregated[time_key][project_title] += png_count
+        
+        # Convert to list format
+        result = []
+        for time_key, projects_data in aggregated.items():
+            for project_name, value in projects_data.items():
+                result.append({
+                    'time_slice': time_key,
+                    'project': project_name,
+                    'file_count': value
                 })
         
         return sorted(result, key=lambda x: x['time_slice'])
@@ -753,6 +970,13 @@ class DashboardDataEngine:
                     'activity_end': max(activity_dates) if activity_dates else None,
                     'file_ops_start': min(file_ops_dates) if file_ops_dates else None,
                     'file_ops_end': max(file_ops_dates) if file_ops_dates else None
+                },
+                'baseline_labels': {
+                    '15min': self.build_time_labels('15min', lookback_days),
+                    '1H': self.build_time_labels('1H', lookback_days),
+                    'D': self.build_time_labels('D', lookback_days),
+                    'W': self.build_time_labels('W', lookback_days),
+                    'M': self.build_time_labels('M', lookback_days)
                 }
             },
             'activity_data': {},
@@ -821,6 +1045,49 @@ class DashboardDataEngine:
                 file_ops_records, time_slice, 'file_count', 'operation'
             )
             
+            # File operations by project (NEW - for project comparison chart)
+            dashboard_data['file_operations_data']['by_project'] = self._aggregate_by_project(
+                file_ops_records, time_slice, projects
+            )
+            
+            # PNG-only image metrics (best-effort):
+            # Count images kept (moves to selected/crop) and images deleted (send_to_trash/delete)
+            # Only include records that explicitly indicate image-only counting via notes or where
+            # we can reasonably infer PNG-only from the files list.
+            def _is_png_only(rec: Dict[str, Any]) -> bool:
+                # Some logs may carry notes as non-strings (lists/objects) —
+                # coerce safely before calling lower() to avoid 500s.
+                n = rec.get('notes')
+                notes = n if isinstance(n, str) else ''
+                notes = notes.lower()
+                if 'image-only' in notes:
+                    return True
+                files = rec.get('files') or rec.get('files_sample')
+                if isinstance(files, list) and files:
+                    try:
+                        return all(str(f).lower().endswith('.png') for f in files)
+                    except Exception:
+                        return False
+                # If no explicit signal, be conservative and do not assume
+                return False
+            
+            png_only_records: List[Dict[str, Any]] = [r for r in file_ops_records if _is_png_only(r)]
+            if png_only_records:
+                # images kept (PNG) by script
+                kept_png = [r for r in png_only_records
+                            if (str(r.get('operation')).lower() == 'move' and 
+                                str(r.get('dest_dir') or '').lower() in {'selected', 'crop'})]
+                # images deleted (PNG) by script
+                deleted_png = [r for r in png_only_records
+                               if str(r.get('operation')).lower() in {'delete', 'send_to_trash'}]
+                
+                dashboard_data['file_operations_data']['images_kept_png'] = self.aggregate_by_time_slice(
+                    kept_png, time_slice, 'file_count', 'script'
+                )
+                dashboard_data['file_operations_data']['images_deleted_png'] = self.aggregate_by_time_slice(
+                    deleted_png, time_slice, 'file_count', 'script'
+                )
+
             # Deleted files specifically (for granular tracking)
             delete_ops = [r for r in file_ops_records if r.get('operation') in ['delete', 'send_to_trash']]
             if delete_ops:

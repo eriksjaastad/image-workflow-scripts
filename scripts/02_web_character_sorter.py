@@ -766,7 +766,6 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
         images = app.config["IMAGES"]
         tracker = app.config["TRACKER"]
         target_dirs = app.config["TARGET_DIRS"]
-        activity_timer = app.config.get("ACTIVITY_TIMER")
         history = app.config["HISTORY"]
         
         if current_idx >= len(images):
@@ -911,7 +910,6 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
         tracker = app.config["TRACKER"]
         target_dirs = app.config["TARGET_DIRS"]
         hard_delete = app.config["HARD_DELETE"]
-        activity_timer = app.config.get("ACTIVITY_TIMER")
         images = app.config["IMAGES"]
         history = app.config["HISTORY"]
         
@@ -2832,6 +2830,7 @@ def main() -> None:
         description="Sort images into character groups using a modern web interface.",
     )
     parser.add_argument("directory", help="Directory containing images to sort")
+    
     parser.add_argument("--hard-delete", action="store_true", 
                        help="Permanently delete files instead of using trash")
     parser.add_argument("--similarity-map", type=str, 

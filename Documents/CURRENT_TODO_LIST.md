@@ -1,6 +1,41 @@
 # Current TODO List
 
-**Last Updated:** October 5, 2025
+**Last Updated:** October 15, 2025
+
+---
+
+## ✅ **COMPLETED TODAY (October 15, 2025)**
+
+### **Productivity Dashboard - Hours Calculation Fixed**
+- ✅ Replaced break detection algorithm with simple hour-blocking approach
+- ✅ Hours now count unique hour blocks (YYYY-MM-DD HH) where files were moved
+- ✅ No more fragile thresholds or subjective break detection
+- ✅ Accurate, honest time tracking: 7 hours for Mojo2 (matches timesheet!)
+- ✅ Updated `calculate_work_time_from_file_operations()` in `companion_file_utils.py`
+
+### **Historical Projects Import**
+- ✅ Created `import_historical_projects.py` to import projects from CSV timesheet
+- ✅ Imported 16 historical projects (Aug-Oct 2025)
+- ✅ All manifests created with proper timestamps, image counts, and status
+- ✅ Handles multi-day projects, missing data, special cases automatically
+- ✅ Dashboard now has full historical data
+
+### **Documentation Cleanup**
+- ✅ Moved `PROJECT_LIFECYCLE_SCRIPTS.md` to Documents/
+- ✅ Deleted garbage files: `dashboard_analytics_sample.json`, `sample_table_data.json`, `dashboard_data_sample.json`
+- ✅ Updated `AI_DOCUMENTS_INDEX.md` with new docs
+- ✅ Updated `TECHNICAL_KNOWLEDGE_BASE.md` with hour-blocking and project lifecycle info
+- ✅ Verified all 16 new project manifests are correct
+
+---
+
+## Delivery upload improvements (Google Drive)
+
+- Add rclone upload workflow for large zips (single-file):
+  - Command: `rclone copy <zip-file> gdrive:Deliveries/<ProjectName> --drive-chunk-size 256M --progress`
+  - Note: Drive uploads are chunked; this improves stability and resumes.
+- Optional later: expose "Upload to Drive" helper flag in `prezip_stager.py` (uses rclone if configured).
+- Optional later (deferred): evaluate split/merge flow for true parallel uploads; only if we can re-merge to a single zip automatically on the receiving side (client should still download one file).
 
 ## ⚠️ **IMPORTANT WORKFLOW RULE**
 **ONE TODO ITEM AT A TIME** - Complete one task, check in with Erik, get approval before moving to the next item. Never complete multiple TODO items in sequence without user input. This prevents issues and ensures quality control.
@@ -9,33 +44,18 @@
 
 ## 🔥 **HIGH PRIORITY**
 
-### **Create Mojo1 Project File (Start/Finish Tracking) — Immediate**
-- **Create manifest**: `data/projects/mojo1.project.json` with fields: projectId, status, createdAt, startedAt, finishedAt, steps[], metrics, counts, removeFileOnFinish.
-- **Purpose**: Enables end-to-end images/hour KPI and per-step breakdown now, even mid-project.
-- **Finish protocol**: On completion, compute metrics, archive summary, and delete or archive the project file.
-- **Next**: Later hook into FileTracker to auto-update steps and finish.
+### ✅ **Project Lifecycle & Throughput Tracking (COMPLETED Oct 15, 2025)**
+- ✅ Created `00_start_project.py` and `00_finish_project.py` for automated project management
+- ✅ Integrated `prezip_stager.py` into finish workflow
+- ✅ Imported 16 historical projects from timesheet CSV
+- ✅ Dashboard now shows accurate hours/days/images per project per tool
+- ✅ Hour-blocking time calculation (simple, robust, honest)
+- ✅ All project manifests standardized with ISO-8601 timestamps
 
-### **Project Throughput Metric (Top Priority) — Images/Hour End-to-End**
-- **Goal:** Single-project throughput: total images processed ÷ total project time, from batch arrival to final completion.
-- **Define project boundary (planning):** What constitutes a project (e.g., a dated batch folder or manifest) and its ID convention.
-- **Capture Start event (planning):** Add an explicit “project_start” marker (CLI or small script) that records timestamp, project_id, initial counts.
-- **Capture Finish event (planning):** Add “project_finish” marker when last required stage completes; store timestamp and final counts.
-- **Per-process breakdown (planning):** Use existing `FileTracker` logs + step tags (selector, sorter, crop, dedupe, etc.) to compute time per step and items/hour per step.
-- **Storage (planning):** Persist project session records under `data/timer_data/projects/PROJECT_ID.json` (or consolidate with existing timer data) and/or append to `data/daily_summaries/`.
-- **Aggregator (planning):** Build `scripts/dashboard/project_metrics_aggregator.py` to compute: end-to-end images/hour, step-level rates, ahead/behind vs baseline.
-- **Dashboard (planning):** Add a top-level KPI card “Images/hour (project)” with live session progress (on track / behind / ahead), sparkline over time, and breakdown table by step.
-- **Baseline & tracking (planning):** Establish baseline from recent N projects; flag deviations >±10%.
-- **Safety:** Planning-only; no destructive operations. Implement start/finish markers and aggregator first; dashboard UI follows.
-
-### **Historical Throughput Backfill from Timesheets (Planning + Partial)**
-- **Goal:** Build historical images/hour baseline from Erik's timesheets to compare current/future projects.
-- **Input doc:** Incoming blueprint (timesheet-to-history). Reference when available.
-- **Schema (planning):** `project_id`, `date`, `task/step`, `start_time`, `end_time`, `images_processed(optional)`, `notes`.
-- **Mapping (planning):** Map timesheet categories to pipeline steps (selector, sorter, crop, dedupe, review).
-- **Converter (planning):** `scripts/tools/import_timesheet_history.py` to ingest CSV/JSON and emit project-level aggregates under `data/timer_data/history/`.
-- **Baselines (planning):** Compute per-project and rolling baseline images/hour; store for dashboard.
-- **Mojo1 partial now:** If starting numbers are available, update `mojo1/Mojo1.project.json` counts.initialImages and, if applicable, adjust `startedAt`.
-- **Dashboard integration (planning):** Extend aggregator to include historical comparisons (ahead/behind vs historical baseline).
+### **Next: Project Comparison Visualizations**
+- **Goal:** Compare productivity across projects (Mojo1 vs Mojo2 vs historical)
+- **Status:** Table working, need charts for visual comparison
+- **See:** "Dashboard Enhancements" section below for chart variations
 
 ### **Shared Stage-Grouping Utility (Counting + API)**
 - **Goal:** Create a reusable grouping/counting function shared by selectors/sorters to compute stage groups over a directory.
@@ -669,6 +689,72 @@ General line item to check out/test hand and foot anomaly scripts when time allo
 
 ---
 
+## 🧩 Planned UX Enhancement (Web Image Selector)
+
+### Feature: Right‑Side Crop Button + Crop Mode (Plan Only)
+- **Context**: In `scripts/01_web_image_selector.py`, each row displays 2–4 images with a right‑side vertical control column. Current buttons are 1/2/3/4, Skip, ▼. Keyboard: 1/2/3/4 select; Q/W/E/R = select for crop. Batch processing applies moves/deletes at submit time.
+- **Goal**: Add a single Crop button in the right control column (per row) to enable mouse‑only crop selection without crossing the screen.
+
+- **Right‑side layout (per group)**:
+  - `[1]`
+  - `[2]`
+  - `[3]` (if present)
+  - `[4]` (if present)
+  - `[Crop]`  ← toggles crop mode for the row (highlight when ON)
+  - `[Skip]`
+  - `[▼]`
+
+- **Behavior**:
+  - No selection yet:
+    - Click Crop → `cropMode=true` (for this group). Next number click selects that index with `crop=true`; `cropMode` then turns OFF.
+  - Selection already set (`selectedImage = k`):
+    - Click Crop → toggles `state.crop` for the current selected image (k) on/off. Selection index remains k.
+  - Number buttons:
+    - If `cropMode=false` → select/deselect exactly as today (single keep; deselect returns to delete state).
+    - If `cropMode=true` → select index with `crop=true`, then `cropMode=false`.
+  - Keyboard Q/W/E/R unchanged; ENTER/↑ navigation unchanged.
+  - State only; actual moves/deletes occur on "Process Current Batch" (unchanged).
+
+- **Visuals**:
+  - Crop button shows an active style when `cropMode=true`.
+  - Selected card shows white “crop-selected” outline when `state.crop=true` (existing class).
+
+- **Implementation TODOs (execute when tool not in use)**:
+  1) Add `Crop` button to right control column in the template (same style class as row buttons).
+  2) Frontend JS: track per‑group `cropMode`; update handlers:
+     - Crop click toggles `cropMode` when no selection; toggles `state.crop` when selection exists.
+     - Number click applies select/crop per rules; clears `cropMode` when used.
+     - Update `updateButtonStates` to reflect Crop button highlight.
+  3) Keep `/submit` server logic unchanged (it already honors `selectedIndex` + `crop`).
+  4) QA: 2/3/4‑image rows; select→crop toggle; cropMode→number; batch submit; confirm FileTracker logs and visuals.
+
+- **Safety**:
+  - No changes to keyboard behavior or batch semantics.
+  - No changes to character sorter.
+
+### Feature: Work Timer Widget (like Multi‑Crop Tool)
+- **Context**: `scripts/01_web_image_selector.py`—long sessions get tedious; a small on‑page work timer helps focus and pacing.
+- **Goal**: Add a lightweight, on‑page work timer similar to the multi‑crop tool’s timer to encourage timeboxed passes and reduce context switching.
+
+- **UI**:
+  - Fixed, subtle header widget (top bar, right side): “Work: 00:00 • Session: 00:00 • Efficiency hint (optional)”.
+  - Colors match style guide; unobtrusive; no blocking dialogs.
+
+- **Behavior**:
+  - Starts when page loads; pauses on prolonged inactivity (e.g., no key/click/scroll for ≥5 minutes) and resumes on action.
+  - Optional micro‑nudge every 10–15 minutes (silent visual nudge, no modal).
+  - Resets per server session (no persistence needed for v1).
+
+- **Implementation TODOs**:
+  1) Add header widget markup and styles in the selector template (reuse existing toolbar).
+  2) JS timer module: track active vs total time; pause on inactivity threshold; resume on input.
+  3) Hook existing activity events (click/keydown/scroll/mousemove throttle) already present in the page.
+  4) Optional: surface the current batch progress alongside timer (non‑blocking).
+
+- **Safety**:
+  - Pure front‑end; no server or file‑operation changes.
+  - Feature is display‑only; won’t affect selection/crop submissions.
+
 ## 📊 **Dashboard Enhancements (In Progress + Planned)**
 
 ### In Progress
@@ -679,12 +765,103 @@ General line item to check out/test hand and foot anomaly scripts when time allo
   - Status: In progress; dashed blue/red lines render; labels and tooltips pending.
   - Considerations: Label overlap, accessibility contrast, and hover tooltips with ISO time.
 
-### Completed (recent)
-- Project selector in header (persisted); backend manifest load + project_id filtering
-- Operation/tool toggles with persistence; average overlays per visible series
-- Single-column layout; readable local timestamps; hourly crop KPI; header lookback/timeframe/refresh
+### Completed (recent - Oct 15, 2025)
+- ✅ Project Productivity Table with tool filtering
+  - Tool column order: Desktop Image Selector Crop → Web Image Selector → Web Character Sorter → Multi Crop Tool
+  - Checkboxes to show/hide columns (Desktop Image Selector Crop unchecked by default)
+  - Per-tool breakdown: Hours, Days, Images processed, Selected/Cropped (for Image Selector tools)
+  - Rounded hours (standard rounding)
+  - Start/End image counts from project manifests
+  - Only 4 approved tools displayed (filtered backend + frontend)
+- ✅ Project selector in header (persisted); backend manifest load + project_id filtering
+- ✅ Operation/tool toggles with persistence; average overlays per visible series
+- ✅ Single-column layout; readable local timestamps; hourly crop KPI; header lookback/timeframe/refresh
 
-### Planned
+### 🎨 **Project Comparison Graph Experiments (Next - High Priority)**
+
+**Goal:** Create 5 different chart variations to compare productivity across projects (Mojo1 vs Mojo2). We'll "Frankenstein together something out of all the ideas" to find the best visualization.
+
+**Context:**
+- We have detailed per-project, per-tool data (hours, days, images processed, efficiency)
+- Need to answer: "Am I going as fast on Mojo2 as I was on Mojo1?"
+- Focus on actionable comparisons, not just pretty charts
+- User loved "Files processed by tools" chart - aim for similar usefulness
+
+**Chart Variations to Build:**
+
+#### **A. Stacked Bar Chart - Time Investment**
+**Purpose:** Show total hours spent per tool, stacked by project
+- **X-axis:** Projects (Mojo1, Mojo2)
+- **Y-axis:** Hours (left axis)
+- **Bars:** Stacked segments for each tool (Desktop Image Selector Crop, Web Image Selector, Web Character Sorter, Multi Crop Tool)
+- **Colors:** Distinct color per tool (consistent across all charts)
+- **Tooltip:** Tool name, hours, percentage of total project hours
+- **Why useful:** Quick visual of time distribution across tools per project
+
+#### **B. Grouped Bar Chart - Images Processed**
+**Purpose:** Compare raw image throughput per tool across projects
+- **X-axis:** Projects (Mojo1, Mojo2)
+- **Y-axis:** Images processed (left axis)
+- **Bars:** Grouped bars per tool (side-by-side for easy comparison)
+- **Colors:** Same tool colors as Chart A
+- **Tooltip:** Tool name, images processed, project name
+- **Why useful:** Direct comparison of productivity numbers
+
+#### **C. Grouped Bar Chart - Efficiency (Images/Hour)**
+**Purpose:** Compare efficiency metrics per tool across projects
+- **X-axis:** Projects (Mojo1, Mojo2)
+- **Y-axis:** Images per hour (left axis)
+- **Bars:** Grouped bars per tool showing img/h rates
+- **Colors:** Same tool colors as Charts A/B
+- **Tooltip:** Tool name, img/h rate, project name
+- **Baseline overlay:** Historical average line (if available)
+- **Why useful:** Shows if we're getting faster or slower; identifies bottlenecks
+
+#### **D. Two Separate Charts (Time vs Images)**
+**Purpose:** Side-by-side comparison of time investment and output
+- **Chart D1:** Time Investment (same as Chart A)
+- **Chart D2:** Images Processed (same as Chart B)
+- **Layout:** Two charts stacked vertically or side-by-side
+- **Shared:** Same tool colors, aligned X-axes
+- **Why useful:** Separates input (time) from output (images) for clearer analysis
+
+#### **E. Dual Y-Axis Combo Chart (Time + Images)**
+**Purpose:** Show relationship between time investment and output on one chart
+- **X-axis:** Tools (Desktop Image Selector Crop, Web Image Selector, etc.)
+- **Left Y-axis:** Hours (time bars)
+- **Right Y-axis:** Images processed (line or secondary bars)
+- **Bars:** Grouped by project (Mojo1 vs Mojo2 side-by-side per tool)
+- **Time bars:** Color-coded to left Y-axis (e.g., blue tones)
+- **Image bars/lines:** Color-coded to right Y-axis (e.g., green tones)
+- **Labels:** Bar width matches tool name abbreviations
+- **Tooltip:** Tool name, project, hours, images, img/h
+- **Why useful:** Shows both dimensions (time + output) in a single view
+
+**Implementation Details:**
+- Use Chart.js (already in dashboard)
+- Position table at TOP of dashboard (most important view)
+- Position graphs BELOW table
+- All charts use same 4-tool filter (Desktop Image Selector Crop, Web Image Selector, Web Character Sorter, Multi Crop Tool)
+- Consistent color scheme across all charts
+- Responsive design (mobile-friendly)
+- Legend toggles for each series
+- Export-friendly (PNG/CSV options later)
+
+**Success Criteria:**
+- User can quickly answer: "Am I faster on Mojo2 than Mojo1?"
+- Easy to identify bottlenecks (which tool is slowest?)
+- Clear visual separation between time investment and output
+- Charts complement the table (not redundant)
+
+**Next Steps:**
+1. Build all 5 chart variations
+2. Review with Erik to see which visualizations are most useful
+3. Combine best elements from different charts
+4. Polish and integrate final design
+
+---
+
+### Planned (Lower Priority)
 1. Historical average overlays (longer-term historical bands)
 2. Script update correlation with productivity
 3. Pie chart time distribution
@@ -704,3 +881,87 @@ General line item to check out/test hand and foot anomaly scripts when time allo
 1. Add desktop hotkey reference to Knowledge Base (p [ ] \\ and A/S/D/F/B)
 2. Document training log flags and schemas
 3. Update backup system runbook when implemented
+
+---
+
+## 🗓️ Tomorrow: Automation Reduction Experiments — Runtime Guards and Plan (Oct 12, 2025)
+
+### Where we left off (Oct 11, 2025)
+- Snapshot utility implemented: `scripts/tools/snapshot.py` (save/restore baseline under `sandbox/mojo2`).
+- Reducer outputs constrained under sandbox: `selected/`, `delete/`, `crop/` now live in `sandbox/mojo2/`.
+- Watchdog self-test passed (ABORT on simulated hang writes logs under `sandbox/mojo2/logs/`).
+- Quiet logging added: set `COMPANION_UTILS_QUIET=1` or `--quiet` to suppress per-file DRY-RUN spam.
+- Experiment 1 (B-conservative + dedupe-first 0.90) dry-run attempted on full sandbox; aborted by watchdog due to max runtime (heavy stdout and ~18k images). No crashes.
+
+### Decision needed (morning)
+- Choose default runtime caps:
+  - Dry-run sanity: 20 min (1200s) default? [decide 20 vs 30]
+  - Commit runs: 30 min (1800s) default? [confirm]
+- Per-run group cap policy: compute from early estimate vs fixed `--limit` (e.g., 1–2k groups)?
+
+### Tasks for tomorrow (runtime guards + ergonomics)
+1) Add early-size estimator to reducer run:
+   - Fast scan counts (files, groups estimate) before selection loop.
+   - Estimate runtime (items_per_sec from rolling window) after first 200 groups; abort early if projected > cap.
+   - Print summary and write an estimator line to `sandbox/mojo2/metrics/`.
+2) Make `--quiet` default for `--dry-run`; keep opt-out `--no-quiet`.
+3) Adaptive `--limit` default:
+   - If not provided, set from estimator so projected runtime <= cap.
+4) Progress-based soft abort:
+   - If projected remaining time > remaining budget, finish current group and end gracefully (write metrics/report).
+5) Truncated logging for DRY-RUN:
+   - Print only periodic progress lines and top-N sample move intents.
+6) Metrics/report completeness per experiment:
+   - Input count, groups, winners, reduction %, runtime, errors list, sample audit placeholders.
+   - Write `sandbox/mojo2/metrics/exp_<id>.jsonl` and `sandbox/mojo2/reports/exp_<id>.md`.
+7) Orchestrator helper:
+   - Small shell/python wrapper to iterate Experiments 1→10 with restore between runs and unique sub-ids for sweeps.
+
+### Morning run plan
+1) Restore baseline:
+   - `python3 scripts/tools/snapshot.py restore --root sandbox/mojo2 --in sandbox/mojo2/.baseline.tar`
+2) Experiment 1 — B-conservative + dedupe-first (0.90):
+   - Dry-run sanity (quiet, runtime cap 20m, estimator on):
+     - `python3 scripts/tools/reducer.py run --variant B --profile conservative --dedupe 0.90 --sandbox-root sandbox/mojo2 --dry-run --quiet --max-runtime 1200 --watchdog-threshold 120 --progress-interval 2`
+   - Commit run (quiet, runtime cap 30m; ensure moves remain sandbox-local):
+     - `python3 scripts/tools/reducer.py run --variant B --profile conservative --dedupe 0.90 --sandbox-root sandbox/mojo2 --commit --quiet --max-runtime 1800 --watchdog-threshold 120 --progress-interval 2`
+   - Capture metrics/report; on any error, continue and log.
+3) Restore baseline for next experiment before proceeding.
+
+### Notes
+- Aim for early fail-fast: prefer smaller, faster runs with clear metrics over 1h runs.
+- Keep companions intact on all moves; never alter image bytes.
+- All artifacts strictly under `sandbox/mojo2`.
+
+---
+
+## Automation Reduction Experiments — Progress (Oct 12)
+
+- Instrumentation added: `scripts/tools/prof.py`, `--investigate` in `reducer.py` with stage timers and checkpoints.
+- Deterministic sharding: `--shards/--shard-index` to keep runs bounded and reproducible.
+- Deterministic subset builder: `scripts/tools/subset_builder.py` (hash-based), 25% subset created at `sandbox/mojo2_subset` (867 groups, 2599 images).
+- Challenge subset mode: new `--challenge` flag (risk-scored sampling by sharpness/exposure); created at `sandbox/mojo2_challenge` (~884 groups, 2652 images at 25%).
+- Quality-aware selector (toggle off by default): `--quality-aware` computes fast thumbnail sharpness/exposure and falls back to a lower stage if the top stage is blur/clipped; dry-run only so far.
+- Async moves experiment: added `--async-moves` (off by default); discarded for instability/no speedup in short benches.
+
+### Baseline metrics (subset runs)
+- 5-minute shard on `mojo2_subset`: scan=0.05s, group=0.02s, select≈14.86s, moves≈14.86s; shard groups=126; ≈254 groups/min.
+- 15-minute full sandbox baseline earlier: select/moves dominated (≈208s in 15-min window on shard).
+
+### Next experiments (queued)
+1) Deviation logging: count/list groups where `--quality-aware` picks a lower stage than baseline; produce examples for review.
+2) Cheap pre-prune toggles (default off): `--phash-buckets`, `--phash-hamming` (if lib present); goal = fewer groups/pairs entering selection without changing winners.
+3) Two-phase runs: dry-run plan writer + short commit pass to reduce I/O wall time.
+4) Challenge subset calibration: validate that downgrade rate is higher than random subset at similar wall time.
+5) Future idea: Hands/feet screening pass (non-destructive): detect presence, route these sets to fast review queue; helps estimate crop workload and reduce time in crop UI.
+
+CLI notes:
+- Reducer investigation shard (subset):
+  - `python scripts/tools/reducer.py run --sandbox-root sandbox/mojo2_subset --dry-run --investigate --quiet --shards 8 --shard-index 0 --max-runtime 600`
+- Quality-aware variant:
+  - Add `--quality-aware` (tunable: `--qa-thumb-size`, `--qa-clip-threshold`)
+- Subset builder:
+  - Hash sample: `python scripts/tools/subset_builder.py --source sandbox/mojo2 --dest sandbox/mojo2_subset --fraction 0.25 --commit`
+  - Challenge sample: `python scripts/tools/subset_builder.py --source sandbox/mojo2 --dest sandbox/mojo2_challenge --fraction 0.25 --challenge --commit`
+
+Safety: All runs are sandbox-only and dry-run by default. New flags default off.

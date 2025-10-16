@@ -60,7 +60,14 @@ OPTIONAL FLAGS:
   --hard-delete     Permanently delete instead of using trash
   --host/--port     Web server binding (default: 127.0.0.1:8080)
   --no-browser      Don't auto-launch browser
+  --batch-size 200  Number of groups to process per batch (default: 100)
   --print-triplets  Show triplet groupings and exit (debug)
+
+FAST DELETE (Default On):
+-------------------------
+  Losers are staged into a local delete_staging/ folder (fast rename) instead of
+  going to Trash immediately. You can sweep the folder later when idle.
+  --delete-staging-dir PATH     Override staging directory (default: <project_root>/delete_staging)
 
 HOW IT WORKS:
 -------------
@@ -127,6 +134,13 @@ except Exception:
 
 STAGE_NAMES = ("stage1_generated", "stage1.5_face_swapped", "stage2_upscaled")
 THUMBNAIL_MAX_DIM = 768
+
+# Focus timer configuration (hard-coded in code; no on-page controls)
+# Matches the spirit of the multi-crop tool timer (work/rest phases), but
+# implemented as a lightweight header widget for the web selector.
+FOCUS_TIMER_WORK_MIN: int = 15
+FOCUS_TIMER_REST_MIN: int = 5
+FOCUS_TIMER_INACTIVITY_MIN: int = 5  # pause timer after X minutes without activity
 
 
 def human_err(msg: str) -> None:
@@ -310,6 +324,8 @@ def build_app(
     hard_delete: bool,
     batch_size: int = 50,
     batch_start: int = 0,
+    fast_delete_staging: bool = True,
+    delete_staging_dir: Optional[Path] = None,
 ) -> Flask:
     app = Flask(__name__)
 
@@ -339,6 +355,15 @@ def build_app(
     app.config["LOG_PATH"] = log_path
     app.config["HARD_DELETE"] = hard_delete
     app.config["PROCESSED"] = False
+    app.config["FAST_DELETE_STAGING"] = bool(fast_delete_staging)
+    if app.config["FAST_DELETE_STAGING"]:
+        try:
+            project_root = find_project_root(base_folder)
+            staging_dir = Path(delete_staging_dir) if delete_staging_dir else (project_root / "delete_staging")
+            staging_dir.mkdir(parents=True, exist_ok=True)
+            app.config["DELETE_STAGING_DIR"] = staging_dir
+        except Exception:
+            app.config["DELETE_STAGING_DIR"] = None
 
     page_template = """
     <!DOCTYPE html>
@@ -637,6 +662,10 @@ def build_app(
           <span>Skipped files: <strong id="summary-skipped">0</strong></span>
           <span>Delete files: <strong id="summary-delete">0</strong></span>
         </div>
+        <div class="summary" style="gap:0.3rem; align-items:flex-end; flex-direction:column;">
+          <span id="focus-timer" style="color:#a0a3b1; font-weight:600;">Work 00:00 • Session 00:00</span>
+          <button id="focus-toggle" style="background: var(--surface-alt); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 2px 10px; border-radius: 6px; font-size: 12px; height: 22px;">Start</button>
+        </div>
         <button id="process-batch" class="process-batch">Process Current Batch</button>
         <div id="batch-info" class="batch-info">
               <span>Batch {{ batch_info.current_batch }}/{{ batch_info.total_batches }}: <strong id="batch-count">{{ batch_info.current_batch_size }}</strong> groups</span>
@@ -698,9 +727,161 @@ def build_app(
         const batchCount = document.getElementById('batch-count');
         const statusBox = document.getElementById('status');
         
-        let groupStates = {}; // { groupId: { selectedImage: 0|1|2, skipped: boolean, crop?: boolean } }
+        let groupStates = {}; // { groupId: { selectedImage: 0|1|2|3, skipped: boolean, crop?: boolean } }
         // Expose for inline onclick handlers
         window.groupStates = groupStates;
+
+        // --- Focus timer (hard-coded durations) ---
+        const TIMER_WORK_MIN = {{ focus_work_min|default(15) }};
+        const TIMER_REST_MIN = {{ focus_rest_min|default(5) }};
+        const TIMER_INACTIVITY_MIN = {{ focus_inactive_min|default(5) }};
+        const focusTimerEl = document.getElementById('focus-timer');
+        const focusToggleBtn = document.getElementById('focus-toggle');
+        let phase = 'work';            // 'work' | 'rest'
+        let remaining = TIMER_WORK_MIN * 60; // seconds
+        let lastTickMs = Date.now();
+        let lastActivityMs = Date.now();
+        let activeSessionSeconds = 0;  // counts only while not inactive-paused
+        let pausedForInactivity = false;
+        let userPaused = true; // start paused until user hits Start
+
+        function fmt(secs) {
+          const m = Math.max(0, Math.floor(secs / 60));
+          const s = Math.max(0, Math.floor(secs % 60));
+          return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+        }
+
+        function updateFocusTimerUI() {
+          if (!focusTimerEl) return;
+          const workLabel = phase === 'work' ? `Work ${fmt(remaining)}` : `Rest ${fmt(remaining)}`;
+          const sessionLabel = `Session ${fmt(activeSessionSeconds)}`;
+          focusTimerEl.textContent = `${workLabel} • ${sessionLabel}`;
+          // Subtle color cue during rest
+          focusTimerEl.style.color = (phase === 'rest') ? '#ffd43b' : '#a0a3b1';
+          if (pausedForInactivity || userPaused) {
+            focusTimerEl.style.opacity = '0.6';
+          } else {
+            focusTimerEl.style.opacity = '1.0';
+          }
+        }
+
+        function updateFocusToggleUI() {
+          if (!focusToggleBtn) return;
+          focusToggleBtn.textContent = userPaused ? 'Start' : 'Pause';
+        }
+
+        // Web Audio tones (no external assets)
+        // playWildStart: distinct, upbeat start-of-work cue (square sweep + noise tick)
+        // playGong: soft descending tone (rest begins)
+        async function playWildStart() {
+          try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            const ctx = new AudioCtx();
+            const now = ctx.currentTime;
+
+            // Layer 1: square-wave up-chirp with quick envelope
+            const osc1 = ctx.createOscillator();
+            const gain1 = ctx.createGain();
+            osc1.type = 'square';
+            osc1.frequency.setValueAtTime(440, now);
+            osc1.frequency.exponentialRampToValueAtTime(1760, now + 0.35);
+            gain1.gain.setValueAtTime(0.0001, now);
+            gain1.gain.exponentialRampToValueAtTime(0.35, now + 0.02);
+            gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+            osc1.connect(gain1);
+            gain1.connect(ctx.destination);
+            osc1.start(now);
+            osc1.stop(now + 0.42);
+
+            // Layer 2: slight detune for thickness
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.type = 'square';
+            osc2.detune.setValueAtTime(15, now);
+            osc2.frequency.setValueAtTime(440, now);
+            osc2.frequency.exponentialRampToValueAtTime(1760, now + 0.35);
+            gain2.gain.setValueAtTime(0.0001, now);
+            gain2.gain.exponentialRampToValueAtTime(0.20, now + 0.02);
+            gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+            osc2.connect(gain2);
+            gain2.connect(ctx.destination);
+            osc2.start(now + 0.01);
+            osc2.stop(now + 0.43);
+
+            // Layer 3: short noise tick with highpass filter
+            const bufferSize = 0.15; // seconds
+            const noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * bufferSize), ctx.sampleRate);
+            const data = noiseBuf.getChannelData(0);
+            for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.6;
+            const noise = ctx.createBufferSource();
+            noise.buffer = noiseBuf;
+            const hp = ctx.createBiquadFilter();
+            hp.type = 'highpass';
+            hp.frequency.setValueAtTime(1400, now);
+            const gainN = ctx.createGain();
+            gainN.gain.setValueAtTime(0.0001, now);
+            gainN.gain.exponentialRampToValueAtTime(0.25, now + 0.03);
+            gainN.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+            noise.connect(hp);
+            hp.connect(gainN);
+            gainN.connect(ctx.destination);
+            noise.start(now + 0.02);
+            noise.stop(now + 0.17);
+
+            setTimeout(() => { try { ctx.close(); } catch(e){} }, 700);
+          } catch(e) {}
+        }
+
+        async function playGong() {
+          try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            const ctx = new AudioCtx();
+            const now = ctx.currentTime;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, now);
+            osc.frequency.exponentialRampToValueAtTime(220, now + 0.6);
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.exponentialRampToValueAtTime(0.44, now + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.65);
+            setTimeout(() => { try { ctx.close(); } catch(e){} }, 800);
+          } catch(e) {}
+        }
+
+        function timerTick() {
+          const now = Date.now();
+          const dt = Math.max(200, Math.min(5000, now - lastTickMs));
+          lastTickMs = now;
+          const inactive = (now - lastActivityMs) > (TIMER_INACTIVITY_MIN * 60 * 1000);
+          pausedForInactivity = inactive;
+          const paused = userPaused || inactive;
+          if (!paused) {
+            // advance phase countdown
+            remaining -= Math.round(dt / 1000);
+            if (remaining <= 0) {
+              const nextPhase = (phase === 'work') ? 'rest' : 'work';
+              // Notify on phase transition BEFORE we switch remaining
+              if (nextPhase === 'rest') {
+                // Rest begins — play "quitting time" style gong
+                playGong();
+              } else {
+                // Work begins — distinct wild start cue
+                playWildStart();
+              }
+              phase = nextPhase;
+              remaining = (phase === 'work') ? (TIMER_WORK_MIN * 60) : (TIMER_REST_MIN * 60);
+            }
+            // session time accrues only when not inactive
+            activeSessionSeconds += Math.round(dt / 1000);
+          }
+          updateFocusTimerUI();
+        }
+        setInterval(timerTick, 1000);
 
         function updateSummary() {
           console.debug('[updateSummary] states=', groupStates);
@@ -935,6 +1116,22 @@ def build_app(
         }
         window.handleRowClick = handleRowClick;
         
+        function getHeaderHeight() {
+          const header = document.querySelector('header.toolbar');
+          return header ? Math.ceil(header.getBoundingClientRect().height) : 0;
+        }
+
+        function scrollToGroupEl(groupEl) {
+          try {
+            const headerH = getHeaderHeight();
+            const rect = groupEl.getBoundingClientRect();
+            const top = rect.top + window.scrollY - headerH - 12; // small margin
+            window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+          } catch (e) {
+            groupEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }
+
         function nextGroup() {
           // Find the currently visible group using the same logic as keyboard shortcuts
           const currentGroupId = getCurrentVisibleGroupId();
@@ -948,7 +1145,7 @@ def build_app(
           const nextGroupElement = allGroups[currentIndex + 1];
           
           if (nextGroupElement) {
-            nextGroupElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            scrollToGroupEl(nextGroupElement);
           }
         }
         
@@ -965,7 +1162,7 @@ def build_app(
           const previousGroupElement = allGroups[currentIndex - 1];
           
           if (previousGroupElement) {
-            previousGroupElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            scrollToGroupEl(previousGroupElement);
           }
         }
         
@@ -1033,6 +1230,10 @@ def build_app(
             case 'Enter':
               e.preventDefault();
               nextGroup(); // ENTER: Go forward (main navigation key)
+              break;
+            case ' ': // Spacebar: scroll to next row with header offset
+              e.preventDefault();
+              nextGroup();
               break;
             case 'ArrowUp':
               e.preventDefault();
@@ -1159,7 +1360,8 @@ def build_app(
         
         // Track user activity
         function markActivity() {
-            // Activity tracking removed - using file-operation-based timing instead
+            // Activity ping used by focus timer to avoid counting during long idle periods
+            lastActivityMs = Date.now();
         }
         
         // Activity tracking events
@@ -1177,10 +1379,24 @@ def build_app(
             }
         });
         
-        // Scroll to first group
+        // Scroll to first group with header offset
         if (groups.length > 0) {
-          groups[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+          scrollToGroupEl(groups[0]);
         }
+
+        // Toggle button handler
+        if (focusToggleBtn) {
+          focusToggleBtn.addEventListener('click', () => {
+            userPaused = !userPaused;
+            lastActivityMs = Date.now();
+            updateFocusToggleUI();
+            updateFocusTimerUI();
+          });
+        }
+
+        // Initialize timer display immediately
+        updateFocusTimerUI();
+        updateFocusToggleUI();
         
         // Safety: bind click handlers programmatically in case inline handlers are blocked
         try {
@@ -1471,7 +1687,27 @@ def build_app(
                     target_path = move_to_selected(selected_path, tracker=tracker)
                     action_label = "keep_one_to_selected"
 
-                safe_delete(others, hard_delete=hard_delete, tracker=tracker)
+                if app.config.get("FAST_DELETE_STAGING") and app.config.get("DELETE_STAGING_DIR"):
+                    staged_dir: Path = app.config["DELETE_STAGING_DIR"]
+                    for loser in others:
+                        try:
+                            moved = move_file_with_all_companions(loser, staged_dir, dry_run=False)
+                            png_only = [str(f) for f in moved if str(f).lower().endswith('.png')]
+                            tracker.log_operation(
+                                operation="stage_delete",
+                                source_dir=str(loser.parent.name),
+                                dest_dir=str(staged_dir.name),
+                                file_count=len(png_only),
+                                files=png_only[:5],
+                                notes="staged_for_delete"
+                            )
+                        except Exception:
+                            try:
+                                safe_delete([loser], hard_delete=hard_delete, tracker=tracker)
+                            except Exception:
+                                pass
+                else:
+                    safe_delete(others, hard_delete=hard_delete, tracker=tracker)
                 write_log(log_path, action_label, target_path, others)
                 kept_count += 1
 
@@ -1582,6 +1818,8 @@ def main() -> None:
     parser.add_argument("--print-triplets", action="store_true", help="Print grouped triplets and exit")
     parser.add_argument("--hard-delete", action="store_true", help="Permanently delete files instead of send2trash")
     parser.add_argument("--batch-size", type=int, default=100, help="Number of groups to process per batch (default: 100)")
+    # Fast delete staging is ON by default; keep an override only for staging dir
+    parser.add_argument("--delete-staging-dir", type=str, default=None, help="Override delete staging directory path")
     parser.add_argument("--host", default="127.0.0.1", help="Host/IP for the local web server")
     parser.add_argument("--port", type=int, default=8080, help="Port for the local web server")
     parser.add_argument("--no-browser", action="store_true", help="Do not auto-open the browser")
@@ -1654,7 +1892,13 @@ def main() -> None:
         )
 
     log_path = folder / "triplet_culler_log.csv"
-    app = build_app(records, folder, tracker, log_path, hard_delete=args.hard_delete, batch_size=args.batch_size)
+    app = build_app(
+        records, folder, tracker, log_path,
+        hard_delete=args.hard_delete,
+        batch_size=args.batch_size,
+        fast_delete_staging=True,
+        delete_staging_dir=Path(args.delete_staging_dir).expanduser().resolve() if args.delete_staging_dir else None,
+    )
     # Training logging is always enabled
     app.config["LOG_TRAINING"] = True
 

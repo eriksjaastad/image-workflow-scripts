@@ -41,11 +41,18 @@ Tests:
 - `format_image_display_name()` - Consistent image name formatting
 - `calculate_work_time_from_file_operations()` - Intelligent work time calculation
 
-### **File-Operation-Based Timing System**
-**Achievement:** Replaced ActivityTimer with intelligent file-operation timing
-**Benefits:** More accurate work time tracking, automatic break detection
-**Implementation:** Analyzes FileTracker logs to calculate actual work time
+### **File-Operation-Based Timing System (Hour-Blocking)**
+**Achievement:** Replaced ActivityTimer with simple, robust hour-blocking timing
+**Method:** Count unique hour blocks (YYYY-MM-DD HH) where ANY file operation occurred
+**Benefits:** 
+- No subjective break detection thresholds
+- Brutally honest: if files moved during an hour, that hour counts
+- Works across midnight naturally
+- Productivity variation shown via img/h metric
+**Implementation:** `calculate_work_time_from_file_operations()` in `companion_file_utils.py`
+**Formula:** Each unique hour block = 1 hour (3600 seconds)
 **Tools Updated:** All file-heavy tools (image selector, character sorter, crop tools)
+**Date:** October 15, 2025
 
 ### **Productivity Dashboard - Architecture & Patterns (October 2025)**
 **Goal:** A fast, reliable dashboard that surfaces production throughput from local logs only.
@@ -117,6 +124,29 @@ Testing additions:
 - `data/` - All data files and models
 - `scripts/tests/` - All test files
 - Root directory - Only essential config files (.gitignore, .coverage, etc.)
+
+### **Project Lifecycle Automation**
+**Achievement:** Automated project start/finish with comprehensive scripts
+**Scripts:**
+- `00_start_project.py` - Initialize new projects with proper timestamps and metadata
+- `00_finish_project.py` - Complete projects with ZIP creation and manifest updates
+- `import_historical_projects.py` - Import historical projects from CSV timesheets
+
+**Benefits:**
+- No manual manifest editing
+- Consistent timestamp formatting (ISO-8601 UTC with Z)
+- Auto-count initial/final images
+- Integrated with `prezip_stager.py` for delivery ZIPs
+- Historical data backfill from timesheets
+
+**Key Features:**
+- Interactive and command-line modes
+- Dry-run safety by default
+- Manifest backup before updates
+- Handles multi-day projects
+- Special case handling (missing data, dual projects same day)
+
+**Date:** October 15, 2025
 
 ---
 

@@ -66,6 +66,8 @@ selected/
 
 # Content Directories (large datasets - do not track)
 mojo1/
+mojo2/
+exports/
 
 # Image and Data Files
 *.png

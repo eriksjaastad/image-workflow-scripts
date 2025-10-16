@@ -337,43 +337,90 @@
             </div>
         </div>
         
+        <!-- Project Productivity Table -->
+        <div class="chart-container" style="margin-top: 2rem;">
+                <div class="chart-header">
+                    <div>
+                        <h3 class="chart-title">📋 Project Productivity Table</h3>
+                        <p class="chart-subtitle">Detailed breakdown by project and tool</p>
+                    </div>
+                    <div class="chart-controls" style="margin-top: 0.5rem; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+                        <!-- Hide empty projects checkbox -->
+                        <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.85em; margin-right: 1rem;">
+                            <input type="checkbox" id="hide-empty-projects" checked onchange="filterEmptyProjects(this.checked)">
+                            Hide empty projects
+                        </label>
+                        
+                        <span style="border-left: 1px solid var(--border); height: 20px; margin: 0 0.5rem;"></span>
+                        
+                        <div id="tool-column-toggles" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+                            <span class="chart-subtitle" style="margin-right: 0.5rem;">Show tools:</span>
+                            <!-- Tool checkboxes will be populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+            <div style="overflow-x: auto; margin-top: 1rem;">
+                <table id="productivity-table" style="width: 100%; border-collapse: collapse; color: var(--text-primary); font-size: 0.9em;">
+                    <thead id="productivity-table-head">
+                        <tr>
+                            <th colspan="3" style="padding: 20px; text-align: center; color: var(--text-muted);">
+                                Loading...
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="productivity-table-body">
+                        <tr>
+                            <td colspan="3" style="padding: 20px; text-align: center; color: var(--text-muted);">
+                                Loading...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
         <!-- Charts Grid -->
-        <div class="charts-grid">
-            <!-- Project KPI Card -->
+        <div class="charts-grid" style="margin-top: 3rem;">
+            <!-- Project Comparison Chart -->
             <div class="chart-container">
                 <div class="chart-header">
                     <div>
-                        <h3 class="chart-title">📈 Project Throughput KPI</h3>
-                        <p class="chart-subtitle">Images/hour (selected project)</p>
+                        <h3 class="chart-title">🧭 Project Comparison</h3>
+                        <p class="chart-subtitle">Total operations per project</p>
                     </div>
-                </div>
-                <div class="stats-overview" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
-                    <div class="stat-card">
-                        <div class="stat-value" id="project-kpi-iph">-</div>
-                        <div class="stat-label">Images/hour</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="project-kpi-total">-</div>
-                        <div class="stat-label">Images processed</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="project-kpi-title">-</div>
-                        <div class="stat-label">Project</div>
+                    <div class="chart-controls">
+                        <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.85em;">
+                            <input type="checkbox" id="hide-empty-projects-chart" checked onchange="filterEmptyProjectsChart(this.checked)">
+                            Hide empty projects
+                        </label>
                     </div>
                 </div>
                 <div class="chart-canvas">
-                    <canvas id="project-kpi-sparkline" height="100"></canvas>
+                    <canvas id="project-comparison-chart"></canvas>
                 </div>
-                <div class="chart-controls" style="margin-top: 0.75rem; overflow-x:auto;">
-                    <table id="project-kpi-breakdown" style="width:100%; color: var(--text-secondary); border-collapse: collapse;">
-                        <thead>
-                            <tr style="text-align:left; border-bottom: 1px solid var(--border);">
-                                <th style="padding: 6px 4px;">Operation</th>
-                                <th style="padding: 6px 4px;">Count</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+            </div>
+            <!-- Files Processed by Project Chart -->
+            <div class="chart-container">
+                <div class="chart-header">
+                    <div>
+                        <h3 class="chart-title">📊 Files Processed by Project</h3>
+                        <p class="chart-subtitle">Compare your pace across projects</p>
+                    </div>
+                    <div class="chart-controls">
+                        <button class="chart-btn active" data-chart="by-project" data-type="bar">Bar</button>
+                        <button class="chart-btn" data-chart="by-project" data-type="line">Line</button>
+                    </div>
+                </div>
+                <div class="chart-canvas">
+                    <canvas id="files-by-project-chart"></canvas>
+                </div>
+                <div class="chart-controls" id="project-toggles" style="margin-top: 0.75rem; gap: 0.75rem; flex-wrap: wrap;">
+                    <!-- Project toggles will be populated dynamically -->
+                </div>
+                <div class="chart-controls" style="margin-top: 0.5rem;">
+                    <label><input type="checkbox" id="project-show-avg" checked> Show averages</label>
+                    <button class="chart-btn" id="project-toggle-all">All</button>
+                    <button class="chart-btn" id="project-toggle-none">None</button>
                 </div>
             </div>
             <!-- Files by Script Chart -->
@@ -441,6 +488,7 @@
         let currentTimeSlice = 'D';
         let currentLookbackDays = 30;
         let charts = {};
+        let currentBaselineLabels = [];
         let currentData = null;
         let currentProjectId = '';
         
@@ -464,26 +512,8 @@
             '#fdcb6e'  // Yellow
         ];
         
-        console.log('JavaScript loaded successfully!');
-        
         // Initialize Dashboard
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Dashboard initializing...');
-            console.log('DOM loaded, checking for canvas elements:');
-            console.log('files-by-script-chart:', document.getElementById('files-by-script-chart'));
-            console.log('operations-by-type-chart:', document.getElementById('operations-by-type-chart'));
-            console.log('All canvas elements:', document.querySelectorAll('canvas'));
-            console.log('Document body:', document.body);
-            console.log('Document ready state:', document.readyState);
-            
-            // Try again after a short delay
-            setTimeout(function() {
-                console.log('After delay - checking canvas elements again:');
-                console.log('files-by-script-chart:', document.getElementById('files-by-script-chart'));
-                console.log('operations-by-type-chart:', document.getElementById('operations-by-type-chart'));
-                console.log('All canvas elements:', document.querySelectorAll('canvas'));
-            }, 100);
-            
             setupEventListeners();
             loadDashboardData();
         });
@@ -518,17 +548,34 @@
             // Chart type controls
             document.querySelectorAll('.chart-btn[data-type]').forEach(btn => {
                 btn.addEventListener('click', function() {
-                    const chartName = this.dataset.chart;
-                    const chartType = this.dataset.type;
+                    const chartName = this.dataset.chart; // 'by-script' or 'by-operation'
+                    const chartType = this.dataset.type;  // 'bar' | 'line' | 'doughnut'
                     
                     // Update active state
                     this.parentElement.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active'));
                     this.classList.add('active');
                     
-                    // Recreate chart with new type
-                    if (currentData && currentData.charts[chartName.replace('-', '_')]) {
-                        createChart(chartName, chartType, currentData.charts[chartName.replace('-', '_')]);
+                    if (!currentData || !currentData.charts) return;
+                    // Build filtered data according to current toggles
+                    let payload = {};
+                    if (chartName === 'by-script' && currentData.charts.by_script) {
+                        const selected = new Set(Array.from(document.querySelectorAll('.tool-toggle'))
+                            .filter(cb => cb.checked).map(cb => cb.value));
+                        Object.entries(currentData.charts.by_script).forEach(([tool, data]) => {
+                            if (selected.has(tool)) payload[tool] = data;
+                        });
+                    } else if (chartName === 'by-operation' && currentData.charts.by_operation) {
+                        const selected = new Set(Array.from(document.querySelectorAll('.op-toggle'))
+                            .filter(cb => cb.checked).map(cb => cb.value));
+                        Object.entries(currentData.charts.by_operation).forEach(([op, data]) => {
+                            if (selected.has(op)) payload[op] = data;
+                        });
                     }
+                    // Fallback to raw if something went wrong
+                    if (!payload || Object.keys(payload).length === 0) {
+                        payload = currentData.charts[chartName.replace('-', '_')] || {};
+                    }
+                    createChart(chartName, chartType, payload);
                 });
             });
 
@@ -649,21 +696,18 @@
         
         async function loadDashboardData() {
             try {
-                console.log('Loading dashboard data...');
                 showLoading();
-                
                 const pid = encodeURIComponent(currentProjectId||'');
                 const response = await fetch(`/api/data/${currentTimeSlice}?lookback_days=${currentLookbackDays}&project_id=${pid}`);
-                console.log('Response status:', response.status);
-                
                 const data = await response.json();
-                console.log('Data received:', data);
-                
                 if (data.error) {
                     throw new Error(data.error);
                 }
                 
                 currentData = data;
+                // Establish baseline labels from server or client fallback
+                const serverBase = (data?.metadata?.baseline_labels && data.metadata.baseline_labels[currentTimeSlice]) || [];
+                currentBaselineLabels = (serverBase && serverBase.length) ? serverBase : buildClientBaselineLabels(currentTimeSlice, currentLookbackDays);
                 // Populate project options
                 const pjSel = document.getElementById('project-select');
                 if (data.projects && Array.isArray(data.projects)) {
@@ -679,13 +723,261 @@
                     try { localStorage.setItem('dashboardProjectId', currentProjectId); } catch(e) {}
                 }
                 updateStatsOverview(data);
+                updateProductivityTable(data);
                 updateCharts(data);
-                
-                console.log('Dashboard data loaded successfully');
                 
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
                 showError('Failed to load dashboard data: ' + error.message);
+            }
+        }
+        
+        function updateProductivityTable(data) {
+            const thead = document.getElementById('productivity-table-head');
+            const tbody = document.getElementById('productivity-table-body');
+            if (!thead || !tbody) return;
+            
+            let tableData = data.project_productivity_table || [];
+            
+            // Convert tools from list format to object format
+            tableData.forEach(proj => {
+                if (Array.isArray(proj.tools)) {
+                    const toolsObj = {};
+                    proj.tools.forEach(([toolName, toolData]) => {
+                        toolsObj[toolName] = toolData;
+                    });
+                    proj.tools = toolsObj;
+                }
+            });
+            
+            // Store original data for filtering
+            window.allTableData = tableData;
+            
+            // Apply filter if "Hide empty projects" is checked
+            const hideEmpty = document.getElementById('hide-empty-projects')?.checked ?? true;
+            if (hideEmpty) {
+                tableData = tableData.filter(proj => {
+                    // Check if project has ANY tool data
+                    return Object.keys(proj.tools || {}).length > 0;
+                });
+            }
+            
+            window.currentTableData = tableData;
+            
+            if (tableData.length === 0) {
+                thead.innerHTML = '<tr><th colspan="3">No Data</th></tr>';
+                tbody.innerHTML = '<tr><td colspan="3" style="padding: 20px; text-align: center; color: var(--text-muted);">No project data available</td></tr>';
+                return;
+            }
+            
+            // Use centralized tool order from backend
+            const toolOrder = data.metadata?.standard_tool_order || [
+                'Desktop Image Selector Crop',
+                'Web Image Selector',
+                'Web Character Sorter',
+                'Multi Crop Tool'
+            ];
+            
+            // Collect all unique tools across all projects and preserve order
+            const allTools = new Set();
+            tableData.forEach(proj => {
+                Object.keys(proj.tools || {}).forEach(tool => allTools.add(tool));
+            });
+            
+            // Sort tools according to the specified order
+            const toolsList = toolOrder.filter(tool => allTools.has(tool));
+            
+            // Generate tool checkboxes
+            generateToolCheckboxes(toolsList);
+            
+            // Filter tools based on current checkbox states (respect defaults on first load)
+            const visibleTools = toolsList.filter(tool => {
+                const checkboxId = `tool-${tool.replace(/\s+/g, '-').toLowerCase()}`;
+                const el = document.getElementById(checkboxId);
+                return el ? !!el.checked : true;
+            });
+            
+            // Build header rows
+            let headerRow1 = '<tr style="background: var(--hover); border-bottom: 1px solid var(--border);">';
+            let headerRow2 = '<tr style="background: var(--hover); border-bottom: 2px solid var(--accent);">';
+            
+            // Fixed columns: Project, Started, Start Images, End Images
+            headerRow1 += '<th rowspan="2" style="padding: 8px 12px; text-align: left; border-right: 1px solid var(--border);">Project</th>';
+            headerRow1 += '<th rowspan="2" style="padding: 8px 8px; text-align: center; border-right: 2px solid var(--border); min-width: 90px;">Started</th>';
+            headerRow1 += '<th rowspan="2" style="padding: 8px 12px; text-align: right; border-right: 1px solid var(--border);">Start<br>Images</th>';
+            headerRow1 += '<th rowspan="2" style="padding: 8px 12px; text-align: right; border-right: 2px solid var(--border);">End<br>Images</th>';
+            
+            // Tool columns with sub-headers
+            visibleTools.forEach(tool => {
+                // Check if this is Image Selector (has selected/cropped breakdown)
+                const isImageSelector = tool.toLowerCase().includes('selector') || tool.toLowerCase().includes('image');
+                const numSubCols = isImageSelector ? 6 : 4; // Hours, Days, Images, img/h (+ Sel, Crop for selector)
+                
+                headerRow1 += `<th colspan="${numSubCols}" style="padding: 8px 12px; text-align: center; border-left: 2px solid var(--border); border-right: 1px solid var(--border); color: var(--accent); font-weight: 600;">${tool}</th>`;
+                
+                // Sub-columns
+                headerRow2 += '<th style="padding: 6px 8px; text-align: right; font-size: 0.85em; border-left: 2px solid var(--border);">Hours</th>';
+                headerRow2 += '<th style="padding: 6px 8px; text-align: right; font-size: 0.85em;">Days</th>';
+                headerRow2 += '<th style="padding: 6px 8px; text-align: right; font-size: 0.85em;">Images</th>';
+                if (isImageSelector) {
+                    headerRow2 += '<th style="padding: 6px 8px; text-align: right; font-size: 0.85em; color: var(--text-secondary);">Sel</th>';
+                    headerRow2 += '<th style="padding: 6px 8px; text-align: right; font-size: 0.85em; color: var(--text-secondary);">Crop</th>';
+                }
+                headerRow2 += '<th style="padding: 6px 8px; text-align: right; font-size: 0.85em; border-right: 1px solid var(--border);">img/h</th>';
+            });
+            
+            headerRow1 += '</tr>';
+            headerRow2 += '</tr>';
+            thead.innerHTML = headerRow1 + headerRow2;
+            
+            // Build data rows
+            let bodyHtml = '';
+            tableData.forEach((project, projIdx) => {
+                const rowStyle = projIdx % 2 === 0 ? 'background: var(--surface);' : 'background: var(--bg);';
+                bodyHtml += `<tr style="${rowStyle}">`;
+                
+                // Fixed columns
+                // Format startedAt as short date (YYYY-MM-DD)
+                let dateStr = '';
+                if (project.startedAt) {
+                    try {
+                        const dt = new Date(project.startedAt);
+                        dateStr = dt.toISOString().split('T')[0];  // YYYY-MM-DD
+                    } catch (e) {
+                        dateStr = '';
+                    }
+                }
+                
+                bodyHtml += `<td style="padding: 10px 12px; font-weight: 600; color: var(--accent); border-right: 1px solid var(--border);">${project.title}</td>`;
+                bodyHtml += `<td style="padding: 10px 8px; text-align: center; color: var(--text-muted); font-size: 0.85em; border-right: 2px solid var(--border);">${dateStr || '-'}</td>`;
+                bodyHtml += `<td style="padding: 10px 12px; text-align: right; border-right: 1px solid var(--border);">${project.start_images.toLocaleString()}</td>`;
+                
+                // End images (show TBD if 0 and project is active)
+                const endImg = project.end_images > 0 ? project.end_images.toLocaleString() : '<span style="color: var(--text-muted);">TBD</span>';
+                bodyHtml += `<td style="padding: 10px 12px; text-align: right; border-right: 2px solid var(--border);">${endImg}</td>`;
+                
+                // Tool columns
+                visibleTools.forEach(tool => {
+                    const toolData = project.tools[tool];
+                    const isImageSelector = tool.toLowerCase().includes('selector') || tool.toLowerCase().includes('image');
+                    
+                    if (toolData) {
+                        // Hours
+                        bodyHtml += `<td style="padding: 10px 8px; text-align: right; border-left: 2px solid var(--border);">${toolData.hours || 0}h</td>`;
+                        
+                        // Days
+                        bodyHtml += `<td style="padding: 10px 8px; text-align: right;">${toolData.days || 0}d</td>`;
+                        
+                        // Images
+                        const imgs = toolData.images || toolData.images_total || 0;
+                        bodyHtml += `<td style="padding: 10px 8px; text-align: right;">${imgs.toLocaleString()}</td>`;
+                        
+                        // Selected/Cropped (for Image Selector)
+                        if (isImageSelector) {
+                            bodyHtml += `<td style="padding: 10px 8px; text-align: right; color: var(--text-secondary); font-size: 0.9em;">${(toolData.images_selected || 0).toLocaleString()}</td>`;
+                            bodyHtml += `<td style="padding: 10px 8px; text-align: right; color: var(--text-secondary); font-size: 0.9em;">${(toolData.images_cropped || 0).toLocaleString()}</td>`;
+                        }
+                        
+                        // img/h
+                        let iph = 0;
+                        if (toolData.hours > 0 && imgs > 0) {
+                            iph = Math.round(imgs / toolData.hours);
+                        }
+                        bodyHtml += `<td style="padding: 10px 8px; text-align: right; color: var(--success); font-weight: 600; border-right: 1px solid var(--border);">${iph > 0 ? iph : '-'}</td>`;
+                    } else {
+                        // No data for this tool in this project
+                        const emptyCols = isImageSelector ? 6 : 4;
+                        for (let i = 0; i < emptyCols; i++) {
+                            const borderLeft = i === 0 ? 'border-left: 2px solid var(--border);' : '';
+                            const borderRight = i === emptyCols - 1 ? 'border-right: 1px solid var(--border);' : '';
+                            bodyHtml += `<td style="padding: 10px 8px; text-align: center; color: var(--text-muted); ${borderLeft} ${borderRight}">-</td>`;
+                        }
+                    }
+                });
+                
+                bodyHtml += '</tr>';
+            });
+            
+            tbody.innerHTML = bodyHtml;
+        }
+        
+        function generateToolCheckboxes(toolsList) {
+            const container = document.getElementById('tool-column-toggles');
+            if (!container) {
+                console.error('❌ Tool column toggles container not found!');
+                return;
+            }
+            
+            // Default visibility (only these tools should be shown)
+            // Web Character Sorter and Desktop Image Selector Crop default hidden
+            const defaultVisibility = {
+                'Desktop Image Selector Crop': false,  // Default unchecked
+                'Web Image Selector': true,            // Default checked
+                'Web Character Sorter': true,          // Default checked (user wants it visible)
+                'Multi Crop Tool': true                // Default checked
+            };
+            
+            let html = '<span class="chart-subtitle" style="margin-right: 0.5rem;">Show tools:</span>';
+            
+            toolsList.forEach(tool => {
+                let isChecked;
+                if (window.toolVisibility && Object.prototype.hasOwnProperty.call(window.toolVisibility, tool)) {
+                    // Respect previously toggled state only if explicitly stored
+                    isChecked = window.toolVisibility[tool] !== false;
+                } else {
+                    // Fall back to default visibility for tools with no explicit state
+                    isChecked = defaultVisibility[tool] !== false;
+                }
+                const checkboxId = `tool-${tool.replace(/\s+/g, '-').toLowerCase()}`;
+                html += `
+                    <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.85em;">
+                        <input type="checkbox" id="${checkboxId}" ${isChecked ? 'checked' : ''} 
+                               onchange="console.log('🔍 Checkbox clicked:', '${tool}', this.checked); toggleToolColumn('${tool}', this.checked)">
+                        ${tool}
+                    </label>
+                `;
+            });
+            
+            container.innerHTML = html;
+            console.log('🔍 Generated checkboxes for tools:', toolsList);
+        }
+        
+        function toggleToolColumn(toolName, isVisible) {
+            console.log('🔍 toggleToolColumn called:', toolName, isVisible);
+            
+            // Store the visibility state
+            if (!window.toolVisibility) {
+                window.toolVisibility = {};
+            }
+            window.toolVisibility[toolName] = isVisible;
+            console.log('🔍 Updated toolVisibility:', window.toolVisibility);
+            
+            // Rebuild the table with only visible tools
+            const tableData = window.allTableData || [];
+            console.log('🔍 Rebuilding table with data:', tableData.length, 'projects');
+            if (tableData.length > 0) {
+                updateProductivityTable({ project_productivity_table: tableData });
+            } else {
+                console.error('❌ No table data available for rebuilding!');
+            }
+        }
+        
+        function filterEmptyProjects(hideEmpty) {
+            console.log('🔍 filterEmptyProjects called:', hideEmpty);
+            
+            // Rebuild the table with filtering
+            const tableData = window.allTableData || [];
+            if (tableData.length > 0) {
+                updateProductivityTable({ project_productivity_table: tableData });
+            }
+        }
+        
+        function filterEmptyProjectsChart(hideEmpty) {
+            console.log('🔍 filterEmptyProjectsChart called:', hideEmpty);
+            
+            // Rebuild the chart with filtering
+            if (currentData) {
+                renderProjectComparison(currentData);
             }
         }
         
@@ -696,7 +988,7 @@
                 if (container.querySelector('#project-kpi-sparkline')) {
                     return;
                 }
-                // Clear any existing charts
+                // Destroy any existing Chart instance but keep the canvas in DOM
                 const canvas = container.querySelector('canvas');
                 if (canvas) {
                     const chartId = canvas.id;
@@ -705,8 +997,8 @@
                         delete charts[chartId];
                     }
                 }
-                
-                // Show loading message over canvas
+
+                // Add loading overlay without removing canvas
                 const loadingDiv = document.createElement('div');
                 loadingDiv.className = 'loading';
                 loadingDiv.textContent = 'Loading chart data...';
@@ -721,9 +1013,8 @@
                     color: var(--text-secondary);
                     z-index: 10;
                 `;
-                
-                // Clear container and add loading message
-                container.innerHTML = '';
+                // Remove any existing overlay then add
+                container.querySelectorAll('.loading').forEach(el => el.remove());
                 container.appendChild(loadingDiv);
             });
         }
@@ -810,74 +1101,7 @@
                 // no-op
             }
 
-            // Project KPI (images/hour and breakdown)
-            try {
-                const kpi = data.project_kpi || {};
-                const pmAll = data.project_metrics || {};
-                const activeId = data.metadata?.active_project || '';
-                const pm = pmAll[activeId] || null;
-                const iphEl = document.getElementById('project-kpi-iph');
-                const totalEl = document.getElementById('project-kpi-total');
-                const titleEl = document.getElementById('project-kpi-title');
-
-                // Fallbacks when no specific project is selected
-                let iphVal = 0;
-                let totalVal = 0;
-                let spark = [];
-                let byType = {};
-
-                if (pm) {
-                    iphVal = Number(kpi.images_per_hour ?? (pm?.throughput?.images_per_hour ?? 0)) || 0;
-                    totalVal = Number(kpi.images_processed ?? (pm?.totals?.images_processed ?? 0)) || 0;
-                    if (pm?.timeseries?.daily_files_processed) spark = pm.timeseries.daily_files_processed;
-                    byType = (pm?.totals?.operations_by_type) || {};
-                } else {
-                    // Aggregate from timing_data and by_operation across all projects
-                    try {
-                        // Total files from by_operation
-                        if (data.charts && data.charts.by_operation) {
-                            const totalsMap = {};
-                            Object.entries(data.charts.by_operation).forEach(([op, v]) => {
-                                const sum = (v.counts || []).reduce((a,b)=>a+(Number(b)||0),0);
-                                byType[op] = (byType[op]||0) + sum;
-                                // Build daily sparkline if dates are daily strings
-                                (v.dates||[]).forEach((d, idx) => {
-                                    const key = String(d);
-                                    const val = Number(v.counts[idx]) || 0;
-                                    totalsMap[key] = (totalsMap[key]||0) + val;
-                                });
-                            });
-                            totalVal = Object.values(byType).reduce((a,b)=>a+(Number(b)||0),0);
-                            spark = Object.entries(totalsMap).sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
-                        }
-                        // Images/hour from timing_data totals
-                        if (data.timing_data) {
-                            let workMin = 0;
-                            Object.values(data.timing_data).forEach(t => {
-                                workMin += Number(t.work_time_minutes||0);
-                            });
-                            if (workMin > 0) {
-                                iphVal = Math.round((totalVal / (workMin/60)) * 100) / 100;
-                            }
-                        }
-                    } catch(e) {}
-                }
-
-                if (iphEl) iphEl.textContent = (iphVal||0).toLocaleString();
-                if (totalEl) totalEl.textContent = (totalVal||0).toLocaleString();
-                if (titleEl) titleEl.textContent = pm?.title || activeId || 'All Projects';
-
-                renderProjectSparkline(spark);
-                const tbody = document.querySelector('#project-kpi-breakdown tbody');
-                if (tbody) {
-                    tbody.innerHTML = '';
-                    Object.entries(byType).sort((a,b)=>b[1]-a[1]).forEach(([op, cnt]) => {
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `<td style=\"padding:4px 4px;\">${op}</td><td style=\"padding:4px 4px;\">${Number(cnt).toLocaleString()}</td>`;
-                        tbody.appendChild(tr);
-                    });
-                }
-            } catch(e) {}
+            // Project KPI removed - it was worthless
         }
         
         function updateTimingMethodIndicator(timingMethods) {
@@ -904,20 +1128,63 @@
         }
         
         function updateCharts(data) {
-            console.log('updateCharts called with data:', data);
-            console.log('data.charts exists?', !!data.charts);
-            console.log('data.charts.by_script exists?', !!data.charts?.by_script);
-            console.log('data.charts.by_operation exists?', !!data.charts?.by_operation);
-            
             if (!data || !data.charts) {
                 console.warn('No chart data available');
                 return;
             }
             
-            console.log('Chart data available:', data.charts);
+            // Render project comparison (total operations)
+            renderProjectComparison(data);
             
+            // Render by-project chart (NEW)
+            if (data.charts.by_project && Object.keys(data.charts.by_project).length > 0) {
+                const projectNames = Object.keys(data.charts.by_project);
+                projectNames.forEach((proj, idx) => {
+                    if (!seriesColors.byProject) seriesColors.byProject = {};
+                    if (!seriesColors.byProject[proj]) {
+                        seriesColors.byProject[proj] = chartColors[idx % chartColors.length];
+                    }
+                });
+                createChart('by-project', 'bar', data.charts.by_project);
+                
+                // Build project toggles
+                const container = document.getElementById('project-toggles');
+                if (container) {
+                    container.innerHTML = '';
+                    projectNames.forEach(proj => {
+                        const id = `proj_${proj.replace(/[^a-z0-9]/gi,'_')}`;
+                        const label = document.createElement('label');
+                        const color = seriesColors.byProject[proj] || '#b8b8b8';
+                        label.style.color = color;
+                        label.innerHTML = `<input type=\"checkbox\" class=\"project-toggle\" id=\"${id}\" value=\"${proj}\" checked> ${proj}`;
+                        container.appendChild(label);
+                    });
+                    
+                    // Add toggle handlers
+                    container.querySelectorAll('.project-toggle').forEach(cb => {
+                        cb.addEventListener('change', () => {
+                            const selected = new Set(Array.from(container.querySelectorAll('.project-toggle')).filter(c => c.checked).map(c => c.value));
+                            const filtered = {};
+                            Object.entries(data.charts.by_project).forEach(([proj, v]) => {
+                                if (selected.has(proj)) filtered[proj] = v;
+                            });
+                            createChart('by-project', 'bar', filtered);
+                        });
+                    });
+                    
+                    // Preset button handlers
+                    document.getElementById('project-toggle-all')?.addEventListener('click', () => {
+                        container.querySelectorAll('.project-toggle').forEach(cb => cb.checked = true);
+                        createChart('by-project', 'bar', data.charts.by_project);
+                    });
+                    document.getElementById('project-toggle-none')?.addEventListener('click', () => {
+                        container.querySelectorAll('.project-toggle').forEach(cb => cb.checked = false);
+                        createChart('by-project', 'bar', {});
+                    });
+                }
+            }
+
             if (data.charts.by_script) {
-                console.log('Creating by_script chart with data:', data.charts.by_script);
                 // Assign stable colors for tools
                 const toolNames = Object.keys(data.charts.by_script);
                 toolNames.forEach((tool, idx) => {
@@ -930,7 +1197,19 @@
                 const container = document.getElementById('tool-toggles');
                 if (container) {
                     container.innerHTML = '';
-                    Object.keys(data.charts.by_script).forEach(tool => {
+                    // Use centralized tool order from backend
+                    const desiredOrder = data.metadata?.standard_tool_order || [
+                        'Desktop Image Selector Crop',
+                        'Web Image Selector',
+                        'Web Character Sorter',
+                        'Multi Crop Tool'
+                    ];
+                    const toolNames = Object.keys(data.charts.by_script);
+                    const ordered = [
+                        ...desiredOrder.filter(name => toolNames.includes(name)),
+                        ...toolNames.filter(name => !desiredOrder.includes(name))
+                    ];
+                    ordered.forEach(tool => {
                         const id = `tool_${tool.replace(/[^a-z0-9]/gi,'_')}`;
                         const label = document.createElement('label');
                         const color = seriesColors.byScript[tool] || '#b8b8b8';
@@ -976,14 +1255,9 @@
                     // Initial render with restored selections
                     renderToolsChart();
                 }
-            } else {
-                console.warn('No by_script data available');
-                console.log('data.charts keys:', Object.keys(data.charts));
-                showChartError('files-by-script-chart', 'No script data available');
             }
             
             if (data.charts.by_operation) {
-                console.log('Creating by_operation chart with data:', data.charts.by_operation);
                 // Assign stable colors for operations (fixed order)
                 const opOrder = ['crop','delete','move','send_to_trash','skip'];
                 opOrder.forEach((op, idx) => {
@@ -1031,18 +1305,19 @@
         }
         
         function createChart(chartName, chartType, chartData) {
-            console.log(`createChart called: ${chartName}, ${chartType}`, chartData);
             
-            const canvasId = chartName === 'by-script' ? 'files-by-script-chart' : 'operations-by-type-chart';
-            const containerId = canvasId.replace('-chart', '-chart').replace('files-by-script', 'files-by-script').replace('operations-by-type', 'operations-by-type');
-            
-            console.log(`Looking for canvas with ID: ${canvasId}`);
+            // Map chart names to canvas IDs
+            const canvasMap = {
+                'by-script': 'files-by-script-chart',
+                'by-operation': 'operations-by-type-chart',
+                'by-project': 'files-by-project-chart'
+            };
+            const canvasId = canvasMap[chartName] || 'files-by-script-chart';
             
             let canvas = document.getElementById(canvasId);
             
             // If canvas doesn't exist, recreate it
             if (!canvas) {
-                console.log(`Canvas not found, recreating: ${canvasId}`);
                 const container = document.querySelector(`[data-chart="${chartName === 'by-script' ? 'by-script' : 'by-operation'}"]`)?.closest('.chart-container')?.querySelector('.chart-canvas');
                 
                 if (container) {
@@ -1051,32 +1326,23 @@
                     canvas = document.createElement('canvas');
                     canvas.id = canvasId;
                     container.appendChild(canvas);
-                    console.log(`Canvas recreated: ${canvasId}`);
                 }
             }
-            
-            console.log(`Canvas element found:`, canvas);
             
             // Check if canvas exists
             if (!canvas) {
                 console.error(`Canvas element not found: ${canvasId}`);
-                console.log('Available elements with similar IDs:');
-                console.log('files-by-script-chart:', document.getElementById('files-by-script-chart'));
-                console.log('operations-by-type-chart:', document.getElementById('operations-by-type-chart'));
-                console.log('All canvas elements:', document.querySelectorAll('canvas'));
                 return;
             }
             
             // Clear loading message and restore canvas
             canvas.innerHTML = '';
             canvas.style.display = 'block';
-            console.log('Canvas cleared and restored');
             
             // Remove any existing error messages
             const errorDiv = document.getElementById(canvasId + '-error');
             if (errorDiv) {
                 errorDiv.remove();
-                console.log('Removed existing error div');
             }
             
             // Check if chartData is valid
@@ -1092,9 +1358,12 @@
                 console.log('Destroyed existing chart');
             }
             
-            // Prepare data for Chart.js
+            // Prepare data for Chart.js using canonical baseline labels
+            const baseline = Array.isArray(currentBaselineLabels) ? currentBaselineLabels.slice() : [];
+            const labels = baseline.length ? baseline : [];
+            const labelIndex = {};
+            labels.forEach((l, i) => labelIndex[l] = i);
             const datasets = [];
-            const labels = new Set();
             
             try {
                 Object.entries(chartData).forEach(([key, data], index) => {
@@ -1103,24 +1372,41 @@
                         return;
                     }
                     
-                    data.dates.forEach(date => labels.add(date));
+                    // Map this series' counts into baseline-aligned array
+                    const series = new Array(labels.length).fill(0);
+                    data.dates.forEach((date, idx) => {
+                        const pos = (date in labelIndex) ? labelIndex[date] : -1;
+                        if (pos !== -1) series[pos] += Number(data.counts[idx] || 0);
+                    });
+
+                    // Get color based on chart type
+                    let color = chartColors[index % chartColors.length];
+                    if (chartName === 'by-script' && seriesColors.byScript[key]) {
+                        color = seriesColors.byScript[key];
+                    } else if (chartName === 'by-operation' && seriesColors.byOperation[key]) {
+                        color = seriesColors.byOperation[key];
+                    } else if (chartName === 'by-project' && seriesColors.byProject && seriesColors.byProject[key]) {
+                        color = seriesColors.byProject[key];
+                    }
                     
                     datasets.push({
                         label: key,
-                        data: data.counts,
-                        backgroundColor: (chartName==='by-script' ? (seriesColors.byScript[key]||chartColors[index % chartColors.length]) : (seriesColors.byOperation[key]||chartColors[index % chartColors.length])) + '40',
-                        borderColor: (chartName==='by-script' ? (seriesColors.byScript[key]||chartColors[index % chartColors.length]) : (seriesColors.byOperation[key]||chartColors[index % chartColors.length])),
+                        data: series,
+                        backgroundColor: color + '40',
+                        borderColor: color,
                         borderWidth: 2,
                         tension: 0.4,
                         type: chartType
                     });
                     // Add average line overlay if enabled
-                    const avgToggleId = chartName === 'by-operation' ? 'op-show-avg' : 'tool-show-avg';
+                    let avgToggleId = 'tool-show-avg';
+                    if (chartName === 'by-operation') avgToggleId = 'op-show-avg';
+                    else if (chartName === 'by-project') avgToggleId = 'project-show-avg';
                     const showAvg = document.getElementById(avgToggleId)?.checked;
-                    if (showAvg && data.counts.length > 0) {
-                        const sum = data.counts.reduce((a,b) => a + (Number(b)||0), 0);
-                        const avg = sum / data.counts.length;
-                        const avgSeries = Array(data.counts.length).fill(avg);
+                    if (showAvg && series.length > 0) {
+                        const nonZero = series.filter(v => Number(v) > 0);
+                        const base = nonZero.length ? (nonZero.reduce((a,b)=>a+Number(b),0) / nonZero.length) : 0;
+                        const avgSeries = Array(labels.length).fill(base);
                         datasets.push({
                             label: `${key} (avg)`,
                             data: avgSeries,
@@ -1134,8 +1420,32 @@
                     }
                 });
                 
-                console.log('Datasets prepared:', datasets);
-                console.log('Labels prepared:', Array.from(labels));
+                // Trim leading empty dates (no data before first data point)
+                // Find first index where ANY series has non-zero data
+                let firstDataIndex = 0;
+                if (labels.length > 0 && datasets.length > 0) {
+                    for (let i = 0; i < labels.length; i++) {
+                        const hasData = datasets.some(ds => {
+                            // Check if this is a data series (not average overlay)
+                            if (ds.label && ds.label.includes('(avg)')) return false;
+                            return ds.data && ds.data[i] > 0;
+                        });
+                        if (hasData) {
+                            firstDataIndex = i;
+                            break;
+                        }
+                    }
+                    
+                    // Trim labels and all dataset arrays from firstDataIndex
+                    if (firstDataIndex > 0) {
+                        labels.splice(0, firstDataIndex);
+                        datasets.forEach(ds => {
+                            if (ds.data && Array.isArray(ds.data)) {
+                                ds.data = ds.data.slice(firstDataIndex);
+                            }
+                        });
+                    }
+                }
                 
                 if (datasets.length === 0) {
                     console.warn('No datasets created');
@@ -1143,7 +1453,7 @@
                     return;
                 }
             
-            const sortedLabels = Array.from(labels).sort();
+            const sortedLabels = labels;
             
             // Create chart configuration
             const config = {
@@ -1216,8 +1526,12 @@
             };
             
             // Create chart
-            console.log('Creating Chart.js instance with config:', config);
             charts[canvasId] = new Chart(canvas, config);
+            // Remove any loading overlay for this canvas
+            try {
+                const parent = canvas.parentElement;
+                parent && parent.querySelectorAll('.loading').forEach(el => el.remove());
+            } catch(e) {}
 
             // Register intraday day-banding and project marker overlays (once)
             try {
@@ -1386,12 +1700,97 @@
                 };
                 charts[canvasId].update('none');
             }
-            console.log(`Chart created successfully for ${chartName}`);
+            
                 
             } catch (error) {
                 console.error(`Error creating chart ${chartName}:`, error);
                 showChartError(canvasId, 'Failed to create chart');
             }
+        }
+
+        function renderProjectComparison(data) {
+            const canvas = document.getElementById('project-comparison-chart');
+            if (!canvas) return;
+            try {
+                if (charts['project-comparison-chart']) {
+                    charts['project-comparison-chart'].destroy();
+                    delete charts['project-comparison-chart'];
+                }
+            } catch(e) {}
+            
+            let comps = data.project_comparisons || [];
+            if (!comps.length) {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0,0,canvas.width,canvas.height);
+                const parent = canvas.parentElement;
+                parent && parent.querySelectorAll('.loading').forEach(el => el.remove());
+                return;
+            }
+            
+            // Filter out empty projects if checkbox is checked
+            const hideEmpty = document.getElementById('hide-empty-projects-chart')?.checked ?? true;
+            if (hideEmpty) {
+                comps = comps.filter(p => Number(p.total_operations || 0) > 0);
+            }
+            
+            if (!comps.length) {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0,0,canvas.width,canvas.height);
+                return;
+            }
+            
+            // Show total operations per project (simple and useful)
+            const labels = comps.map(p => p.title || p.projectId);
+            const values = comps.map(p => Number(p.total_operations || 0));
+            
+            charts['project-comparison-chart'] = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Total Operations',
+                        data: values,
+                        backgroundColor: 'rgba(79,157,255,0.35)',
+                        borderColor: '#4f9dff',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (i) => {
+                                    const proj = comps[i.dataIndex];
+                                    const lines = [`Total: ${Number(i.parsed.y).toLocaleString()}`];
+                                    if (proj.operations_by_type) {
+                                        Object.entries(proj.operations_by_type).forEach(([op, cnt]) => {
+                                            lines.push(`  ${op}: ${Number(cnt).toLocaleString()}`);
+                                        });
+                                    }
+                                    return lines;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: (value) => value.toLocaleString()
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Remove loading overlay
+            try {
+                const parent = canvas.parentElement;
+                parent && parent.querySelectorAll('.loading').forEach(el => el.remove());
+            } catch(e) {}
         }
         
         function renderProjectSparkline(series) {

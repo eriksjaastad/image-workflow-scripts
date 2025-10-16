@@ -93,6 +93,25 @@ def consolidate_daily_data(target_date: str, dry_run: bool = False):
                     except json.JSONDecodeError:
                         continue
     
+    # Check archived log files (gzipped)
+    log_archives_dir = data_dir / "log_archives"
+    if log_archives_dir.exists():
+        import gzip
+        # Try both possible archive formats
+        for archive_pattern in [f"file_operations_{target_date}.log.gz", f"file_operations_{target_date}_archived.log.gz"]:
+            archived_log = log_archives_dir / archive_pattern
+            if archived_log.exists():
+                with gzip.open(archived_log, 'rt') as f:
+                    for line in f:
+                        if line.strip():
+                            try:
+                                data = json.loads(line)
+                                if data.get('type') == 'file_operation':
+                                    operations.append(data)
+                            except json.JSONDecodeError:
+                                continue
+                break  # Found archive, no need to check other patterns
+    
     # Fallback: search recursively for a daily log in current tree (useful in tests)
     if not operations:
         try:
@@ -126,13 +145,21 @@ def consolidate_daily_data(target_date: str, dry_run: bool = False):
     
     for op in operations:
         script = op.get('script', 'unknown')
-        file_count = op.get('file_count', 0)
+        
+        # Count PNG files only (not companion files like YAML, captions, etc.)
+        files_list = op.get('files', [])
+        png_count = sum(1 for f in files_list if isinstance(f, str) and f.lower().endswith('.png'))
+        
+        # Fallback to file_count if no files list (shouldn't happen with proper logging)
+        if not files_list and op.get('file_count'):
+            png_count = op.get('file_count', 0)
+        
         operation_type = op.get('operation', 'unknown')
         timestamp = op.get('timestamp', '')
         session_id = op.get('session_id', '')
         
-        script_summaries[script]['total_files'] += file_count or 0
-        script_summaries[script]['operations'][operation_type] += file_count or 0
+        script_summaries[script]['total_files'] += png_count
+        script_summaries[script]['operations'][operation_type] += png_count
         script_summaries[script]['sessions'].add(session_id)
         
         if not script_summaries[script]['first_operation']:

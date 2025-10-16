@@ -69,6 +69,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
+from matplotlib.widgets import Button
 from PIL import Image
 import numpy as np
 
@@ -83,6 +84,169 @@ from utils.companion_file_utils import (
     move_file_with_all_companions,
     extract_timestamp_from_filename
 )
+"""
+NOTE: Focus timer durations can be edited via FOCUS_TIMER_WORK_MIN and
+FOCUS_TIMER_REST_MIN constants below. Search this file for
+FOCUS_TIMER_WORK_MIN to locate the configuration block quickly.
+"""
+
+# Focus timer configuration (minutes)
+FOCUS_TIMER_WORK_MIN: int = 15
+FOCUS_TIMER_REST_MIN: int = 5
+
+
+class _FocusTimer:
+    """Lightweight Pomodoro-style focus timer anchored to a figure top strip.
+
+    UI elements (top-right):
+      [Work mm:ss] [Rest mm:ss] [Start/Pause] [Reset]
+
+    The timer toggles work → rest → work automatically. Only Start/Pause and
+    Reset are user-facing. A subtle tint is applied to the timer strip during
+    the rest phase. No keyboard bindings are used.
+    """
+
+    def __init__(self, fig: plt.Figure, work_min: int, rest_min: int) -> None:
+        self.fig = fig
+        self.work_total = max(1, int(work_min)) * 60
+        self.rest_total = max(1, int(rest_min)) * 60
+        self.phase = 'work'  # 'work' | 'rest'
+        self.remaining = self.work_total
+        self._running = False
+        self._last_tick = None  # type: Optional[float]
+        self._timer = None
+
+        # Axes/controls placeholders
+        self.bg_ax = None
+        self.work_txt = None
+        self.rest_txt = None
+        self.start_btn = None
+        self.reset_btn = None
+
+    def init_ui(self) -> None:
+        # Reserve a slim band near the very top, above the subplot area
+        # Keep within [0.983, 1.0] to avoid overlapping tight_layout top=0.98
+        band_bottom = 0.983
+        band_height = 0.015
+        left_base = 0.58
+        self.bg_ax = self.fig.add_axes([left_base, band_bottom, 0.40, band_height])
+        self.bg_ax.set_xticks([])
+        self.bg_ax.set_yticks([])
+        self.bg_ax.set_facecolor('white')
+        for spine in self.bg_ax.spines.values():
+            spine.set_visible(False)
+
+        # Text readouts inside bg_ax (use axes coords)
+        self.work_txt = self.bg_ax.text(0.02, 0.5, self._fmt("Work", self.remaining),
+                                        va='center', ha='left', fontsize=9)
+        self.rest_txt = self.bg_ax.text(0.28, 0.5, self._fmt("Rest", self.rest_total),
+                                        va='center', ha='left', fontsize=9, color='#2f9e44')
+
+        # Buttons (tiny) – place to the right within the band
+        self.start_ax = self.fig.add_axes([left_base + 0.26, band_bottom + 0.001, 0.08, band_height - 0.002])
+        self.reset_ax = self.fig.add_axes([left_base + 0.35, band_bottom + 0.001, 0.07, band_height - 0.002])
+        self.start_btn = Button(self.start_ax, 'Start', color='#e9ecef', hovercolor='#dee2e6')
+        self.reset_btn = Button(self.reset_ax, 'Reset', color='#e9ecef', hovercolor='#dee2e6')
+        self.start_btn.on_clicked(lambda _evt: self.start_pause())
+        self.reset_btn.on_clicked(lambda _evt: self.reset())
+
+        # Create a 1s UI timer (matplotlib Timer)
+        self._timer = self.fig.canvas.new_timer(interval=1000)
+        self._timer.add_callback(self._tick)
+        self._apply_phase_style()
+
+    def start_pause(self) -> None:
+        if not self._running:
+            self._running = True
+            self._last_tick = time.monotonic()
+            try:
+                self.start_btn.label.set_text('Pause')
+            except Exception:
+                pass
+            if self._timer:
+                self._timer.start()
+        else:
+            self._running = False
+            try:
+                self.start_btn.label.set_text('Start')
+            except Exception:
+                pass
+            if self._timer:
+                self._timer.stop()
+
+        self.fig.canvas.draw_idle()
+
+    def reset(self) -> None:
+        self.phase = 'work'
+        self.remaining = self.work_total
+        self._running = False
+        if self._timer:
+            self._timer.stop()
+        try:
+            self.start_btn.label.set_text('Start')
+        except Exception:
+            pass
+        self._update_texts()
+        self._apply_phase_style()
+        self.fig.canvas.draw_idle()
+
+    def _advance_phase(self) -> None:
+        if self.phase == 'work':
+            self.phase = 'rest'
+            self.remaining = self.rest_total
+        else:
+            self.phase = 'work'
+            self.remaining = self.work_total
+        self._apply_phase_style()
+
+    def _tick(self) -> None:
+        if not self._running:
+            return
+        now = time.monotonic()
+        dt = 1.0
+        if self._last_tick is not None:
+            dt = max(0.5, min(5.0, now - self._last_tick))
+        self._last_tick = now
+
+        self.remaining -= int(round(dt))
+        if self.remaining <= 0:
+            self._advance_phase()
+            self.remaining = max(0, self.remaining)
+            # Immediately continue counting in the next phase if still running
+        self._update_texts()
+        self.fig.canvas.draw_idle()
+
+    def _fmt(self, label: str, secs: int) -> str:
+        m = max(0, int(secs)) // 60
+        s = max(0, int(secs)) % 60
+        return f"{label} {m:02d}:{s:02d}"
+
+    def _update_texts(self) -> None:
+        # Work readout shows current phase time if phase is work; rest readout remains constant label
+        if self.phase == 'work':
+            self.work_txt.set_text(self._fmt("Work", self.remaining))
+            self.rest_txt.set_text(self._fmt("Rest", self.rest_total))
+        else:
+            self.work_txt.set_text(self._fmt("Work", self.work_total))
+            self.rest_txt.set_text(self._fmt("Rest", self.remaining))
+
+    def _apply_phase_style(self) -> None:
+        try:
+            if self.phase == 'rest':
+                self.bg_ax.set_facecolor('#fff4e6')  # soft amber tint
+            else:
+                self.bg_ax.set_facecolor('white')
+        except Exception:
+            pass
+
+    def stop(self) -> None:
+        self._running = False
+        if self._timer:
+            try:
+                self._timer.stop()
+            except Exception:
+                pass
+
 
 
 class MultiDirectoryProgressTracker:
@@ -310,6 +474,8 @@ class MultiCropTool(BaseDesktopImageTool):
     def __init__(self, directory, aspect_ratio=None):
         """Initialize multi-directory crop tool."""
         super().__init__(directory, aspect_ratio, "multi_crop_tool")
+        # Focus timer instance will be initialized after first batch load when fig exists
+        self._focus_timer: Optional[_FocusTimer] = None
         
         # Configure panel bounds for this tool: support 1–3 images per batch
         self.min_panels = 1
@@ -435,6 +601,14 @@ class MultiCropTool(BaseDesktopImageTool):
         self.update_control_labels()
         
         plt.tight_layout(rect=[0, 0.02, 1, 0.98])
+
+        # Initialize focus timer UI once (top-right strip)
+        if self._focus_timer is None:
+            try:
+                self._focus_timer = _FocusTimer(self.fig, FOCUS_TIMER_WORK_MIN, FOCUS_TIMER_REST_MIN)
+                self._focus_timer.init_ui()
+            except Exception as e:
+                print(f"[timer] init failed: {e}")
         plt.draw()
     
     def update_title(self):
@@ -685,6 +859,12 @@ class MultiCropTool(BaseDesktopImageTool):
     def show_completion(self):
         """Show completion message"""
         plt.clf()
+        # Stop focus timer if running
+        try:
+            if self._focus_timer:
+                self._focus_timer.stop()
+        except Exception:
+            pass
         
         if not self.single_directory_mode:
             self.progress_tracker.cleanup_completed_session()

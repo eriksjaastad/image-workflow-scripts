@@ -16,14 +16,22 @@ import json
 import argparse
 from datetime import datetime, timedelta
 from pathlib import Path
+from collections import OrderedDict
 from flask import Flask, render_template, jsonify, request
 from data_engine import DashboardDataEngine
+from analytics import DashboardAnalytics
 
 class ProductivityDashboard:
     def __init__(self, data_dir: str = "../.."):
-        self.data_engine = DashboardDataEngine(data_dir)
+        # Normalize to project root regardless of how this script is invoked
+        project_root = Path(__file__).resolve().parents[2]
+        self.data_engine = DashboardDataEngine(str(project_root))
+        # Analytics engine for normalized/table computations (single source)
+        self.analytics = DashboardAnalytics(project_root)
         # Set template folder to current directory
         self.app = Flask(__name__, template_folder='.')
+        # Preserve dict order in JSON responses (don't sort keys)
+        self.app.config['JSON_SORT_KEYS'] = False
         self.setup_routes()
     
     def setup_routes(self):
@@ -37,25 +45,34 @@ class ProductivityDashboard:
         @self.app.route("/api/data/<time_slice>")
         def get_dashboard_data(time_slice):
             """API endpoint for dashboard data"""
-            lookback_days = request.args.get('lookback_days', 30, type=int)
+            lookback_days = request.args.get('lookback_days', 60, type=int)  # 60 days to show archived projects
             project_id = request.args.get('project_id', default=None, type=str)
             
             try:
+                # Treat empty project_id as None to avoid downstream issues
+                pid = project_id if (project_id is not None and str(project_id).strip() != '') else None
                 data = self.data_engine.generate_dashboard_data(
                     time_slice=time_slice, 
                     lookback_days=lookback_days,
-                    project_id=project_id
+                    project_id=pid
                 )
                 
-                # Transform data for Chart.js format
-                chart_data = self.transform_for_charts(data)
-                chart_data['projects'] = data.get('projects', [])
-                chart_data['project_markers'] = data.get('project_markers', {})
-                chart_data['project_metrics'] = data.get('project_metrics', {})
-                chart_data['project_kpi'] = data.get('project_kpi', {})
-                chart_data['timing_data'] = data.get('timing_data', {})
-                chart_data['metadata']['active_project'] = data['metadata'].get('active_project')
-                return jsonify(chart_data)
+                # Build complete analytics response (single source of truth for table and charts)
+                analytics_resp = self.analytics.generate_dashboard_response(
+                    time_slice=time_slice,
+                    lookback_days=lookback_days,
+                    project_id=pid
+                )
+                chart_data = analytics_resp
+                # Debug provenance marker and no-cache headers
+                try:
+                    chart_data['metadata']['table_source'] = 'analytics'
+                except Exception:
+                    pass
+                resp = jsonify(chart_data)
+                resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+                resp.headers['Pragma'] = 'no-cache'
+                return resp
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
         
@@ -86,7 +103,7 @@ class ProductivityDashboard:
             try:
                 raw_data = self.data_engine.generate_dashboard_data(
                     time_slice='D', 
-                    lookback_days=30
+                    lookback_days=60  # 60 days to show archived projects
                 )
                 return jsonify(raw_data)
             except Exception as e:
@@ -153,7 +170,352 @@ class ProductivityDashboard:
             
             chart_data['charts']['by_operation'] = by_operation_data
         
+        # Project comparison payload (overall and per-tool IPH)
+        try:
+            pm = data.get('project_metrics', {}) or {}
+            comparisons = []
+            for pid, rec in pm.items():
+                title = rec.get('title') or pid
+                iph = float((rec.get('throughput') or {}).get('images_per_hour') or 0)
+                base = rec.get('baseline') or {}
+                overall_base = float(base.get('overall_iph_baseline') or 0)
+                per_tool_base = base.get('per_tool') or {}
+                tools = {}
+                for tool, stats in (rec.get('tools') or {}).items():
+                    tools[tool] = {
+                        'iph': float(stats.get('images_per_hour') or 0),
+                        'baseline': float(per_tool_base.get(tool) or 0)
+                    }
+                comparisons.append({
+                    'projectId': pid,
+                    'title': title,
+                    'iph': iph,
+                    'baseline_overall': overall_base,
+                    'tools': tools,
+                    'startedAt': rec.get('startedAt'),
+                    'finishedAt': rec.get('finishedAt')
+                })
+            # sort by startedAt if available
+            def _key(x):
+                return (x.get('startedAt') or '')
+            chart_data['project_comparisons'] = sorted(comparisons, key=_key)
+        except Exception:
+            chart_data['project_comparisons'] = []
+
+        # Add project productivity table data
+        chart_data['project_productivity_table'] = self._build_project_productivity_table(data)
+
         return chart_data
+    
+    def _build_project_productivity_table(self, data):
+        """Build project productivity table data"""
+        projects = data.get('projects', [])
+        project_metrics = data.get('project_metrics', {})
+        
+        table_data = []
+        
+        for project in projects:
+            project_id = project.get('projectId')
+            if not project_id:
+                continue
+            
+            # Get project metrics
+            pm = project_metrics.get(project_id, {})
+            
+            # Start images (from manifest counts)
+            counts = project.get('counts', {})
+            start_images = counts.get('initialImages', 0)
+            
+            # End images (from manifest if finished, else from metrics)
+            end_images = counts.get('finalImages') or pm.get('totals', {}).get('images_processed', 0)
+            
+            # Build per-tool breakdown for THIS project
+            tools_breakdown = self._build_tools_breakdown_for_project(
+                project_id,
+                project,
+                pm,
+                data
+            )
+            
+            table_data.append(OrderedDict([
+                ("projectId", project_id),
+                ("title", project.get('title') or project_id),
+                ("start_images", start_images),
+                ("end_images", end_images),
+                ("tools", tools_breakdown)
+            ]))
+        
+        return table_data
+    
+    def _build_tools_breakdown_for_project(self, project_id, project, pm, data):
+        """Build per-tool breakdown for a specific project"""
+        # Define allowed tools in the desired order
+        allowed_tools_order = [
+            'Desktop Image Selector Crop',
+            'Web Image Selector',
+            'Web Character Sorter',
+            'Multi Crop Tool'
+        ]
+        
+        # Build window from server-provided baseline labels
+        meta = data.get('metadata', {})
+        cur_slice = meta.get('time_slice')
+        baseline = (meta.get('baseline_labels', {}) or {}).get(cur_slice, [])
+        start_lbl = baseline[0] if baseline else None
+        end_lbl = baseline[-1] if baseline else None
+        def _to_yyyymmdd(lbl):
+            if not isinstance(lbl, str):
+                return None
+            if 'T' in lbl:
+                lbl = lbl.split('T')[0]
+            return lbl.replace('-', '')
+        start_date = _to_yyyymmdd(start_lbl)
+        end_date = _to_yyyymmdd(end_lbl)
+
+        # Load ALL file operations for lifetime computations
+        try:
+            window_ops = self.data_engine.load_file_operations()
+        except Exception:
+            window_ops = []
+        
+        # Filter to project by date range (startedAt to finishedAt)
+        started_at = project.get('startedAt')
+        finished_at = project.get('finishedAt')
+        
+        def _belongs(rec):
+            """Filter file operations to this project's date range."""
+            if not started_at:
+                return False  # Can't match without start date
+            
+            # Get operation timestamp
+            ts = rec.get('timestamp') or rec.get('timestamp_str')
+            if not ts:
+                return False
+            
+            try:
+                # Parse operation timestamp (naive local time - no timezone info)
+                if isinstance(ts, str):
+                    # Remove Z if present, but DON'T add timezone offset
+                    ts = ts.replace('Z', '')
+                    op_dt = datetime.fromisoformat(ts)
+                else:
+                    op_dt = ts  # Already datetime
+                
+                # Make sure op_dt is naive (no timezone)
+                if op_dt.tzinfo is not None:
+                    op_dt = op_dt.replace(tzinfo=None)
+                
+                # Parse project dates and convert to naive datetime (drop timezone)
+                start_str = started_at.replace('Z', '') if isinstance(started_at, str) else started_at
+                start_dt = datetime.fromisoformat(start_str)
+                if start_dt.tzinfo is not None:
+                    start_dt = start_dt.replace(tzinfo=None)
+                
+                # Check if operation is after project start
+                if op_dt < start_dt:
+                    return False
+                
+                # Check if operation is before project end (if project is finished)
+                if finished_at:
+                    end_str = finished_at.replace('Z', '') if isinstance(finished_at, str) else finished_at
+                    end_dt = datetime.fromisoformat(end_str)
+                    if end_dt.tzinfo is not None:
+                        end_dt = end_dt.replace(tzinfo=None)
+                    if op_dt > end_dt:
+                        return False
+                
+                return True
+            except Exception:
+                return False
+        
+        proj_ops = [r for r in window_ops if _belongs(r)]
+
+        # Group by display tool name
+        grouped = {}
+        for r in proj_ops:
+            disp = self._get_display_name(r.get('script') or '')
+            if disp not in allowed_tools_order:
+                continue
+            grouped.setdefault(disp, []).append(r)
+
+        temp_breakdown = {}
+        from datetime import datetime as _dt
+        for disp in allowed_tools_order:
+            recs = grouped.get(disp, [])
+            if not recs:
+                # Fallback to project metrics if no activity in window
+                # Find matching tool stats by raw key
+                tool_stats = None
+                for raw, stats in (pm.get('tools', {}) or {}).items():
+                    if self._get_display_name(raw) == disp:
+                        tool_stats = stats
+                        break
+                if not tool_stats:
+                    continue
+                images = int(tool_stats.get('images_processed', 0) or 0)
+                iph = float(tool_stats.get('images_per_hour', 0) or 0)
+                hours = round(images / iph) if iph > 0 else 0
+                days = self._count_active_days_for_tool(data, project_id, raw)
+                if disp in ("Web Image Selector", "Desktop Image Selector Crop"):
+                    by_dest = (pm.get('totals', {}) or {}).get('operations_by_dest', {})
+                    move = by_dest.get('move', {}) if isinstance(by_dest, dict) else {}
+                    selected = int(move.get('selected', 0) or 0)
+                    cropped = int(move.get('crop', 0) or 0)
+                    temp_breakdown[disp] = {
+                        "hours": hours,
+                        "days": days,
+                        "images_total": images,
+                        "images_selected": selected,
+                        "images_cropped": cropped
+                    }
+                else:
+                    temp_breakdown[disp] = {
+                        "hours": hours,
+                        "days": days,
+                        "images": images
+                    }
+                continue
+
+            # Hours from file-ops timing
+            try:
+                metrics = self.data_engine.calculate_file_operation_work_time(recs)
+                hours = round(float(metrics.get('work_time_minutes') or 0.0) / 60.0, 1)
+            except Exception:
+                hours = 0
+            # Unique active days
+            days_set = set()
+            for rec in recs:
+                ts = rec.get('timestamp') or rec.get('timestamp_str')
+                if not ts:
+                    continue
+                try:
+                    v = ts
+                    # Handle datetime objects directly (already parsed by load_file_operations)
+                    if isinstance(v, _dt):
+                        d = v.date().isoformat()
+                    elif isinstance(v, str):
+                        # Remove Z and parse string timestamps
+                        v = v.replace('Z', '')
+                        d = _dt.fromisoformat(v).date().isoformat()
+                    else:
+                        continue
+                    
+                    days_set.add(d)
+                except Exception:
+                    continue
+            days = len(days_set)
+            images = sum(int(r.get('file_count') or 0) for r in recs)
+
+            if disp in ("Web Image Selector", "Desktop Image Selector Crop"):
+                selected = sum(int(r.get('file_count') or 0) for r in recs if (r.get('operation') == 'move' and str(r.get('dest_dir') or '').lower() == 'selected'))
+                cropped = sum(int(r.get('file_count') or 0) for r in recs if (r.get('operation') == 'move' and str(r.get('dest_dir') or '').lower() == 'crop'))
+                temp_breakdown[disp] = {
+                    "hours": hours,
+                    "days": days,
+                    "images_total": images,
+                    "images_selected": selected,
+                    "images_cropped": cropped
+                }
+            else:
+                temp_breakdown[disp] = {
+                    "hours": hours,
+                    "days": days,
+                    "images": images
+                }
+        
+        # Return tools as a list of tuples to preserve order (will be converted to dict in frontend)
+        tools_breakdown_list = []
+        for tool_name in allowed_tools_order:
+            if tool_name in temp_breakdown:
+                tools_breakdown_list.append([tool_name, temp_breakdown[tool_name]])
+        
+        return tools_breakdown_list
+    
+    def _get_display_name(self, tool_name):
+        """Convert tool name to display name"""
+        display_names = {
+            'image_version_selector': 'Web Image Selector',
+            'character_sorter': 'Web Character Sorter',  # Renamed from "Character Sorter"
+            'batch_crop_tool': 'Multi Crop Tool',
+            'multi_crop_tool': 'Multi Crop Tool',
+            'desktop_image_selector_crop': 'Desktop Image Selector Crop',
+            'recursive_file_mover': 'Recursive File Mover',
+            'test_web_selector': 'Test Web Selector',
+            'web_character_sorter': 'Web Character Sorter'
+        }
+        return display_names.get(tool_name, tool_name)
+    
+    def _count_active_days_for_tool(self, data, project_id, tool_name):
+        """Count unique days a tool was active for a specific project"""
+        # Find the project to get its date range
+        projects = data.get("projects", [])
+        project = next((p for p in projects if p.get("projectId") == project_id), None)
+        if not project:
+            return 0
+        
+        started_at = project.get('startedAt')
+        finished_at = project.get('finishedAt')
+        if not started_at:
+            return 0
+        
+        # Load all file operations and filter by date range and tool
+        try:
+            all_ops = self.data_engine.load_file_operations()
+        except Exception:
+            return 0
+        
+        unique_dates = set()
+        
+        for rec in all_ops:
+            # Match tool name
+            rec_script = rec.get("script", "")
+            if self._get_display_name(rec_script) != self._get_display_name(tool_name):
+                continue
+            
+            # Filter by project date range
+            ts = rec.get('timestamp') or rec.get('timestamp_str')
+            if not ts:
+                continue
+            
+            try:
+                # Parse operation timestamp (naive local time)
+                if isinstance(ts, datetime):
+                    op_dt = ts
+                elif isinstance(ts, str):
+                    ts = ts.replace('Z', '')
+                    op_dt = datetime.fromisoformat(ts)
+                else:
+                    continue
+                
+                # Make sure op_dt is naive
+                if op_dt.tzinfo is not None:
+                    op_dt = op_dt.replace(tzinfo=None)
+                
+                # Parse project dates and convert to naive datetime
+                start_str = started_at.replace('Z', '') if isinstance(started_at, str) else started_at
+                start_dt = datetime.fromisoformat(start_str)
+                if start_dt.tzinfo is not None:
+                    start_dt = start_dt.replace(tzinfo=None)
+                
+                # Check if operation is after project start
+                if op_dt < start_dt:
+                    continue
+                
+                # Check if operation is before project end (if project is finished)
+                if finished_at:
+                    end_str = finished_at.replace('Z', '') if isinstance(finished_at, str) else finished_at
+                    end_dt = datetime.fromisoformat(end_str)
+                    if end_dt.tzinfo is not None:
+                        end_dt = end_dt.replace(tzinfo=None)
+                    if op_dt > end_dt:
+                        continue
+                
+                # Add the date (not datetime) to the set
+                unique_dates.add(op_dt.date().isoformat())
+            except:
+                continue
+        
+        return len(unique_dates)
     
     def run(self, host="127.0.0.1", port=5001, debug=False):
         """Run the dashboard server"""
@@ -453,7 +815,7 @@ DASHBOARD_TEMPLATE = """
             });
         }
         
-        async function loadDashboardData(timeSlice = 'D', lookbackDays = 30) {
+        async function loadDashboardData(timeSlice = 'D', lookbackDays = 60) {  // 60 days to show archived projects
             try {
                 const response = await fetch(`/api/data/${timeSlice}?lookback_days=${lookbackDays}`);
                 const data = await response.json();
@@ -513,30 +875,37 @@ DASHBOARD_TEMPLATE = """
         function renderCharts(data, timeSlice) {
             const container = document.getElementById('charts-container');
             container.innerHTML = '';
+            const baselines = (data && data.metadata && data.metadata.baseline_labels) || {};
+            const lookbackDays = parseInt(document.getElementById('lookback-days').value);
+            const baselineFor = (slice) => {
+                const server = (baselines && baselines[slice]) || [];
+                if (server && server.length) return server;
+                return buildClientBaselineLabels(slice, lookbackDays);
+            };
             
             // Render different chart types
             if (data.activity_data.active_time && data.activity_data.active_time.length > 0) {
-                renderBarChart(container, 'Active Time by Script', data.activity_data.active_time, 
-                             'active_time', timeSlice, data.historical_averages.active_time);
+                renderTimeSeriesChart(container, 'Active Time by Script', data.activity_data.active_time, 
+                             'active_time', timeSlice, 'script', baselineFor(timeSlice));
             }
             
             if (data.activity_data.files_processed && data.activity_data.files_processed.length > 0) {
-                renderBarChart(container, 'Files Processed by Script', data.activity_data.files_processed, 
-                             'files_processed', timeSlice, data.historical_averages.files_processed);
+                renderTimeSeriesChart(container, 'Files Processed by Script', data.activity_data.files_processed, 
+                             'files_processed', timeSlice, 'script', baselineFor(timeSlice));
             }
             
             if (data.file_operations_data.deletions && data.file_operations_data.deletions.length > 0) {
-                renderBarChart(container, 'Files Deleted by Script', data.file_operations_data.deletions, 
-                             'file_count', timeSlice);
+                renderTimeSeriesChart(container, 'Files Deleted by Script', data.file_operations_data.deletions, 
+                             'file_count', timeSlice, 'script', baselineFor(timeSlice));
             }
             
             if (data.file_operations_data.by_operation && data.file_operations_data.by_operation.length > 0) {
-                renderBarChart(container, 'Operations by Type', data.file_operations_data.by_operation, 
-                             'file_count', timeSlice, null, 'operation');
+                renderTimeSeriesChart(container, 'Operations by Type', data.file_operations_data.by_operation, 
+                             'file_count', timeSlice, 'operation', baselineFor(timeSlice));
             }
         }
         
-        function renderBarChart(container, title, data, valueField, timeSlice, averageData = null, groupField = 'script') {
+        function renderTimeSeriesChart(container, title, data, valueField, timeSlice, groupField = 'script', baselineLabels = []) {
             const chartDiv = document.createElement('div');
             chartDiv.className = 'chart-container';
             
@@ -568,35 +937,57 @@ DASHBOARD_TEMPLATE = """
             // Create Chart.js chart
             const ctx = document.getElementById(chartId).getContext('2d');
             
-            // Process data for Chart.js
-            const processedData = processChartData(data, valueField, groupField);
-            
+            // Use server-provided canonical labels for alignment/padding
+            const built = buildTimeSeries(data, valueField, groupField, baselineLabels || []);
+            const finalLabels = (baselineLabels && baselineLabels.length) ? baselineLabels : built.labels;
+            const palette = [
+                '#4f9dff', '#51cf66', '#ffd43b', '#ff6b6b', '#845ef7', '#22b8cf', '#fcc419', '#e64980'
+            ];
+            // Build datasets strictly aligned to finalLabels, padding zeros
+            const seriesNames = Array.from(new Set(data.map(r => (r[groupField] || 'unknown'))));
+            const datasets = seriesNames.map((name, idx) => {
+                const seriesData = new Array(finalLabels.length).fill(0);
+                for (const rec of data) {
+                    if ((rec[groupField] || 'unknown') !== name) continue;
+                    const t = rec['time_slice'];
+                    const v = Number(rec[valueField] || 0);
+                    const ix = finalLabels.indexOf(t);
+                    if (ix !== -1) seriesData[ix] += v;
+                }
+                return {
+                    label: name,
+                    data: seriesData,
+                    backgroundColor: palette[idx % palette.length],
+                    borderColor: palette[idx % palette.length],
+                    borderWidth: 1,
+                };
+            });
+
             const chart = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: processedData.labels,
-                    datasets: [{
-                        label: title,
-                        data: processedData.values,
-                        backgroundColor: 'rgba(79, 157, 255, 0.8)',
-                        borderColor: 'rgba(79, 157, 255, 1)',
-                        borderWidth: 1
-                    }]
+                    labels: finalLabels,
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: {
-                            labels: {
-                                color: 'white'
+                        legend: { labels: { color: 'white' } },
+                        tooltip: {
+                            callbacks: {
+                                title: (items) => {
+                                    if (!items || !items.length) return '';
+                                    return formatTooltipLabel(items[0].label, timeSlice);
+                                }
                             }
                         }
                     },
                     scales: {
                         x: {
                             ticks: {
-                                color: '#a0a3b1'
+                                color: '#a0a3b1',
+                                callback: (val, index, ticks) => formatTickLabel(built.labels[index], timeSlice)
                             },
                             grid: {
                                 color: 'rgba(255,255,255,0.1)'
@@ -619,26 +1010,141 @@ DASHBOARD_TEMPLATE = """
                 title: title,
                 data: data,
                 valueField: valueField,
-                groupField: groupField,
-                averageData: averageData
+                groupField: groupField
             };
         }
-        
-        function processChartData(data, valueField, groupField) {
-            const grouped = {};
-            
-            data.forEach(record => {
-                const key = record[groupField] || 'unknown';
-                if (!grouped[key]) {
-                    grouped[key] = 0;
-                }
-                grouped[key] += record[valueField] || 0;
+
+        // (Project bands overlay removed by request; keeping code minimal and stable.)
+
+        function buildTimeSeries(data, valueField, groupField, baselineLabels = null) {
+            const useBaseline = Array.isArray(baselineLabels) && baselineLabels.length > 0;
+            const labelsSet = new Set(useBaseline ? baselineLabels : []);
+            const seriesMap = new Map(); // name -> Map(label->value)
+            data.forEach(rec => {
+                const t = rec['time_slice'];
+                if (!t) return;
+                // If baseline provided, ignore records outside it to keep strict alignment
+                if (useBaseline && !labelsSet.has(t)) return;
+                if (!useBaseline) labelsSet.add(t);
+                const series = rec[groupField] || 'unknown';
+                if (!seriesMap.has(series)) seriesMap.set(series, new Map());
+                const m = seriesMap.get(series);
+                const v = Number(rec[valueField] || 0);
+                m.set(t, (m.get(t) || 0) + v);
             });
-            
-            return {
-                labels: Object.keys(grouped),
-                values: Object.values(grouped)
-            };
+            const labels = Array.from(labelsSet).sort();
+            const series = Array.from(seriesMap.keys());
+            const values = {};
+            series.forEach(name => {
+                const m = seriesMap.get(name);
+                values[name] = labels.map(l => m.get(l) || 0);
+            });
+            return { labels, series, values };
+        }
+
+        // Build baseline labels for padding zero-activity periods based on lookback (server fallback)
+        function buildBaselineLabels(timeSlice, lookbackDays) {
+            try {
+                const labels = [];
+                if (timeSlice === 'D' || !timeSlice) {
+                    const end = new Date();
+                    end.setHours(0,0,0,0);
+                    const start = new Date(end);
+                    start.setDate(end.getDate() - (lookbackDays - 1));
+                    const cur = new Date(start);
+                    while (cur <= end) {
+                        const y = cur.getFullYear();
+                        const m = (cur.getMonth()+1).toString().padStart(2,'0');
+                        const d = cur.getDate().toString().padStart(2,'0');
+                        labels.push(`${y}-${m}-${d}`);
+                        cur.setDate(cur.getDate() + 1);
+                    }
+                }
+                return labels;
+            } catch(e) {
+                return [];
+            }
+        }
+
+        // Client-side baseline label builder used when server baseline is missing
+        function buildClientBaselineLabels(timeSlice, lookbackDays) {
+            const out = [];
+            const now = new Date();
+            if (timeSlice === '15min') {
+                const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), Math.floor(now.getMinutes()/15)*15, 0, 0);
+                const start = new Date(end.getTime() - (lookbackDays-1)*24*60*60*1000);
+                start.setMinutes(Math.floor(start.getMinutes()/15)*15, 0, 0);
+                for (let d = new Date(start); d <= end; d = new Date(d.getTime() + 15*60*1000)) out.push(d.toISOString().replace('Z',''));
+            } else if (timeSlice === '1H') {
+                const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), 0, 0, 0);
+                const start = new Date(end.getTime() - (lookbackDays-1)*24*60*60*1000);
+                start.setMinutes(0,0,0);
+                for (let d = new Date(start); d <= end; d = new Date(d.getTime() + 60*60*1000)) out.push(d.toISOString().replace('Z',''));
+            } else if (timeSlice === 'D') {
+                const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const start = new Date(end.getTime() - (lookbackDays-1)*24*60*60*1000);
+                for (let d = new Date(start); d <= end; d = new Date(d.getTime() + 24*60*60*1000)) out.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+            } else if (timeSlice === 'W') {
+                const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const endMonday = new Date(end.getTime() - end.getDay()*24*60*60*1000 + 1*24*60*60*1000);
+                const start = new Date(endMonday.getTime() - Math.ceil(lookbackDays/7-1)*7*24*60*60*1000);
+                for (let d = new Date(start); d <= endMonday; d = new Date(d.getTime() + 7*24*60*60*1000)) out.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+            } else if (timeSlice === 'M') {
+                const end = new Date(now.getFullYear(), now.getMonth(), 1);
+                const start = new Date(end);
+                start.setMonth(start.getMonth() - Math.ceil(lookbackDays/30-1));
+                for (let d = new Date(start); d <= end; ) {
+                    out.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`);
+                    d.setMonth(d.getMonth()+1);
+                }
+            }
+            return out;
+        }
+
+        function formatTickLabel(label, timeSlice) {
+            // Bottom axis: show day for daily; show 12h time for intraday; MDY for weekly/monthly
+            const d = parseLabelToDate(label, timeSlice);
+            if (!d) return label;
+            if (timeSlice === '15min' || timeSlice === '1H') {
+                let hours = d.getHours();
+                const minutes = d.getMinutes().toString().padStart(2, '0');
+                const ampm = hours >= 12 ? 'PM' : 'AM';
+                hours = hours % 12; if (hours === 0) hours = 12;
+                return `${hours}:${minutes} ${ampm}`;
+            } else if (timeSlice === 'D') {
+                return `${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}/${d.getFullYear()}`;
+            } else {
+                return `${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}/${d.getFullYear()}`;
+            }
+        }
+
+        function formatTooltipLabel(label, timeSlice) {
+            // Hover: always show MDY and 12-hour time when applicable
+            const d = parseLabelToDate(label, timeSlice);
+            if (!d) return label;
+            const mdy = `${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}/${d.getFullYear()}`;
+            if (timeSlice === '15min' || timeSlice === '1H') {
+                let hours = d.getHours();
+                const minutes = d.getMinutes().toString().padStart(2, '0');
+                const ampm = hours >= 12 ? 'PM' : 'AM';
+                hours = hours % 12; if (hours === 0) hours = 12;
+                return `${mdy} ${hours}:${minutes} ${ampm}`;
+            }
+            return mdy;
+        }
+
+        function parseLabelToDate(label, timeSlice) {
+            try {
+                if (timeSlice === 'D') {
+                    // label is YYYY-MM-DD
+                    const [y, m, d] = label.split('-').map(Number);
+                    return new Date(y, m - 1, d);
+                }
+                // ISO strings for intraday/week/month
+                const d = new Date(label);
+                if (!isNaN(d.getTime())) return d;
+            } catch (e) {}
+            return null;
         }
         
         function updateChart(chartId, timeSlice) {

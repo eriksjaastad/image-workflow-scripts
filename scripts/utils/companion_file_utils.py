@@ -19,6 +19,7 @@ from datetime import datetime, timedelta
 from typing import Iterable
 import csv
 import json
+from functools import lru_cache
 
 
 try:
@@ -117,6 +118,40 @@ class Logger:
 
 # Global logger instance
 logger = Logger()
+def _quiet_flag() -> bool:
+    # Read dynamically to allow callers to flip flag at runtime
+    try:
+        return bool(int(os.getenv("COMPANION_UTILS_QUIET", "0")))
+    except Exception:
+        return False
+
+def _say(message: str) -> None:
+    if not _quiet_flag():
+        print(message)
+
+
+
+@lru_cache(maxsize=1024)
+def _build_stem_index_for_dir(dir_path: Path) -> Dict[str, List[Path]]:
+    """
+    Build a mapping of stem -> list of files for a directory.
+    This is a best-effort acceleration for repeated companion lookups.
+    Note: No invalidation; intended for read-mostly phases or dry-runs.
+    """
+    index: Dict[str, List[Path]] = {}
+    try:
+        for file_path in dir_path.iterdir():
+            try:
+                if not file_path.is_file():
+                    continue
+            except Exception:
+                continue
+            stem = file_path.stem
+            index.setdefault(stem, []).append(file_path)
+    except Exception:
+        # Fail open: return empty index
+        return {}
+    return index
 
 
 def find_all_companion_files(image_path: Path) -> List[Path]:
@@ -132,17 +167,29 @@ def find_all_companion_files(image_path: Path) -> List[Path]:
     Returns:
         List of companion file paths
     """
+    # Optional fast path: use stem index when enabled
+    if os.getenv("COMPANION_USE_STEM_INDEX", "0") == "1":
+        try:
+            idx = _build_stem_index_for_dir(image_path.parent)
+            files = idx.get(image_path.stem, [])
+            return [p for p in files if p != image_path]
+        except Exception:
+            # Fall back to slow path on any error
+            pass
+
     companions = []
     base_name = image_path.stem
     parent_dir = image_path.parent
-    
-    # Find ALL files in the same directory with the same base name
-    for file_path in parent_dir.iterdir():
-        if (file_path.is_file() and 
-            file_path.stem == base_name and 
-            file_path != image_path):  # Don't include the image file itself
-            companions.append(file_path)
-    
+    try:
+        # Find ALL files in the same directory with the same base name
+        for file_path in parent_dir.iterdir():
+            if (file_path.is_file() and 
+                file_path.stem == base_name and 
+                file_path != image_path):  # Don't include the image file itself
+                companions.append(file_path)
+    except Exception:
+        # best-effort; return what we gathered
+        pass
     return companions
 
 
@@ -170,10 +217,10 @@ def move_file_with_all_companions(src_path: Path, dst_dir: Path, dry_run: bool =
         import shutil
         shutil.move(str(src_path), str(dst_path))
         moved_files.append(src_path.name)
-        print(f"Moved: {src_path.name}")
+        _say(f"Moved: {src_path.name}")
     elif dry_run:
         moved_files.append(src_path.name)
-        print(f"[DRY RUN] Would move: {src_path.name}")
+        _say(f"[DRY RUN] Would move: {src_path.name}")
     
     # Move companion files
     companions = find_all_companion_files(src_path)
@@ -183,10 +230,10 @@ def move_file_with_all_companions(src_path: Path, dst_dir: Path, dry_run: bool =
             import shutil
             shutil.move(str(companion), str(companion_dst))
             moved_files.append(companion.name)
-            print(f"Moved companion: {companion.name}")
+            _say(f"Moved companion: {companion.name}")
         elif dry_run:
             moved_files.append(companion.name)
-            print(f"[DRY RUN] Would move companion: {companion.name}")
+            _say(f"[DRY RUN] Would move companion: {companion.name}")
     
     return moved_files
 
@@ -871,57 +918,66 @@ def extract_base_timestamp(filename: str) -> Optional[str]:
     return extract_timestamp_from_filename(filename)
 
 
-def calculate_work_time_from_file_operations(file_operations: List[Dict], break_threshold_minutes: int = 5) -> float:
+def calculate_work_time_from_file_operations(file_operations: List[Dict], break_threshold_minutes: int = 30) -> float:
     """
-    Calculate work time based on file operation timestamps with intelligent break detection.
+    Calculate work time based on unique hour blocks with file operations.
     
-    This function analyzes FileTracker logs to determine actual work time by:
-    1. Measuring time between file operations
-    2. Detecting breaks (gaps longer than threshold)
-    3. Only counting time when actively working
+    This function uses a simple, robust approach:
+    - Count unique hour blocks (YYYY-MM-DD HH) where ANY file operation occurred
+    - Each hour block = 1 hour of work time (3600 seconds)
+    - No break detection, no subjective thresholds
+    
+    This is brutally honest: if you moved files during an hour, that hour counts.
+    Whether you processed 5,000 images or 50, it's still one hour worked.
+    The img/h metric will show productivity variation.
     
     Args:
         file_operations: List of file operation dictionaries from FileTracker
-        break_threshold_minutes: Minutes of inactivity considered a break (default: 5)
+        break_threshold_minutes: DEPRECATED - kept for backwards compatibility, not used
         
     Returns:
-        Total work time in seconds
+        Total work time in seconds (hour_blocks * 3600)
         
     Example:
-        operations = [
-            {"timestamp": "2025-01-15T14:30:15.123Z", "operation": "move"},
-            {"timestamp": "2025-01-15T14:32:45.456Z", "operation": "delete"},
-            {"timestamp": "2025-01-15T14:45:00.789Z", "operation": "move"}  # 12+ min gap = break
-        ]
-        work_time = calculate_work_time_from_file_operations(operations)
-        # Returns: ~2.5 minutes (time between first two operations)
+        21:31 operation → hour block "2025-10-12 21"
+        22:15 operation → hour block "2025-10-12 22"
+        23:59 operation → hour block "2025-10-12 23"
+        00:10 operation → hour block "2025-10-13 00"
+        Total: 4 unique hour blocks = 4 hours = 14,400 seconds
     """
-    if not file_operations or len(file_operations) < 2:
+    if not file_operations or len(file_operations) < 1:
         return 0.0
     
-    # Sort operations by timestamp to ensure chronological order
-    sorted_ops = sorted(file_operations, key=lambda x: x.get('timestamp', ''))
+    # Collect unique hour blocks (YYYY-MM-DD HH format)
+    hour_blocks = set()
     
-    total_work_time = 0.0
-    break_threshold_seconds = break_threshold_minutes * 60
-    
-    for i in range(len(sorted_ops) - 1):
+    for op in file_operations:
         try:
-            current_time = datetime.fromisoformat(sorted_ops[i]['timestamp'].replace('Z', '+00:00'))
-            next_time = datetime.fromisoformat(sorted_ops[i + 1]['timestamp'].replace('Z', '+00:00'))
-            
-            gap_seconds = (next_time - current_time).total_seconds()
-            
-            # If gap is less than threshold, count as work time
-            # If gap is more than threshold, likely a break - don't count
-            if gap_seconds <= break_threshold_seconds:
-                total_work_time += gap_seconds
-            else:
-                logger.debug(f"Break detected: {gap_seconds/60:.1f} minutes between operations")
+            ts = op.get('timestamp', '')
+            if not ts:
+                continue
                 
+            # Handle both string and datetime objects
+            if isinstance(ts, datetime):
+                dt = ts
+            elif isinstance(ts, str):
+                # Remove Z and parse
+                ts = ts.replace('Z', '')
+                dt = datetime.fromisoformat(ts)
+            else:
+                continue
+            
+            # Add hour block to set (format: "2025-10-12 21")
+            hour_block = dt.strftime("%Y-%m-%d %H")
+            hour_blocks.add(hour_block)
+            
         except (ValueError, KeyError) as e:
             logger.warning(f"Error parsing timestamp in file operation: {e}")
             continue
+    
+    # Each unique hour block = 1 hour (3600 seconds)
+    total_hours = len(hour_blocks)
+    total_work_time = total_hours * 3600.0
     
     return total_work_time
 
