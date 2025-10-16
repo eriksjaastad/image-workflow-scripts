@@ -6,26 +6,90 @@
 
 ## ✅ **COMPLETED TODAY (October 15, 2025)**
 
-### **Productivity Dashboard - Hours Calculation Fixed**
+### **Dashboard Data Accuracy - Major Overhaul**
+- ✅ Fixed inflated image counts (PNG-only counting, not companions)
+- ✅ September data reduced from 20k-28k to accurate 10k-15k counts
+- ✅ Backfilled September 2025 daily summaries with correct PNG counts
+- ✅ Updated `cleanup_logs.py` to count PNGs only in daily summaries
+- ✅ Updated `data_engine.py` and `analytics.py` for PNG-only aggregation
+
+### **Project Visibility - All Archived Projects Now Visible**
+- ✅ Fixed chart showing only 3 projects (now shows all 7 with data)
+- ✅ Implemented date-based project matching for archived projects (daily summaries)
+- ✅ Fixed word-boundary matching (dalia vs dalia_hannah false positive)
+- ✅ Fixed mid-day project bug (date vs datetime comparison)
+- ✅ All archived projects visible: tattersail, jmlimages, mixed-0919, dalia, 1101_Hailey
+
+### **Table & Chart Consistency**
+- ✅ Resolved table vs chart data mismatches (perfect consistency now)
+- ✅ Added centralized `STANDARD_TOOL_ORDER` across all visualizations
+- ✅ Standardized tool order everywhere: Desktop, Web Selector, Character Sorter, Multi Crop
+- ✅ Added "Web Character Sorter" to table visibility by default
+- ✅ Increased default lookback from 30 to 60 days
+
+### **Dashboard UI Improvements**
+- ✅ Added "Started" date column to Project Productivity Table
+- ✅ Sorted table by newest projects first (was alphabetical)
+- ✅ Added "Hide empty projects" checkbox to table and charts
+- ✅ Added spacing between dashboard sections
+- ✅ Trimmed leading blank days from timeseries charts
+
+### **Work Time Calculation - Hour-Blocking**
 - ✅ Replaced break detection algorithm with simple hour-blocking approach
 - ✅ Hours now count unique hour blocks (YYYY-MM-DD HH) where files were moved
 - ✅ No more fragile thresholds or subjective break detection
-- ✅ Accurate, honest time tracking: 7 hours for Mojo2 (matches timesheet!)
+- ✅ Accurate, honest time tracking: matches timesheet expectations
 - ✅ Updated `calculate_work_time_from_file_operations()` in `companion_file_utils.py`
 
 ### **Historical Projects Import**
 - ✅ Created `import_historical_projects.py` to import projects from CSV timesheet
-- ✅ Imported 16 historical projects (Aug-Oct 2025)
+- ✅ Imported 18 historical projects (Aug-Oct 2025) with status "archived"
 - ✅ All manifests created with proper timestamps, image counts, and status
 - ✅ Handles multi-day projects, missing data, special cases automatically
 - ✅ Dashboard now has full historical data
 
-### **Documentation Cleanup**
-- ✅ Moved `PROJECT_LIFECYCLE_SCRIPTS.md` to Documents/
-- ✅ Deleted garbage files: `dashboard_analytics_sample.json`, `sample_table_data.json`, `dashboard_data_sample.json`
-- ✅ Updated `AI_DOCUMENTS_INDEX.md` with new docs
-- ✅ Updated `TECHNICAL_KNOWLEDGE_BASE.md` with hour-blocking and project lifecycle info
-- ✅ Verified all 16 new project manifests are correct
+### **Project Lifecycle Automation**
+- ✅ Created `00_start_project.py` for automated project initialization
+- ✅ Created `00_finish_project.py` integrated with prezip_stager
+- ✅ Both scripts support interactive and command-line modes
+- ✅ Automatic timestamp generation (UTC with Z suffix)
+- ✅ Automatic image counting from content directories
+
+### **Legacy Support & Backward Compatibility**
+- ✅ Added display name mappings for historical script names
+- ✅ Fixed `image_version_selector`, `character_sorter`, `hybrid_grouper` recognition
+- ✅ Ensured backward compatibility with old log formats
+- ✅ Silenced warnings from deprecated `timer_data` files
+
+### **Code Organization & Documentation**
+- ✅ Moved test files to `scripts/dashboard/tests/`
+- ✅ Moved dashboard docs to `Documents/` with DASHBOARD_ prefix
+- ✅ Updated `.gitignore` to exclude `mojo2/` and `exports/` directories
+- ✅ Removed utility scripts (create_sample_data, backfill_september)
+- ✅ Created 12 comprehensive documentation files for all fixes
+- ✅ Updated `AI_DOCUMENTS_INDEX.md` and `TECHNICAL_KNOWLEDGE_BASE.md`
+- ✅ Git commit: 48 files changed, 9,409 insertions, 579 deletions
+
+---
+
+## 🔧 **CLEANUP & ORGANIZATION (Next Session)**
+
+### **Script Organization & Naming**
+- [ ] Retire `scripts/01_desktop_image_selector_crop.py` to archive directory
+- [ ] Consider renaming `00_finish_project.py` to `07_finish_project.py` (or similar)
+- [ ] Note: We're missing `03` in numbering - evaluate if we need consistent numbering
+- [ ] Move `import_historical_projects.py` from scripts/ top level (one-time utility)
+- [ ] Move or organize `cleanup_logs.py` (currently in scripts/ top level)
+
+### **Cursor AI Configuration**
+- [ ] Review and implement cursor global rules kit document (newly added)
+- [ ] Goal: Prevent the 3-hour circular debugging frustration from happening again
+- [ ] Document learnings about what went wrong with ChatGPT session
+
+### **General Housekeeping**
+- [ ] Review all top-level scripts/ files for proper organization
+- [ ] Verify all numbered scripts (00-07) are in correct order
+- [ ] Check if any other one-time utilities should be moved to tools/
 
 ---
 
