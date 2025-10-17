@@ -1043,5 +1043,335 @@ chrome_options.add_argument('--log-level=3')            # Errors only
 
 ---
 
-*Last Updated: October 5, 2025*
+## 📚 **Documentation & Repository Management**
+
+### **Document Consolidation Pattern**
+**Achievement:** Reduced documentation from 39 to 19 files (51% reduction) while improving clarity
+**Method:** Combine related documents with clear section headers and table of contents
+**Impact:** Easier navigation, reduced decision paralysis, better searchability
+
+**Examples of Effective Consolidation:**
+
+1. **Case Studies** (2 files → 1):
+   - Combined `professional_case_study_draft.md` + `image_workflow_case_study.md`
+   - Result: `CASE_STUDIES.md` with clear section dividers
+   - Benefit: Complete story in one place
+
+2. **Dashboard Documentation** (3 files → 1):
+   - Combined `DASHBOARD_README.md` + `DASHBOARD_QUICKSTART.md` + `DASHBOARD_SPECIFICATION.md`
+   - Result: `DASHBOARD_GUIDE.md` with table of contents
+   - Sections: Quick Start, Specification, API Reference, Troubleshooting
+
+3. **Feature Specifications** (5 files → 1):
+   - Combined all `SPEC_*.md` files
+   - Result: `FEATURE_SPECIFICATIONS.md` with active/reference sections
+   - Benefit: One source of truth for all specs
+
+**Why This Pattern Works:**
+
+1. **Cognitive Load Reduction:** One comprehensive guide beats three fragments
+   - No decision paralysis ("which doc do I need?")
+   - No context switching between files
+   - Complete information in one read
+
+2. **Better Search Experience:**
+   - Search once, find everything related
+   - Context preserved (related info nearby)
+   - Natural reading flow from basic to advanced
+
+3. **Easier Maintenance:**
+   - Update one file instead of syncing three
+   - Clear section boundaries prevent confusion
+   - Table of contents acts as mini-index
+
+4. **New Team Member Friendly:**
+   - Fewer files to discover
+   - Clear document purpose
+   - Progressive complexity (basics first)
+
+**When to Consolidate:**
+- Documents about the same topic (dashboard, specs, case studies)
+- Multiple "README" or "GUIDE" files for one system
+- Short docs (<5K) that reference each other
+- Docs with overlapping content
+
+**When NOT to Consolidate:**
+- Different audiences (developer vs user docs)
+- Different lifecycle (active vs archived)
+- Massive files (>50K) that would become unmanageable
+- Truly independent topics
+
+**Implementation Pattern:**
+```markdown
+# Consolidated Guide Title
+
+**Comprehensive Documentation** - Last Updated: YYYY-MM-DD
+
+---
+
+# Table of Contents
+
+1. [Quick Start](#quick-start)
+2. [Detailed Guide](#detailed-guide)
+3. [Reference](#reference)
+
+---
+
+# Quick Start
+
+## 🚀 Get Started in 3 Steps
+
+[Quick start content...]
+
+---
+
+# Detailed Guide
+
+## Overview
+[Comprehensive content...]
+
+---
+
+# Reference
+
+## API Documentation
+[Reference content...]
+```
+
+**Date:** October 16, 2025
+
+### **Clear Naming Convention Pattern**
+**Achievement:** Zero-ambiguity document naming system
+**Rule:** Every document name must instantly communicate its purpose
+**Impact:** Immediate comprehension, easy discovery, logical organization
+
+**Naming Convention:**
+
+**Prefix System:**
+- `AI_*` - AI training, models, and automation
+- `DASHBOARD_*` - Dashboard features, config, and specs
+- `PROJECT_*` - Project lifecycle management
+- `TOOL_*` - Specific tool documentation
+- `AUTOMATION_*` - Workflow automation systems
+
+**Examples of Good Names:**
+- `AI_TRAINING_CROP_AND_RANKING.md` - Clear: AI training for crop/rank models
+- `DASHBOARD_PRODUCTIVITY_TABLE_SPEC.md` - Clear: Dashboard feature spec
+- `PROJECT_ALLOWLIST_SCHEMA.md` - Clear: Project-related schema
+- `TOOL_MULTICROP_PROGRESS_TRACKING.md` - Clear: Tool-specific feature
+
+**Examples of Bad Names (Replaced):**
+- ❌ `PHASE2_QUICKSTART.md` - Vague: What is Phase 2?
+  - ✅ `AI_TRAINING_PHASE2_QUICKSTART.md` - Clear: AI training guide
+
+- ❌ `hand_foot_anomaly_scripts.md` - Unclear: Is this code or documentation?
+  - ✅ `AI_ANOMALY_DETECTION_OPTIONS.md` - Clear: AI detection approaches
+
+- ❌ `BASELINE_TEMPLATES_AND_README.md` - Vague: Baseline for what?
+  - ✅ `DASHBOARD_BASELINE_TEMPLATES.md` - Clear: Dashboard baseline data
+
+- ❌ `CENTRALIZED_TOOL_ORDER.md` - Abstract: Centralized where?
+  - ✅ `DASHBOARD_TOOL_ORDER_CONFIG.md` - Clear: Dashboard config
+
+**Why This Pattern Works:**
+
+1. **Zero Cognitive Load:**
+   - File name = exact purpose
+   - No need to open file to know what it contains
+   - Alphabetical sorting groups related docs
+
+2. **Easy Discovery:**
+   - New team member: "Where's the dashboard stuff?" → All files start with `DASHBOARD_`
+   - Looking for AI docs? → All files start with `AI_`
+   - Need project lifecycle info? → All files start with `PROJECT_`
+
+3. **Scalability:**
+   - Add 100 more docs → still organized
+   - New categories → add new prefix
+   - No reorganization needed
+
+4. **Prevents Ambiguity:**
+   - No generic names like "README" or "GUIDE"
+   - No context-dependent names
+   - Self-documenting directory listings
+
+**Implementation Guidelines:**
+
+1. **Choose the Right Prefix:**
+   - What is the PRIMARY purpose?
+   - What category does a user expect it in?
+   - Is it general or specific?
+
+2. **Be Specific, Not Generic:**
+   - ❌ `AI_GUIDE.md` (too vague)
+   - ✅ `AI_TRAINING_CROP_AND_RANKING.md` (specific)
+
+3. **Use Underscores, Not Spaces:**
+   - `AI_TRAINING_PHASE2` not `AI Training Phase2`
+   - Consistent with code naming conventions
+
+4. **Keep It Readable:**
+   - Max 4-5 words after prefix
+   - Use common abbreviations (SPEC, CONFIG, GUIDE)
+   - Avoid unnecessary words
+
+**Critical Rule:** If someone asks "what is Phase 2?", the name is bad. 
+If the name requires explanation, it needs a better name.
+
+**Date:** October 16, 2025
+
+### **Unbuilt Feature Detection Pattern**
+**Problem:** Design documents exist for features that were never implemented
+**Impact:** Confusion, wasted time reading irrelevant docs, false expectations
+**Solution:** Systematically identify and remove or archive unbuilt specs
+
+**Detection Methods:**
+
+1. **Code Search:**
+```bash
+# Check if feature exists in codebase
+grep -r "feature_name" scripts/
+```
+
+2. **Git History:**
+```bash
+# Check if feature was ever implemented
+git log --all --oneline | grep "feature_name"
+```
+
+3. **Reality Check:**
+"If I've been working for months without this feature, do I actually need it?"
+
+**Action Matrix:**
+
+| Situation | Action | Reasoning |
+|-----------|--------|-----------|
+| Spec exists, no code, not needed | **DELETE** | Clutter, won't build it |
+| Spec exists, no code, might build | **Move to experiments/** | Keep idea, mark as future |
+| Spec exists, partially built | **Update or DELETE** | Document reality or remove confusion |
+| Spec exists, fully built | **Keep** | Active documentation |
+
+**Real Example:**
+- **Found:** `TOOL_MULTICROP_PROGRESS_TRACKING.md` (6K detailed spec)
+- **Checked:** No progress tracking code in `04_multi_crop_tool.py`
+- **Checked:** Empty `scripts/crop_progress/` directory
+- **Reality:** Tool works fine without it for months
+- **Action:** DELETED (moved to Trash for safety)
+
+**Why This Matters:**
+
+1. **Reduces Confusion:** Readers don't waste time on features that don't exist
+2. **Accurate Documentation:** Docs reflect reality, not aspirations
+3. **Easier Maintenance:** Fewer files to keep updated
+4. **Honest Communication:** New team members see what IS, not what WAS PLANNED
+
+**Critical Rule:** Aspirational docs belong in `experiments/` or project planning tools, not main documentation directory.
+
+**Date:** October 16, 2025
+
+### **File Deletion Safety - macOS Trash Integration**
+**Problem:** File deletion tool behavior may not match macOS Trash expectations
+**Symptom:** Deleted files don't appear in Finder Trash
+**Impact:** Potentially permanent deletion without recovery option
+**Status:** Under investigation
+
+**Critical Safety Issue:**
+
+When using automated file deletion (via tool or script), files may be permanently removed without going to macOS Trash (`~/.Trash/`). This differs from Finder's behavior where deleted files are recoverable.
+
+**Verified Safe Method:**
+```bash
+# Always use mv to Trash directory for safety
+mv unwanted_file.md ~/.Trash/
+```
+
+**Why This Matters:**
+
+1. **No Undo:** Permanent deletion is irreversible
+2. **User Expectation:** Users expect Trash behavior
+3. **Safety Net:** Trash provides recovery window
+4. **Peace of Mind:** Can verify deletion before emptying Trash
+
+**Best Practices:**
+
+1. **Always Use Trash First:**
+```bash
+# Safe deletion pattern
+mv document_to_remove.md ~/.Trash/
+```
+
+2. **Test with Dummy Files:**
+```bash
+# Create test file
+echo "test" > /tmp/test_deletion.txt
+mv /tmp/test_deletion.txt ~/.Trash/
+# Verify it appears in Finder Trash
+```
+
+3. **Batch Deletion Pattern:**
+```bash
+# For multiple files
+for file in *.old; do
+    mv "$file" ~/.Trash/
+done
+```
+
+4. **Keep Important Files in Version Control:**
+- Git tracks all changes
+- Can recover from any commit
+- Provides audit trail
+
+**Never Use:**
+```bash
+# DANGEROUS - Permanent deletion
+rm -f important_file.md      # No recovery
+rm -rf directory/            # Mass destruction
+```
+
+**Recovery Options If Files Are Permanently Deleted:**
+
+1. **Git Repository:**
+```bash
+# Check if file was committed
+git log --all --full-history -- "path/to/file"
+git checkout <commit-hash> -- "path/to/file"
+```
+
+2. **Time Machine (if enabled):**
+- Open Time Machine
+- Navigate to timestamp before deletion
+- Restore file
+
+3. **No Version Control + No Backup = GONE**
+- Emphasizes importance of using Trash
+
+**Implementation in Scripts:**
+
+```python
+# Safe deletion in Python
+import shutil
+from pathlib import Path
+
+def safe_delete(file_path):
+    """Move file to Trash instead of permanent deletion."""
+    trash_dir = Path.home() / ".Trash"
+    destination = trash_dir / file_path.name
+    
+    # Handle name collisions
+    counter = 1
+    while destination.exists():
+        destination = trash_dir / f"{file_path.stem}_{counter}{file_path.suffix}"
+        counter += 1
+    
+    shutil.move(str(file_path), str(destination))
+    return destination
+```
+
+**Critical Rule:** When in doubt, use `mv` to `~/.Trash/`. Convenience is never worth the risk of permanent data loss.
+
+**Date:** October 16, 2025
+
+---
+
+*Last Updated: October 16, 2025*
 *This file should be updated whenever new technical solutions are discovered or patterns are established.*

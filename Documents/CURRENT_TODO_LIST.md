@@ -1,78 +1,49 @@
 # Current TODO List
 
-**Last Updated:** October 15, 2025
+**Last Updated:** October 16, 2025
 
 ---
 
-## ✅ **COMPLETED TODAY (October 15, 2025)**
-
-### **Dashboard Data Accuracy - Major Overhaul**
-- ✅ Fixed inflated image counts (PNG-only counting, not companions)
-- ✅ September data reduced from 20k-28k to accurate 10k-15k counts
-- ✅ Backfilled September 2025 daily summaries with correct PNG counts
-- ✅ Updated `cleanup_logs.py` to count PNGs only in daily summaries
-- ✅ Updated `data_engine.py` and `analytics.py` for PNG-only aggregation
-
-### **Project Visibility - All Archived Projects Now Visible**
-- ✅ Fixed chart showing only 3 projects (now shows all 7 with data)
-- ✅ Implemented date-based project matching for archived projects (daily summaries)
-- ✅ Fixed word-boundary matching (dalia vs dalia_hannah false positive)
-- ✅ Fixed mid-day project bug (date vs datetime comparison)
-- ✅ All archived projects visible: tattersail, jmlimages, mixed-0919, dalia, 1101_Hailey
-
-### **Table & Chart Consistency**
-- ✅ Resolved table vs chart data mismatches (perfect consistency now)
-- ✅ Added centralized `STANDARD_TOOL_ORDER` across all visualizations
-- ✅ Standardized tool order everywhere: Desktop, Web Selector, Character Sorter, Multi Crop
-- ✅ Added "Web Character Sorter" to table visibility by default
-- ✅ Increased default lookback from 30 to 60 days
-
-### **Dashboard UI Improvements**
-- ✅ Added "Started" date column to Project Productivity Table
-- ✅ Sorted table by newest projects first (was alphabetical)
-- ✅ Added "Hide empty projects" checkbox to table and charts
-- ✅ Added spacing between dashboard sections
-- ✅ Trimmed leading blank days from timeseries charts
-
-### **Work Time Calculation - Hour-Blocking**
-- ✅ Replaced break detection algorithm with simple hour-blocking approach
-- ✅ Hours now count unique hour blocks (YYYY-MM-DD HH) where files were moved
-- ✅ No more fragile thresholds or subjective break detection
-- ✅ Accurate, honest time tracking: matches timesheet expectations
-- ✅ Updated `calculate_work_time_from_file_operations()` in `companion_file_utils.py`
-
-### **Historical Projects Import**
-- ✅ Created `import_historical_projects.py` to import projects from CSV timesheet
-- ✅ Imported 18 historical projects (Aug-Oct 2025) with status "archived"
-- ✅ All manifests created with proper timestamps, image counts, and status
-- ✅ Handles multi-day projects, missing data, special cases automatically
-- ✅ Dashboard now has full historical data
-
-### **Project Lifecycle Automation**
-- ✅ Created `00_start_project.py` for automated project initialization
-- ✅ Created `00_finish_project.py` integrated with prezip_stager
-- ✅ Both scripts support interactive and command-line modes
-- ✅ Automatic timestamp generation (UTC with Z suffix)
-- ✅ Automatic image counting from content directories
-
-### **Legacy Support & Backward Compatibility**
-- ✅ Added display name mappings for historical script names
-- ✅ Fixed `image_version_selector`, `character_sorter`, `hybrid_grouper` recognition
-- ✅ Ensured backward compatibility with old log formats
-- ✅ Silenced warnings from deprecated `timer_data` files
-
-### **Code Organization & Documentation**
-- ✅ Moved test files to `scripts/dashboard/tests/`
-- ✅ Moved dashboard docs to `Documents/` with DASHBOARD_ prefix
-- ✅ Updated `.gitignore` to exclude `mojo2/` and `exports/` directories
-- ✅ Removed utility scripts (create_sample_data, backfill_september)
-- ✅ Created 12 comprehensive documentation files for all fixes
-- ✅ Updated `AI_DOCUMENTS_INDEX.md` and `TECHNICAL_KNOWLEDGE_BASE.md`
-- ✅ Git commit: 48 files changed, 9,409 insertions, 579 deletions
+## ⚠️ **IMPORTANT WORKFLOW RULE**
+**ONE TODO ITEM AT A TIME** - Complete one task, check in with Erik, get approval before moving to the next item. Never complete multiple TODO items in sequence without user input. This prevents issues and ensures quality control.
 
 ---
 
-## 🔧 **CLEANUP & ORGANIZATION (Next Session)**
+## 🤖 **AI CROP ASSISTANT - IN PROGRESS**
+
+### **Timeline:**
+- **Thursday (today):** Crop 1 hour → AI logs silently ⏰ Starts in 22 min
+- **Friday:** Crop 2-3 hours → I train model after session
+- **Saturday:** Crop with `--ai-assist` flag (AI suggestions ready!)
+- **Sunday:** Start automation pipeline testing in sandbox
+- **Monday:** Wrap up current work, prep for next project
+
+### **Current Status:**
+- ✅ Phase 1: Data collection infrastructure - COMPLETE
+- ✅ Phase 2: Live training capture - COMPLETE (implemented today)
+- ⏸️ Phase 3: Train crop model - WAITING (after Friday's cropping)
+- ⏸️ Phase 4: AI suggestions - WAITING (ready for Saturday)
+
+### **Pending Tasks:**
+- [ ] User crops ~1 hour today (Thursday) - **STARTING SOON**
+- [ ] User crops 2-3 hours Friday (~300-450 images total)
+- [ ] Train crop proposer model (after Friday session, ~30 min)
+- [ ] Implement `--ai-assist` flag in Multi Crop Tool
+- [ ] Add logging for approved/modified/rejected suggestions
+- [ ] Test AI suggestions on sandbox subset
+- [ ] **NEW: Sunday automation pipeline start (sandbox only)**
+
+### **Key Insight from Erik:**
+> "Everything the AI learns from me is gonna turn around and apply to the sandbox"
+- ✅ **YES!** AI trains on your production cropping decisions
+- ✅ **Then applies/tests** all automation in sandbox ONLY
+- ✅ **Safe separation**: Learn from production, experiment in sandbox
+
+**Documentation:** `AI_CROP_ASSISTANT_READY.md`, `scripts/ai/README.md`
+
+---
+
+## 🔧 **CLEANUP & ORGANIZATION**
 
 ### **Script Organization & Naming**
 - [ ] Retire `scripts/01_desktop_image_selector_crop.py` to archive directory
@@ -101,20 +72,9 @@
 - Optional later: expose "Upload to Drive" helper flag in `prezip_stager.py` (uses rclone if configured).
 - Optional later (deferred): evaluate split/merge flow for true parallel uploads; only if we can re-merge to a single zip automatically on the receiving side (client should still download one file).
 
-## ⚠️ **IMPORTANT WORKFLOW RULE**
-**ONE TODO ITEM AT A TIME** - Complete one task, check in with Erik, get approval before moving to the next item. Never complete multiple TODO items in sequence without user input. This prevents issues and ensures quality control.
-
 ---
 
 ## 🔥 **HIGH PRIORITY**
-
-### ✅ **Project Lifecycle & Throughput Tracking (COMPLETED Oct 15, 2025)**
-- ✅ Created `00_start_project.py` and `00_finish_project.py` for automated project management
-- ✅ Integrated `prezip_stager.py` into finish workflow
-- ✅ Imported 16 historical projects from timesheet CSV
-- ✅ Dashboard now shows accurate hours/days/images per project per tool
-- ✅ Hour-blocking time calculation (simple, robust, honest)
-- ✅ All project manifests standardized with ISO-8601 timestamps
 
 ### **Next: Project Comparison Visualizations**
 - **Goal:** Compare productivity across projects (Mojo1 vs Mojo2 vs historical)
@@ -132,7 +92,7 @@
 - **Why:** Single source of truth for grouping across desktop/web selector and automation runs; quick sanity counts before/after runs.
 - **Safety:** Read-only; no moves/deletes. Unit tests for representative fixtures.
 
-### **Sandbox Automation Orchestrator (Tomorrow)**
+### **Sandbox Automation Orchestrator**
 - **Create sandbox copy**: copy remaining images from `mojo1/` into `sandbox/` (read-only source, safe target)
 - **Run thinning steps**: pHash near-dup → FAISS semantic → timestamp-window clusters (reports + `_review_dupes/` staging only)
 - **Grading metrics**: counts kept/flagged, estimated review saved, thresholds summary
@@ -142,7 +102,7 @@
 
 ### **Sidecar crop flag + UI badge + multi-source grouping**
 - **Add sidecar flag**: create `.cropped` sidecar files next to PNGs in `crop/` (same-stem). No image changes; travels with file during moves.
-- **Character sorter badge**: detect `.cropped` companions and render a small “Cropped” badge on thumbnails.
+- **Character sorter badge**: detect `.cropped` companions and render a small "Cropped" badge on thumbnails.
 - **Similar-image grouper support**: add optional multi-source input (e.g., `selected/` + `crop/`) and preserve/propagate sidecars.
 - **CLI helper**: simple script/command to generate sidecars for existing `crop/` PNGs.
 - **Safety**: read-only marker; never modifies image bytes.
@@ -166,22 +126,94 @@
 
 ## 🧠 **Automation Pipeline Plan (Planning Only)**
 
-> Goal: Reduce Erik's manual review time by auto-picking winners in 2–4 near-duplicate sets and staging non-keepers safely for quick review. AI photography issues (blur, exposure) are irrelevant; we focus on AI anomalies (hands/feet, missing belly button, extra fingers, etc.).
+> **Goal:** Reduce Erik's manual review time by auto-picking winners in 2–4 near-duplicate sets and deciding if crops are needed.
+> 
+> **⚠️ CRITICAL: SANDBOX-ONLY TESTING**
+> - ALL automation testing happens in `sandbox/` ONLY
+> - NO production file operations until 100% confident (zero bugs, proven reliability)
+> - Must extensively use and validate tools in sandbox before any production use
+> - Bugs, issues, and refinements happen safely in sandbox environment
+
+### **Full Automation Workflow (2-Step Decision Process)**
+
+**Step 1: Image Selection**
+- AI analyzes a group of near-duplicate images (e.g., 4 versions of same character)
+- Selects the best image based on: stage number, anomaly checks, quality metrics
+- Output: Chosen image + reasoning
+
+**Step 2: Crop Decision**
+- AI analyzes the chosen image
+- Decides: Does this image need cropping?
+  - **Yes** → Proposes crop area (coordinates + reasoning)
+  - **No** → Marks as "crop not needed" (already well-framed)
+- Output: Crop recommendation (if needed) + reasoning
+
+**Focus:** AI anomalies (hands/feet issues, missing body parts, extra fingers) - NOT photography issues (blur, exposure)
 
 ### **A. Objectives & Success Criteria**
-- **Primary objective**: Auto-select a best image per near-duplicate set with high precision; present only ambiguous sets for review.
-- **Safety**: Non-destructive by default; move non-keepers to review folders with companions; never alter image bytes.
-- **Companion integrity**: Always move image + `.yaml`/`.caption` and any same-stem companions together.
+- **Primary objective**: 
+  1. Auto-select best image per near-duplicate set
+  2. Decide if selected image needs cropping
+  3. If yes, propose crop area
+  4. Present decisions for review before any file operations
+- **Safety**: 
+  - **SANDBOX-ONLY until proven 100% bug-free**
+  - Non-destructive by default; mark decisions, never move files automatically
+  - All operations reversible through review UI
+  - Companion integrity: Always move image + `.yaml`/`.caption` and any same-stem companions together
+  - Never alter image bytes
+- **Testing requirements**:
+  - **Must extensively test in sandbox before ANY production use**
+  - Zero tolerance for bugs affecting production content
+  - All edge cases, errors, and refinements handled in sandbox
+  - Production deployment only after complete confidence in reliability
 - **Measurable success**:
-  - Manual time reduction ≥ 50% on duplicate thinning passes.
-  - Auto-pick agreement with Erik’s choice ≥ 98% on calibrated sets.
-  - False-positive staging (wrongly moved a keeper) ≤ 1 per 1,000 images.
+  - Manual time reduction ≥ 50% on duplicate thinning passes
+  - Auto-pick agreement with Erik's choice ≥ 98% on calibrated sets
+  - Crop need detection accuracy ≥ 95%
+  - Crop proposal acceptance ≥ 90%
+  - False-positive staging (wrongly moved a keeper) ≤ 1 per 1,000 images
+  - Zero bugs in sandbox testing before production consideration
 
 ### **B. What Tools Do What (Human vs Automation)**
 - **Human-in-the-loop tools (existing/updated)**
-  - `scripts/01_web_image_selector.py`: stays primary for version selection; may receive a “AI pick” hint later (optional).
-  - `scripts/02_web_character_sorter.py`: add optional badges (e.g., “cropped” sidecar indicator already planned) and a future “AI suspect” tag.
-  - New: `scripts/07_auto_pick_review.py` (planning only): web UI to review auto-pick reports, show chosen vs staged, approve/override by group.
+  - `scripts/01_web_image_selector.py`: stays primary for version selection; may receive a "AI pick" hint later (optional).
+  - `scripts/02_web_character_sorter.py`: add optional badges (e.g., "cropped" sidecar indicator already planned) and a future "AI suspect" tag.
+  - **NEW: `scripts/07_automation_reviewer.py` (HIGH PRIORITY)**: Web UI to review ALL AI automation decisions before applying them.
+    - **⚠️ RUNS IN SANDBOX ONLY - No production use until extensively tested and bug-free**
+    - **Purpose**: Review AI's 2-step decision process (image selection + crop decision)
+    - **What it shows**:
+      - All images in each group (like web image selector layout)
+      - **Step 1 Result**: AI's chosen image highlighted with green border + "AI Pick" badge
+      - **Step 2 Result**: 
+        - If crop needed: Proposed crop drawn on image (dotted green rectangle)
+        - If no crop needed: "No crop required" badge
+      - Reasoning for BOTH decisions:
+        - Selection: "Highest stage (3), passed anomaly checks, best quality"
+        - Crop: "Body cut at waist, recommend crop to full frame" OR "Already well-framed, no crop needed"
+      - Quick stats: Confidence scores, anomaly flags, stage info
+    - **Actions**:
+      - ✅ Approve (accept AI decision - marks for actual move)
+      - ❌ Reject (keep all images - no action)
+      - 🔧 Override (pick different image or adjust crop)
+      - ⏭️ Skip (review later)
+    - **Batch workflow**:
+      - Process groups in batches (20-50 at a time)
+      - Keyboard shortcuts: 1/2/3/4 = override pick, A = approve, R = reject, S = skip
+      - Progress bar: "Reviewed 45/200 groups"
+      - Submit batch → writes approved decisions to staging file
+    - **Data flow (SANDBOX-ONLY)**:
+      1. Automation runs in "mark only" mode → writes decisions to `sandbox/automation_decisions.jsonl`
+         - Each decision includes: chosen image, crop needed (yes/no), crop coords (if needed), reasoning
+      2. Reviewer loads decisions → shows UI for review in sandbox
+      3. User approves/rejects/overrides → writes to `sandbox/approved_decisions.jsonl`
+      4. Commit script reads approved decisions → executes actual file moves (sandbox only)
+      5. **Extensive testing and validation in sandbox**
+      6. **Only after 100% confidence and zero bugs → consider production deployment**
+    - **Safety**: 
+      - Automation NEVER moves files directly - always through review step
+      - ALL testing in sandbox - production files never touched until proven
+      - Full rollback capability at every stage
   - `scripts/06_web_duplicate_finder.py`: remains useful for visual comparisons on tough clusters.
 - **Automation scripts (offline, reversible)**
   - `scripts/tools/compute_phash.py`: compute pHash; write to `data/ai_data/hashes/`.
@@ -192,18 +224,34 @@
   - `scripts/utils/auto_pick_near_dupes.py`: merge groupers, apply stage-aware ranking + anomaly gates, generate report; optional staging to `_review_dupes/`.
   - `scripts/orchestrators/automation_pipeline.py`: one CLI to run the pipeline in dry-run/stage modes, with metrics summary.
 
-### **C. Selection Logic (Stage-aware + Anomaly-aware)**
-- Candidate groups = filename stage runs + pHash near-exacts + CLIP semantic near-dupes.
-- Rank within group:
-  1) Highest stage number wins if it passes anomaly gate.
-  2) If tie, prefer fewer detected hands/feet in-frame; if present, require anomaly checks to pass.
-  3) Break ties by larger resolution, then latest mtime.
-- Anomaly gate (AI-specific):
-  - Hands/feet presence signal (fast): presence = higher risk; down-rank unless scores are strong.
-  - Simple hand heuristics from keypoints: flag likely extra/fused fingers if geometry inconsistent (see doc below).
-  - Optional “missing belly button” is future work; keep placeholder tag.
+### **C. Two-Step Decision Logic**
 
-References: `Documents/hand_foot_anomaly_scripts.md` (approaches and two‑stage pipeline ideas).
+**Step 1: Image Selection (Stage-aware + Anomaly-aware)**
+- Candidate groups = filename stage runs + pHash near-exacts + CLIP semantic near-dupes
+- Rank within group:
+  1) Highest stage number wins if it passes anomaly gate
+  2) If tie, prefer fewer detected hands/feet in-frame; if present, require anomaly checks to pass
+  3) Break ties by larger resolution, then latest mtime
+- Anomaly gate (AI-specific):
+  - Hands/feet presence signal (fast): presence = higher risk; down-rank unless scores are strong
+  - Simple hand heuristics from keypoints: flag likely extra/fused fingers if geometry inconsistent
+  - Optional "missing belly button" is future work; keep placeholder tag
+- **Output**: Chosen image + confidence + reasoning
+
+**Step 2: Crop Decision (for chosen image only)**
+- Analyze chosen image for crop necessity:
+  - **Needs crop if**: Body cut off (waist/legs), excess background, off-center framing, head too close to edge
+  - **No crop if**: Already well-framed (full body visible, centered, good composition)
+- If crop needed:
+  - Calculate optimal crop box using saliency maps + keypoint detection
+  - Constraints: Keep original aspect ratio, head preference, ≥1/3 body visible
+  - Score: `α·SaliencyIn – β·AnomalyOverlap – γ·HeadCut – δ·JointCut`
+- **Output**: 
+  - Crop needed: Yes/No
+  - If yes: Crop coordinates + confidence + reasoning
+  - If no: Reasoning for no crop needed
+
+References: `Documents/hand_foot_anomaly_scripts.md`
 
 ### **D. Thresholds (initial; calibrate on sample)**
 - pHash Hamming: near-exact ≤ 8; lenient ≤ 10.
@@ -222,21 +270,66 @@ References: `Documents/hand_foot_anomaly_scripts.md` (approaches and two‑stage
 3) Grouping + auto-pick (reports only)
    - Build: `phash_group_near_dupes.py`, `clip_group_near_dupes.py`, `auto_pick_near_dupes.py` (report only).
    - Validate groups and picks on calibration subset; tune thresholds.
-4) Staging mode (non-keepers → `_review_dupes/`)
-   - Extend `auto_pick_near_dupes.py` with `--stage` flag; default is dry-run.
-   - Ensure companion handling via `move_file_with_all_companions`.
-   - Metrics: counts kept/staged/ambiguous; false-positive sampling plan.
-5) Review UI (human approval loop)
-   - Plan `07_auto_pick_review.py` for tabular review of auto-pick decisions with thumbnails and approve/override.
-   - Keep it optional; start with CSV/Markdown report + `06_web_duplicate_finder.py` for hard cases.
-6) Orchestrator & metrics
-   - `automation_pipeline.py` to chain steps and emit a summary (precision/recall estimates on calibration set, time saved).
+4) Decision marking mode (NO file moves)
+   - Automation writes decisions to JSONL (chosen image, crop coords, reasoning, confidence)
+   - Output: `sandbox/automation_decisions.jsonl`
+   - NO file operations - just marks choices
+   - Includes sidecar markers: `.ai_chosen`, `.ai_crop_proposed` for easy visual review
+5) **Review UI - Automation Reviewer (CRITICAL PATH)**
+   - **Build: `scripts/07_automation_reviewer.py` (Flask web UI)**
+   - **Features:**
+     - Load decisions from `sandbox/automation_decisions.jsonl`
+     - Display groups in web image selector layout
+     - Highlight AI's choice with green border + badge
+     - Draw proposed crop rectangle on image (canvas overlay)
+     - Show reasoning tooltip (stage, confidence, anomaly flags)
+     - Keyboard shortcuts: 1/2/3/4 (override), A (approve), R (reject), S (skip), Enter (next)
+     - Batch processing: 20-50 groups at a time
+     - Progress tracking: "Reviewed 45/200 groups (22.5%)"
+   - **Output:** `sandbox/approved_decisions.jsonl` (only approved items)
+   - **Safety:** No file moves in this tool - pure review
+6) Commit script (executes approved moves)
+   - **Build: `scripts/tools/apply_automation_decisions.py`**
+   - Reads `sandbox/approved_decisions.jsonl`
+   - Executes actual file moves with companion handling
+   - Logs all operations via FileTracker
+   - Dry-run mode by default
+   - **Safety:** Only runs on explicitly approved decisions
+7) Orchestrator & metrics
+   - `automation_pipeline.py` to chain steps and emit a summary (precision/recall estimates on calibration set, time saved)
+   - Three-phase workflow: 1) Mark decisions, 2) Review in UI, 3) Apply approved moves
 
-### **F. Testing & Evaluation (before any wide run)**
-- Golden fixtures for grouping/selection rules (small fixture dirs committed to `scripts/tests/fixtures/`).
-- Dry-run as default; CI-style check that no file moves occur without `--stage`.
-- Companion integrity tests (image + sidecars preserved through moves).
-- Calibration evaluation: report agreement with Erik’s picks on the subset; adjust thresholds until ≥98%.
+### **F. Testing & Evaluation (SANDBOX-ONLY, before any production consideration)**
+
+**Phase 1: Unit Testing**
+- Golden fixtures for grouping/selection rules (small fixture dirs committed to `scripts/tests/fixtures/`)
+- Dry-run as default; CI-style check that no file moves occur without `--stage`
+- Companion integrity tests (image + sidecars preserved through moves)
+- Calibration evaluation: report agreement with Erik's picks on the subset; adjust thresholds until ≥98%
+
+**Phase 2: Sandbox Integration Testing (CRITICAL)**
+- **ALL testing happens in `sandbox/` directory ONLY**
+- Run full pipeline on sandbox copy of production data
+- Test scenarios:
+  - Image selection accuracy (compare AI picks to your actual choices)
+  - Crop need detection (does it correctly identify images that need cropping?)
+  - Crop proposal quality (are proposed crops acceptable?)
+  - Edge cases: unusual poses, partial bodies, multiple characters
+  - Error handling: missing files, corrupted data, unexpected inputs
+- **Requirements for production consideration**:
+  - ✅ Zero bugs discovered in sandbox testing
+  - ✅ Extensive use (hundreds of groups reviewed)
+  - ✅ Selection accuracy ≥98%
+  - ✅ Crop decision accuracy ≥95%
+  - ✅ All edge cases handled gracefully
+  - ✅ Complete confidence in reliability
+- **Timeline**: Stay in sandbox as long as needed - NO rush to production
+
+**Phase 3: Production Deployment (Only after Phase 2 complete)**
+- Only proceed after 100% confidence from sandbox testing
+- Start with small batches (10-20 groups)
+- Monitor closely for any issues
+- Easy rollback to manual workflow if needed
 
 ### **G. Risks & Safeguards**
 - CLIP over-grouping across pose changes → mitigate with higher cosine threshold + stage-name parity.
@@ -244,412 +337,36 @@ References: `Documents/hand_foot_anomaly_scripts.md` (approaches and two‑stage
 - Always stage to review, never hard-delete; centralized logging via FileTracker.
 
 ### **H. Deliverables**
-- Auto-pick report (CSV/Markdown) with reasons per decision.
-- `_review_dupes/` staging structure mirroring sources (dry-run off).
-- Optional review UI plan + wireframe before implementation.
+- Auto-pick decisions file: `sandbox/automation_decisions.jsonl` (all AI choices with 2-step reasoning)
+  - Format per decision:
+    ```json
+    {
+      "group_id": "char1_20250101_120000",
+      "images": ["img1.png", "img2.png", "img3.png", "img4.png"],
+      "step1_selection": {
+        "chosen": "img3.png",
+        "reasoning": "Highest stage (3), passed anomaly checks, sharpest",
+        "confidence": 0.95
+      },
+      "step2_crop": {
+        "needs_crop": true,
+        "reasoning": "Body cut at waist, excess top background",
+        "crop_coords": [0.1, 0.15, 0.9, 0.95],
+        "confidence": 0.87
+      }
+    }
+    ```
+- Automation Reviewer UI: `scripts/07_automation_reviewer.py` (web interface for sandbox review)
+- Approved decisions file: `sandbox/approved_decisions.jsonl` (user-approved choices only)
+- Commit script: `scripts/tools/apply_automation_decisions.py` (executes approved moves in sandbox)
+- Metrics report: Selection accuracy, crop decision accuracy, time saved, approval rate, override patterns
+- **Sandbox testing documentation**: Detailed log of all testing, bugs found/fixed, confidence assessment
 
 ### **I. References**
 - `Documents/hand_foot_anomaly_scripts.md`
 - `image_batch_culling_pipeline.md`, `similar_image_dedup_automation_plan.md`, `stage_aware_image_culling_workflow_v2.md`
 
 > Note: This section is planning-only. No scripts will be created until we review and approve this plan.
-
-### **J. Portrait Fast‑Track via MediaPipe Pose (Planning + Experiment)**
-- **Hypothesis**: Images that are clearly head‑and‑shoulders portraits rarely need cropping; selecting the highest stage is typically sufficient.
-- **Goal**: Automatically identify portrait (head+shoulders) images and route them into a fast lane, reducing intermixing with images that need crop decisions.
-- **Detection approach (planning)**:
-  - MediaPipe Pose + Face for head box + shoulder keypoints; simple heuristics: face area fraction, shoulder span band, hips mostly out of frame.
-  - Fallback: face‑area‑only heuristic for speed; escalate ambiguous cases to full Pose.
-- **Proposed pipeline (planning)**:
-  1) Offline classify portrait vs non‑portrait (dry‑run → CSV of flags).
-  2) Option A: Pre‑stage portraits into a `portraits_fastpass/` review dir.
-  3) Option B: Tag portraits and surface a “Portrait fast pass” filter in the web selector.
-  4) In fast pass, default selection rule = highest stage that passes anomaly gate; do not send to `crop/`.
-- **Calibration plan (planning)**: Build a 100–200 image labeled subset to tune thresholds and confirm ≥98% agreement with Erik on portrait identification.
-- **Safety**: Planning‑only; if approved, first build as dry‑run report with zero file moves.
-
-### **K. Workflow Concepts — Pros/Cons and Throughput Modeling (Planning)**
-- Compare workflows to maximize “quick wins” first without harming overall throughput:
-  - Portrait fast‑pass first vs after near‑dupe thinning.
-  - Stage‑aware auto‑pick before/after character sorting.
-  - Routing by hands/feet presence early vs late.
-- Define evaluation metrics: items/hour, percent auto‑finalized, review queue size, context‑switch cost.
-- Run small A/B sessions and log timings to confirm which sequence actually yields faster end‑to‑end results (avoid “feels fast but is slower”).
-
-## 🤖 **AI Training - Comprehensive Implementation Plan**
-
-> 📖 **Master Reference:** `Documents/image_cropping_ranking_training_plan.md`  
-> Full technical details, architecture, and Apple Silicon optimization strategies
-
-### ✅ **Current Status: Basic Logging Complete**
-
-**What We've Built:**
-- ✅ Training logging built into 4 tools (no flags needed!)
-- ✅ Web image selector → `data/training/selection_only_log.csv`
-- ✅ Desktop image selector crop → `data/training/select_crop_log.csv`
-- ✅ Multi-crop tool → `data/training/select_crop_log.csv`
-- ✅ Web duplicate finder → `data/training/duplicate_detection_log.csv`
-
-**Migration Path:**
-- ✅ CSV logging provides foundation
-- 🔄 Need to upgrade to JSONL schema with anomaly tags (see master doc)
-- 🔄 Add `set_id`, `anomaly_tags`, detailed metadata
-- 💡 Keep CSV logs running while we build JSONL alongside
-
----
-
-## 📊 **CURRENT STATUS: Environment Ready, Week 1 Next**
-
-**✅ Completed Today (Oct 5):** MPS + AI packages installed, all tests passing  
-**🔜 Next Step:** Create `data/ai_data/` directory structure (Step 1)  
-**⏸️ Paused:** Waiting to begin Week 1 implementation
-
----
-
-## 🎯 **Training Philosophy: Apprentice Model**
-
-The AI will learn like an apprentice who:
-1. **Watches you work** (weeks/months) - learns patterns, no interference
-2. **Makes suggestions** (when ready) - you accept/reject/modify to refine it  
-3. **Works semi-autonomously** (distant future) - with your review
-
-**Critical:** No automation until AI proves it understands your preferences through extensive observation.
-
----
-
-## 📊 **PHASE 1: OBSERVATION MODE** (Current Focus - Weeks 1-3+)
-
-**Goal:** Silent logging system that watches your existing workflow without changing anything.
-
-### **Week 1: Foundation - Passive Data Collection**
-
-**1.1 Set Up AI Data Structure** ✓ Safe, no breaking changes
-```
-data/ai_data/
-  ├── embeddings/           # Image embeddings (computed offline)
-  ├── hashes/              # Perceptual hashes
-  ├── saliency/            # Saliency maps
-  ├── hands/               # Hand detection data
-  ├── observations/        # Your actual decisions (JSONL logs)
-  │   └── sessions/
-  └── models/              # Future trained models
-```
-
-**1.2 Create Offline Analysis Tools** ✓ Can run anytime, won't break workflow
-- `tools/compute_embeddings.py` - Batch process images in `mojo/`, `crop/`, `selected/`
-  - Model: OpenCLIP ViT-B/32 (best balance speed/accuracy for M4 Pro)
-  - Output: `data/ai_data/embeddings/`
-- `tools/compute_phash.py` - Generate perceptual hashes for duplicate detection
-  - Output: `data/ai_data/hashes/`
-- `tools/compute_hands_saliency.py` - Extract hand keypoints + saliency maps
-  - MediaPipe Hands for keypoint detection
-  - U²-Net via rembg for saliency (simplest implementation)
-  - Output: `data/ai_data/hands/`, `data/ai_data/saliency/`
-- **All run independently, no integration needed yet**
-
-**1.3 Design Observation Schema** ✓ Planning only
-```jsonl
-{
-  "timestamp": "2025-10-05T19:12:31Z",
-  "session_id": "mojo_batch_001",
-  "tool": "web_image_selector",
-  "image_group": ["img1.png", "img2.png", "img3.png"],
-  "action": "selected",
-  "chosen": "img2.png",
-  "rejected": ["img1.png", "img3.png"],
-  "crop_box": null,  # or {x, y, w, h} if cropped
-  "deleted": false,
-  "notes": "optional metadata"
-}
-```
-
----
-
-### **Week 2: Passive Integration - Watch Without Interfering**
-
-**2.1 Add Silent Logging to Existing Tools** ⚠️ Needs careful integration
-- Modify `01_web_image_selector.py` - log selections
-- Modify `04_multi_crop_tool.py` - log crop decisions
-- Modify `01_desktop_image_selector_crop.py` - log select+crop
-- **Critical Requirements:**
-  - ✅ Completely silent (no UI changes)
-  - ✅ Optional (can disable with env var)
-  - ✅ Zero performance impact
-  - ✅ Fail-safe (errors don't break tools)
-- **Feature Flag:** `export ENABLE_AI_LOGGING=true` to activate
-- **Integration Strategy:** Add to ONE tool first, test thoroughly, then expand
-
-**2.2 Build Observation Dashboard** ✓ Separate tool, safe
-- Web viewer to see what AI has learned
-- Show statistics: "Observed 1,247 decisions across 89 sessions"
-- Visualize patterns without making recommendations
-- Check data quality
-- Location: `scripts/dashboard/ai_observation_viewer.py`
-
----
-
-### **Week 3: Data Accumulation & Quality Check**
-
-**3.1 Run Batch Feature Extraction**
-- Process all images in `mojo/`, `crop/`, `selected/`
-- Generate embeddings, hashes, saliency maps
-- Build feature database
-- Verify outputs for quality
-
-**3.2 Validate Observation Data**
-- Check logs are capturing decisions correctly
-- Verify file paths resolve
-- Ensure data quality for training
-- Build validation script: `tools/validate_observations.py`
-
-**3.3 Initial Pattern Analysis** (Optional)
-- Simple statistics: "You prefer images with X"
-- No recommendations, just showing what it sees
-- Sanity check the AI is learning something meaningful
-- Output: Human-readable report of patterns detected
-
----
-
-## 🛠️ **Implementation Strategy - No Breaking Changes**
-
-### **What Can We Do RIGHT NOW (Zero Risk)**
-
-1. ✅ **Create `data/ai_data/` structure** - new directory, can't break anything
-2. ✅ **Build standalone tools** (`compute_embeddings.py`, etc.) - run independently
-3. ✅ **Write observation schema docs** - planning only
-4. ✅ **MPS benchmark test** - verify M4 Pro performance with PyTorch
-
-### **What Needs Careful Integration**
-
-1. ⚠️ **Adding logging to existing tools** - need to test thoroughly
-   - Add behind feature flag: `ENABLE_AI_LOGGING=true`
-   - Extensive error handling
-   - Test on small batch first
-   - Integrate ONE tool at a time
-
-### **What We Can Build Incrementally**
-
-1. 🔄 **Observation dashboard** - separate web tool
-2. 🔄 **Analysis scripts** - run offline on collected data
-3. 🔄 **Model training** - when enough data accumulated
-
----
-
-## 🗓️ **Implementation Roadmap (Week-by-Week)**
-
-### **✅ COMPLETED: Environment Setup (Oct 5, 2025)**
-
-**What We Built:**
-- ✅ MPS benchmark test - verified M4 Pro + PyTorch working (1.76x speedup!)
-- ✅ Installed AI packages into `.venv311`:
-  - OpenCLIP 3.2.0 (CLIP embeddings)
-  - imagehash 4.3.2 (perceptual hashing)
-  - MediaPipe 0.10.21 (hand detection)
-  - rembg 2.0.67 (saliency detection)
-  - pandas 2.3.3 (data handling)
-- ✅ Verified no conflicts with existing tools (163 tests passed)
-- ✅ Web image selector and all utilities working perfectly
-
-**NumPy Note:** Downgraded from 2.2.6 → 1.26.4 for MediaPipe compatibility. OpenCV and all existing scripts work fine with this version.
-
----
-
-### **🔜 NEXT: Week 1 - Foundation (Passive Data Collection)**
-
-**Priority Order (each item depends on previous):**
-
-**1️⃣ Create AI Data Structure** ⚠️ **DO THIS FIRST**
-- Create `/absolute/path/to/project-root/data/ai_data/` directory
-- Subdirectories: `embeddings/`, `hashes/`, `saliency/`, `hands/`, `observations/sessions/`, `models/`
-- Safe operation: just creates empty directories, can't break anything
-- **Status:** Ready to implement
-
-**2️⃣ Build Standalone Analysis Tools** ⚠️ **DO SECOND**
-- Create `scripts/tools/compute_embeddings.py` (OpenCLIP ViT-B/32, use MPS)
-- Create `scripts/tools/compute_phash.py` (perceptual hashing)
-- Create `scripts/tools/compute_hands_saliency.py` (MediaPipe + U²-Net)
-- All run independently on `mojo/`, `crop/`, `selected/` directories
-- No integration with existing tools yet - completely safe
-- **Status:** Ready to implement
-- **Dependencies:** Need step 1 completed first (directories must exist)
-
-**3️⃣ Test on Small Sample** ⚠️ **DO THIRD**
-- Run tools on small sample (e.g., 10-20 images from character_group_2/)
-- Verify outputs are correct
-- Check file sizes and formats
-- **Status:** Ready after steps 1-2
-- **Dependencies:** Steps 1-2 must work first
-
-**4️⃣ Design & Document Observation Schema**
-- Finalize JSONL schema for logging
-- Document anomaly tags
-- Create example session files
-- **Status:** Ready to implement (documentation only)
-- **Dependencies:** None (can do anytime)
-
----
-
-### **🔮 FUTURE: Week 2 - Passive Integration (Watch Mode)**
-
-**NOT STARTED - Don't begin until Week 1 complete**
-
-**5️⃣ Add Silent Logging to ONE Tool**
-- Integrate observation logging into `01_web_image_selector.py` first
-- Always-on by default (learns from everything you do)
-- Emergency kill switch: `export DISABLE_AI_LOGGING=true`
-- Extensive testing on small batch
-- **Status:** Not started
-- **Dependencies:** Must complete Week 1 first + verify schema works
-
-**6️⃣ Build Observation Dashboard**
-- Create `scripts/dashboard/ai_observation_viewer.py`
-- Show statistics: "Observed X decisions across Y sessions"
-- Visualize patterns without making recommendations
-- **Status:** Not started
-- **Dependencies:** Need logging data from step 5
-
-**7️⃣ Expand to Other Tools**
-- Add logging to `04_multi_crop_tool.py`
-- Add logging to `01_desktop_image_selector_crop.py`
-- Only if step 5 works perfectly
-- **Status:** Not started
-- **Dependencies:** Step 5 must be rock-solid first
-
----
-
-### **🔮 FUTURE: Week 3 - Data Accumulation & Validation**
-
-**NOT STARTED - Don't begin until Week 2 complete**
-
-**8️⃣ Run Batch Feature Extraction**
-- Process all existing images in mojo/, crop/, selected/
-- Generate complete feature database
-- **Status:** Not started
-
-**9️⃣ Validate Observation Data**
-- Build `scripts/tools/validate_observations.py`
-- Check data quality, file paths, completeness
-- **Status:** Not started
-
-**🔟 Initial Pattern Analysis**
-- Simple statistics showing what AI learned
-- No recommendations, just pattern visualization
-- **Status:** Not started
-
----
-
-## 📋 **Model & Technology Choices**
-
-**Documented for future reference:**
-
-- **OpenCLIP ViT-B/32**: Best balance of speed/accuracy for M4 Pro (512D embeddings, fast inference)
-- **U²-Net via rembg**: Simplest saliency implementation (Apache 2.0 license)
-- **MediaPipe Hands**: Standard hand keypoint detection (Apache 2.0 license)
-- **pHash**: Perceptual hashing for near-duplicate detection (simple, fast)
-- **Skip YOLO for now**: Add in Phase 2 if needed for face/foot detection
-
----
-
-## 📊 **PHASE 2: RECOMMENDATION MODE** (Future - Weeks 4+)
-
-**Won't start until Phase 1 data collection is satisfactory**
-
-### **Week 4+: Optional Recommendation Layer**
-
-**4.1 Build Ranking Model v0**
-- Create: `train/rank_bt.py` (Bradley-Terry or tiny MLP)
-- Features: CLIP embedding + sharpness + subject size + anomaly counts
-- Train on accumulated observation data
-- Use MPS for Apple Silicon acceleration
-
-**4.2 Build Crop Proposer v0**
-- Create: `tools/propose_crop.py` (fixed-aspect, objective-based)
-- Constraints: Keep original aspect ratio, head preference, ≥1/3 body
-- Score: `α·SaliencyIn – β·AnomalyOverlap – γ·HeadCut – δ·JointCut`
-- Output: Proposed crops with confidence scores
-
-**4.3 Add Toggle-able Recommendation UI**
-- Add optional recommendation layer to tools (can toggle on/off)
-- "AI suggests: img2.png (confidence: 87%)" - you agree/disagree
-- Log your corrections to improve model
-- **Critical:** Must be completely optional and easy to disable
-
-**4.4 Correction Logging**
-- Log when you accept AI suggestions
-- Log when you reject and choose differently
-- Log when you modify AI crop proposals
-- Use corrections to refine models incrementally
-
----
-
-## 📊 **PHASE 3: SEMI-AUTOMATION** (Distant Future)
-
-**Won't start until Phase 2 shows sustained high accuracy**
-
-### **Requirements for Phase 3 Activation:**
-- **Metric goals:** Top-1 agreement ≥99%, Crop acceptance ≥99%, Residual anomalies ≈0
-- **Promotion criteria:** Sustained for N consecutive sets (e.g., 300)
-- **Manual override:** Easy kill switch to return to Phase 2 or Phase 1
-
-### **Batch Processing Features:**
-- Batch processing with review queue
-- High confidence = auto-process
-- Low confidence = ask you first
-- **Safety:** AI-assist flags residual anomalies for your review
-
-### **Active Learning & Routing**
-- Route sets with low confidence margin first
-- Prioritize: Small ranking margin, crop near threshold, detector disagreement
-- Optional: Integrate Cleanlab/ActiveLab for label QA
-
-### **Optional Enhancements**
-- Add tiny YOLO face/foot detection
-- Improve "don't cut here" penalties (face/foot boxes)
-- Refine crop proposals based on accumulated data
-
----
-
-### 🔧 **Supporting Tasks (Ongoing)**
-
-**A. Data Monitoring & Validation**
-- Create verification script: Check logs being written
-- Alert if logs stale (>X days without updates)
-- Validate CSV/JSONL structure and data quality
-- Daily/weekly automated checks
-
-**B. Documentation**
-- Document logging schemas in Technical Knowledge Base
-- Create training data inventory
-- Track model versions and approval rates
-
-**C. Environment Setup**
-- Python ≥3.11, PyTorch with MPS (Metal)
-- Install: `torch`, `lightning`, `accelerate`, `open_clip_torch`, `opencv-python`, `imagehash`, `mediapipe`, `u2net`
-- Verify Apple Silicon acceleration working
-
----
-
-## 🔐 **Data Backup Plan**
-
-**Goal:** Automated, reliable off-repo backups of CSV/log data.
-
-**Scope:**
-- `data/training/*.csv`
-- `data/file_operations_logs/*.log`
-- Optional: manifests with hashes/counts
-
-**Tasks:**
-1. Choose backend (S3, Backblaze B2, or Google Drive)
-2. Create `scripts/backup/backup_training_data.py`
-   - Package files into timestamped tar.gz
-   - Write manifest with sha256 + row counts
-   - Upload with lifecycle policy (keep 8 weekly)
-3. Create `scripts/backup/restore_training_data.py`
-4. Schedule weekly cron (Sun 02:00 local)
-5. End-to-end test: backup → delete → restore → verify
-6. Document in Knowledge Base
-
-**Defaults:** Weekly backups, 8 weeks retention, server-side encryption
 
 ---
 
@@ -686,30 +403,9 @@ data/ai_data/
 
 **Files & examples:**
 - `scripts/utils/base_desktop_image_tool.py` — YAML-only delete in base method used by inheritors.
-  - Example:
-    ```
-    def safe_delete(self, png_path: Path, yaml_path: Path):
-        send2trash(str(png_path))
-        if yaml_path.exists():
-            send2trash(str(yaml_path))
-    ```
-  - Impact: Tools calling base `safe_delete` won’t remove `.caption` sidecars.
-
 - `scripts/04_multi_crop_tool.py` — Calls base `safe_delete(png_path, yaml_path)` during delete flow.
-  - Example: `self.safe_delete(png_path, yaml_path)`
-  - Note: Fixing base method fixes this tool automatically.
-
 - `scripts/utils/triplet_deduplicator.py` — Dry-run and removal reference only `.yaml`.
-  - Example dry-run:
-    ```
-    yaml_file = png_file.parent / f"{png_file.stem}.yaml"
-    if yaml_file.exists():
-        print(f"    🗑️  {yaml_file.name}")
-    ```
-  - Expected: Use wildcard companions (YAML and/or caption) for print and removal.
-
 - `scripts/archive/04_batch_crop_tool.py` — Legacy; uses `safe_delete(png_path, yaml_path)`.
-  - Note: Mark as legacy; optional to update.
 
 **Actions:**
 - Replace base `safe_delete` implementation with centralized utility:
@@ -727,7 +423,7 @@ data/ai_data/
 
 ## 📚 **LOW PRIORITY / FUTURE**
 
-### 4. Code Conventions & Patterns Catalog
+### Code Conventions & Patterns Catalog
 **Create:** `Documents/CONVENTIONS_REFERENCE.md`
 - Analyze all scripts for reusable patterns
 - Document Flask structure, CSS, JavaScript patterns
@@ -735,20 +431,20 @@ data/ai_data/
 - Create ready-to-use code templates
 - Benefits: Consistency, maintainability, easier onboarding
 
-### 5. Scripts layout cleanup (planning)
+### Scripts layout cleanup (planning)
 - Clarify conventions: `scripts/tools/` = runnable CLIs/automation; `scripts/utils/` = reusable libraries only.
 - Audit `scripts/tools/` for code that belongs in `scripts/utils/` and propose moves.
 - Refactor imports after moves; replace `project_root` path hacks with `sys.path.insert` only where necessary.
 - Add `scripts/README.md` summarizing directory purposes and import rules.
 - Add tests covering `utils/recursive_file_mover.py` CLI behaviors.
 
-### 5. Create Local Homepage
+### Create Local Homepage
 Build custom homepage in Documents with links to all AI systems and tools
 
-### 6. Web Interface Template System Investigation
+### Web Interface Template System Investigation
 Evaluate if template would simplify web tool maintenance vs add complexity
 
-### 7. Experiment: Hand/Foot Anomaly Scripts
+### Experiment: Hand/Foot Anomaly Scripts
 General line item to check out/test hand and foot anomaly scripts when time allows. Purpose: see if they catch any of my mistakes or produce signals our AI could use. Not urgent; exploratory—run on recent batches and jot a brief note on usefulness and potential integration.
 
 ---
@@ -781,7 +477,7 @@ General line item to check out/test hand and foot anomaly scripts when time allo
 
 - **Visuals**:
   - Crop button shows an active style when `cropMode=true`.
-  - Selected card shows white “crop-selected” outline when `state.crop=true` (existing class).
+  - Selected card shows white "crop-selected" outline when `state.crop=true` (existing class).
 
 - **Implementation TODOs (execute when tool not in use)**:
   1) Add `Crop` button to right control column in the template (same style class as row buttons).
@@ -798,10 +494,10 @@ General line item to check out/test hand and foot anomaly scripts when time allo
 
 ### Feature: Work Timer Widget (like Multi‑Crop Tool)
 - **Context**: `scripts/01_web_image_selector.py`—long sessions get tedious; a small on‑page work timer helps focus and pacing.
-- **Goal**: Add a lightweight, on‑page work timer similar to the multi‑crop tool’s timer to encourage timeboxed passes and reduce context switching.
+- **Goal**: Add a lightweight, on‑page work timer similar to the multi‑crop tool's timer to encourage timeboxed passes and reduce context switching.
 
 - **UI**:
-  - Fixed, subtle header widget (top bar, right side): “Work: 00:00 • Session: 00:00 • Efficiency hint (optional)”.
+  - Fixed, subtle header widget (top bar, right side): "Work: 00:00 • Session: 00:00 • Efficiency hint (optional)".
   - Colors match style guide; unobtrusive; no blocking dialogs.
 
 - **Behavior**:
@@ -817,29 +513,11 @@ General line item to check out/test hand and foot anomaly scripts when time allo
 
 - **Safety**:
   - Pure front‑end; no server or file‑operation changes.
-  - Feature is display‑only; won’t affect selection/crop submissions.
+  - Feature is display‑only; won't affect selection/crop submissions.
 
-## 📊 **Dashboard Enhancements (In Progress + Planned)**
+---
 
-### In Progress
-- Day-banding alignment on intraday (15min/1H)
-  - Status: In progress; alternating bands render, local-day boundary alignment needs final tweak for 1H.
-  - Considerations: Ticks vs dataset label spacing; ensure midnight boundaries map to tick indices reliably.
-- Project start/end markers
-  - Status: In progress; dashed blue/red lines render; labels and tooltips pending.
-  - Considerations: Label overlap, accessibility contrast, and hover tooltips with ISO time.
-
-### Completed (recent - Oct 15, 2025)
-- ✅ Project Productivity Table with tool filtering
-  - Tool column order: Desktop Image Selector Crop → Web Image Selector → Web Character Sorter → Multi Crop Tool
-  - Checkboxes to show/hide columns (Desktop Image Selector Crop unchecked by default)
-  - Per-tool breakdown: Hours, Days, Images processed, Selected/Cropped (for Image Selector tools)
-  - Rounded hours (standard rounding)
-  - Start/End image counts from project manifests
-  - Only 4 approved tools displayed (filtered backend + frontend)
-- ✅ Project selector in header (persisted); backend manifest load + project_id filtering
-- ✅ Operation/tool toggles with persistence; average overlays per visible series
-- ✅ Single-column layout; readable local timestamps; hourly crop KPI; header lookback/timeframe/refresh
+## 📊 **Dashboard Enhancements**
 
 ### 🎨 **Project Comparison Graph Experiments (Next - High Priority)**
 
@@ -857,7 +535,7 @@ General line item to check out/test hand and foot anomaly scripts when time allo
 **Purpose:** Show total hours spent per tool, stacked by project
 - **X-axis:** Projects (Mojo1, Mojo2)
 - **Y-axis:** Hours (left axis)
-- **Bars:** Stacked segments for each tool (Desktop Image Selector Crop, Web Image Selector, Web Character Sorter, Multi Crop Tool)
+- **Bars:** Stacked segments for each tool
 - **Colors:** Distinct color per tool (consistent across all charts)
 - **Tooltip:** Tool name, hours, percentage of total project hours
 - **Why useful:** Quick visual of time distribution across tools per project
@@ -891,7 +569,7 @@ General line item to check out/test hand and foot anomaly scripts when time allo
 
 #### **E. Dual Y-Axis Combo Chart (Time + Images)**
 **Purpose:** Show relationship between time investment and output on one chart
-- **X-axis:** Tools (Desktop Image Selector Crop, Web Image Selector, etc.)
+- **X-axis:** Tools
 - **Left Y-axis:** Hours (time bars)
 - **Right Y-axis:** Images processed (line or secondary bars)
 - **Bars:** Grouped by project (Mojo1 vs Mojo2 side-by-side per tool)
@@ -905,7 +583,7 @@ General line item to check out/test hand and foot anomaly scripts when time allo
 - Use Chart.js (already in dashboard)
 - Position table at TOP of dashboard (most important view)
 - Position graphs BELOW table
-- All charts use same 4-tool filter (Desktop Image Selector Crop, Web Image Selector, Web Character Sorter, Multi Crop Tool)
+- All charts use same 4-tool filter
 - Consistent color scheme across all charts
 - Responsive design (mobile-friendly)
 - Legend toggles for each series
@@ -922,8 +600,6 @@ General line item to check out/test hand and foot anomaly scripts when time allo
 2. Review with Erik to see which visualizations are most useful
 3. Combine best elements from different charts
 4. Polish and integrate final design
-
----
 
 ### Planned (Lower Priority)
 1. Historical average overlays (longer-term historical bands)
@@ -945,68 +621,11 @@ General line item to check out/test hand and foot anomaly scripts when time allo
 1. Add desktop hotkey reference to Knowledge Base (p [ ] \\ and A/S/D/F/B)
 2. Document training log flags and schemas
 3. Update backup system runbook when implemented
+4. **END OF DAY: Cleanup Documents directory** (lots of explosion, some useless/bloated docs)
 
 ---
 
-## 🗓️ Tomorrow: Automation Reduction Experiments — Runtime Guards and Plan (Oct 12, 2025)
-
-### Where we left off (Oct 11, 2025)
-- Snapshot utility implemented: `scripts/tools/snapshot.py` (save/restore baseline under `sandbox/mojo2`).
-- Reducer outputs constrained under sandbox: `selected/`, `delete/`, `crop/` now live in `sandbox/mojo2/`.
-- Watchdog self-test passed (ABORT on simulated hang writes logs under `sandbox/mojo2/logs/`).
-- Quiet logging added: set `COMPANION_UTILS_QUIET=1` or `--quiet` to suppress per-file DRY-RUN spam.
-- Experiment 1 (B-conservative + dedupe-first 0.90) dry-run attempted on full sandbox; aborted by watchdog due to max runtime (heavy stdout and ~18k images). No crashes.
-
-### Decision needed (morning)
-- Choose default runtime caps:
-  - Dry-run sanity: 20 min (1200s) default? [decide 20 vs 30]
-  - Commit runs: 30 min (1800s) default? [confirm]
-- Per-run group cap policy: compute from early estimate vs fixed `--limit` (e.g., 1–2k groups)?
-
-### Tasks for tomorrow (runtime guards + ergonomics)
-1) Add early-size estimator to reducer run:
-   - Fast scan counts (files, groups estimate) before selection loop.
-   - Estimate runtime (items_per_sec from rolling window) after first 200 groups; abort early if projected > cap.
-   - Print summary and write an estimator line to `sandbox/mojo2/metrics/`.
-2) Make `--quiet` default for `--dry-run`; keep opt-out `--no-quiet`.
-3) Adaptive `--limit` default:
-   - If not provided, set from estimator so projected runtime <= cap.
-4) Progress-based soft abort:
-   - If projected remaining time > remaining budget, finish current group and end gracefully (write metrics/report).
-5) Truncated logging for DRY-RUN:
-   - Print only periodic progress lines and top-N sample move intents.
-6) Metrics/report completeness per experiment:
-   - Input count, groups, winners, reduction %, runtime, errors list, sample audit placeholders.
-   - Write `sandbox/mojo2/metrics/exp_<id>.jsonl` and `sandbox/mojo2/reports/exp_<id>.md`.
-7) Orchestrator helper:
-   - Small shell/python wrapper to iterate Experiments 1→10 with restore between runs and unique sub-ids for sweeps.
-
-### Morning run plan
-1) Restore baseline:
-   - `python3 scripts/tools/snapshot.py restore --root sandbox/mojo2 --in sandbox/mojo2/.baseline.tar`
-2) Experiment 1 — B-conservative + dedupe-first (0.90):
-   - Dry-run sanity (quiet, runtime cap 20m, estimator on):
-     - `python3 scripts/tools/reducer.py run --variant B --profile conservative --dedupe 0.90 --sandbox-root sandbox/mojo2 --dry-run --quiet --max-runtime 1200 --watchdog-threshold 120 --progress-interval 2`
-   - Commit run (quiet, runtime cap 30m; ensure moves remain sandbox-local):
-     - `python3 scripts/tools/reducer.py run --variant B --profile conservative --dedupe 0.90 --sandbox-root sandbox/mojo2 --commit --quiet --max-runtime 1800 --watchdog-threshold 120 --progress-interval 2`
-   - Capture metrics/report; on any error, continue and log.
-3) Restore baseline for next experiment before proceeding.
-
-### Notes
-- Aim for early fail-fast: prefer smaller, faster runs with clear metrics over 1h runs.
-- Keep companions intact on all moves; never alter image bytes.
-- All artifacts strictly under `sandbox/mojo2`.
-
----
-
-## Automation Reduction Experiments — Progress (Oct 12)
-
-- Instrumentation added: `scripts/tools/prof.py`, `--investigate` in `reducer.py` with stage timers and checkpoints.
-- Deterministic sharding: `--shards/--shard-index` to keep runs bounded and reproducible.
-- Deterministic subset builder: `scripts/tools/subset_builder.py` (hash-based), 25% subset created at `sandbox/mojo2_subset` (867 groups, 2599 images).
-- Challenge subset mode: new `--challenge` flag (risk-scored sampling by sharpness/exposure); created at `sandbox/mojo2_challenge` (~884 groups, 2652 images at 25%).
-- Quality-aware selector (toggle off by default): `--quality-aware` computes fast thumbnail sharpness/exposure and falls back to a lower stage if the top stage is blur/clipped; dry-run only so far.
-- Async moves experiment: added `--async-moves` (off by default); discarded for instability/no speedup in short benches.
+## 📊 **Sandbox Automation Experiments**
 
 ### Baseline metrics (subset runs)
 - 5-minute shard on `mojo2_subset`: scan=0.05s, group=0.02s, select≈14.86s, moves≈14.86s; shard groups=126; ≈254 groups/min.

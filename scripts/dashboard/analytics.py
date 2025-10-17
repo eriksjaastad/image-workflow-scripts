@@ -25,12 +25,12 @@ sys.path.insert(0, str(project_root))
 
 from scripts.dashboard.data_engine import DashboardDataEngine
 from scripts.dashboard.project_metrics_aggregator import ProjectMetricsAggregator
+from scripts.dashboard.timesheet_parser import TimesheetParser
 
 
 # Centralized tool order - used across ALL charts, tables, and toggles
 # This ensures consistent ordering everywhere in the dashboard
 STANDARD_TOOL_ORDER = [
-    'Desktop Image Selector Crop',
     'Web Image Selector',
     'Web Character Sorter',
     'Multi Crop Tool'
@@ -46,6 +46,11 @@ class DashboardAnalytics:
         self.data_dir = Path(data_dir)
         self.engine = DashboardDataEngine(str(data_dir))
         self.project_agg = ProjectMetricsAggregator(data_dir)
+        # Timesheet is in project_root/data/timesheet.csv
+        timesheet_path = self.data_dir / "data" / "timesheet.csv"
+        self.timesheet_parser = TimesheetParser(timesheet_path)
+        print(f"[INIT DEBUG] Analytics data_dir: {self.data_dir}")
+        print(f"[INIT DEBUG] Timesheet path: {timesheet_path}")
     
     def generate_dashboard_response(
         self,
@@ -85,6 +90,8 @@ class DashboardAnalytics:
                 "lookback_days": lookback_days,
                 "hours_scope": "lifetime",  # table hours/days computed over full project lifetime
                 "hours_source": "file_operations",  # derived from file operation timing (break-aware)
+                "session_source": self.engine.snapshot_loader.get_session_source(),  # derived or legacy_work_timer
+                "performance_mode": self.engine.snapshot_loader.is_performance_mode(),
                 "standard_tool_order": STANDARD_TOOL_ORDER,  # Centralized tool order for UI consistency
                 "baseline_labels": {
                     "15min": self.engine.build_time_labels("15min", lookback_days),
@@ -98,12 +105,23 @@ class DashboardAnalytics:
             "projects": self._build_projects_list(raw_data),
             "charts": self._build_charts(raw_data, baseline_labels, time_slice),
             "timing_data": self._build_timing_data(raw_data),
-            "project_comparisons": self._build_project_comparisons(project_metrics),
+            "project_comparisons": self._build_project_comparisons(project_metrics, raw_data, time_slice, lookback_days),
             "project_kpi": self._build_project_kpi(project_id, project_metrics, raw_data),
             "project_metrics": project_metrics,
             "project_markers": self._build_project_markers(project_id, raw_data),
-            "project_productivity_table": self._build_project_productivity_table(raw_data, project_metrics, time_slice, lookback_days)
         }
+        
+        # Build detailed productivity table
+        detailed_table = self._build_project_productivity_table(raw_data, project_metrics, time_slice, lookback_days)
+        
+        # Build productivity overview from detailed data
+        productivity_overview = self._build_productivity_overview_table(detailed_table)
+        
+        response["project_productivity_table"] = detailed_table
+        response["productivity_overview"] = productivity_overview
+        
+        # Add timesheet data for billing/efficiency tracking
+        response["timesheet_data"] = self._load_timesheet_data()
         
         return response
     
@@ -241,12 +259,13 @@ class DashboardAnalytics:
     
     def _build_project_comparisons(
         self,
-        project_metrics: Dict[str, Dict[str, Any]]
+        project_metrics: Dict[str, Dict[str, Any]],
+        raw_data: Dict[str, Any],
+        time_slice: str,
+        lookback_days: int
     ) -> List[Dict[str, Any]]:
         """
-        Build project comparison data for simple bar chart.
-        
-        Returns total operations per project (not images/hour which is broken).
+        Build project comparison data for bar charts with tool-level breakdowns.
         
         Returns:
             [
@@ -254,26 +273,73 @@ class DashboardAnalytics:
                     "projectId": "abc",
                     "title": "Project ABC",
                     "total_operations": <int>,
-                    "operations_by_type": { "crop": <int>, "delete": <int>, ... }
+                    "operations_by_type": { "crop": <int>, "delete": <int>, ... },
+                    "tools": {
+                        "Web Image Selector": {
+                            "images_processed": <int>,
+                            "work_time_minutes": <float>,
+                            "images_per_hour": <float>
+                        },
+                        ...
+                    }
                 }
             ]
         """
         comparisons = []
+        
+        # Get projects from raw_data to have access to full project info
+        projects_by_id = {p.get("projectId"): p for p in raw_data.get("projects", []) if p.get("projectId")}
         
         for project_id, metrics in project_metrics.items():
             title = metrics.get("title", project_id)
             ops_by_type = metrics.get("totals", {}).get("operations_by_type", {})
             total_ops = sum(ops_by_type.values())
             
+            # Build tools breakdown for this project
+            project = projects_by_id.get(project_id, {})
+            tools_breakdown = self._build_tools_breakdown_for_project(
+                project_id,
+                project,
+                metrics,
+                raw_data,
+                time_slice,
+                lookback_days
+            )
+            
+            # Convert tools breakdown to simpler format for charts
+            tools_metrics = {}
+            for tool_name, tool_data in tools_breakdown.items():
+                hours = tool_data.get("hours", 0) or 0
+                
+                # Get image count (handle selector vs other tools)
+                if tool_name == "Web Image Selector":
+                    images = tool_data.get("images_total", 0) or 0
+                else:
+                    images = tool_data.get("images", 0) or 0
+                
+                # Calculate images per hour
+                img_per_hour = round(images / hours, 1) if hours > 0 and images > 0 else 0
+                
+                tools_metrics[tool_name] = {
+                    "images_processed": images,
+                    "work_time_minutes": round(hours * 60, 1),
+                    "images_per_hour": img_per_hour
+                }
+            
+            # Get startedAt date for chronological sorting
+            started_at = project.get("startedAt", "")
+            
             comparisons.append({
                 "projectId": project_id,
                 "title": title,
                 "total_operations": total_ops,
-                "operations_by_type": ops_by_type
+                "operations_by_type": ops_by_type,
+                "tools": tools_metrics,
+                "startedAt": started_at
             })
         
-        # Sort by total operations (descending)
-        comparisons.sort(key=lambda x: x.get("total_operations", 0), reverse=True)
+        # Sort chronologically (oldest to newest) for left-to-right timeline
+        comparisons.sort(key=lambda x: x.get("startedAt", "9999-99-99"))  # Projects without dates go to end
         
         return comparisons
     
@@ -350,6 +416,76 @@ class DashboardAnalytics:
             "startedAt": project.get("startedAt"),
             "finishedAt": project.get("finishedAt")
         }
+    
+    def _build_productivity_overview_table(
+        self,
+        detailed_table_data: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Build high-level productivity overview table (img/h metrics only).
+        
+        Takes the detailed table data and extracts just productivity metrics
+        for a clean summary view.
+        
+        Returns:
+            [
+                {
+                    "projectId": "mojo1",
+                    "title": "Mojo1",
+                    "tool_metrics": {
+                        "Web Image Selector": 1048,  # img/h
+                        "Character Sorter": 930,
+                        "Multi Crop Tool": 183
+                    },
+                    "overall_img_h": 886  # total images / total hours
+                }
+            ]
+        """
+        overview_data = []
+        
+        for project in detailed_table_data:
+            project_id = project.get("projectId")
+            title = project.get("title")
+            tools = project.get("tools", {})
+            
+            # Extract img/h for each tool
+            tool_metrics = {}
+            total_images = 0
+            total_hours = 0.0
+            
+            for tool_name in STANDARD_TOOL_ORDER:
+                tool_data = tools.get(tool_name)
+                if not tool_data:
+                    continue
+                
+                hours = tool_data.get("hours", 0) or 0
+                
+                # Get image count (handle selector vs other tools)
+                if tool_name == "Web Image Selector":
+                    images = tool_data.get("images_total", 0) or 0
+                else:
+                    images = tool_data.get("images", 0) or 0
+                
+                # Calculate img/h for this tool
+                if hours > 0 and images > 0:
+                    img_h = round(images / hours)
+                    tool_metrics[tool_name] = img_h
+                    
+                    # Accumulate for overall calculation
+                    total_images += images
+                    total_hours += hours
+            
+            # Calculate overall img/h
+            overall_img_h = round(total_images / total_hours) if total_hours > 0 else 0
+            
+            overview_data.append({
+                "projectId": project_id,
+                "title": title,
+                "tool_metrics": tool_metrics,
+                "overall_img_h": overall_img_h
+            })
+        
+        return overview_data
     
     def _build_project_productivity_table(
         self,
@@ -551,7 +687,7 @@ class DashboardAnalytics:
                 iph = float(tool_stats.get('images_per_hour', 0) or 0)
                 hours = round(images / iph, 1) if iph > 0 else 0.0
                 days = self._count_active_days_for_tool(raw_data, project_id, tool_key)
-                if display_name in ("Web Image Selector", "Desktop Image Selector Crop"):
+                if display_name == "Web Image Selector":
                     by_dest = (pm.get('totals', {}) or {}).get('operations_by_dest', {})
                     move_breakdown = by_dest.get('move', {}) if isinstance(by_dest, dict) else {}
                     selected = int(move_breakdown.get('selected', 0) or 0)
@@ -611,7 +747,7 @@ class DashboardAnalytics:
             
             images = sum(count_pngs(r) for r in records)
 
-            if display_name in ("Web Image Selector", "Desktop Image Selector Crop"):
+            if display_name == "Web Image Selector":
                 selected = sum(count_pngs(r) for r in records if (r.get('operation') == 'move' and 'selected' in str(r.get('dest_dir') or '').lower()))
                 cropped = sum(count_pngs(r) for r in records if (r.get('operation') == 'move' and 'crop' in str(r.get('dest_dir') or '').lower()))
                 tools_breakdown[display_name] = {
@@ -707,6 +843,44 @@ class DashboardAnalytics:
                 continue
         
         return len(unique_dates)
+    
+    def _load_timesheet_data(self) -> Dict[str, Any]:
+        """
+        Load and parse timesheet CSV for billing/efficiency tracking.
+        
+        Returns:
+            {
+                "projects": [
+                    {
+                        "name": "mojo-1",
+                        "total_hours": 70,
+                        "starting_images": 19183,
+                        "images_per_hour": 274.0,
+                        "hours_per_image": 0.0036
+                    },
+                    ...
+                ],
+                "totals": {
+                    "total_hours": 231,
+                    "total_projects": 15
+                }
+            }
+        """
+        print(f"[TIMESHEET DEBUG] Loading timesheet from: {self.timesheet_parser.csv_path}")
+        try:
+            if not self.timesheet_parser.csv_path.exists():
+                print(f"[TIMESHEET ERROR] CSV file does not exist: {self.timesheet_parser.csv_path}")
+                return {"projects": [], "totals": {"total_hours": 0, "total_projects": 0}}
+            
+            data = self.timesheet_parser.parse()
+            print(f"[TIMESHEET DEBUG] Loaded {len(data.get('projects', []))} projects, total hours: {data.get('totals', {}).get('total_hours', 0)}")
+            print(f"[TIMESHEET DEBUG] First 3 projects: {[p['name'] for p in data.get('projects', [])[:3]]}")
+            return data
+        except Exception as e:
+            import traceback
+            print(f"[TIMESHEET ERROR] Failed to load timesheet data: {e}")
+            print(f"[TIMESHEET ERROR] Traceback: {traceback.format_exc()}")
+            return {"projects": [], "totals": {"total_hours": 0, "total_projects": 0}}
 
 
 def main():

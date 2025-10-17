@@ -28,6 +28,7 @@ sys.path.insert(0, str(project_root))
 from scripts.utils.companion_file_utils import calculate_work_time_from_file_operations, get_file_operation_metrics
 from collections import defaultdict
 from scripts.dashboard.project_metrics_aggregator import ProjectMetricsAggregator
+from scripts.dashboard.snapshot_loader import SnapshotLoader
 
 class DashboardDataEngine:
     def __init__(self, data_dir: str = ".."):
@@ -38,6 +39,10 @@ class DashboardDataEngine:
         
         # Script update tracking (in dashboard directory)
         self.script_updates_file = Path(__file__).parent / "script_updates.csv"
+        
+        # Snapshot loader for performance mode (needs project root, not data dir)
+        project_root = self.data_dir.parent if self.data_dir.name == "data" else self.data_dir
+        self.snapshot_loader = SnapshotLoader(project_root)
         
         # Cache for processed data
         self._cache = {}
@@ -126,7 +131,6 @@ class DashboardDataEngine:
         display_names = {
             # Current script names
             '01_web_image_selector': 'Web Image Selector',
-            '01_desktop_image_selector_crop': 'Desktop Image Selector Crop',
             '02_web_character_sorter': 'Web Character Sorter',
             '03_web_character_sorter': 'Web Character Sorter',
             '04_multi_crop_tool': 'Multi Crop Tool',
@@ -136,7 +140,6 @@ class DashboardDataEngine:
             '06_web_duplicate_finder': 'Duplicate Finder',
             # Legacy/historical script names (from old logs)
             'image_version_selector': 'Web Image Selector',
-            'desktop_image_selector_crop': 'Desktop Image Selector Crop',
             'character_sorter': 'Web Character Sorter',
             'batch_crop_tool': 'Multi Crop Tool',
             'multi_batch_crop_tool': 'Multi Crop Tool',
@@ -234,6 +237,51 @@ class DashboardDataEngine:
         
         return records
     
+    def load_session_data(self, lookback_days: int = 14) -> List[Dict]:
+        """
+        Load session data from configured source (derived or legacy).
+        
+        Returns sessions in unified format for dashboard consumption.
+        """
+        session_source = self.snapshot_loader.get_session_source()
+        
+        if session_source == "derived":
+            # Load from derived sessions snapshot
+            derived_sessions = self.snapshot_loader.load_derived_sessions(lookback_days)
+            # Convert to unified format
+            records = []
+            for session in derived_sessions:
+                try:
+                    start_dt = datetime.fromisoformat(session["start_ts_utc"])
+                    end_dt = datetime.fromisoformat(session["end_ts_utc"])
+                    date_str = start_dt.strftime("%Y%m%d")
+                    
+                    record = {
+                        'date': date_str,
+                        'script': session["script_id"],
+                        'session_id': session["session_id"],
+                        'start_time': start_dt.timestamp(),
+                        'end_time': end_dt.timestamp(),
+                        'active_time': session["active_seconds"],
+                        'total_time': (end_dt - start_dt).total_seconds(),
+                        'efficiency': 0.0,  # Can be computed if needed
+                        'files_processed': session["files_processed"],
+                        'operations': session["ops_by_type"],
+                        'batches_completed': 0,
+                        'start_datetime': start_dt,
+                        'end_datetime': end_dt,
+                        'source': 'derived_from_operation_events_v1'
+                    }
+                    records.append(record)
+                except Exception as e:
+                    # Skip malformed sessions silently
+                    continue
+            return records
+        else:
+            # Fall back to legacy timer data
+            cutoff_date = (datetime.now() - timedelta(days=lookback_days)).strftime("%Y%m%d")
+            return self.load_activity_data(start_date=cutoff_date)
+    
     def calculate_file_operation_work_time(self, file_operations: List[Dict], break_threshold_minutes: int = 5) -> Dict[str, Any]:
         """
         Calculate work time from file operations using intelligent break detection.
@@ -301,7 +349,6 @@ class DashboardDataEngine:
         # Define which tools use which timing method
         file_heavy_tools = {
             '01_web_image_selector',
-            '01_desktop_image_selector_crop', 
             '02_web_character_sorter',
             '04_multi_crop_tool'
         }
@@ -365,39 +412,57 @@ class DashboardDataEngine:
         summary_records: List[Dict] = []
         detailed_records: List[Dict] = []
         
-        summaries_dir = self.data_dir / "data" / "daily_summaries"
-        if summaries_dir.exists():
-            summary_records = self._load_from_daily_summaries(summaries_dir, start_date, end_date)
-        
+        # Load only from detailed logs (raw data)
+        # NOTE: Snapshots are for pre-aggregated data (charts), not for replacing detailed records
+        # We need the full detailed logs for accurate project metrics and tables
         detailed_records = self._load_from_detailed_logs(start_date, end_date)
         
-        # Build a set of days (YYYY-MM-DD) that have summaries, so we don't double-count
-        summary_days: set = set()
-        for rec in summary_records:
-            day = rec.get('date')
-            if day:
-                try:
-                    # Normalize date objects/strings to ISO string
-                    day_str = day if isinstance(day, str) else day.isoformat()
-                except Exception:
-                    day_str = str(day)
-                summary_days.add(day_str)
+        return detailed_records
+    
+    def _load_from_snapshot_aggregates(self, aggregates_dir: Path, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Dict]:
+        """Load from new snapshot daily_aggregates_v1 format"""
+        records = []
         
-        # Filter detailed records to exclude any days that already have a summary
-        filtered_detailed: List[Dict] = []
-        for rec in detailed_records:
-            day = rec.get('date')
-            if day:
+        for day_dir in aggregates_dir.glob("day=*"):
+            day_str = day_dir.name.split("=")[1]
+            
+            # Apply date filters
+            if start_date and day_str < start_date.replace('-', ''):
+                continue
+            if end_date and day_str > end_date.replace('-', ''):
+                continue
+            
+            agg_file = day_dir / "aggregate.json"
+            if not agg_file.exists():
+                continue
+            
+            try:
+                with open(agg_file, 'r') as f:
+                    agg = json.load(f)
+                
+                # Convert aggregate to summary-compatible format
+                # Format date as YYYY-MM-DD to match legacy format
+                from datetime import datetime
                 try:
-                    day_str = day if isinstance(day, str) else day.isoformat()
-                except Exception:
-                    day_str = str(day)
-                if day_str in summary_days:
-                    continue
-            filtered_detailed.append(rec)
+                    date_obj = datetime.strptime(day_str, '%Y%m%d').date()
+                    date_formatted = date_obj.isoformat()  # YYYY-MM-DD
+                except:
+                    date_formatted = day_str
+                
+                for script_id, script_data in agg.get('by_script', {}).items():
+                    record = {
+                        'date': date_formatted,
+                        'script': script_id,
+                        'file_count': script_data.get('files_processed', 0),
+                        'operation': 'aggregate',  # Changed from None to avoid JSON serialization issues
+                        'timestamp': script_data.get('first_op_ts'),
+                        'source': 'snapshot_aggregate_v1'
+                    }
+                    records.append(record)
+            except Exception as e:
+                continue
         
-        # Merge: summaries for summarized days + detailed for the rest
-        return [*summary_records, *filtered_detailed]
+        return records
     
     def _load_from_daily_summaries(self, summaries_dir: Path, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Dict]:
         """Load records from daily summary files"""
@@ -744,8 +809,32 @@ class DashboardDataEngine:
         elif 'start_datetime' in record and record['start_datetime']:
             timestamp = record['start_datetime']
         
+        # Convert string timestamps to datetime
+        if isinstance(timestamp, str):
+            try:
+                timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            except:
+                # If can't parse, and it's daily slice, try using date field directly
+                if time_slice == 'D' and 'date' in record:
+                    return str(record['date'])
+                return None
+        
         if not timestamp:
-            return None
+            # Fallback to date field
+            if 'date' in record:
+                date_val = record['date']
+                if time_slice == 'D':
+                    return str(date_val)
+                # Try to parse date to datetime for other slices
+                try:
+                    if isinstance(date_val, str):
+                        timestamp = datetime.fromisoformat(date_val)
+                    else:
+                        timestamp = datetime.combine(date_val, datetime.min.time())
+                except:
+                    return None
+            else:
+                return None
         
         # Generate time slice key
         if time_slice == '15min':
@@ -902,13 +991,11 @@ class DashboardDataEngine:
             production_scripts = [
                 # Current script names
                 '01_web_image_selector',
-                '01_desktop_image_selector_crop',
                 '03_web_character_sorter',
                 '04_multi_crop_tool',
                 'multi_crop_tool',
                 
                 # Log script names (from actual data)
-                'desktop_image_selector_crop',
                 'character_sorter',
                 'image_version_selector',
                 'multi_batch_crop_tool',
@@ -918,7 +1005,7 @@ class DashboardDataEngine:
             ]
         
         # Load raw data
-        activity_records = self.load_activity_data()
+        activity_records = self.load_session_data(lookback_days=lookback_days)
         file_ops_records = self.load_file_operations()
         script_updates = self.load_script_updates()
         projects = self.load_projects()
@@ -953,9 +1040,30 @@ class DashboardDataEngine:
         # Discover all scripts
         scripts = self.discover_scripts()
         
-        # Calculate date ranges
-        activity_dates = [r.get('date') for r in activity_records if r.get('date')]
-        file_ops_dates = [r.get('date') for r in file_ops_records if r.get('date')]
+        # Calculate date ranges (normalize to strings)
+        activity_dates = []
+        for r in activity_records:
+            date_val = r.get('date')
+            if date_val:
+                # Normalize to string format YYYYMMDD
+                if hasattr(date_val, 'strftime'):
+                    activity_dates.append(date_val.strftime('%Y%m%d'))
+                else:
+                    activity_dates.append(str(date_val).replace('-', ''))
+        
+        file_ops_dates = []
+        for r in file_ops_records:
+            date_val = r.get('date')
+            if date_val:
+                # Normalize to string format YYYYMMDD
+                if hasattr(date_val, 'strftime'):
+                    file_ops_dates.append(date_val.strftime('%Y%m%d'))
+                else:
+                    file_ops_dates.append(str(date_val).replace('-', ''))
+        
+        # Filter out None values before min/max to avoid comparison errors
+        activity_dates_clean = [d for d in activity_dates if d is not None]
+        file_ops_dates_clean = [d for d in file_ops_dates if d is not None]
         
         dashboard_data = {
             'metadata': {
@@ -966,10 +1074,10 @@ class DashboardDataEngine:
                 'projects_found': [p.get('projectId') for p in projects],
                 'active_project': project_id,
                 'data_range': {
-                    'activity_start': min(activity_dates) if activity_dates else None,
-                    'activity_end': max(activity_dates) if activity_dates else None,
-                    'file_ops_start': min(file_ops_dates) if file_ops_dates else None,
-                    'file_ops_end': max(file_ops_dates) if file_ops_dates else None
+                    'activity_start': min(activity_dates_clean) if activity_dates_clean else None,
+                    'activity_end': max(activity_dates_clean) if activity_dates_clean else None,
+                    'file_ops_start': min(file_ops_dates_clean) if file_ops_dates_clean else None,
+                    'file_ops_end': max(file_ops_dates_clean) if file_ops_dates_clean else None
                 },
                 'baseline_labels': {
                     '15min': self.build_time_labels('15min', lookback_days),

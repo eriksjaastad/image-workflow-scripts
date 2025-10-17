@@ -80,6 +80,15 @@ exports/
 *.content
 *.caption
 
+# AI Training Files (sidecar files - NEW, removable before delivery)
+*.embedding.npy
+*.phash
+*.saliency.npy
+*.hands.json
+
+# Personal billing/timesheet data (private)
+data/timesheet.csv
+
 # Character Analysis Output (contains project paths)
 analysis_*.json
 character_analysis*.json

@@ -74,6 +74,12 @@ class ProductivityDashboard:
                 resp.headers['Pragma'] = 'no-cache'
                 return resp
             except Exception as e:
+                # Log full traceback for debugging
+                import traceback
+                print("="*70)
+                print("ERROR in /api/data endpoint:")
+                traceback.print_exc()
+                print("="*70)
                 return jsonify({"error": str(e)}), 500
         
         @self.app.route("/api/scripts")
@@ -251,7 +257,6 @@ class ProductivityDashboard:
         """Build per-tool breakdown for a specific project"""
         # Define allowed tools in the desired order
         allowed_tools_order = [
-            'Desktop Image Selector Crop',
             'Web Image Selector',
             'Web Character Sorter',
             'Multi Crop Tool'
@@ -356,7 +361,7 @@ class ProductivityDashboard:
                 iph = float(tool_stats.get('images_per_hour', 0) or 0)
                 hours = round(images / iph) if iph > 0 else 0
                 days = self._count_active_days_for_tool(data, project_id, raw)
-                if disp in ("Web Image Selector", "Desktop Image Selector Crop"):
+                if disp == "Web Image Selector":
                     by_dest = (pm.get('totals', {}) or {}).get('operations_by_dest', {})
                     move = by_dest.get('move', {}) if isinstance(by_dest, dict) else {}
                     selected = int(move.get('selected', 0) or 0)
@@ -406,7 +411,7 @@ class ProductivityDashboard:
             days = len(days_set)
             images = sum(int(r.get('file_count') or 0) for r in recs)
 
-            if disp in ("Web Image Selector", "Desktop Image Selector Crop"):
+            if disp == "Web Image Selector":
                 selected = sum(int(r.get('file_count') or 0) for r in recs if (r.get('operation') == 'move' and str(r.get('dest_dir') or '').lower() == 'selected'))
                 cropped = sum(int(r.get('file_count') or 0) for r in recs if (r.get('operation') == 'move' and str(r.get('dest_dir') or '').lower() == 'crop'))
                 temp_breakdown[disp] = {
@@ -438,7 +443,6 @@ class ProductivityDashboard:
             'character_sorter': 'Web Character Sorter',  # Renamed from "Character Sorter"
             'batch_crop_tool': 'Multi Crop Tool',
             'multi_crop_tool': 'Multi Crop Tool',
-            'desktop_image_selector_crop': 'Desktop Image Selector Crop',
             'recursive_file_mover': 'Recursive File Mover',
             'test_web_selector': 'Test Web Selector',
             'web_character_sorter': 'Web Character Sorter'

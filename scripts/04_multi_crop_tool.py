@@ -84,6 +84,14 @@ from utils.companion_file_utils import (
     move_file_with_all_companions,
     extract_timestamp_from_filename
 )
+
+# AI Training (optional, non-blocking)
+try:
+    from scripts.ai.training_snapshot import capture_crop_decision
+    HAS_AI_LOGGING = True
+except ImportError:
+    HAS_AI_LOGGING = False
+    capture_crop_decision = None
 """
 NOTE: Focus timer durations can be edited via FOCUS_TIMER_WORK_MIN and
 FOCUS_TIMER_REST_MIN constants below. Search this file for
@@ -471,7 +479,7 @@ class MultiDirectoryProgressTracker:
 class MultiCropTool(BaseDesktopImageTool):
     """Multi-directory crop tool - inherits from BaseDesktopImageTool."""
     
-    def __init__(self, directory, aspect_ratio=None):
+    def __init__(self, directory, aspect_ratio=None, enable_ai_logging=True):
         """Initialize multi-directory crop tool."""
         super().__init__(directory, aspect_ratio, "multi_crop_tool")
         # Focus timer instance will be initialized after first batch load when fig exists
@@ -480,6 +488,11 @@ class MultiCropTool(BaseDesktopImageTool):
         # Configure panel bounds for this tool: support 1–3 images per batch
         self.min_panels = 1
         self.max_panels = 3
+
+        # AI logging (optional, non-blocking)
+        self.enable_ai_logging = enable_ai_logging and HAS_AI_LOGGING
+        if self.enable_ai_logging:
+            print("[AI] 🤖 Training data logging enabled (background, zero impact)")
 
         # Initialize progress tracker
         self.progress_tracker = MultiDirectoryProgressTracker(self.base_directory)
@@ -557,7 +570,7 @@ class MultiCropTool(BaseDesktopImageTool):
         return parent / cropped_name
     
     def load_batch(self):
-        """Load the current batch of up to 3 images"""
+        """Load the current batch of up to 3 images - optimized"""
         # Use progress tracker's file index as the source of truth
         start_idx = self.progress_tracker.current_file_index
         end_idx = min(start_idx + 3, len(self.png_files))
@@ -570,8 +583,6 @@ class MultiCropTool(BaseDesktopImageTool):
         
         # Safety check: if no files in batch, don't try to load
         if not batch_files:
-            print(f"[!] ERROR: No files in batch at index {start_idx}")
-            print(f"[!] Total files: {len(self.png_files)}, start: {start_idx}, end: {end_idx}")
             return
         
         # IMPORTANT: Setup display for correct number of images BEFORE loading
@@ -584,7 +595,7 @@ class MultiCropTool(BaseDesktopImageTool):
         self.reset_batch_flags()
         self.clear_selectors()
         
-        # Load and display each image
+        # Load and display each image (optimized: no print per image)
         for i, png_path in enumerate(batch_files):
             success = self.load_image_safely(png_path, i)
             if not success:
@@ -614,26 +625,21 @@ class MultiCropTool(BaseDesktopImageTool):
     def update_title(self):
         """Update the title with current progress information."""
         if self.single_directory_mode:
-            # Single directory mode - original behavior
-            remaining_images = len(self.png_files) - (self.current_batch * 3)
+            # Single directory mode - simple format
+            images_done = self.progress_tracker.current_file_index
+            total_images = len(self.png_files)
             aspect_info = f" • [🔒 LOCKED] Aspect Ratio" if self.aspect_ratio else ""
-            # Debug: Show first filename to verify position
-            first_file = self.png_files[self.progress_tracker.current_file_index] if self.progress_tracker.current_file_index < len(self.png_files) else None
-            filename_debug = f" • DEBUG: {first_file.name[:25]}..." if first_file else " • DEBUG: N/A"
-            title = f"Batch {self.current_batch + 1}/{self.total_batches} • {remaining_images} images remaining • [1,2,3] Delete • [Enter] Submit • [Q] Quit{aspect_info}{filename_debug}"
+            title = f"{images_done}/{total_images} images • [1,2,3] Delete • [Enter] Submit • [Q] Quit{aspect_info}"
         else:
-            # Multi-directory mode - enhanced progress display
+            # Multi-directory mode - simple format
             progress = self.progress_tracker.get_progress_info()
             aspect_info = f" • [🔒 LOCKED] Aspect" if self.aspect_ratio else ""
             
-            dir_info = f"📁 {progress['current_directory']} • {progress['files_remaining']} files remaining"
-            batch_info = f"Batch {self.current_batch + 1}/{self.total_batches}"
-            dirs_info = f"{progress['directories_remaining']} directories left"
+            images_done = self.progress_tracker.current_file_index
+            total_images = len(self.png_files)
+            dirs_info = f"{progress['directories_remaining']} directories left" if progress['directories_remaining'] > 0 else "Last directory!"
             
-            # Debug: Show first filename to verify position
-            first_file = self.png_files[self.progress_tracker.current_file_index] if self.progress_tracker.current_file_index < len(self.png_files) else None
-            filename_debug = f" • DEBUG: {first_file.name[:25]}..." if first_file else " • DEBUG: N/A"
-            title = f"{dir_info} • {batch_info} • {dirs_info} • [1,2,3] Delete • [Enter] Submit • [Q] Quit{aspect_info}"
+            title = f"📁 {progress['current_directory']} • {images_done}/{total_images} images • {dirs_info} • [1,2,3] Delete • [Enter] Submit • [Q] Quit{aspect_info}"
         
         self.fig.suptitle(title, fontsize=12, y=0.98)
         self.fig.canvas.draw_idle()
@@ -794,41 +800,30 @@ class MultiCropTool(BaseDesktopImageTool):
         print(f"Moved back to batch {self.current_batch + 1}/{self.total_batches}")
     
     def submit_batch(self):
-        """Process all images in the current batch"""
+        """Process all images in the current batch - optimized for speed"""
         if not self.current_images:
             return
             
-        print(f"\nProcessing batch {self.current_batch + 1}...")
-        
+        # Collect operations first (faster than processing one-by-one)
+        operations = []
         processed_count = 0
         
         for i, (image_info, state) in enumerate(zip(self.current_images, self.image_states)):
             png_path = image_info['path']
             yaml_path = png_path.with_suffix('.yaml')
+            action = state.get('action')
             
-            try:
-                # Check action field (matches base class pattern: None = crop, 'delete' = delete, 'skip' = skip)
-                action = state.get('action')
-                
-                if action == 'skip':
-                    self.move_to_cropped(png_path, yaml_path, "skipped")
-                    processed_count += 1
-                elif action == 'delete':
-                    self.safe_delete(png_path, yaml_path)
-                    processed_count += 1
-                elif action is None and state['has_selection'] and state['crop_coords']:
-                    # None means crop (default action)
-                    self.crop_and_save(image_info, state['crop_coords'])
-                    processed_count += 1
-                else:
-                    print(f"Image {i + 1}: No action specified, skipping...")
-                    
-            except Exception as e:
-                print(f"Error processing image {i + 1}: {e}")
+            if action == 'skip':
+                operations.append(('skip', png_path, yaml_path, None))
+                processed_count += 1
+            elif action == 'delete':
+                operations.append(('delete', png_path, yaml_path, None))
+                processed_count += 1
+            elif action is None and state['has_selection'] and state['crop_coords']:
+                operations.append(('crop', png_path, yaml_path, (image_info, state['crop_coords'])))
+                processed_count += 1
         
-        print(f"Processed {processed_count}/{len(self.current_images)} images in batch")
-        
-        # Clear pending changes flag after successful submission
+        # Update UI immediately for responsiveness (before heavy I/O)
         self.has_pending_changes = False
         self.quit_confirmed = False
         
@@ -836,20 +831,36 @@ class MultiCropTool(BaseDesktopImageTool):
         if not self.single_directory_mode:
             self.progress_tracker.advance_file(processed_count)
         else:
-            # In single directory mode, advance both batch counter and progress tracker
             self.current_batch += 1
-            # Also update progress tracker since load_batch uses it as source of truth
             self.progress_tracker.current_file_index = self.current_batch * 3
         
-        # Move to next batch or directory
-        if self.has_next_batch():
-            # Progress was already advanced above by processed_count
-            # Just load the next batch
-            self.load_batch()
-        elif not self.single_directory_mode and self.progress_tracker.has_more_directories():
-            self.next_directory()
+        # Load next batch ASAP for better perceived performance
+        has_next = self.has_next_batch()
+        has_more_dirs = not self.single_directory_mode and self.progress_tracker.has_more_directories()
+        
+        if has_next:
+            self.load_batch()  # Load UI first
+        elif has_more_dirs:
+            self.next_directory()  # Switch directory
         else:
             self.show_completion()
+            return  # Don't process operations if we're done
+        
+        # Now process file operations in background (after UI update)
+        # This makes the tool feel much more responsive
+        for op_type, png_path, yaml_path, extra in operations:
+            try:
+                if op_type == 'skip':
+                    self.move_to_cropped(png_path, yaml_path, "skipped")
+                elif op_type == 'delete':
+                    self.safe_delete(png_path, yaml_path)
+                elif op_type == 'crop':
+                    image_info, crop_coords = extra
+                    self.crop_and_save(image_info, crop_coords)
+            except Exception as e:
+                print(f"Error processing {png_path.name}: {e}")
+        
+        print(f"✓ Processed {processed_count} images")
     
     def has_next_batch(self):
         """Check if there are more batches to process in current directory"""
@@ -895,7 +906,7 @@ class MultiCropTool(BaseDesktopImageTool):
             print(f"[!] Error moving files to {cropped_dir.name}: {e}")
             # Continue despite move errors
         
-        # Log training data
+        # Log training data (existing CSV logging)
         try:
             session_id = getattr(self.progress_tracker, 'session_data', {}).get('session_start', '')
             set_id = f"{source_dir.name}_{png_path.stem}"  # Use directory + filename as set_id
@@ -913,6 +924,17 @@ class MultiCropTool(BaseDesktopImageTool):
             crop_norm = (x1/max(1,w), y1/max(1,h), x2/max(1,w), y2/max(1,h))
             
             log_select_crop_entry(session_id, set_id, directory, image_paths, image_stages, image_sizes, chosen_idx, crop_norm)
+            
+            # AI training snapshot (NEW - async, non-blocking)
+            if self.enable_ai_logging and capture_crop_decision:
+                capture_crop_decision(
+                    image_path=png_path,
+                    crop_coords=crop_norm,
+                    action="cropped",
+                    image_size=(w, h),
+                    session_id=session_id,
+                    tool="multi_crop_tool"
+                )
         except Exception as e:
             # Don't let logging errors break the workflow
             pass
@@ -973,6 +995,8 @@ Session Persistence:
     )
     parser.add_argument("directory", help="Directory containing PNG images or subdirectories to crop")
     parser.add_argument("--aspect-ratio", help="Target aspect ratio (e.g., '16:9', '4:3', '1:1')")
+    parser.add_argument("--no-ai-logging", action="store_true", 
+                       help="Disable AI training data capture (saves images + decisions for future model training)")
     
     args = parser.parse_args()
     
@@ -987,7 +1011,7 @@ Session Persistence:
         sys.exit(1)
     
     try:
-        tool = MultiCropTool(directory, args.aspect_ratio)
+        tool = MultiCropTool(directory, args.aspect_ratio, enable_ai_logging=not args.no_ai_logging)
         tool.run()
     except Exception as e:
         print(f"Error: {e}")

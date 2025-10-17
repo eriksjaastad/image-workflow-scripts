@@ -1,0 +1,11 @@
+{
+  "metrics": {
+    "session_source": "derived",
+    "include_personal_focus_timers": false,
+    "gap_min_minutes": 5,
+    "max_gap_contrib_seconds": 60
+  },
+  "performanceMode": true,
+  "lookbackDays": 14
+}
+

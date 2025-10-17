@@ -179,16 +179,16 @@ class BaseDesktopImageTool:
         selector = RectangleSelector(
             ax, 
             lambda eclick, erelease, idx=image_idx: self.on_crop_select(eclick, erelease, idx),
-            useblit=True,
+            useblit=True,  # Fast blitting for smooth interactive dragging
             button=[1],
             minspanx=5, minspany=5,
             spancoords='pixels',
             interactive=True,
-            props=dict(facecolor='none', edgecolor='red', linewidth=2),
+            props=dict(facecolor='none', edgecolor='red', linewidth=2, alpha=0.8),
+            handle_props=dict(markersize=48, markerfacecolor='none', markeredgecolor='red', markeredgewidth=3, alpha=0.8),
             drag_from_anywhere=False,
             use_data_coordinates=False,
-            grab_range=120,
-            handle_props=dict(markersize=48, markerfacecolor='none', markeredgecolor='red', markeredgewidth=3)
+            grab_range=120
         )
         
         # Set initial crop selection to full image
@@ -270,7 +270,7 @@ class BaseDesktopImageTool:
         
         # Update title to show selection status instead of crop info
         self.update_image_titles(self.image_states)
-        self.fig.canvas.draw_idle()
+        # Removed draw_idle() - RectangleSelector with useblit=True handles it efficiently
     
     def on_key_press(self, event):
         """Handle keyboard input - common keys handled here, specific keys delegated to subclasses."""
@@ -316,7 +316,7 @@ class BaseDesktopImageTool:
         # Base implementation - subclasses should override with specific progress info
         title = f"{self.tool_name} - Ready"
         self.fig.suptitle(title, fontsize=12, y=0.98)
-        self.fig.canvas.draw_idle()
+        # draw_idle() called only when needed by subclass
     
     def update_control_labels(self):
         """Update the control labels below each image - override in subclasses."""

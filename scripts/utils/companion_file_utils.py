@@ -1023,8 +1023,14 @@ def get_file_operation_metrics(file_operations: List[Dict]) -> Dict[str, any]:
     sorted_ops = sorted(file_operations, key=lambda x: x.get('timestamp', ''))
     if len(sorted_ops) >= 2:
         try:
+            from datetime import timezone as tz
             start_time = datetime.fromisoformat(sorted_ops[0]['timestamp'].replace('Z', '+00:00'))
             end_time = datetime.fromisoformat(sorted_ops[-1]['timestamp'].replace('Z', '+00:00'))
+            # Ensure both are timezone-aware
+            if start_time.tzinfo is None:
+                start_time = start_time.replace(tzinfo=tz.utc)
+            if end_time.tzinfo is None:
+                end_time = end_time.replace(tzinfo=tz.utc)
             session_duration = (end_time - start_time).total_seconds()
         except (ValueError, KeyError):
             session_duration = 0.0
