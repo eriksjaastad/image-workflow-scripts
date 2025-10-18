@@ -1,0 +1,52 @@
+{
+  "enabled": false,
+  "description": "15-minute bins pre-aggregation system configuration",
+  "format_version": "1.0",
+  "performance_mode": {
+    "use_15m_bins": false,
+    "bin_charts": [],
+    "comment": "Pilot charts to use 15m bins: ['by_script', 'by_operation', 'by_project']"
+  },
+  "bin_settings": {
+    "bin_size_minutes": 15,
+    "timezone": "UTC",
+    "bin_version": 1,
+    "comment": "bin_version increments when reprocessing/corrections are needed"
+  },
+  "storage": {
+    "daily_bins_path": "data/aggregates/daily/day={YYYYMMDD}/agg_15m.jsonl",
+    "archives_path": "data/aggregates/archives/{project_id}/",
+    "overall_path": "data/aggregates/overall/agg_15m_cumulative.jsonl",
+    "comment": "Local-first JSONL storage; DuckDB/SQLite only if tripwire crossed"
+  },
+  "tripwire_thresholds": {
+    "max_daily_bins_count": 10000,
+    "max_overall_size_mb": 100,
+    "max_query_time_ms": 500,
+    "comment": "If any threshold exceeded, consider migration to DuckDB/SQLite"
+  },
+  "performance_targets": {
+    "last_24h_payload_kb": 150,
+    "last_30d_payload_kb": 500,
+    "first_paint_ms": 200,
+    "comment": "Dashboard performance targets per chart"
+  },
+  "validation": {
+    "tolerance_percent": 1.0,
+    "required_checks": [
+      "schema",
+      "dedupe_keys",
+      "bin_alignment",
+      "totals_match",
+      "work_seconds",
+      "timestamp_ranges"
+    ]
+  },
+  "archive": {
+    "trigger": "project_finish",
+    "auto_merge_overall": true,
+    "rollback_enabled": true,
+    "comment": "Archive finished projects to prevent double-counting"
+  }
+}
+

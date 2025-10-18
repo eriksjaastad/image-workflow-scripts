@@ -68,6 +68,7 @@ class ProjectMetrics:
     operations_by_type: Dict[str, int]
     operations_by_dest: Dict[str, Dict[str, int]]
     images_per_hour: float
+    work_minutes: float  # NEW: Store work time for billed vs actual comparison
     timeseries_daily: List[Tuple[str, int]]  # (YYYY-MM-DD, count)
     baseline: Dict[str, Any]
     tools: Dict[str, Dict[str, Any]]
@@ -83,6 +84,7 @@ class ProjectMetrics:
                 'images_processed': self.images_processed,
                 'operations_by_type': self.operations_by_type,
                 'operations_by_dest': self.operations_by_dest,
+                'work_hours': round((self.work_minutes / 60.0) / 0.25) * 0.25,  # 15-minute precision (0.25 hour increments)
             },
             'throughput': {
                 'images_per_hour': self.images_per_hour,
@@ -210,6 +212,7 @@ class ProjectMetricsAggregator:
                 operations_by_type=ops_by_type,
                 operations_by_dest=ops_by_dest,
                 images_per_hour=images_per_hour,
+                work_minutes=work_minutes,  # NEW: Store work time
                 timeseries_daily=timeseries_daily,
                 baseline={'overall_iph_baseline': None, 'per_tool': {}},
                 tools=tools,

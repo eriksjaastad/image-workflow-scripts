@@ -400,6 +400,66 @@
             </div>
         </div>
         
+        <!-- Billed vs Actual Hours Chart -->
+        <div class="chart-container" style="margin-top: 2rem;">
+            <div class="chart-header">
+                <div>
+                    <h3 class="chart-title">⚖️ Billed vs Actual Hours</h3>
+                    <p class="chart-subtitle">Compare what you billed (timesheet) vs what you actually worked (timer)</p>
+                </div>
+                <div class="chart-controls" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                    <!-- Time range buttons -->
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <span style="font-size: 0.85em; color: var(--text-secondary);">View:</span>
+                        <div style="display: inline-flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden;">
+                            <button id="billed-range-daily" onclick="setBilledTimeRange('daily')" style="padding: 0.25rem 0.75rem; border: none; background: var(--surface); color: var(--text-primary); cursor: pointer; font-size: 0.85em; border-right: 1px solid var(--border);">daily</button>
+                            <button id="billed-range-project" onclick="setBilledTimeRange('project')" style="padding: 0.25rem 0.75rem; border: none; background: var(--primary); color: white; cursor: pointer; font-size: 0.85em;">project</button>
+                        </div>
+                    </div>
+                    
+                    <span style="border-left: 1px solid var(--border); height: 20px;"></span>
+                    
+                    <!-- Project count dropdown -->
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label for="billed-project-count" style="font-size: 0.85em; color: var(--text-secondary);">Show:</label>
+                        <select id="billed-project-count" onchange="updateBilledVsActualChart()" style="padding: 0.25rem 0.5rem; border-radius: 4px; border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); font-size: 0.85em;">
+                            <option value="1">1 project</option>
+                            <option value="2" selected>2 projects</option>
+                            <option value="3">3 projects</option>
+                            <option value="4">4 projects</option>
+                            <option value="5">5 projects</option>
+                            <option value="all">All projects</option>
+                        </select>
+                    </div>
+                    
+                    <span style="border-left: 1px solid var(--border); height: 20px;"></span>
+                    
+                    <!-- Hide empty projects checkbox -->
+                    <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.85em;">
+                        <input type="checkbox" id="billed-hide-empty" checked onchange="updateBilledVsActualChart()">
+                        Hide empty projects
+                    </label>
+                </div>
+            </div>
+            <div class="chart-canvas" style="position: relative;">
+                <canvas id="billed-vs-actual-chart"></canvas>
+                <div class="loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--text-muted);">
+                    Loading comparison data...
+                </div>
+            </div>
+            <div style="margin-top: 1rem; padding: 1rem; background: var(--surface); border-radius: 8px;">
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem;">
+                    <strong>📊 What this shows:</strong>
+                </p>
+                <ul style="color: var(--text-muted); font-size: 0.85rem; margin-left: 1.5rem; margin-top: 0.5rem;">
+                    <li><strong style="color: #4a9eff;">Blue bars</strong> = Hours you billed to client (from timesheet)</li>
+                    <li><strong style="color: #ffa502;">Orange bars</strong> = Hours you actually worked (from timer)</li>
+                    <li><strong>Orange higher than blue</strong> = You're doing free work (script development, etc.)</li>
+                    <li><strong>Blue higher than orange</strong> = You overbilled (charged more than you worked)</li>
+                </ul>
+            </div>
+        </div>
+        
         <!-- Project Productivity Table (Detailed) -->
         <div class="chart-container" style="margin-top: 2rem;">
                 <div class="chart-header">
@@ -812,6 +872,7 @@
                 updateProductivityTable(data);
                 updateCharts(data);
                 renderTimesheetChart(data);
+                renderBilledVsActualChart(data);
                 
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
@@ -2293,6 +2354,410 @@
                 console.log('[TIMESHEET DEBUG] Chart rendered successfully!');
             } catch(e) {
                 console.error('[TIMESHEET ERROR] Failed to remove loading overlay:', e);
+            }
+        }
+        
+        function renderBilledVsActualChart(data) {
+            console.log('[BILLED_VS_ACTUAL DEBUG] renderBilledVsActualChart called');
+            
+            // Store original data globally for filtering
+            window.billedVsActualData = data;
+            
+            // Initialize time range state (default to 'project')
+            if (!window.billedTimeRange) {
+                window.billedTimeRange = 'project';
+            }
+            
+            // Initial render with default filters
+            updateBilledVsActualChart();
+        }
+        
+        function setBilledTimeRange(range) {
+            console.log(`[BILLED_VS_ACTUAL DEBUG] Setting time range to: ${range}`);
+            window.billedTimeRange = range;
+            
+            // Update button styles
+            ['daily', 'project'].forEach(r => {
+                const btn = document.getElementById(`billed-range-${r}`);
+                if (btn) {
+                    if (r === range) {
+                        btn.style.background = 'var(--primary)';
+                        btn.style.color = 'white';
+                    } else {
+                        btn.style.background = 'var(--surface)';
+                        btn.style.color = 'var(--text-primary)';
+                    }
+                }
+            });
+            
+            // Re-render chart
+            updateBilledVsActualChart();
+        }
+        
+        function renderBilledVsActualTimeSeries(timeRange) {
+            console.log(`[BILLED_VS_ACTUAL DEBUG] renderBilledVsActualTimeSeries: ${timeRange}`);
+            
+            const data = window.billedVsActualData;
+            const canvas = document.getElementById('billed-vs-actual-chart');
+            
+            if (!canvas) {
+                console.error('[BILLED_VS_ACTUAL ERROR] Canvas not found');
+                return;
+            }
+            
+            try {
+                if (charts['billed-vs-actual-chart']) {
+                    charts['billed-vs-actual-chart'].destroy();
+                    delete charts['billed-vs-actual-chart'];
+                }
+            } catch(e) {
+                console.error('[BILLED_VS_ACTUAL ERROR] Failed to destroy existing chart:', e);
+            }
+            
+            // Check if we have time-series data
+            const tsData = data.billed_vs_actual_timeseries;
+            if (!tsData || !tsData[timeRange]) {
+                console.error('[BILLED_VS_ACTUAL ERROR] No time-series data available for:', timeRange);
+                const parent = canvas.parentElement;
+                parent && parent.querySelectorAll('.loading').forEach(el => {
+                    el.textContent = `${timeRange} breakdown: No data available yet (backend implementation in progress)`;
+                    el.style.color = 'var(--warning)';
+                    el.style.display = 'block';
+                });
+                return;
+            }
+            
+            const modeData = tsData[timeRange];
+            const projectsData = modeData.projects || {};
+            
+            console.log(`[BILLED_VS_ACTUAL DEBUG] Time-series data structure:`, tsData);
+            console.log(`[BILLED_VS_ACTUAL DEBUG] Projects data:`, projectsData);
+            console.log(`[BILLED_VS_ACTUAL DEBUG] Project names in data:`, Object.keys(projectsData));
+            
+            if (Object.keys(projectsData).length === 0) {
+                console.log('[BILLED_VS_ACTUAL DEBUG] No projects in time-series data');
+                const parent = canvas.parentElement;
+                parent && parent.querySelectorAll('.loading').forEach(el => {
+                    el.textContent = `${timeRange} breakdown: No data available`;
+                    el.style.color = 'var(--text-muted)';
+                    el.style.display = 'block';
+                });
+                return;
+            }
+            
+            console.log(`[BILLED_VS_ACTUAL DEBUG] Found ${Object.keys(projectsData).length} projects with time-series data`);
+            
+            // Get project filters
+            const projectCount = document.getElementById('billed-project-count').value;
+            const hideEmpty = document.getElementById('billed-hide-empty').checked;
+            
+            // Get comparison data for dates and filtering
+            const comparisonData = data.billed_vs_actual;
+            let projectsToShow = comparisonData.projects ? [...comparisonData.projects] : [];
+            
+            // Apply same filtering as project view
+            const projectsWithDates = projectsToShow.filter(p => p.started_at);
+            const projectsWithoutDates = projectsToShow.filter(p => !p.started_at);
+            projectsWithDates.sort((a, b) => a.started_at.localeCompare(b.started_at));
+            projectsToShow = [...projectsWithDates, ...projectsWithoutDates];
+            
+            if (projectCount !== 'all') {
+                const count = parseInt(projectCount);
+                projectsToShow = projectsToShow.slice(-count);
+            }
+            
+            if (hideEmpty) {
+                projectsToShow = projectsToShow.filter(p => (p.actual_hours || 0) > 0);
+            }
+            
+            console.log(`[BILLED_VS_ACTUAL DEBUG] After filtering: ${projectsToShow.map(p => p.name).join(', ')}`);
+            
+            // Build datasets for chart (one pair per project: billed + actual)
+            const datasets = [];
+            const allLabels = new Set();
+            
+            projectsToShow.forEach((proj, idx) => {
+                const projName = proj.name;
+                const projData = projectsData[projName];
+                
+                console.log(`[BILLED_VS_ACTUAL DEBUG] Looking for project '${projName}' in daily data`);
+                console.log(`[BILLED_VS_ACTUAL DEBUG]   Found data:`, projData);
+                
+                if (!projData || !projData.dates || projData.dates.length === 0) {
+                    console.log(`[BILLED_VS_ACTUAL DEBUG]   ✗ No daily data for ${projName} (dates: ${projData?.dates?.length || 0})`);
+                    return;
+                }
+                
+                console.log(`[BILLED_VS_ACTUAL DEBUG]   ✓ Has ${projData.dates.length} days of data`);
+                console.log(`[BILLED_VS_ACTUAL DEBUG]   Dates:`, projData.dates);
+                console.log(`[BILLED_VS_ACTUAL DEBUG]   Billed hours:`, projData.billed_hours);
+                console.log(`[BILLED_VS_ACTUAL DEBUG]   Actual hours:`, projData.actual_hours);
+                
+                // Add all dates to label set
+                projData.dates.forEach(d => allLabels.add(d));
+                
+                // Create billed hours dataset for this project
+                datasets.push({
+                    label: `${projName} (Billed)`,
+                    data: projData.dates.map((date, i) => ({x: date, y: projData.billed_hours[i]})),
+                    backgroundColor: `rgba(74, 158, 255, ${0.8 - idx * 0.2})`,
+                    borderColor: `rgba(74, 158, 255, 1)`,
+                    borderWidth: 2
+                });
+                
+                // Create actual hours dataset for this project
+                datasets.push({
+                    label: `${projName} (Actual)`,
+                    data: projData.dates.map((date, i) => ({x: date, y: projData.actual_hours[i]})),
+                    backgroundColor: `rgba(255, 165, 2, ${0.8 - idx * 0.2})`,
+                    borderColor: `rgba(255, 165, 2, 1)`,
+                    borderWidth: 2
+                });
+            });
+            
+            if (datasets.length === 0) {
+                const parent = canvas.parentElement;
+                parent && parent.querySelectorAll('.loading').forEach(el => {
+                    el.textContent = 'No daily data available for selected projects';
+                    el.style.color = 'var(--warning)';
+                    el.style.display = 'block';
+                });
+                return;
+            }
+            
+            // Sort labels chronologically
+            const labels = Array.from(allLabels).sort();
+            
+            console.log(`[BILLED_VS_ACTUAL DEBUG] Rendering ${datasets.length} datasets across ${labels.length} dates`);
+            
+            charts['billed-vs-actual-chart'] = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => {
+                                    return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}h`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Hours'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Remove loading overlay
+            try {
+                const parent = canvas.parentElement;
+                parent && parent.querySelectorAll('.loading').forEach(el => el.remove());
+                console.log('[BILLED_VS_ACTUAL DEBUG] Time-series chart rendered successfully!');
+            } catch(e) {
+                console.error('[BILLED_VS_ACTUAL ERROR] Failed to remove loading overlay:', e);
+            }
+        }
+        
+        function updateBilledVsActualChart() {
+            console.log('[BILLED_VS_ACTUAL DEBUG] updateBilledVsActualChart called');
+            
+            const data = window.billedVsActualData;
+            if (!data) {
+                console.error('[BILLED_VS_ACTUAL ERROR] No data available');
+                return;
+            }
+            
+            const timeRange = window.billedTimeRange || 'project';
+            console.log(`[BILLED_VS_ACTUAL DEBUG] Time range: ${timeRange}`);
+            
+            // Check if we're in time-series mode (hourly/daily)
+            if (timeRange !== 'project') {
+                renderBilledVsActualTimeSeries(timeRange);
+                return;
+            }
+            
+            // Continue with project totals view
+            const canvas = document.getElementById('billed-vs-actual-chart');
+            if (!canvas) {
+                console.error('[BILLED_VS_ACTUAL ERROR] Canvas element not found');
+                return;
+            }
+            
+            try {
+                if (charts['billed-vs-actual-chart']) {
+                    charts['billed-vs-actual-chart'].destroy();
+                    delete charts['billed-vs-actual-chart'];
+                }
+            } catch(e) {
+                console.error('[BILLED_VS_ACTUAL ERROR] Failed to destroy existing chart:', e);
+            }
+            
+            const comparisonData = data.billed_vs_actual;
+            if (!comparisonData || !comparisonData.projects || !comparisonData.projects.length) {
+                console.error('[BILLED_VS_ACTUAL ERROR] No comparison data available');
+                const parent = canvas.parentElement;
+                parent && parent.querySelectorAll('.loading').forEach(el => {
+                    el.textContent = 'No comparison data available';
+                    el.style.color = 'var(--warning)';
+                });
+                return;
+            }
+            
+            console.log(`[BILLED_VS_ACTUAL DEBUG] Found ${comparisonData.projects.length} projects`);
+            
+            // Get filter values
+            const projectCount = document.getElementById('billed-project-count').value;
+            const hideEmpty = document.getElementById('billed-hide-empty').checked;
+            
+            // Start with all projects
+            let projects = [...comparisonData.projects];
+            
+            console.log(`[BILLED_VS_ACTUAL DEBUG] All projects: ${projects.map(p => p.name).join(', ')}`);
+            
+            // Separate projects with dates from those without
+            const projectsWithDates = projects.filter(p => p.started_at);
+            const projectsWithoutDates = projects.filter(p => !p.started_at);
+            
+            console.log(`[BILLED_VS_ACTUAL DEBUG] With dates: ${projectsWithDates.map(p => p.name).join(', ')}`);
+            console.log(`[BILLED_VS_ACTUAL DEBUG] Without dates: ${projectsWithoutDates.map(p => p.name).join(', ')}`);
+            
+            // Sort projects with dates (OLDEST FIRST = LEFT TO RIGHT TIMELINE)
+            projectsWithDates.sort((a, b) => a.started_at.localeCompare(b.started_at));
+            
+            // Reconstruct: dated projects (sorted) + undated projects at the end
+            projects = [...projectsWithDates, ...projectsWithoutDates];
+            
+            console.log(`[BILLED_VS_ACTUAL DEBUG] After sorting: ${projects.map(p => p.name + ' (' + (p.started_at || 'no date') + ')').join(', ')}`);
+            
+            // Apply project count filter FIRST (on sorted list)
+            // Since timeline is oldest->newest (left->right), take the LAST N projects to get most recent
+            if (projectCount !== 'all') {
+                const count = parseInt(projectCount);
+                // Take last N projects (most recent) for left-to-right timeline
+                // This will grab the N most recent dated projects, plus undated ones if not enough dated
+                projects = projects.slice(-count);
+                console.log(`[BILLED_VS_ACTUAL DEBUG] After limiting to ${count} most recent projects: ${projects.map(p => p.name).join(', ')}`);
+            }
+            
+            // Apply "hide empty" filter AFTER count limit
+            if (hideEmpty) {
+                projects = projects.filter(p => (p.actual_hours || 0) > 0);
+                console.log(`[BILLED_VS_ACTUAL DEBUG] After hiding empty: ${projects.length} projects remaining: ${projects.map(p => p.name).join(', ')}`);
+            }
+            
+            if (projects.length === 0) {
+                const parent = canvas.parentElement;
+                parent && parent.querySelectorAll('.loading').forEach(el => {
+                    el.textContent = 'No projects to display (try unchecking "Hide empty")';
+                    el.style.color = 'var(--warning)';
+                });
+                return;
+            }
+            
+            const labels = projects.map(p => p.name);
+            const billedData = projects.map(p => p.billed_hours || 0);
+            const actualData = projects.map(p => p.actual_hours || 0);
+            
+            console.log('[BILLED_VS_ACTUAL DEBUG] Creating chart with', projects.length, 'projects');
+            
+            charts['billed-vs-actual-chart'] = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Billed Hours',
+                            data: billedData,
+                            backgroundColor: 'rgba(74, 158, 255, 0.6)',
+                            borderColor: 'rgba(74, 158, 255, 1)',
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'Actual Hours',
+                            data: actualData,
+                            backgroundColor: 'rgba(255, 165, 2, 0.6)',
+                            borderColor: 'rgba(255, 165, 2, 1)',
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => {
+                                    const proj = projects[context.dataIndex];
+                                    if (context.dataset.label === 'Billed Hours') {
+                                        return `Billed: ${context.parsed.y.toFixed(1)}h`;
+                                    } else {
+                                        const diff = proj.difference;
+                                        const diffText = diff > 0 
+                                            ? `(+${diff.toFixed(1)}h unbilled work)` 
+                                            : diff < 0 
+                                                ? `(${Math.abs(diff).toFixed(1)}h overbilled)` 
+                                                : '(matched)';
+                                        return `Actual: ${context.parsed.y.toFixed(1)}h ${diffText}`;
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Hours'
+                            },
+                            ticks: {
+                                callback: (value) => value.toFixed(0) + 'h'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Project'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Remove loading overlay
+            try {
+                const parent = canvas.parentElement;
+                parent && parent.querySelectorAll('.loading').forEach(el => el.remove());
+                console.log('[BILLED_VS_ACTUAL DEBUG] Chart rendered successfully!');
+            } catch(e) {
+                console.error('[BILLED_VS_ACTUAL ERROR] Failed to remove loading overlay:', e);
             }
         }
     </script>

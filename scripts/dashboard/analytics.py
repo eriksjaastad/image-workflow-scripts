@@ -51,6 +51,14 @@ class DashboardAnalytics:
         self.timesheet_parser = TimesheetParser(timesheet_path)
         print(f"[INIT DEBUG] Analytics data_dir: {self.data_dir}")
         print(f"[INIT DEBUG] Timesheet path: {timesheet_path}")
+        
+        # PERFORMANCE FIX: Cache file operations to avoid reloading 19+ times
+        self._cached_file_ops = None
+        self._cached_file_ops_for_daily = None
+        self._cache_timestamp = None
+        
+        # Track timesheet modification time for cache invalidation
+        self._timesheet_mtime = None
     
     def generate_dashboard_response(
         self,
@@ -69,20 +77,40 @@ class DashboardAnalytics:
         Returns:
             Dictionary with all dashboard data
         """
+        import time
+        overall_start = time.time()
+        print(f"\n{'='*70}")
+        print(f"[TIMING] Dashboard Response Generation Started")
+        print(f"  time_slice: {time_slice}, lookback_days: {lookback_days}, project_id: {project_id}")
+        print(f"{'='*70}")
+        
         # Get raw data from engine
+        step_start = time.time()
         raw_data = self.engine.generate_dashboard_data(
             time_slice=time_slice,
             lookback_days=lookback_days,
             project_id=project_id
         )
+        step_time = time.time() - step_start
+        print(f"[TIMING] ✓ engine.generate_dashboard_data: {step_time:.3f}s")
+        
+        # Store raw_data for later use (e.g., in _build_billed_vs_actual)
+        self.engine._raw_data = raw_data
         
         # Get project metrics (now includes daily summaries merged with logs)
+        step_start = time.time()
         project_metrics = self.project_agg.aggregate()
+        step_time = time.time() - step_start
+        print(f"[TIMING] ✓ project_agg.aggregate: {step_time:.3f}s")
         
         # Build baseline labels for this time slice
+        step_start = time.time()
         baseline_labels = self.engine.build_time_labels(time_slice, lookback_days)
+        step_time = time.time() - step_start
+        print(f"[TIMING] ✓ build_time_labels: {step_time:.3f}s")
         
         # Transform to UI contract
+        step_start = time.time()
         response = {
             "metadata": {
                 "generated_at": datetime.now().isoformat(),
@@ -110,18 +138,42 @@ class DashboardAnalytics:
             "project_metrics": project_metrics,
             "project_markers": self._build_project_markers(project_id, raw_data),
         }
+        step_time = time.time() - step_start
+        print(f"[TIMING] ✓ build response metadata/projects/charts/etc: {step_time:.3f}s")
         
         # Build detailed productivity table
+        step_start = time.time()
         detailed_table = self._build_project_productivity_table(raw_data, project_metrics, time_slice, lookback_days)
+        step_time = time.time() - step_start
+        print(f"[TIMING] ✓ _build_project_productivity_table: {step_time:.3f}s")
         
         # Build productivity overview from detailed data
+        step_start = time.time()
         productivity_overview = self._build_productivity_overview_table(detailed_table)
+        step_time = time.time() - step_start
+        print(f"[TIMING] ✓ _build_productivity_overview_table: {step_time:.3f}s")
         
         response["project_productivity_table"] = detailed_table
         response["productivity_overview"] = productivity_overview
         
         # Add timesheet data for billing/efficiency tracking
-        response["timesheet_data"] = self._load_timesheet_data()
+        step_start = time.time()
+        timesheet_data = self._load_timesheet_data()
+        step_time = time.time() - step_start
+        print(f"[TIMING] ✓ _load_timesheet_data: {step_time:.3f}s")
+        response["timesheet_data"] = timesheet_data
+        
+        # Add billed vs actual comparison
+        step_start = time.time()
+        response["billed_vs_actual"] = self._build_billed_vs_actual(timesheet_data, project_metrics)
+        response["billed_vs_actual_timeseries"] = self._build_billed_vs_actual_timeseries(timesheet_data, project_metrics)
+        step_time = time.time() - step_start
+        print(f"[TIMING] ✓ _build_billed_vs_actual: {step_time:.3f}s")
+        
+        overall_time = time.time() - overall_start
+        print(f"\n{'='*70}")
+        print(f"[TIMING] TOTAL DASHBOARD RESPONSE TIME: {overall_time:.3f}s")
+        print(f"{'='*70}\n")
         
         return response
     
@@ -607,9 +659,16 @@ class DashboardAnalytics:
         # Use centralized tool order
         allowed_tools_order = STANDARD_TOOL_ORDER
         
-        # Pull ALL file operations (full project lifetime), then filter to project by date range
-        # This matches the requirement: sum total time each tool has been used for the project
-        window_ops = self.engine.load_file_operations()
+        # PERFORMANCE FIX: Use cached file operations instead of reloading
+        # This was loading 222K records 19 times (once per project + once at start)!
+        import time
+        if self._cached_file_ops is None:
+            cache_start = time.time()
+            self._cached_file_ops = self.engine.load_file_operations()
+            cache_time = time.time() - cache_start
+            print(f"[CACHE] Loaded {len(self._cached_file_ops)} file operations: {cache_time:.3f}s")
+        
+        window_ops = self._cached_file_ops
         
         # Filter by project date range (startedAt to finishedAt)
         started_at = project.get('startedAt')
@@ -788,8 +847,8 @@ class DashboardAnalytics:
         if not started_at:
             return 0
         
-        # Load all file operations and filter by date range and tool
-        all_ops = self.engine.load_file_operations()
+        # PERFORMANCE FIX: Use cached file operations
+        all_ops = self._cached_file_ops if self._cached_file_ops is not None else self.engine.load_file_operations()
         
         unique_dates = set()
         
@@ -844,9 +903,360 @@ class DashboardAnalytics:
         
         return len(unique_dates)
     
+    def _build_billed_vs_actual(self, timesheet_data: Dict[str, Any], project_metrics: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Compare billed hours (from timesheet) vs actual hours (from timer data).
+        
+        Returns:
+            {
+                "projects": [
+                    {
+                        "name": "mojo-1",
+                        "billed_hours": 66,
+                        "actual_hours": 70,
+                        "difference": 4,
+                        "overbilled": False,
+                        "started_at": "2024-01-15T10:00:00"
+                    },
+                    ...
+                ]
+            }
+        """
+        comparison = []
+        
+        # Get timesheet projects
+        timesheet_projects = {p['name']: p for p in timesheet_data.get('projects', [])}
+        
+        print(f"\n[BILLED_VS_ACTUAL DEBUG] Timesheet projects: {list(timesheet_projects.keys())}")
+        print(f"[BILLED_VS_ACTUAL DEBUG] Available project metrics: {list(project_metrics.keys())}")
+        
+        # Get raw data for project dates
+        raw_data = self.engine._raw_data if hasattr(self.engine, '_raw_data') else {}
+        projects_list = raw_data.get("projects", [])
+        projects_by_id = {p.get("projectId"): p for p in projects_list}
+        
+        print(f"[BILLED_VS_ACTUAL DEBUG] Projects with manifests: {list(projects_by_id.keys())}")
+        
+        # Match with actual project data
+        for ts_name, ts_data in timesheet_projects.items():
+            billed_hours = ts_data['total_hours']
+            
+            # Try to find matching project in metrics
+            # Normalize names for matching (lowercase, remove spaces/dashes)
+            ts_normalized = ts_name.lower().replace(' ', '').replace('-', '').replace('_', '')
+            
+            actual_hours = 0
+            matched_project = None
+            started_at = None
+            
+            print(f"\n[BILLED_VS_ACTUAL DEBUG] Looking for match for '{ts_name}' (normalized: '{ts_normalized}')")
+            
+            for proj_id, proj_data in project_metrics.items():
+                proj_normalized = proj_id.lower().replace(' ', '').replace('-', '').replace('_', '')
+                
+                # Try multiple matching strategies (in order of specificity)
+                matched = False
+                
+                # 1. Exact match (highest priority)
+                if ts_normalized == proj_normalized:
+                    matched = True
+                    print(f"  - '{proj_id}' (normalized: '{proj_normalized}') → EXACT MATCH!")
+                
+                # 2. Check if timesheet name contains project ID as a complete "word"
+                # (e.g., "mojo-1" should match "mojo1" but "mojo1-4/mojo-3" should NOT match "mojo1")
+                elif proj_normalized in ts_normalized:
+                    # Ensure it's not a substring within another word
+                    # Check boundaries: start of string or after delimiter, and end of string or before delimiter
+                    idx = ts_normalized.find(proj_normalized)
+                    if idx != -1:
+                        before_ok = (idx == 0) or (ts_normalized[idx-1] in ['/', '_', '-', ' '])
+                        after_idx = idx + len(proj_normalized)
+                        after_ok = (after_idx >= len(ts_normalized)) or (ts_normalized[after_idx] in ['/', '_', '-', ' '])
+                        
+                        if before_ok and after_ok:
+                            matched = True
+                            print(f"  - '{proj_id}' (normalized: '{proj_normalized}') → PARTIAL MATCH with boundaries")
+                        else:
+                            print(f"  - '{proj_id}' (normalized: '{proj_normalized}') → substring found but NOT a word boundary (rejected)")
+                else:
+                    print(f"  - '{proj_id}' (normalized: '{proj_normalized}') → no match")
+                
+                if matched:
+                    # Found a match - get actual hours from totals
+                    totals = proj_data.get('totals', {})
+                    actual_hours = totals.get('work_hours', 0) or 0
+                    matched_project = proj_id
+                    
+                    # Get start date for sorting (must have manifest)
+                    if proj_id in projects_by_id:
+                        started_at = projects_by_id[proj_id].get('startedAt')
+                    
+                    print(f"  ✓ MATCHED! Project: {proj_id}, work_hours: {actual_hours}, started_at: {started_at}")
+                    break
+            
+            if not matched_project:
+                print(f"  ✗ NO MATCH FOUND for '{ts_name}' (no manifest) - SKIPPING")
+                continue  # Skip timesheet projects without manifests
+            
+            difference = actual_hours - billed_hours
+            
+            comparison.append({
+                'name': ts_name,
+                'billed_hours': round(billed_hours, 1),
+                'actual_hours': round(actual_hours, 1),
+                'difference': round(difference, 1),
+                'overbilled': difference < 0,  # Negative = billed more than worked
+                'matched_project': matched_project,
+                'started_at': started_at  # Add date for frontend sorting
+            })
+        
+        print(f"\n[BILLED_VS_ACTUAL DEBUG] Final comparison: {len(comparison)} projects")
+        for c in comparison[:3]:  # Show first 3 as sample
+            print(f"  - {c['name']}: billed={c['billed_hours']}h, actual={c['actual_hours']}h, match={c['matched_project']}, started={c.get('started_at')}")
+        
+        return {
+            'projects': comparison
+        }
+    
+    def _build_billed_vs_actual_timeseries(self, timesheet_data: Dict[str, Any], project_metrics: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Build daily breakdown of billed vs actual hours.
+        
+        Returns:
+            {
+                "daily": {
+                    "projects": {
+                        "mojo-1": {
+                            "dates": ["2024-01-15", "2024-01-16", ...],
+                            "billed_hours": [1.0, 2.0, ...],
+                            "actual_hours": [0.5, 1.2, ...]
+                        },
+                        ...
+                    }
+                }
+            }
+        """
+        from datetime import datetime
+        from collections import defaultdict
+        
+        print("\n[BILLED_VS_ACTUAL_TS DEBUG] Building daily time-series...")
+        
+        daily_data = {}
+        
+        try:
+            # Get raw data for project info
+            raw_data = self.engine._raw_data if hasattr(self.engine, '_raw_data') else {}
+            projects_list = raw_data.get("projects", [])
+            projects_by_id = {p.get("projectId"): p for p in projects_list}
+            
+            # Get timesheet projects
+            timesheet_projects = timesheet_data.get('projects', [])
+            
+            print(f"[BILLED_VS_ACTUAL_TS DEBUG] Processing {len(timesheet_projects)} timesheet projects")
+        except Exception as e:
+            print(f"[BILLED_VS_ACTUAL_TS ERROR] Failed to initialize: {e}")
+            return {'daily': {'projects': {}}}
+        
+        for ts_proj in timesheet_projects:
+            try:
+                ts_name = ts_proj['name']
+                total_billed_hours = ts_proj.get('total_hours', 0)
+                start_date_str = ts_proj.get('start_date', '')
+                last_date_str = ts_proj.get('last_date', '')
+                date_count = ts_proj.get('date_count', 0)
+                daily_billed_hours = ts_proj.get('daily_hours', {})  # NEW: Get actual daily billed hours
+                
+                print(f"[BILLED_VS_ACTUAL_TS DEBUG] Project '{ts_name}' has {len(daily_billed_hours)} days with billed hours")
+                
+                # Try to match with a manifest project
+                ts_normalized = ts_name.lower().replace(' ', '').replace('-', '').replace('_', '')
+                matched_project = None
+                
+                for proj_id in project_metrics.keys():
+                    proj_normalized = proj_id.lower().replace(' ', '').replace('-', '').replace('_', '')
+                    
+                    # Use same matching logic as main function
+                    if ts_normalized == proj_normalized:
+                        matched_project = proj_id
+                        break
+                    elif proj_normalized in ts_normalized:
+                        idx = ts_normalized.find(proj_normalized)
+                        if idx != -1:
+                            before_ok = (idx == 0) or (ts_normalized[idx-1] in ['/', '_', '-', ' '])
+                            after_idx = idx + len(proj_normalized)
+                            after_ok = (after_idx >= len(ts_normalized)) or (ts_normalized[after_idx] in ['/', '_', '-', ' '])
+                            if before_ok and after_ok:
+                                matched_project = proj_id
+                                break
+                
+                if not matched_project:
+                    print(f"[BILLED_VS_ACTUAL_TS DEBUG] Skipping '{ts_name}' (no manifest match)")
+                    continue
+                
+                print(f"[BILLED_VS_ACTUAL_TS DEBUG] Processing '{ts_name}' → matched to '{matched_project}'")
+                print(f"  Billed: {total_billed_hours}h over {date_count} days ({start_date_str} to {last_date_str})")
+                
+                # Get project metrics for this project
+                proj_metrics = project_metrics.get(matched_project, {})
+                total_work_hours = proj_metrics.get('totals', {}).get('work_hours', 0)
+                
+                print(f"  Project total work_hours: {total_work_hours}h")
+                
+                # Get project date range from manifest
+                project_manifest = projects_by_id.get(matched_project, {})
+                project_start = project_manifest.get('startedAt')
+                project_end = project_manifest.get('finishedAt')
+                
+                if not project_start:
+                    print(f"  ⚠️  No startedAt in manifest, skipping daily breakdown")
+                    continue
+                
+                # Parse project dates
+                try:
+                    start_dt = datetime.fromisoformat(project_start.replace('Z', ''))
+                    if project_end:
+                        end_dt = datetime.fromisoformat(project_end.replace('Z', ''))
+                    else:
+                        end_dt = datetime.now()
+                except Exception as e:
+                    print(f"  ⚠️  Failed to parse dates: {e}")
+                    continue
+                
+                # Load file operations for this project (use cached)
+                if not hasattr(self, '_cached_file_ops_for_daily') or self._cached_file_ops_for_daily is None:
+                    self._cached_file_ops_for_daily = self.engine.load_file_operations()
+                    print(f"  Loaded {len(self._cached_file_ops_for_daily)} file operations")
+                
+                all_ops = self._cached_file_ops_for_daily
+                
+                # Filter operations for this project by date range
+                proj_ops = []
+                for op in all_ops:
+                    ts = op.get('timestamp') or op.get('timestamp_str')
+                    if not ts:
+                        continue
+                    
+                    try:
+                        if isinstance(ts, str):
+                            op_dt = datetime.fromisoformat(ts.replace('Z', ''))
+                        else:
+                            op_dt = ts
+                        
+                        # Check if within project date range
+                        if op_dt >= start_dt and op_dt <= end_dt:
+                            proj_ops.append((op_dt.date().isoformat(), op))
+                    except:
+                        continue
+                
+                print(f"  Found {len(proj_ops)} operations in date range")
+                
+                # Group by day
+                from collections import defaultdict
+                ops_by_day = defaultdict(list)
+                for date_str, op in proj_ops:
+                    ops_by_day[date_str].append(op)
+                
+                print(f"  Operations span {len(ops_by_day)} days")
+                
+                # Calculate work hours per day using the SAME method as project_metrics
+                from scripts.utils.companion_file_utils import get_file_operation_metrics
+                
+                dates = []
+                billed_by_day = []
+                actual_by_day = []
+                
+                # NO MORE AVERAGING! Use actual daily billed hours from timesheet
+                print(f"  Using ACTUAL daily billed hours from timesheet (no averaging)")
+                
+                daily_work_hours = {}
+                for date_key in sorted(ops_by_day.keys()):
+                    day_ops = ops_by_day[date_key]
+                    
+                    # Convert ops to format expected by metrics calculator
+                    ops_for_metrics = []
+                    for op in day_ops:
+                        op_copy = dict(op)
+                        ts = op_copy.get('timestamp')
+                        if isinstance(ts, datetime):
+                            op_copy['timestamp'] = ts.isoformat()
+                        elif not isinstance(ts, str):
+                            ts_str = op_copy.get('timestamp_str')
+                            if isinstance(ts_str, str):
+                                op_copy['timestamp'] = ts_str
+                        ops_for_metrics.append(op_copy)
+                    
+                    try:
+                        # Use the SAME calculation as project_metrics (no rounding inflation)
+                        metrics = get_file_operation_metrics(ops_for_metrics)
+                        work_minutes = float(metrics.get('work_time_minutes') or 0.0)
+                        # Use 15-min precision like project totals
+                        work_hours = round((work_minutes / 60.0) / 0.25) * 0.25
+                        daily_work_hours[date_key] = work_hours
+                    except Exception as e:
+                        print(f"    Warning: Failed to calculate metrics for {date_key}: {e}")
+                        daily_work_hours[date_key] = 0.0
+                
+                # Build arrays with real daily variation
+                for date_key in sorted(daily_work_hours.keys()):
+                    work_hours = daily_work_hours[date_key]
+                    if work_hours > 0:
+                        # Get actual billed hours for this day from timesheet
+                        # Date format in timesheet is "M/D/YYYY", date_key is "YYYY-MM-DD"
+                        # Need to convert date_key to match timesheet format
+                        try:
+                            from datetime import datetime
+                            dt = datetime.fromisoformat(date_key)
+                            timesheet_date_key = dt.strftime('%-m/%-d/%Y')  # macOS/Linux format (no leading zeros)
+                        except:
+                            timesheet_date_key = None
+                        
+                        billed_hours_for_day = daily_billed_hours.get(timesheet_date_key, 0)
+                        
+                        if billed_hours_for_day > 0:
+                            dates.append(date_key)
+                            billed_by_day.append(round(billed_hours_for_day, 2))  # ACTUAL daily billed hours!
+                            actual_by_day.append(round(work_hours, 2))
+                        else:
+                            print(f"  Warning: No billed hours found for {date_key} (timesheet key: {timesheet_date_key})")
+                
+                # Calculate sum and compare to project total
+                daily_sum = sum(actual_by_day)
+                billed_sum = sum(billed_by_day)
+                
+                print(f"  Result: {len(dates)} days with data")
+                print(f"  Daily billed sum: {billed_sum:.2f}h vs Timesheet total: {total_billed_hours}h")
+                print(f"  Daily actual sum: {daily_sum:.2f}h vs Project total: {total_work_hours}h")
+                
+                # If there's a significant difference, scale the daily values proportionally
+                # This maintains daily variation while matching the project total
+                if daily_sum > 0 and abs(daily_sum - total_work_hours) > 0.5:
+                    scale_factor = total_work_hours / daily_sum
+                    print(f"  Applying scale factor {scale_factor:.3f} to match project total")
+                    actual_by_day = [round(h * scale_factor, 2) for h in actual_by_day]
+                    final_sum = sum(actual_by_day)
+                    print(f"  Final sum after scaling: {final_sum:.2f}h")
+                
+                daily_data[ts_name] = {
+                    'dates': dates,
+                    'billed_hours': billed_by_day,
+                    'actual_hours': actual_by_day
+                }
+            except Exception as e:
+                print(f"[BILLED_VS_ACTUAL_TS ERROR] Failed to process '{ts_proj.get('name', 'unknown')}': {e}")
+                import traceback
+                traceback.print_exc()
+                continue
+        
+        print(f"[BILLED_VS_ACTUAL_TS DEBUG] Built daily data for {len(daily_data)} projects")
+        
+        return {
+            'daily': {'projects': daily_data}
+        }
+    
     def _load_timesheet_data(self) -> Dict[str, Any]:
         """
         Load and parse timesheet CSV for billing/efficiency tracking.
+        Checks modification time and invalidates analytics cache if timesheet changed.
         
         Returns:
             {
@@ -871,6 +1281,19 @@ class DashboardAnalytics:
             if not self.timesheet_parser.csv_path.exists():
                 print(f"[TIMESHEET ERROR] CSV file does not exist: {self.timesheet_parser.csv_path}")
                 return {"projects": [], "totals": {"total_hours": 0, "total_projects": 0}}
+            
+            # Check if timesheet was modified - invalidate caches if so
+            current_mtime = int(self.timesheet_parser.csv_path.stat().st_mtime)
+            if self._timesheet_mtime is not None and self._timesheet_mtime != current_mtime:
+                print(f"[TIMESHEET CACHE] Timesheet modified - invalidating caches")
+                # Clear file ops cache
+                self._cached_file_ops = None
+                self._cached_file_ops_for_daily = None
+                # Clear project metrics cache
+                self.project_agg._cache_key = None
+                self.project_agg._cache_value = {}
+            
+            self._timesheet_mtime = current_mtime
             
             data = self.timesheet_parser.parse()
             print(f"[TIMESHEET DEBUG] Loaded {len(data.get('projects', []))} projects, total hours: {data.get('totals', {}).get('total_hours', 0)}")

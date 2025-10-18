@@ -211,6 +211,30 @@ def finish_project(
         finished_at = None
         stager_metrics = {}
     
+    # Archive project bins (if bins system is enabled and project is finished)
+    archive_result = None
+    if not dry_run and finished_at:
+        try:
+            print("\n📦 Archiving project bins...")
+            # Import and run archive script
+            sys.path.insert(0, str(Path(__file__).parent / "data_pipeline"))
+            from archive_project_bins import ProjectArchiver
+            
+            archiver = ProjectArchiver(Path("data"))
+            archive_success = archiver.archive_project(project_id, dry_run=False)
+            
+            archive_result = {
+                "status": "success" if archive_success else "skipped",
+                "message": "Project bins archived successfully" if archive_success else "No bins to archive"
+            }
+        except ImportError:
+            print("  ⚠️  Archive script not found (bins system not set up)")
+            archive_result = {"status": "skipped", "message": "Archive script not available"}
+        except Exception as e:
+            print(f"  ⚠️  Archive failed: {e}")
+            # Don't fail the entire operation if archive fails
+            archive_result = {"status": "error", "message": str(e)}
+    
     return {
         "status": "success",
         "message": "Project finished successfully" if not dry_run else "Dry run completed - use --commit to finalize",
@@ -220,6 +244,7 @@ def finish_project(
         "final_images": final_images,
         "output_zip": str(output_zip) if not dry_run else None,
         "stager_metrics": stager_metrics,
+        "archive": archive_result,
         "dry_run": dry_run
     }
 

@@ -14,6 +14,10 @@ class TimesheetParser:
         self.csv_path = csv_path
     
     def parse(self) -> Dict[str, Any]:
+        print(f"[TIMESHEET] Parsing CSV: {self.csv_path}")
+        print(f"[TIMESHEET] File exists: {self.csv_path.exists()}")
+        if self.csv_path.exists():
+            print(f"[TIMESHEET] File size: {self.csv_path.stat().st_size} bytes")
         """
         Parse timesheet CSV and return aggregated project data
         
@@ -44,10 +48,26 @@ class TimesheetParser:
         projects = {}
         current_project = None
         
+        # Read CSV and auto-detect if header is missing
         with open(self.csv_path, 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
+            first_line = f.readline().strip()
+            print(f"[TIMESHEET] First line: {first_line[:100]}...")  # Show first 100 chars
+            f.seek(0)  # Reset to beginning
             
+            # Check if first line looks like a header (contains "Date" or "Project")
+            if 'Date' in first_line or 'Project' in first_line:
+                # Has headers - use DictReader normally
+                print(f"[TIMESHEET] Headers detected in CSV")
+                reader = csv.DictReader(f)
+            else:
+                # Missing headers - add them manually
+                print(f"[TIMESHEET] No headers detected - adding manually")
+                headers = ['Date', 'Start', 'End', 'Duration', 'Project', 'Hours', 'Starting Images', 'Final Images', 'Notes']
+                reader = csv.DictReader(f, fieldnames=headers)
+            
+            row_num = 0
             for row in reader:
+                row_num += 1
                 date = row.get('Date', '').strip()
                 project_name = row.get('Project', '').strip()
                 hours_str = row.get('Hours', '').strip()
@@ -56,17 +76,21 @@ class TimesheetParser:
                 
                 # Skip summary/total rows (rows with no date and no project name)
                 if not date and not project_name:
+                    if hours_str:
+                        print(f"[TIMESHEET] Row {row_num}: Skipping summary row (hours: {hours_str})")
                     continue
                 
                 # Parse hours for this row
                 try:
                     hours = float(hours_str) if hours_str else 0
-                except ValueError:
+                except ValueError as e:
+                    print(f"[TIMESHEET ERROR] Row {row_num}: Failed to parse hours '{hours_str}': {e}")
                     hours = 0
                 
                 # If there's a project name, this starts a new project
                 if project_name:
                     current_project = project_name
+                    print(f"[TIMESHEET] Row {row_num}: New project '{project_name}' (date: {date}, hours: {hours})")
                     
                     if current_project not in projects:
                         projects[current_project] = {
@@ -76,15 +100,17 @@ class TimesheetParser:
                             'final_images': 0,
                             'start_date': date,
                             'last_date': date,
-                            'dates': []
+                            'dates': [],
+                            'daily_hours': {}  # NEW: Store actual daily billed hours
                         }
                     
                     # Parse starting images (only set once per project, usually first occurrence)
                     if starting_images_str and not projects[current_project]['starting_images']:
                         try:
                             projects[current_project]['starting_images'] = int(starting_images_str)
-                        except ValueError:
-                            pass
+                            print(f"[TIMESHEET]   Starting images: {starting_images_str}")
+                        except ValueError as e:
+                            print(f"[TIMESHEET ERROR] Row {row_num}: Failed to parse starting images '{starting_images_str}': {e}")
                     
                     # Parse final images (can be updated as project progresses)
                     if final_images_str:
@@ -99,6 +125,8 @@ class TimesheetParser:
                     if date:
                         projects[current_project]['last_date'] = date
                         projects[current_project]['dates'].append(date)
+                        # Store actual daily hours (not averaged!)
+                        projects[current_project]['daily_hours'][date] = hours
         
         # Calculate efficiency metrics
         project_list = []
@@ -121,13 +149,16 @@ class TimesheetParser:
                 'hours_per_image': hours_per_image,
                 'start_date': proj_data['start_date'],
                 'last_date': proj_data['last_date'],
-                'date_count': len(proj_data['dates'])
+                'date_count': len(proj_data['dates']),
+                'daily_hours': proj_data['daily_hours']  # NEW: Include actual daily billed hours
             })
             
             total_hours += total_hours_proj
         
         # Sort by start date (chronological)
         project_list.sort(key=lambda x: self._parse_date(x['start_date']))
+        
+        print(f"[TIMESHEET] Parsed {len(project_list)} projects, total {total_hours} hours")
         
         return {
             'projects': project_list,

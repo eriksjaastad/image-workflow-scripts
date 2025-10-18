@@ -407,17 +407,122 @@ class DashboardDataEngine:
                 }
     
     def load_file_operations(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Dict]:
-        """Load and process daily summaries (consolidated data) with fallback to detailed logs"""
-        # Load summaries and detailed logs separately to enable per-day de-duplication
-        summary_records: List[Dict] = []
-        detailed_records: List[Dict] = []
+        """
+        Load file operations with smart archive optimization.
         
-        # Load only from detailed logs (raw data)
-        # NOTE: Snapshots are for pre-aggregated data (charts), not for replacing detailed records
-        # We need the full detailed logs for accurate project metrics and tables
-        detailed_records = self._load_from_detailed_logs(start_date, end_date)
+        PERFORMANCE OPTIMIZATION:
+        - Finished projects: Load from pre-aggregated bins (95% faster)
+        - Active projects: Load from raw logs
+        """
+        import time as time_module
+        load_start = time_module.time()
         
-        return detailed_records
+        # Check if aggregates directory exists (bins system)
+        aggregates_dir = self.data_dir / 'aggregates'
+        archives_dir = aggregates_dir / 'archives' if aggregates_dir.exists() else None
+        use_archives = archives_dir and archives_dir.exists()
+        
+        all_records = []
+        
+        if use_archives:
+            print(f"[SMART LOAD] Using archive bins for finished projects")
+            
+            # Load projects to determine which are finished
+            projects = self.load_projects()
+            finished_projects = {}
+            active_projects = {}
+            
+            for project in projects:
+                project_id = project.get('projectId')
+                status = project.get('status')
+                if not project_id:
+                    continue
+                
+                if status == 'finished' or status == 'archived':
+                    finished_projects[project_id] = project
+                else:
+                    active_projects[project_id] = project
+            
+            print(f"[SMART LOAD] Finished: {len(finished_projects)}, Active: {len(active_projects)}")
+            
+            # Load finished projects from archives (bins)
+            archived_count = 0
+            for project_id in finished_projects:
+                archive_path = archives_dir / project_id / 'agg_15m.jsonl'
+                if archive_path.exists():
+                    try:
+                        bins_loaded = self._load_bins_as_operations(archive_path, project_id)
+                        all_records.extend(bins_loaded)
+                        archived_count += 1
+                    except Exception as e:
+                        print(f"[SMART LOAD] Warning: Failed to load archive for {project_id}: {e}")
+            
+            print(f"[SMART LOAD] Loaded {archived_count} projects from archives ({len(all_records)} bin records)")
+        
+        # Load raw logs
+        raw_start = time_module.time()
+        raw_records = self._load_from_detailed_logs(start_date, end_date)
+        raw_time = time_module.time() - raw_start
+        
+        # If using archives, filter raw records to only active projects
+        if use_archives and active_projects:
+            filtered_raw = []
+            for record in raw_records:
+                # Check if operation belongs to active project
+                belongs_to_active = False
+                for path_key in ['source_dir', 'dest_dir', 'working_dir']:
+                    path = str(record.get(path_key, '')).lower()
+                    for active_id in active_projects.keys():
+                        if active_id.lower() in path:
+                            belongs_to_active = True
+                            break
+                    if belongs_to_active:
+                        break
+                
+                if belongs_to_active:
+                    filtered_raw.append(record)
+            
+            print(f"[SMART LOAD] Raw logs: {len(raw_records)} total, {len(filtered_raw)} for active ({raw_time:.3f}s)")
+            all_records.extend(filtered_raw)
+        else:
+            print(f"[SMART LOAD] Raw logs: {len(raw_records)} records ({raw_time:.3f}s)")
+            all_records.extend(raw_records)
+        
+        load_time = time_module.time() - load_start
+        print(f"[SMART LOAD] TOTAL: {len(all_records)} records in {load_time:.3f}s")
+        
+        return all_records
+    
+    def _load_bins_as_operations(self, bin_path: Path, project_id: str) -> List[Dict[str, Any]]:
+        """Load bins and convert to operation-like records for compatibility."""
+        bins = []
+        try:
+            with open(bin_path, 'r') as f:
+                for line in f:
+                    try:
+                        bin_record = json.loads(line)
+                        # Convert bin to operation-like format
+                        op_record = {
+                            'type': 'file_operation',
+                            'timestamp': bin_record.get('bin_ts_utc'),
+                            'timestamp_str': bin_record.get('bin_ts_utc'),
+                            'script': bin_record.get('script_id'),
+                            'operation': bin_record.get('operation'),
+                            'file_count': bin_record.get('file_count'),
+                            'dest_dir': bin_record.get('dest_category', ''),
+                            'source_dir': f'{project_id}/',
+                            'working_dir': f'{project_id}/',
+                            'notes': f"Bin: {bin_record.get('bin_ts_utc')}",
+                            '_is_bin': True,
+                            '_work_seconds': bin_record.get('work_seconds', 0),
+                        }
+                        bins.append(op_record)
+                    except json.JSONDecodeError:
+                        continue
+        except Exception as e:
+            print(f"[SMART LOAD] Error loading bins from {bin_path}: {e}")
+        
+        return bins
     
     def _load_from_snapshot_aggregates(self, aggregates_dir: Path, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Dict]:
         """Load from new snapshot daily_aggregates_v1 format"""
@@ -983,7 +1088,12 @@ class DashboardDataEngine:
         Returns:
             Dictionary with all data needed for dashboard visualization
         """
-        print(f"Generating dashboard data for {time_slice} time slice...")
+        import time as time_module
+        overall_start = time_module.time()
+        print(f"\n{'='*70}")
+        print(f"[DATA_ENGINE TIMING] Starting generate_dashboard_data")
+        print(f"  time_slice: {time_slice}, lookback_days: {lookback_days}")
+        print(f"{'='*70}")
         
         # Define production workflow scripts for dashboard filtering
         # Map current script names to log names
@@ -1005,16 +1115,31 @@ class DashboardDataEngine:
             ]
         
         # Load raw data
+        step_start = time_module.time()
         activity_records = self.load_session_data(lookback_days=lookback_days)
+        step_time = time_module.time() - step_start
+        print(f"[DATA_ENGINE] ✓ load_session_data: {step_time:.3f}s ({len(activity_records)} records)")
+        
+        step_start = time_module.time()
         file_ops_records = self.load_file_operations()
+        step_time = time_module.time() - step_start
+        print(f"[DATA_ENGINE] ✓ load_file_operations: {step_time:.3f}s ({len(file_ops_records)} records)")
+        
+        step_start = time_module.time()
         script_updates = self.load_script_updates()
         projects = self.load_projects()
+        step_time = time_module.time() - step_start
+        print(f"[DATA_ENGINE] ✓ load_script_updates + load_projects: {step_time:.3f}s ({len(projects)} projects)")
+        
         # Aggregate project metrics (cached internally)
+        step_start = time_module.time()
         try:
             proj_agg = ProjectMetricsAggregator(self.data_dir)
             project_metrics = proj_agg.aggregate()
         except Exception:
             project_metrics = {}
+        step_time = time_module.time() - step_start
+        print(f"[DATA_ENGINE] ✓ ProjectMetricsAggregator.aggregate: {step_time:.3f}s")
         
         # Filter to production scripts only for dashboard
         activity_records = [r for r in activity_records if r.get('script') in production_scripts]
@@ -1238,6 +1363,11 @@ class DashboardDataEngine:
                 }
 
         dashboard_data['timing_data'] = timing_by_display
+        
+        overall_time = time_module.time() - overall_start
+        print(f"\n{'='*70}")
+        print(f"[DATA_ENGINE] TOTAL generate_dashboard_data TIME: {overall_time:.3f}s")
+        print(f"{'='*70}\n")
         
         return dashboard_data
 
