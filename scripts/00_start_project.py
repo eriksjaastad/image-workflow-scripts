@@ -29,10 +29,10 @@ from typing import Optional
 
 
 def count_images(directory: Path) -> int:
-    """Count PNG images in a directory (non-recursive)."""
+    """Count PNG images in a directory (recursive to match actual project structure)."""
     if not directory.exists():
         return 0
-    return len(list(directory.glob("*.png")))
+    return len(list(directory.rglob("*.png")))
 
 
 def get_utc_timestamp() -> str:

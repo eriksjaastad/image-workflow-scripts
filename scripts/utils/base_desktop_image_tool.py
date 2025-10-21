@@ -274,6 +274,7 @@ class BaseDesktopImageTool:
     
     def on_key_press(self, event):
         """Handle keyboard input - common keys handled here, specific keys delegated to subclasses."""
+        print(f"[DEBUG on_key_press] Key pressed: '{event.key}'")
         key = event.key.lower()
         
         # Common global controls

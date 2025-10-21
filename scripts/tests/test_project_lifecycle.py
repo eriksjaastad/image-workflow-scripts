@@ -2,7 +2,7 @@
 """
 Tests for Project Lifecycle Scripts
 ====================================
-Tests 00_start_project.py and 00_finish_project.py to ensure proper:
+Tests 00_start_project.py and 07_finish_project.py to ensure proper:
 - Project manifest creation
 - UTC timestamp handling
 - Directory structure setup

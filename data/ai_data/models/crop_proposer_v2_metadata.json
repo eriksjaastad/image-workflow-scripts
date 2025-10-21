@@ -1,0 +1,17 @@
+{
+  "model_version": "v2",
+  "created": "2025-10-21T03:18:25.652702+00:00",
+  "training_examples": 417,
+  "validation_examples": 73,
+  "best_epoch": 2,
+  "best_iou": 0.9890638589859009,
+  "best_val_loss": 0.0004825579732520661,
+  "hyperparameters": {
+    "epochs": 50,
+    "batch_size": 32,
+    "learning_rate": 0.001,
+    "loss_function": "SmoothL1Loss"
+  },
+  "architecture": "MLP (514\u2192512\u2192256\u2192128\u21924) with Sigmoid",
+  "input_features": "512 CLIP + 2 dimensions"
+}

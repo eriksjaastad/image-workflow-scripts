@@ -5,6 +5,57 @@
 
 ---
 
+## 🚨 **CRITICAL: File Safety System (October 2025)**
+
+**⚠️ READ THIS FIRST - File Integrity Protection**
+
+**Achievement:** Multi-layer protection against accidental file modifications
+**Impact:** Prevents data loss from accidental overwrites or corruption
+**Date:** October 20, 2025
+
+### **Quick Reference:**
+- **Cursor Rules:** `.cursorrules` - AI must follow these rules
+- **Audit Script:** `scripts/tools/audit_file_safety.py` - Scan for violations
+- **Documentation:** `Documents/FILE_SAFETY_SYSTEM.md` - Complete guide
+- **Run Audit:** `python scripts/tools/audit_file_safety.py`
+
+### **Core Rules (NEVER VIOLATE):**
+1. ✅ **ONLY** `04_desktop_multi_crop.py` may modify images
+2. ✅ Move/delete operations allowed (via safe utilities)
+3. ✅ Create NEW files in safe zones (`data/`, `sandbox/`)
+4. ❌ NO modifications to existing production images/YAML/captions
+5. ❌ NO overwrites without explicit justification
+
+### **Safe Zones (NEW files OK):**
+- `data/ai_data/`, `data/file_operations_logs/`, `data/daily_summaries/`, `sandbox/`
+
+### **Protected Zones (NO modifications):**
+- `mojo1/`, `mojo2/`, `selected/`, `crop/` - All production images
+
+### **Before Committing Code:**
+```bash
+# Run safety audit
+python scripts/tools/audit_file_safety.py
+
+# Review flagged issues
+# Verify they're in safe zones or crop tool
+```
+
+### **Philosophy:**
+- **"Move, Don't Modify"** - Scripts move files, don't change contents
+- **Read-Only by Default** - Treat production files as immutable
+- **Data is Permanent** - Can't recover corrupted files
+
+### **If You See Weird File Behavior:**
+1. Check FileTracker logs: `grep "filename.png" data/file_operations_logs/*.log`
+2. Look for unexpected modifications
+3. Use git to recover: `git checkout filename`
+4. Check macOS Trash: `~/.Trash/`
+
+**See:** `Documents/FILE_SAFETY_SYSTEM.md` for complete documentation
+
+---
+
 ## 🏗️ **Major Architectural Improvements (October 2025)**
 
 ### **Centralized Utility System**

@@ -30,6 +30,17 @@ data/
 quality_log_*.csv
 people_scores*.csv
 
+# BUT allow AI training logs and models (irreplaceable, small files)
+!data/training/
+!data/training/*.csv
+!data/ai_data/models/
+!data/ai_data/models/*.pt
+!data/ai_data/models/*.json
+!data/ai_data/cache/processed_images.jsonl
+
+# Training Data Images (90+ GB - never commit)
+training data/
+
 # Cache and Temporary Files
 .cache/
 thumbnails/

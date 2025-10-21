@@ -1,0 +1,16 @@
+{
+  "model_version": "v1",
+  "created": "2025-10-20T16:59:10.952412Z",
+  "training_examples": 4141,
+  "validation_examples": 461,
+  "best_epoch": 8,
+  "best_val_accuracy": 0.982646420824295,
+  "hyperparameters": {
+    "epochs": 30,
+    "batch_size": 16,
+    "learning_rate": 0.001,
+    "val_split": 0.1
+  },
+  "architecture": "MLP (512\u2192256\u219264\u21921)",
+  "loss_function": "MarginRankingLoss (margin=0.5)"
+}

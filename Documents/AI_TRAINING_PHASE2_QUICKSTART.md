@@ -1,14 +1,217 @@
 # Phase 2 Quick Start Guide
 *Moving from Data Collection to AI Training*
 
+---
+
+## 📚 Quick Navigation - All AI Documents
+
+**Current Document:** AI_TRAINING_PHASE2_QUICKSTART.md (You are here)
+
+### Core Workflow Documents:
+1. **[AI_TRAINING_PHASE2_QUICKSTART.md](AI_TRAINING_PHASE2_QUICKSTART.md)** ⭐ **START HERE**
+   - Practical step-by-step implementation guide
+   - Install dependencies → Extract features → Train models
+   - **Status:** Training data ready (17k examples), models not yet trained
+
+2. **[AUTOMATION_REVIEWER_SPEC.md](AUTOMATION_REVIEWER_SPEC.md)** ⭐ **BUILD NEXT**
+   - Complete spec for the review UI (`scripts/07_automation_reviewer.py`)
+   - Web interface for approving/rejecting AI recommendations
+   - **Status:** Fully documented, ready to build
+
+3. **[AI_TRAINING_CROP_AND_RANKING.md](AI_TRAINING_CROP_AND_RANKING.md)**
+   - Comprehensive technical training plan
+   - Details: CLIP embeddings, saliency, anomaly detection, crop optimization
+   - **Status:** Reference document for deep dives
+
+### Supporting Documents:
+4. **[AI_ANOMALY_DETECTION_OPTIONS.md](AI_ANOMALY_DETECTION_OPTIONS.md)**
+   - Hand/foot anomaly detection options (MediaPipe, OpenPose, etc.)
+   - **Status:** Future enhancement reference
+
+5. **[CURRENT_TODO_LIST.md](CURRENT_TODO_LIST.md)** - Section: "Automation Pipeline Plan"
+   - Lines 251-490: Full automation pipeline details
+   - Data formats, safety rules, testing plan
+   - **Status:** Living document, updated continuously
+
+6. **[scripts/ai/README.md](../scripts/ai/README.md)**
+   - Documents existing AI training scripts
+   - Safety guarantees and usage instructions
+   - **Status:** Current for existing scripts
+
+### Implementation Order:
+```
+Phase 1: ✅ Data Collection (COMPLETE - 17k examples)
+         ↓
+Phase 2: ⏳ Train AI Models (THIS DOCUMENT)
+         ↓
+Phase 3: ⏳ Build Automation Reviewer UI (AUTOMATION_REVIEWER_SPEC.md)
+         ↓
+Phase 4: ⏳ Test in Sandbox + Iterate (CURRENT_TODO_LIST.md)
+```
+
+---
+
+## 📊 Current Training Data Status (Updated: Oct 20, 2025)
+
+### ✅ Data Collection Complete: 17,032 Training Examples
+
+**Selection Data (Web Image Selector):**
+- Mojo 1: 5,244 selections
+- Mojo 2: 4,594 selections
+- **Total: 9,838 selection decisions** ✅
+
+**Crop Data (Multi Crop Tool):**
+- Total crop decisions: 7,194 ✅
+- Dates: Oct 4, 8, 16, 19, 2025
+- Source directories: `crop/` and character subdirectories
+
+**Combined Total: 17,032 training examples**
+
+---
+
+## 🚨 CRITICAL: Training Data Structure & Project Boundaries
+
+### **RULE #1: Projects NEVER Mix**
+
+Each project (Mojo 1, Mojo 2, Eleni, etc.) is a **separate character**. Training data from different projects **MUST NEVER be compared or mixed**.
+
+**Why This Matters:**
+- Mojo 1 is Character A, Mojo 2 is Character B
+- Your preferences for Character A don't inform preferences for Character B
+- Comparing images across projects is meaningless and will corrupt the model
+
+### **RULE #2: Each Selection is an Image Set Within One Project**
+
+Every row in `selection_only_log.csv` is a **complete image set** from ONE project:
+
+```csv
+session_id,set_id,chosen_path,neg_paths,timestamp
+20251004_213737,group_8,/Users/.../mojo1/20250708_060711_stage2_upscaled.png,"[""/Users/.../mojo1/20250708_060558_stage1_generated.png""]",2025-10-05T01:43:47Z
+```
+
+**What this means:**
+- `chosen_path` = winner image YOU picked
+- `neg_paths` = loser images YOU rejected
+- **ALL images in this set are from the SAME project (mojo1)**
+- **ALL images in this set have the SAME timestamp/group** (different stages of the same generation)
+
+### **RULE #3: Match by Filename Within Project Context**
+
+When loading training data:
+
+1. **Extract project from path:**
+   - `/Users/.../mojo1/20250708_060711_stage2.png` → project = `mojo1`
+   - `/Users/.../mojo2/_mixed/20250801_123456_stage3.png` → project = `mojo2`
+
+2. **Match by filename only (ignore full path):**
+   - Embeddings cache may have: `training data/mojo1/faces/20250708_060711_stage2.png`
+   - CSV may have: `/Users/.../mojo1/20250708_060711_stage2.png`
+   - **Match by:** `20250708_060711_stage2.png` (filename only)
+
+3. **Constrain matches to same project:**
+   - Only look for `20250708_060711_stage2.png` within `mojo1` embeddings
+   - **NEVER** match a mojo1 CSV entry to a mojo2 embedding
+
+### **RULE #4: Training Pairs Must Be From Same Set**
+
+When creating training pairs for the ranker:
+
+```python
+# ✅ CORRECT: Both from same set (group_8, mojo1)
+pair1 = (winner: mojo1/.../stage2.png, loser1: mojo1/.../stage1.png)
+pair2 = (winner: mojo1/.../stage2.png, loser2: mojo1/.../stage3.png)
+
+# ❌ WRONG: Mixed projects
+pair_bad = (winner: mojo1/.../stage2.png, loser: mojo2/.../stage1.png)
+```
+
+### **Implementation Guidelines**
+
+**When loading training data:**
+
+```python
+# 1. Parse project from path
+def get_project_id(path: str) -> str:
+    """Extract project ID from file path"""
+    # /Users/.../mojo1/file.png → 'mojo1'
+    # /Users/.../mojo2/_mixed/file.png → 'mojo2'
+    parts = Path(path).parts
+    for part in parts:
+        if part.startswith('mojo') or part in ['eleni', 'aiko', 'dalia']:
+            return part
+    return 'unknown'
+
+# 2. Match by filename within project
+def find_embedding(csv_path: str, embeddings_cache: dict) -> Optional[np.ndarray]:
+    """Find embedding for a CSV path entry"""
+    project_id = get_project_id(csv_path)
+    filename = Path(csv_path).name
+    
+    # Search embeddings cache for this project + filename
+    for cache_path, embedding in embeddings_cache.items():
+        if project_id in cache_path and filename in cache_path:
+            return embedding
+    return None
+
+# 3. Verify all images in set are from same project
+def validate_set(chosen_path: str, neg_paths: List[str]) -> bool:
+    """Ensure all paths in a set are from the same project"""
+    chosen_project = get_project_id(chosen_path)
+    neg_projects = [get_project_id(p) for p in neg_paths]
+    
+    if not all(p == chosen_project for p in neg_projects):
+        raise ValueError(f"Mixed projects in set: {chosen_project} vs {neg_projects}")
+    return True
+```
+
+### **Project Manifest Reference**
+
+Each project has a manifest at `data/projects/<projectId>.project.json`:
+
+```json
+{
+  "projectId": "mojo1",
+  "title": "Mojo1",
+  "startedAt": "2025-10-01T00:00:00Z",
+  "finishedAt": "2025-10-11T17:29:49Z",
+  "counts": {
+    "initialImages": 19183,
+    "finalImages": 6453
+  }
+}
+```
+
+**Use project dates to:**
+- Determine which files belong to which project (based on file modification times)
+- Filter training data by project if needed
+- Track training data distribution across projects
+
+### **Training Strategy**
+
+**Option A: Unified Model (Recommended)**
+- Train ONE model on ALL projects combined
+- Model learns your **general aesthetic preferences**
+- BUT: Only compare images within same project during training
+- Pairs always respect project boundaries
+
+**Option B: Per-Project Models**
+- Train separate model for each project
+- Model learns project-specific preferences
+- More complex to maintain
+- Only use if Option A performs poorly
+
+**Start with Option A.** Most aesthetic preferences (composition, lighting, expression) transfer across characters.
+
+---
+
 ## Current Status
-- ✅ Phase 1 Complete: 14,232 training examples collected
+- ✅ Phase 1 Complete: 17,032 training examples collected (Mojo 1 + Mojo 2)
 - ⏳ Phase 2 Ready: Install dependencies and train first models
 
 ## What Phase 2 Achieves
 By the end of Phase 2, the AI will:
-1. **Suggest which image is "best"** from a set (based on your 9,839 selections)
-2. **Propose crop coordinates** for images (based on your 4,393 crops)
+1. **Suggest which image is "best"** from a set (based on your 9,838 selections)
+2. **Propose crop coordinates** for images (based on your 7,194 crops)
 3. Show **confidence scores** so you know when to trust it
 
 You still approve/reject everything - it's just making suggestions.

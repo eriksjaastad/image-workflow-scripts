@@ -28,7 +28,9 @@ from utils.companion_file_utils import (
     sort_image_files_by_timestamp_and_stage,
     find_consecutive_stage_groups,
     detect_stage,
-    get_stage_number
+    get_stage_number,
+    safe_delete_paths,
+    safe_delete_image_and_yaml
 )
 
 
@@ -281,6 +283,108 @@ class TestFlexibleGroups(unittest.TestCase):
         
         self.assertEqual(len(groups), 1)
         self.assertEqual(len(groups[0]), 2)
+
+
+class TestSafeDelete(unittest.TestCase):
+    """Test safe deletion of images and all companion files."""
+    
+    def setUp(self):
+        """Create temp directory with test files."""
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.temp_path = Path(self.temp_dir.name)
+    
+    def tearDown(self):
+        """Clean up temp directory."""
+        self.temp_dir.cleanup()
+    
+    @patch('utils.companion_file_utils.send2trash')
+    def test_deletes_image_and_yaml(self, mock_send2trash):
+        """Test deleting PNG with .yaml companion."""
+        img = self.temp_path / "test_20250101_120000_stage1_generated.png"
+        yaml = self.temp_path / "test_20250101_120000_stage1_generated.yaml"
+        img.write_text("image data")
+        yaml.write_text("yaml data")
+        
+        # Call safe_delete_image_and_yaml
+        deleted = safe_delete_image_and_yaml(img, hard_delete=False, tracker=None)
+        
+        # Verify send2trash was called for both files
+        self.assertEqual(mock_send2trash.call_count, 2)
+        
+        # Verify both paths were in the deleted list
+        deleted_names = {p.name for p in deleted}
+        self.assertIn(img.name, deleted_names)
+        self.assertIn(yaml.name, deleted_names)
+    
+    @patch('utils.companion_file_utils.send2trash')
+    def test_deletes_image_with_all_companions(self, mock_send2trash):
+        """Test deleting PNG with multiple companions (.yaml + .caption)."""
+        img = self.temp_path / "test_20250101_120000_stage1_generated.png"
+        yaml = self.temp_path / "test_20250101_120000_stage1_generated.yaml"
+        caption = self.temp_path / "test_20250101_120000_stage1_generated.caption"
+        img.write_text("image")
+        yaml.write_text("yaml")
+        caption.write_text("caption text")
+        
+        # Call safe_delete_image_and_yaml (should find ALL companions)
+        deleted = safe_delete_image_and_yaml(img, hard_delete=False, tracker=None)
+        
+        # Verify send2trash was called for all 3 files
+        self.assertEqual(mock_send2trash.call_count, 3)
+        
+        # Verify all paths were in the deleted list
+        deleted_names = {p.name for p in deleted}
+        self.assertIn(img.name, deleted_names)
+        self.assertIn(yaml.name, deleted_names)
+        self.assertIn(caption.name, deleted_names)
+    
+    @patch('utils.companion_file_utils.send2trash')
+    def test_deletes_multiple_images_with_safe_delete_paths(self, mock_send2trash):
+        """Test deleting multiple files at once with safe_delete_paths."""
+        img1 = self.temp_path / "test1_20250101_120000_stage1_generated.png"
+        yaml1 = self.temp_path / "test1_20250101_120000_stage1_generated.yaml"
+        img2 = self.temp_path / "test2_20250101_130000_stage2_upscaled.png"
+        caption2 = self.temp_path / "test2_20250101_130000_stage2_upscaled.caption"
+        
+        for f in [img1, yaml1, img2, caption2]:
+            f.write_text("data")
+        
+        # Call safe_delete_paths with multiple files
+        deleted = safe_delete_paths([img1, yaml1, img2, caption2], hard_delete=False, tracker=None)
+        
+        # Verify send2trash was called for all 4 files
+        self.assertEqual(mock_send2trash.call_count, 4)
+        self.assertEqual(len(deleted), 4)
+    
+    @patch('utils.companion_file_utils.send2trash')
+    def test_handles_missing_companion_gracefully(self, mock_send2trash):
+        """Test deleting image when companion files don't exist."""
+        img = self.temp_path / "test_20250101_120000_stage1_generated.png"
+        img.write_text("image data")
+        # No yaml or caption created
+        
+        # Should still work and only delete the PNG
+        deleted = safe_delete_image_and_yaml(img, hard_delete=False, tracker=None)
+        
+        # Verify send2trash was called once (just the PNG)
+        self.assertEqual(mock_send2trash.call_count, 1)
+        self.assertEqual(len(deleted), 1)
+        self.assertEqual(deleted[0].name, img.name)
+    
+    @patch('utils.companion_file_utils.os.remove')
+    def test_hard_delete_bypasses_trash(self, mock_remove):
+        """Test that hard_delete=True uses os.remove instead of send2trash."""
+        img = self.temp_path / "test_20250101_120000_stage1_generated.png"
+        yaml = self.temp_path / "test_20250101_120000_stage1_generated.yaml"
+        img.write_text("image")
+        yaml.write_text("yaml")
+        
+        # Call with hard_delete=True
+        deleted = safe_delete_image_and_yaml(img, hard_delete=True, tracker=None)
+        
+        # Verify os.remove was called (not send2trash)
+        self.assertEqual(mock_remove.call_count, 2)
+        self.assertEqual(len(deleted), 2)
 
 
 if __name__ == '__main__':

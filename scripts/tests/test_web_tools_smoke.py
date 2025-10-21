@@ -183,7 +183,7 @@ class TestWebCharacterSorterSmoke(WebToolSmokeTest):
         test_dir = self.create_test_images()
         
         # Start the character sorter
-        script_path = Path(__file__).parent.parent / "02_web_character_sorter.py"
+        script_path = Path(__file__).parent.parent / "03_web_character_sorter.py"
         port = 8766
         
         self.process = subprocess.Popen(

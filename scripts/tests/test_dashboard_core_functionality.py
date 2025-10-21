@@ -186,7 +186,7 @@ class TestDashboardCoreFunctionality(unittest.TestCase):
             'desktop_image_selector_crop',
             'character_sorter',
             '01_web_image_selector',
-            '02_web_character_sorter'
+            '03_web_character_sorter'
         ]
         
         for expected_script in expected_scripts:

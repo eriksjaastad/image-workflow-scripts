@@ -1,0 +1,22 @@
+{
+  "model_version": "v3",
+  "created": "2025-10-21T01:42:11.166527+00:00",
+  "training_pairs": 28982,
+  "validation_pairs": 3329,
+  "normal_train": 28192,
+  "anomaly_train": 790,
+  "anomaly_oversample_factor": 10,
+  "best_epoch": 7,
+  "best_anomaly_accuracy": 0.8984771573604061,
+  "best_normal_accuracy": 0.6532567049808429,
+  "best_overall_accuracy": 0.6677680985280865,
+  "hyperparameters": {
+    "epochs": 30,
+    "batch_size": 32,
+    "learning_rate": 0.001,
+    "margin": 0.5,
+    "anomaly_weight": 10.0
+  },
+  "architecture": "MLP (512\u2192256\u219264\u21921)",
+  "loss_function": "WeightedMarginRankingLoss"
+}

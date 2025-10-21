@@ -3,7 +3,32 @@ title: AI Documents Index
 status: Current
 audience: AI
 tags: [index, map]
-version: 2025-10-05
+version: 2025-10-20
+---
+
+## 🎯 START HERE: AI Automation Project
+
+**New to this project or resuming after a break?**  
+→ Read **[AI_DOCUMENTATION_SUMMARY.md](AI_DOCUMENTATION_SUMMARY.md)** first (2 min orientation)
+
+**Ready to work on AI automation?**  
+→ Open **[AI_PROJECT_IMPLEMENTATION_PLAN.md](AI_PROJECT_IMPLEMENTATION_PLAN.md)** (master checklist)
+
+---
+
+## AI Automation Project Documents
+
+### Essential Documents (Read in Order):
+1. **AI_DOCUMENTATION_SUMMARY.md** — 📖 **START HERE** Orientation guide, what was done Oct 20, how to never lose context; tags: [ai, orientation, summary]
+2. **AI_PROJECT_IMPLEMENTATION_PLAN.md** — ⭐ **MASTER CHECKLIST** Complete phase-by-phase plan with checkboxes for all AI automation work. Updated continuously as phases complete; tags: [ai, automation, checklist, progress-tracking]
+3. **🚨 AI_TRAINING_DATA_STRUCTURE.md** — **CRITICAL RULES** How training data is organized, project boundaries, what NOT to do. **READ BEFORE TRAINING ANY MODELS**; tags: [ai, training, data-structure, critical, rules]
+4. **AI_TRAINING_PHASE2_QUICKSTART.md** — Step-by-step guide for Phase 2 (train models). Training data status: 17,032 examples ready; tags: [ai, training, phase2, quickstart]
+5. **AUTOMATION_REVIEWER_SPEC.md** — Complete spec for Phase 3 review UI (scripts/07_automation_reviewer.py); tags: [ai, automation, ui, review, phase3]
+
+### Reference Documents:
+5. **AI_TRAINING_CROP_AND_RANKING.md** — Technical deep-dive: CLIP embeddings, crop optimization, ranking models; tags: [ai, training, technical, reference]
+6. **AI_ANOMALY_DETECTION_OPTIONS.md** — Hand/foot anomaly detection options (MediaPipe, OpenPose, etc.); tags: [ai, anomaly-detection, reference]
+
 ---
 
 ## Index
@@ -11,6 +36,7 @@ version: 2025-10-05
 - ACTIVITY_TIMER_SYSTEM_OVERVIEW.md — Productivity tracking architecture; tags: [file-operations, timing, analytics]
 - automation_opportunities_background_agent_webhook.md — Automation concepts; tags: [automation, background-agents, webhooks]
 - CENTRALIZED_TOOL_ORDER.md — Dashboard tool order standardization; tags: [dashboard, tools, consistency]
+- COMPANION_FILE_SYSTEM_GUIDE.md — Complete guide to companion file handling (PNG + .yaml + .caption); tags: [companion-files, utilities, file-operations, centralized]
 - CROP_PROGRESS_TRACKING_DESIGN.md — Crop progress tracking; tags: [progress, resume, crop]
 - CURRENT_TODO_LIST.md — Project status; tags: [roadmap, status]
 - DATA_CONSOLIDATION_SYSTEM.md — Cron consolidation; tags: [consolidation, cron]

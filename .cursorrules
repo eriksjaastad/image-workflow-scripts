@@ -1,0 +1,103 @@
+# Eros Mate Project - Cursor AI Rules
+# =====================================
+
+## 🚨 CRITICAL FILE SAFETY RULES - NEVER VIOLATE
+
+### **Rule #1: NO FILE CONTENT MODIFICATIONS**
+- NEVER modify image files (PNG, JPG, JPEG, etc.) in-place
+- NEVER modify companion files (YAML, caption, txt, etc.) in-place
+- The ONLY exception: `04_desktop_multi_crop.py` may write cropped PNG files
+- All other scripts are READ-ONLY for file contents
+
+### **Rule #2: File Operations Allowed**
+✅ **SAFE Operations:**
+- Moving files (with companions): `move_file_with_all_companions()`
+- Deleting files (to Trash): `send2trash()` or `mv ~/.Trash/`
+- Reading files: `open(file, 'r')`, `Path.read_text()`
+- Creating NEW files: logs, reports, thumbnails in designated directories
+- Copying files: `shutil.copy()` to NEW locations only
+
+❌ **FORBIDDEN Operations:**
+- `open(file, 'w')` on existing PNG/YAML/caption files (except crop tool)
+- `open(file, 'wb')` on existing images (except crop tool)
+- `PIL.Image.save()` overwriting existing files (except crop tool)
+- In-place modifications of any production image/companion files
+- `shutil.move()` with overwrite on existing files
+
+### **Rule #3: Designated Safe Zones**
+**Where NEW files CAN be created:**
+- `data/ai_data/` - AI training data, embeddings, caches
+- `data/file_operations_logs/` - Operation logs
+- `data/daily_summaries/` - Report files
+- `sandbox/` - Testing and experiments
+- Temporary directories created by scripts
+
+**Where files CANNOT be modified:**
+- `mojo1/`, `mojo2/` - Production image directories
+- `selected/` - Selected images awaiting processing
+- `crop/` - Cropped images (except by crop tool creating them)
+- Any directory containing production images
+
+### **Rule #4: Move, Don't Modify**
+- Philosophy: We MOVE files between directories, we DON'T change their contents
+- If you need to "update" a file, create a NEW version with different name
+- Exception: Crop tool creates NEW cropped versions (technically a new file)
+
+### **Rule #5: Companion File Integrity**
+- When moving/copying/deleting images, ALWAYS handle ALL companion files together
+- Use `find_all_companion_files()` and `move_file_with_all_companions()`
+- NEVER orphan companion files
+- NEVER move image without its YAML/caption
+
+### **Rule #6: Code Review Checklist**
+Before writing ANY file operation code, verify:
+1. ✅ Is this a move/delete operation? (Safe)
+2. ✅ Is this creating a NEW file in a safe zone? (Safe)
+3. ✅ Is this the crop tool writing a cropped image? (Safe)
+4. ❌ Is this modifying an existing production file? (FORBIDDEN)
+
+### **Rule #7: Logging Requirements**
+- ALL file operations MUST log via FileTracker
+- Format: `tracker.track_file_operation(operation, source, dest)`
+- Operations: 'move', 'delete', 'crop', 'copy', 'create'
+- This creates an audit trail for safety verification
+
+## 📋 Quick Reference
+
+**Safe patterns:**
+```python
+# Moving files
+move_file_with_all_companions(image_path, target_dir)
+
+# Deleting files
+send2trash(file_path)
+
+# Reading files
+data = yaml.safe_load(open(yaml_path, 'r'))
+
+# Creating NEW files
+with open('data/reports/summary.json', 'w') as f:
+    json.dump(data, f)
+```
+
+**Forbidden patterns:**
+```python
+# ❌ NEVER do these (except in crop tool):
+with open(existing_image.png, 'wb') as f:  # Overwriting image
+    f.write(data)
+
+PIL.Image.save(existing_file.png)  # Overwriting image
+
+yaml.dump(data, open(existing.yaml, 'w'))  # Overwriting YAML
+```
+
+## 🛡️ When to Ask for Approval
+
+If you're ever unsure whether a file operation is safe:
+1. Stop and ask Erik
+2. Explain what you want to do
+3. Wait for explicit approval
+4. Document the decision
+
+**Remember:** Data loss is permanent. When in doubt, DON'T.
+

@@ -18,9 +18,8 @@ import shutil
 import argparse
 from pathlib import Path
 import re
-from send2trash import send2trash
 
-from utils.companion_file_utils import extract_base_timestamp
+from utils.companion_file_utils import extract_base_timestamp, find_all_companion_files, safe_delete_paths
 
 def build_completed_database(completed_dir):
     """Build a set of all base timestamps from completed work."""
@@ -69,28 +68,23 @@ def find_triplets_in_directory(directory):
     return triplets
 
 def remove_triplet_files(triplet_files):
-    """Remove all files in a triplet (PNG + companion files)."""
+    """Remove all files in a triplet (PNG + ALL companion files)."""
     removed_files = []
     
     for stage, png_file in triplet_files.items():
         if png_file and png_file.exists():
-            # Remove PNG file
-            try:
-                send2trash(str(png_file))
-                removed_files.append(png_file.name)
-                print(f"    🗑️  {png_file.name}")
-            except Exception as e:
-                print(f"    ❌ Error removing {png_file.name}: {e}")
+            # Find ALL companion files (YAML, caption, etc.)
+            all_companions = find_all_companion_files(png_file)
+            all_files = [png_file] + all_companions
             
-            # Remove corresponding YAML file
-            yaml_file = png_file.parent / f"{png_file.stem}.yaml"
-            if yaml_file.exists():
-                try:
-                    send2trash(str(yaml_file))
-                    removed_files.append(yaml_file.name)
-                    print(f"    🗑️  {yaml_file.name}")
-                except Exception as e:
-                    print(f"    ❌ Error removing {yaml_file.name}: {e}")
+            # Remove PNG + all companions using centralized utility
+            try:
+                deleted_paths = safe_delete_paths(all_files, hard_delete=False, tracker=None)
+                for deleted_path in deleted_paths:
+                    removed_files.append(deleted_path.name)
+                    print(f"    🗑️  {deleted_path.name}")
+            except Exception as e:
+                print(f"    ❌ Error removing {png_file.name} and companions: {e}")
     
     return removed_files
 
@@ -152,10 +146,11 @@ def main():
             print("    💡 DRY RUN - would remove:")
             for stage, png_file in triplet_files.items():
                 if png_file and png_file.exists():
-                    print(f"    🗑️  {png_file.name}")
-                    yaml_file = png_file.parent / f"{png_file.stem}.yaml"
-                    if yaml_file.exists():
-                        print(f"    🗑️  {yaml_file.name}")
+                    # Show PNG + ALL companion files
+                    all_companions = find_all_companion_files(png_file)
+                    all_files = [png_file] + all_companions
+                    for file_to_remove in all_files:
+                        print(f"    🗑️  {file_to_remove.name}")
         else:
             print("    🗑️  Removing:")
             removed_files = remove_triplet_files(triplet_files)

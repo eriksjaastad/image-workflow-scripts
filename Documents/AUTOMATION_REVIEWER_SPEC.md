@@ -6,6 +6,36 @@
 
 ---
 
+## 📚 Quick Navigation - All AI Documents
+
+**Current Document:** AUTOMATION_REVIEWER_SPEC.md (Phase 3 - Build Review UI)
+
+### Core Workflow Documents:
+1. **[AI_TRAINING_PHASE2_QUICKSTART.md](AI_TRAINING_PHASE2_QUICKSTART.md)** ⭐ Phase 2
+   - Step-by-step: Install deps → Train models → Test inference
+   - **Status:** ✅ Training data ready (17,032 examples from Mojo 1 + Mojo 2)
+
+2. **[AUTOMATION_REVIEWER_SPEC.md](AUTOMATION_REVIEWER_SPEC.md)** ⭐ Phase 3 (YOU ARE HERE)
+   - Complete spec for review UI (`scripts/07_automation_reviewer.py`)
+   - **Status:** Documented, ready to build after Phase 2 models are trained
+
+3. **[CURRENT_TODO_LIST.md](CURRENT_TODO_LIST.md)** - Automation Pipeline section
+   - Lines 251-490: Full pipeline, data formats, testing plan
+   - **Status:** Living document with task tracking
+
+### Implementation Order:
+```
+Phase 1: ✅ Data Collection (COMPLETE - 17k examples)
+         ↓
+Phase 2: ⏳ Train AI Models (AI_TRAINING_PHASE2_QUICKSTART.md)
+         ↓
+Phase 3: ⏳ Build Review UI (THIS DOCUMENT)
+         ↓
+Phase 4: ⏳ Test in Sandbox + Iterate
+```
+
+---
+
 ## 🎯 **Purpose**
 
 Web UI for reviewing AI automation decisions before applying them. Based on Web Image Selector platform with automation-specific features.

@@ -1,0 +1,19 @@
+{
+  "version": "v1",
+  "model": "CropProposerModel",
+  "input_dim": 514,
+  "output_dim": 4,
+  "hidden_dims": [
+    512,
+    256,
+    128
+  ],
+  "training_examples": 2756,
+  "validation_examples": 486,
+  "best_epoch": 23,
+  "best_val_loss": 0.016644155606627464,
+  "batch_size": 32,
+  "learning_rate": 0.001,
+  "epochs_trained": 50,
+  "device": "mps"
+}

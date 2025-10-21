@@ -15,7 +15,7 @@ def test_character_sorter():
     # Start the character sorter in background
     print("Starting character sorter...")
     process = subprocess.Popen([
-        "python", "scripts/02_web_character_sorter.py", 
+        "python", "scripts/03_web_character_sorter.py", 
         "mojo1_clustered/group_0001"
     ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     
