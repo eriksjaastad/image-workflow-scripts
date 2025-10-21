@@ -25,18 +25,64 @@ file_operations_logs/
 .coverage
 htmlcov/
 
-# Data Directory (productivity tracking and working data - don't commit personal data)
-data/
-quality_log_*.csv
-people_scores*.csv
+# ==============================================================================
+# DATA DIRECTORY POLICY (Oct 21, 2025)
+# ==============================================================================
+# TRACK: Infrastructure (schemas, manifests, AI models)
+# IGNORE: Data logs, snapshots, cache (regenerable or too large)
+# ==============================================================================
 
-# BUT allow AI training logs and models (irreplaceable, small files)
-!data/training/
-!data/training/*.csv
+# Default: Ignore entire data directory
+data/
+
+# ✅ ALLOW: Schema definitions (CRITICAL - infrastructure)
+!data/schema/
+data/schema/*
+!data/schema/*.json
+
+# ✅ ALLOW: Project manifests (CRITICAL - project metadata)
+!data/projects/
+data/projects/*
+!data/projects/*.json
+!data/projects/*.yaml
+# But ignore backups
+data/projects/*.bak
+
+# ✅ ALLOW: AI models and training data (CRITICAL - irreplaceable)
+!data/ai_data/
 !data/ai_data/models/
+data/ai_data/models/*
 !data/ai_data/models/*.pt
 !data/ai_data/models/*.json
-!data/ai_data/cache/processed_images.jsonl
+# But ignore cache and logs (regenerable)
+data/ai_data/cache/
+data/ai_data/embeddings/
+data/ai_data/logs/
+data/ai_data/training_snapshots/
+
+# ✅ ALLOW: Training data CSVs (valuable training data)
+!data/training/
+data/training/*
+!data/training/*.csv
+# But ignore reports and temp files
+data/training/*.backup
+data/training/*CORRUPTED*
+data/training/*_temp*
+data/training/*.txt
+data/training/*.json
+data/training/manifests/
+
+# ❌ IGNORE: All data logs and snapshots (too large, regenerable)
+data/aggregates/
+data/crop_progress/
+data/daily_summaries/
+data/dashboard_archives/
+data/data/
+data/file_operations_logs/
+data/log_archives/
+data/snapshot/
+data/sorter_progress/
+data/timer_data/
 
 # Training Data Images (90+ GB - never commit)
 training data/

@@ -112,8 +112,8 @@ Established and documented critical rules for training:
 - `training data/tattersail-0918/file.png`
 
 But the selection log (from original Web Image Selector sessions) has paths like:
-- `/Users/eriksjaastad/projects/Eros Mate/mojo1/file.png`
-- `/Users/eriksjaastad/projects/Eros Mate/tattersail-0918/file.png`
+- `PROJECT_ROOT/mojo1/file.png`
+- `PROJECT_ROOT/tattersail-0918/file.png`
 
 **Impact:** Can't match CSV paths to embeddings, so training fails with "No training data loaded"
 

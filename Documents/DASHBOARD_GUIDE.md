@@ -31,7 +31,7 @@ python3 scripts/dashboard/productivity_dashboard.py
 You should see:
 ```
 🚀 Starting Productivity Dashboard API...
-📂 Data directory: /Users/eriksjaastad/projects/Eros Mate
+📂 Data directory: PROJECT_ROOT
 🌐 API docs: http://localhost:8000/docs
 INFO:     Started server process
 INFO:     Uvicorn running on http://0.0.0.0:8000

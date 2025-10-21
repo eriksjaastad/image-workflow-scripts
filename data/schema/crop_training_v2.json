@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Crop Training Data v2",
+  "description": "Minimal crop decision training data (replaces bloated 19-column format)",
+  "type": "object",
+  "required": ["timestamp", "project_id", "filename", "crop_x1", "crop_y1", "crop_x2", "crop_y2", "width", "height"],
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When crop decision was made (ISO 8601 UTC)"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Project identifier (e.g., 'mojo1', 'mojo2', 'mojo3')"
+    },
+    "filename": {
+      "type": "string",
+      "pattern": "^[^/\\\\]+$",
+      "description": "Image filename ONLY (no path separators)"
+    },
+    "crop_x1": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Normalized left edge (0-1)"
+    },
+    "crop_y1": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Normalized top edge (0-1)"
+    },
+    "crop_x2": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Normalized right edge (0-1)"
+    },
+    "crop_y2": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Normalized bottom edge (0-1)"
+    },
+    "width": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Original image width in pixels"
+    },
+    "height": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Original image height in pixels"
+    }
+  },
+  "additionalProperties": false
+}
+

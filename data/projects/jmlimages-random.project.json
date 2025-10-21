@@ -1,0 +1,40 @@
+{
+  "projectId": "jmlimages-random",
+  "title": "jmlimages-random",
+  "status": "archived",
+  "createdAt": "2025-09-23T16:00:00Z",
+  "startedAt": "2025-09-23T16:00:00Z",
+  "finishedAt": "2025-09-27T11:00:00Z",
+  "paths": {
+    "root": "PROJECT_ROOT/content/jmlimages-random",
+    "selectedDir": "PROJECT_ROOT/content/jmlimages-random/selected",
+    "cropDir": "PROJECT_ROOT/content/jmlimages-random/crop"
+  },
+  "counts": {
+    "initialImages": 13345,
+    "finalImages": 2765
+  },
+  "metrics": {
+    "totalHours": 28.0,
+    "notes": ""
+  },
+  "steps": [
+    {
+      "name": "selection",
+      "status": "completed"
+    },
+    {
+      "name": "sorting",
+      "status": "completed"
+    },
+    {
+      "name": "cropping",
+      "status": "completed"
+    },
+    {
+      "name": "delivery",
+      "status": "completed"
+    }
+  ],
+  "source": "imported_from_timesheet"
+}

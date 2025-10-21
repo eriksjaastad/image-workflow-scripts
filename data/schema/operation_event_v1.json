@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Operation Event v1",
+  "description": "Normalized file operation event from logs",
+  "type": "object",
+  "required": ["event_id", "script_id", "ts_utc", "event_type", "day"],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "pattern": "^evt:[a-f0-9]{12}$",
+      "description": "Stable event ID (md5 hash of canonical fields)"
+    },
+    "script_id": {
+      "type": "string",
+      "description": "Script that generated the event (e.g., 'image_version_selector')"
+    },
+    "session_id": {
+      "type": ["string", "null"],
+      "description": "Session ID from the script"
+    },
+    "ts_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Event timestamp in UTC ISO format"
+    },
+    "tz_source": {
+      "type": "string",
+      "enum": ["iso_z", "iso_tz", "local_guess"],
+      "description": "Source timezone indicator"
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "session_start",
+        "session_end",
+        "file_operation",
+        "directory_state",
+        "metric_mode_update",
+        "batch_start",
+        "batch_end",
+        "user_action"
+      ],
+      "description": "Type of event"
+    },
+    "operation": {
+      "type": ["string", "null"],
+      "enum": [
+        null,
+        "move",
+        "copy",
+        "delete",
+        "create",
+        "send_to_trash",
+        "stage_delete"
+      ],
+      "description": "File operation type (null for non-operation events)"
+    },
+    "source_dir": {
+      "type": ["string", "null"],
+      "description": "Source directory for file operations"
+    },
+    "dest_dir": {
+      "type": ["string", "null"],
+      "description": "Destination directory for file operations"
+    },
+    "file_count": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Number of files affected"
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Event notes (e.g., 'image-only count')"
+    },
+    "files_sample": {
+      "type": ["array", "null"],
+      "items": {"type": "string"},
+      "maxItems": 50,
+      "description": "Sample of affected files (max 50)"
+    },
+    "day": {
+      "type": "string",
+      "pattern": "^[0-9]{8}$",
+      "description": "Partition key: YYYYMMDD derived from ts_utc"
+    },
+    "extra": {
+      "type": "object",
+      "description": "Additional fields not in core schema"
+    }
+  }
+}
+

@@ -1,0 +1,40 @@
+{
+  "projectId": "1012",
+  "title": "1012",
+  "status": "archived",
+  "createdAt": "2025-09-10T10:00:00Z",
+  "startedAt": "2025-09-10T10:00:00Z",
+  "finishedAt": "2025-09-10T17:00:00Z",
+  "paths": {
+    "root": "PROJECT_ROOT/content/1012",
+    "selectedDir": "PROJECT_ROOT/content/1012/selected",
+    "cropDir": "PROJECT_ROOT/content/1012/crop"
+  },
+  "counts": {
+    "initialImages": 2840,
+    "finalImages": 626
+  },
+  "metrics": {
+    "totalHours": 7.0,
+    "notes": ""
+  },
+  "steps": [
+    {
+      "name": "selection",
+      "status": "completed"
+    },
+    {
+      "name": "sorting",
+      "status": "completed"
+    },
+    {
+      "name": "cropping",
+      "status": "completed"
+    },
+    {
+      "name": "delivery",
+      "status": "completed"
+    }
+  ],
+  "source": "imported_from_timesheet"
+}

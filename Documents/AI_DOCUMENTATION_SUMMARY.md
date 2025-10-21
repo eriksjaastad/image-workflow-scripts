@@ -102,7 +102,7 @@
 
 **Selection Data:**
 ```
-File: /Users/eriksjaastad/projects/Eros Mate/data/training/selection_only_log.csv
+File: PROJECT_ROOT/data/training/selection_only_log.csv
 Format: session_id, set_id, chosen_path, neg_paths, timestamp
 Count: 9,838 rows
 Projects: Mojo 1 (5,244) + Mojo 2 (4,594)
@@ -111,7 +111,7 @@ Date Range: Oct 4-16, 2025
 
 **Crop Data:**
 ```
-File: /Users/eriksjaastad/projects/Eros Mate/data/training/select_crop_log.csv
+File: PROJECT_ROOT/data/training/select_crop_log.csv
 Format: session_id, set_id, directory, chosen_path, crop_x1, crop_y1, crop_x2, crop_y2, timestamp
 Count: 7,194 rows
 Source: crop/ and character subdirectories

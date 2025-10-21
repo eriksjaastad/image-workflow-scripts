@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Timer Session v1",
+  "description": "Normalized legacy ActivityTimer session data",
+  "type": "object",
+  "required": ["source", "script_id", "session_id", "start_ts_utc", "day"],
+  "properties": {
+    "source": {
+      "type": "string",
+      "const": "legacy_activity_timer",
+      "description": "Data source identifier"
+    },
+    "script_id": {
+      "type": "string",
+      "description": "Script that created the session"
+    },
+    "session_id": {
+      "type": "string",
+      "description": "Session identifier"
+    },
+    "start_ts_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Session start timestamp in UTC ISO format"
+    },
+    "end_ts_utc": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Session end timestamp (null if still active)"
+    },
+    "active_seconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Active time in seconds"
+    },
+    "idle_seconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Idle time in seconds"
+    },
+    "files_processed": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of files processed"
+    },
+    "day": {
+      "type": "string",
+      "pattern": "^[0-9]{8}$",
+      "description": "Partition key: YYYYMMDD from start_ts_utc"
+    },
+    "extra": {
+      "type": "object",
+      "description": "Additional fields (batches, operations, efficiency)"
+    }
+  }
+}
+

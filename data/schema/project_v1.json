@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Project v1",
+  "description": "Normalized project manifest",
+  "type": "object",
+  "required": ["project_id", "title", "status", "schema_version"],
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Unique project identifier"
+    },
+    "title": {
+      "type": "string",
+      "description": "Human-readable project title"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "archived", "completed", "unknown"],
+      "description": "Project status"
+    },
+    "created_at_utc": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Project creation timestamp in UTC"
+    },
+    "started_at_utc": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Project start timestamp in UTC"
+    },
+    "finished_at_utc": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Project finish timestamp in UTC"
+    },
+    "root_path": {
+      "type": ["string", "null"],
+      "description": "Project root directory path"
+    },
+    "initial_images": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Initial image count"
+    },
+    "final_images": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Final image count"
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "project_v1",
+      "description": "Schema version"
+    },
+    "extra": {
+      "type": "object",
+      "description": "Additional fields (paths, metrics, steps, etc.)"
+    }
+  }
+}
+

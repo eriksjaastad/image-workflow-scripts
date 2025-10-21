@@ -1,0 +1,16 @@
+{
+  "bannedExtensions": [
+    "project.json", "project.yml", "manifest.json", "md", "log", "csv", "json",
+    "sqlite", "db", "lock", "cropped"
+  ],
+  "bannedPatterns": [
+    ".*\\.project\\.(json|yml)$",
+    ".*\\.cropped$",
+    "^\\."
+  ],
+  "bannedBasenames": [
+    "triplet_culler_log.csv"
+  ]
+}
+
+

@@ -1,0 +1,40 @@
+{
+  "projectId": "tattersail-0918",
+  "title": "tattersail-0918",
+  "status": "archived",
+  "createdAt": "2025-09-19T17:00:00Z",
+  "startedAt": "2025-09-19T17:00:00Z",
+  "finishedAt": "2025-09-22T15:00:00Z",
+  "paths": {
+    "root": "PROJECT_ROOT/content/tattersail-0918",
+    "selectedDir": "PROJECT_ROOT/content/tattersail-0918/selected",
+    "cropDir": "PROJECT_ROOT/content/tattersail-0918/crop"
+  },
+  "counts": {
+    "initialImages": 13928,
+    "finalImages": 2858
+  },
+  "metrics": {
+    "totalHours": 30.0,
+    "notes": ""
+  },
+  "steps": [
+    {
+      "name": "selection",
+      "status": "completed"
+    },
+    {
+      "name": "sorting",
+      "status": "completed"
+    },
+    {
+      "name": "cropping",
+      "status": "completed"
+    },
+    {
+      "name": "delivery",
+      "status": "completed"
+    }
+  ],
+  "source": "imported_from_timesheet"
+}

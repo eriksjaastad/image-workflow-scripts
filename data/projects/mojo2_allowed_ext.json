@@ -1,0 +1,5 @@
+{
+  "allowedExtensions": ["png", "yaml", "caption", "txt"],
+  "clientWhitelistOverrides": []
+}
+

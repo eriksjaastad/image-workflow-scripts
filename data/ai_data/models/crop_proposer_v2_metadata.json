@@ -1,11 +1,11 @@
 {
   "model_version": "v2",
-  "created": "2025-10-21T03:18:25.652702+00:00",
-  "training_examples": 417,
-  "validation_examples": 73,
-  "best_epoch": 2,
-  "best_iou": 0.9890638589859009,
-  "best_val_loss": 0.0004825579732520661,
+  "created": "2025-10-21T20:33:45.511522+00:00",
+  "training_examples": 3360,
+  "validation_examples": 592,
+  "best_epoch": 48,
+  "best_iou": 0.7117052642922652,
+  "best_val_loss": 0.004784721439998401,
   "hyperparameters": {
     "epochs": 50,
     "batch_size": 32,

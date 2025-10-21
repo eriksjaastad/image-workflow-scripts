@@ -659,6 +659,144 @@ def _append_csv_row(csv_path: Path, header: list, row: dict) -> None:
         logger.error_with_exception(f"Training log write failed: {csv_path}", exc)
 
 
+def log_crop_decision(
+    project_id: str,
+    filename: str,
+    crop_coords: Tuple[float, float, float, float],
+    width: int,
+    height: int,
+    timestamp: Optional[str] = None,
+) -> None:
+    """
+    Log a crop decision using the NEW MINIMAL SCHEMA (October 2025).
+    
+    This replaces the bloated log_select_crop_entry() with a clean 8-column format.
+    
+    Args:
+        project_id: Project identifier (e.g., 'mojo1', 'mojo2', 'mojo3')
+        filename: Image filename ONLY (no path!) - e.g., '20250705_230713_stage3_enhanced.png'
+        crop_coords: Normalized crop box (x1, y1, x2, y2) in range [0, 1]
+        width: Original image width in pixels
+        height: Original image height in pixels
+        timestamp: Optional ISO 8601 timestamp (UTC), auto-generated if None
+    
+    Raises:
+        ValueError: If data validation fails
+        
+    Schema:
+        timestamp, project_id, filename, crop_x1, crop_y1, crop_x2, crop_y2, width, height
+    """
+    from datetime import datetime as _dt
+    
+    # ========================================================================
+    # STRICT VALIDATION - Clean data from the start!
+    # ========================================================================
+    
+    # 1. Validate project_id
+    if not project_id or not project_id.strip():
+        raise ValueError(
+            f"\n{'='*70}\n"
+            f"❌ TRAINING DATA ERROR - Empty project_id!\n"
+            f"{'='*70}\n"
+            f"project_id cannot be empty.\n"
+            f"Expected: 'mojo1', 'mojo2', 'mojo3', etc.\n"
+            f"Got: {repr(project_id)}\n"
+            f"{'='*70}\n"
+        )
+    
+    # 2. Validate filename (no paths!)
+    if not filename or not filename.strip():
+        raise ValueError(
+            f"\n{'='*70}\n"
+            f"❌ TRAINING DATA ERROR - Empty filename!\n"
+            f"{'='*70}\n"
+            f"filename cannot be empty.\n"
+            f"Got: {repr(filename)}\n"
+            f"{'='*70}\n"
+        )
+    
+    if '/' in filename or '\\' in filename:
+        raise ValueError(
+            f"\n{'='*70}\n"
+            f"❌ TRAINING DATA ERROR - Filename contains path separators!\n"
+            f"{'='*70}\n"
+            f"Pass ONLY the filename, not a full path.\n"
+            f"Got: {filename}\n"
+            f"Expected: Just the filename (e.g., '20250705_230713_stage3.png')\n"
+            f"{'='*70}\n"
+        )
+    
+    # 3. Validate crop coordinates
+    x1, y1, x2, y2 = crop_coords
+    if not (0 <= x1 < x2 <= 1 and 0 <= y1 < y2 <= 1):
+        raise ValueError(
+            f"\n{'='*70}\n"
+            f"❌ TRAINING DATA ERROR - Invalid crop coordinates!\n"
+            f"{'='*70}\n"
+            f"File: {filename}\n"
+            f"Crop: ({x1:.4f}, {y1:.4f}, {x2:.4f}, {y2:.4f})\n"
+            f"\n"
+            f"Requirements:\n"
+            f"  • All values must be in range [0, 1]\n"
+            f"  • x1 < x2 and y1 < y2\n"
+            f"{'='*70}\n"
+        )
+    
+    # 4. Validate dimensions
+    if width <= 0 or height <= 0:
+        raise ValueError(
+            f"\n{'='*70}\n"
+            f"❌ TRAINING DATA ERROR - Invalid image dimensions!\n"
+            f"{'='*70}\n"
+            f"File: {filename}\n"
+            f"Dimensions: {width} x {height}\n"
+            f"\n"
+            f"Both width and height must be positive integers.\n"
+            f"{'='*70}\n"
+        )
+    
+    # 5. Generate or validate timestamp
+    if timestamp is None:
+        timestamp = _dt.utcnow().isoformat() + "Z"
+    else:
+        # Validate timestamp format
+        try:
+            _dt.fromisoformat(timestamp.replace('Z', ''))
+        except Exception as e:
+            raise ValueError(
+                f"\n{'='*70}\n"
+                f"❌ TRAINING DATA ERROR - Invalid timestamp format!\n"
+                f"{'='*70}\n"
+                f"Timestamp: {timestamp}\n"
+                f"Expected ISO 8601 format (e.g., '2025-10-08T18:47:32Z')\n"
+                f"Error: {e}\n"
+                f"{'='*70}\n"
+            )
+    
+    # ========================================================================
+    # Write to NEW minimal schema CSV
+    # ========================================================================
+    
+    td = get_training_dir()
+    csv_path = td / "crop_training_data.csv"
+    
+    header = ["timestamp", "project_id", "filename", "crop_x1", "crop_y1", "crop_x2", "crop_y2", "width", "height"]
+    
+    row = {
+        "timestamp": timestamp,
+        "project_id": project_id,
+        "filename": filename,
+        "crop_x1": x1,
+        "crop_y1": y1,
+        "crop_x2": x2,
+        "crop_y2": y2,
+        "width": width,
+        "height": height,
+    }
+    
+    _append_csv_row(csv_path, header, row)
+
+
 def log_select_crop_entry(
     session_id: str,
     set_id: str,
@@ -669,10 +807,62 @@ def log_select_crop_entry(
     chosen_index: int,
     crop_norm: Optional[Tuple[float, float, float, float]],
 ) -> None:
-    """Log a single select+crop supervision row. crop_norm is None if delete-all.
+    """
+    LEGACY FUNCTION - Use log_crop_decision() for new code!
+    
+    Log a single select+crop supervision row. crop_norm is None if delete-all.
 
     image_sizes: list of (width, height)
+    
+    Raises:
+        ValueError: If data validation fails (invalid dimensions or crop coordinates)
     """
+    # ========================================================================
+    # INLINE VALIDATION - Catches data integrity errors immediately
+    # ========================================================================
+    
+    # 1. Validate image dimensions (THIS CATCHES THE 0x0 BUG!)
+    for i, size_tuple in enumerate(image_sizes):
+        if i >= len(image_paths):
+            break
+        w, h = size_tuple if isinstance(size_tuple, tuple) and len(size_tuple) == 2 else (0, 0)
+        if w <= 0 or h <= 0:
+            raise ValueError(
+                f"\n{'='*70}\n"
+                f"❌ CRITICAL TRAINING DATA ERROR - Invalid Image Dimensions!\n"
+                f"{'='*70}\n"
+                f"Image {i}: {image_paths[i]}\n"
+                f"Dimensions: {w} x {h}\n"
+                f"\n"
+                f"This would corrupt AI training data with unusable crop coordinates.\n"
+                f"The bug is in the calling code that logged dimensions as (0, 0).\n"
+                f"\n"
+                f"🔧 FIX: Check the code that calls log_select_crop_entry().\n"
+                f"   Ensure it passes actual image dimensions, not (0, 0).\n"
+                f"{'='*70}\n"
+            )
+    
+    # 2. Validate crop coordinates if provided
+    if crop_norm is not None:
+        x1, y1, x2, y2 = crop_norm
+        if not (0 <= x1 < x2 <= 1 and 0 <= y1 < y2 <= 1):
+            raise ValueError(
+                f"\n{'='*70}\n"
+                f"❌ CRITICAL TRAINING DATA ERROR - Invalid Crop Coordinates!\n"
+                f"{'='*70}\n"
+                f"Image: {image_paths[chosen_index] if 0 <= chosen_index < len(image_paths) else 'unknown'}\n"
+                f"Crop coords (normalized): ({x1:.4f}, {y1:.4f}, {x2:.4f}, {y2:.4f})\n"
+                f"\n"
+                f"Crop coordinates must be in range [0, 1] with x1 < x2 and y1 < y2.\n"
+                f"\n"
+                f"🔧 FIX: Check crop coordinate calculation in calling code.\n"
+                f"{'='*70}\n"
+            )
+    
+    # ========================================================================
+    # Build and write CSV row (only reached if validation passed)
+    # ========================================================================
+    
     td = get_training_dir()
     csv_path = td / "select_crop_log.csv"
     from datetime import datetime as _dt
@@ -713,7 +903,50 @@ def log_selection_only_entry(
     chosen_path: str,
     negative_paths: list,
 ) -> None:
-    """Log a selection-only row from the web selector."""
+    """Log a selection-only row from the web selector.
+    
+    Raises:
+        ValueError: If data validation fails
+    """
+    # ========================================================================
+    # INLINE VALIDATION - Catches data integrity errors immediately
+    # ========================================================================
+    
+    # 1. Validate chosen path exists
+    if not chosen_path or not str(chosen_path).strip():
+        raise ValueError(
+            f"\n{'='*70}\n"
+            f"❌ CRITICAL TRAINING DATA ERROR - Empty Chosen Path!\n"
+            f"{'='*70}\n"
+            f"Cannot log selection with empty chosen_path.\n"
+            f"\n"
+            f"🔧 FIX: Check the code that calls log_selection_only_entry().\n"
+            f"   Ensure chosen_path is a valid file path.\n"
+            f"{'='*70}\n"
+        )
+    
+    # 2. Validate negative paths is a list
+    if not isinstance(negative_paths, list):
+        raise ValueError(
+            f"\n{'='*70}\n"
+            f"❌ CRITICAL TRAINING DATA ERROR - Invalid Negative Paths!\n"
+            f"{'='*70}\n"
+            f"negative_paths must be a list, got: {type(negative_paths)}\n"
+            f"\n"
+            f"🔧 FIX: Pass a list of paths as negative_paths.\n"
+            f"{'='*70}\n"
+        )
+    
+    # 3. Validate we have at least one alternative (otherwise why log?)
+    if len(negative_paths) == 0:
+        # This is actually OK - it means this was the only image in the group
+        # Just log a warning but don't fail
+        pass
+    
+    # ========================================================================
+    # Build and write CSV row (only reached if validation passed)
+    # ========================================================================
+    
     td = get_training_dir()
     csv_path = td / "selection_only_log.csv"
     from datetime import datetime as _dt

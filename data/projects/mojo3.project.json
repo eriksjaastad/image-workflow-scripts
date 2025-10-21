@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "projectId": "mojo3",
+  "title": "Mojo3",
+  "status": "active",
+  "createdAt": "2025-10-21T14:20:14Z",
+  "startedAt": "2025-10-21T14:20:14Z",
+  "finishedAt": null,
+  "removeFileOnFinish": true,
+  "paths": {
+    "root": "../../mojo3",
+    "selectedDir": "../../selected",
+    "cropDir": "../../crop",
+    "characterGroups": [
+      "../../character_group_1",
+      "../../character_group_2",
+      "../../character_group_3"
+    ]
+  },
+  "counts": {
+    "initialImages": 19406,
+    "finalImages": null
+  },
+  "metrics": {
+    "imagesPerHourEndToEnd": null,
+    "stepRates": {},
+    "stager": {
+      "zip": "",
+      "eligibleCount": 0,
+      "byExtIncluded": {},
+      "excludedCounts": {},
+      "incomingByExt": {}
+    }
+  },
+  "steps": [
+    {
+      "name": "select_versions",
+      "startedAt": null,
+      "finishedAt": null,
+      "imagesProcessed": null
+    },
+    {
+      "name": "character_sort",
+      "startedAt": null,
+      "finishedAt": null,
+      "imagesProcessed": null
+    },
+    {
+      "name": "crop",
+      "startedAt": null,
+      "finishedAt": null,
+      "imagesProcessed": null
+    },
+    {
+      "name": "dedupe",
+      "startedAt": null,
+      "finishedAt": null,
+      "imagesProcessed": null
+    },
+    {
+      "name": "final_review",
+      "startedAt": null,
+      "finishedAt": null,
+      "imagesProcessed": null
+    }
+  ],
+  "notes": "Project manifest stored outside content to avoid inclusion in deliverables."
+}

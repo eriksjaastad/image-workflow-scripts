@@ -1,0 +1,40 @@
+{
+  "projectId": "aiko_raw",
+  "title": "Aiko_raw",
+  "status": "archived",
+  "createdAt": "2025-08-29T16:00:00Z",
+  "startedAt": "2025-08-29T16:00:00Z",
+  "finishedAt": "2025-08-29T19:00:00Z",
+  "paths": {
+    "root": "PROJECT_ROOT/content/Aiko_raw",
+    "selectedDir": "PROJECT_ROOT/content/Aiko_raw/selected",
+    "cropDir": "PROJECT_ROOT/content/Aiko_raw/crop"
+  },
+  "counts": {
+    "initialImages": 1050,
+    "finalImages": 258
+  },
+  "metrics": {
+    "totalHours": 3.0,
+    "notes": ""
+  },
+  "steps": [
+    {
+      "name": "selection",
+      "status": "completed"
+    },
+    {
+      "name": "sorting",
+      "status": "completed"
+    },
+    {
+      "name": "cropping",
+      "status": "completed"
+    },
+    {
+      "name": "delivery",
+      "status": "completed"
+    }
+  ],
+  "source": "imported_from_timesheet"
+}

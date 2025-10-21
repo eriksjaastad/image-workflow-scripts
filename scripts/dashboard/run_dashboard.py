@@ -76,6 +76,23 @@ The dashboard shows:
 
     print("🚀 Starting Productivity Dashboard...")
     print(f"📊 Data source: {data_dir}")
+    
+    # Auto-update snapshots before dashboard loads
+    print("🔄 Updating snapshots from raw logs...")
+    try:
+        import subprocess
+        scripts_dir = data_dir / "scripts" / "data_pipeline"
+        
+        # Run extraction scripts (fast, only processes new data)
+        subprocess.run([sys.executable, str(scripts_dir / "extract_operation_events_v1.py")], 
+                      capture_output=True, check=False)
+        subprocess.run([sys.executable, str(scripts_dir / "build_daily_aggregates_v1.py")], 
+                      capture_output=True, check=False)
+        print("✅ Snapshots updated")
+    except Exception as e:
+        print(f"⚠️  Snapshot update skipped: {e}")
+        print("   (Dashboard will use existing snapshots)")
+    
     print(f"🌐 URL: http://{args.host}:{args.port}")
     print(f"🎨 Theme: Dark mode with Erik's style guide")
     print()

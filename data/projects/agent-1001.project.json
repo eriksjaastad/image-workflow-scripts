@@ -1,0 +1,40 @@
+{
+  "projectId": "agent-1001",
+  "title": "agent-1001",
+  "status": "archived",
+  "createdAt": "2025-09-03T00:00:00Z",
+  "startedAt": "2025-09-03T00:00:00Z",
+  "finishedAt": "2025-09-03T00:00:00Z",
+  "paths": {
+    "root": "PROJECT_ROOT/content/agent-1001",
+    "selectedDir": "PROJECT_ROOT/content/agent-1001/selected",
+    "cropDir": "PROJECT_ROOT/content/agent-1001/crop"
+  },
+  "counts": {
+    "initialImages": 2063,
+    "finalImages": 201
+  },
+  "metrics": {
+    "totalHours": 0.0,
+    "notes": ""
+  },
+  "steps": [
+    {
+      "name": "selection",
+      "status": "completed"
+    },
+    {
+      "name": "sorting",
+      "status": "completed"
+    },
+    {
+      "name": "cropping",
+      "status": "completed"
+    },
+    {
+      "name": "delivery",
+      "status": "completed"
+    }
+  ],
+  "source": "imported_from_timesheet"
+}

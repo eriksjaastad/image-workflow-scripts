@@ -1,0 +1,40 @@
+{
+  "projectId": "eleni_raw",
+  "title": "Eleni_raw",
+  "status": "archived",
+  "createdAt": "2025-08-30T13:00:00Z",
+  "startedAt": "2025-08-30T13:00:00Z",
+  "finishedAt": "2025-08-31T21:00:00Z",
+  "paths": {
+    "root": "PROJECT_ROOT/content/Eleni_raw",
+    "selectedDir": "PROJECT_ROOT/content/Eleni_raw/selected",
+    "cropDir": "PROJECT_ROOT/content/Eleni_raw/crop"
+  },
+  "counts": {
+    "initialImages": 5816,
+    "finalImages": 1148
+  },
+  "metrics": {
+    "totalHours": 9.0,
+    "notes": ""
+  },
+  "steps": [
+    {
+      "name": "selection",
+      "status": "completed"
+    },
+    {
+      "name": "sorting",
+      "status": "completed"
+    },
+    {
+      "name": "cropping",
+      "status": "completed"
+    },
+    {
+      "name": "delivery",
+      "status": "completed"
+    }
+  ],
+  "source": "imported_from_timesheet"
+}

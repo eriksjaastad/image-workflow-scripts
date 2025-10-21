@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Daily Aggregate v1",
+  "description": "Pre-aggregated daily statistics for dashboard",
+  "type": "object",
+  "required": [
+    "by_script",
+    "by_operation",
+    "projects_touched",
+    "total_files_processed",
+    "total_events"
+  ],
+  "properties": {
+    "by_script": {
+      "type": "object",
+      "description": "Statistics per script",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "operations",
+          "files_processed",
+          "event_count",
+          "first_op_ts",
+          "last_op_ts"
+        ],
+        "properties": {
+          "operations": {
+            "type": "object",
+            "description": "Operation counts by type",
+            "additionalProperties": {"type": "integer", "minimum": 0}
+          },
+          "files_processed": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total files processed"
+          },
+          "event_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total events"
+          },
+          "first_op_ts": {
+            "type": "string",
+            "format": "date-time",
+            "description": "First operation timestamp"
+          },
+          "last_op_ts": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last operation timestamp"
+          }
+        }
+      }
+    },
+    "by_operation": {
+      "type": "object",
+      "description": "Global operation counts",
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    },
+    "projects_touched": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "List of projects/directories touched"
+    },
+    "total_files_processed": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total files across all scripts"
+    },
+    "total_events": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total events across all scripts"
+    },
+    "first_op_ts": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "First operation timestamp for the day"
+    },
+    "last_op_ts": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Last operation timestamp for the day"
+    }
+  }
+}
+

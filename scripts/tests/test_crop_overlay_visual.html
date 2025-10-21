@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crop Overlay Visual Test</title>
+  <style>
+    body {
+      background: #101014;
+      color: #f8f9ff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 2rem;
+    }
+    .test-section {
+      margin-bottom: 3rem;
+      padding: 2rem;
+      background: #1a1a1f;
+      border-radius: 8px;
+    }
+    .test-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: #51cf66;
+    }
+    .test-description {
+      margin-bottom: 1rem;
+      color: #a0a0b0;
+    }
+    .image-container {
+      position: relative;
+      display: inline-block;
+      line-height: 0;
+    }
+    .crop-overlay {
+      position: absolute;
+      border: 2px solid #51cf66;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
+      pointer-events: none;
+      z-index: 10;
+    }
+    .test-image {
+      max-width: 600px;
+      width: 100%;
+      height: auto;
+      border-radius: 6px;
+      display: block;
+    }
+    .test-info {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: #252530;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 0.9rem;
+    }
+    .pass { color: #51cf66; }
+    .fail { color: #ff6b6b; }
+    .info { color: #4f9dff; }
+  </style>
+</head>
+<body>
+  <h1>🧪 Crop Overlay Visual Tests</h1>
+  <p>These tests verify that crop overlays are positioned correctly on images.</p>
+
+  <!-- Test 1: Square Image -->
+  <div class="test-section">
+    <div class="test-title">Test 1: Square Image (1024x1024)</div>
+    <div class="test-description">
+      Crop: (0.1, 0.2, 0.9, 0.8) → Should crop 10% left, 20% top, 10% right, 20% bottom
+    </div>
+    <div class="image-container">
+      <canvas id="img1" class="test-image" width="1024" height="1024"></canvas>
+      <div id="overlay1" class="crop-overlay"></div>
+    </div>
+    <div id="info1" class="test-info"></div>
+  </div>
+
+  <!-- Test 2: Landscape Image -->
+  <div class="test-section">
+    <div class="test-title">Test 2: Landscape Image (1920x1080)</div>
+    <div class="test-description">
+      Crop: (0.1, 0.2, 0.9, 0.8) → Should preserve aspect ratio in crop
+    </div>
+    <div class="image-container">
+      <canvas id="img2" class="test-image" width="1920" height="1080"></canvas>
+      <div id="overlay2" class="crop-overlay"></div>
+    </div>
+    <div id="info2" class="test-info"></div>
+  </div>
+
+  <!-- Test 3: Portrait Image -->
+  <div class="test-section">
+    <div class="test-title">Test 3: Portrait Image (1080x1920)</div>
+    <div class="test-description">
+      Crop: (0.25, 0.1, 0.75, 0.9) → Should handle vertical format
+    </div>
+    <div class="image-container">
+      <canvas id="img3" class="test-image" width="1080" height="1920"></canvas>
+      <div id="overlay3" class="crop-overlay"></div>
+    </div>
+    <div id="info3" class="test-info"></div>
+  </div>
+
+  <!-- Test 4: Edge Case - Full Image -->
+  <div class="test-section">
+    <div class="test-title">Test 4: Full Image Crop (No Crop)</div>
+    <div class="test-description">
+      Crop: (0.0, 0.0, 1.0, 1.0) → Should cover entire image (nearly invisible overlay)
+    </div>
+    <div class="image-container">
+      <canvas id="img4" class="test-image" width="1024" height="1024"></canvas>
+      <div id="overlay4" class="crop-overlay"></div>
+    </div>
+    <div id="info4" class="test-info"></div>
+  </div>
+
+  <script>
+    // Draw a test pattern on canvas
+    function drawTestPattern(canvasId, width, height) {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext('2d');
+      
+      // Gray background
+      ctx.fillStyle = '#555';
+      ctx.fillRect(0, 0, width, height);
+      
+      // Grid
+      ctx.strokeStyle = '#888';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < width; x += 100) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < height; y += 100) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+      
+      // Center marker
+      ctx.fillStyle = '#ff6b6b';
+      ctx.fillRect(width/2 - 10, height/2 - 10, 20, 20);
+      
+      // Dimension text
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 24px sans-serif';
+      ctx.fillText(`${width}x${height}`, 20, 40);
+    }
+
+    // Draw crop overlay (copied from AI-Assisted Reviewer)
+    function drawCropOverlay(imgId, overlayId, infoId, cropCoords) {
+      const img = document.getElementById(imgId);
+      const overlay = document.getElementById(overlayId);
+      const info = document.getElementById(infoId);
+      
+      // Get displayed dimensions
+      const displayWidth = img.offsetWidth;
+      const displayHeight = img.offsetHeight;
+      
+      // Calculate pixel positions
+      const x1 = cropCoords[0] * displayWidth;
+      const y1 = cropCoords[1] * displayHeight;
+      const x2 = cropCoords[2] * displayWidth;
+      const y2 = cropCoords[3] * displayHeight;
+      const width = x2 - x1;
+      const height = y2 - y1;
+      
+      // Position overlay
+      overlay.style.left = x1 + 'px';
+      overlay.style.top = y1 + 'px';
+      overlay.style.width = width + 'px';
+      overlay.style.height = height + 'px';
+      overlay.style.display = 'block';
+      
+      // Calculate crop area percentage
+      const cropArea = ((width / displayWidth) * (height / displayHeight)) * 100;
+      
+      // Verify crop is correct
+      const expectedX1 = Math.round(cropCoords[0] * displayWidth);
+      const expectedY1 = Math.round(cropCoords[1] * displayHeight);
+      const expectedX2 = Math.round(cropCoords[2] * displayWidth);
+      const expectedY2 = Math.round(cropCoords[3] * displayHeight);
+      
+      const actualX1 = Math.round(x1);
+      const actualY1 = Math.round(y1);
+      const actualX2 = Math.round(x2);
+      const actualY2 = Math.round(y2);
+      
+      const isCorrect = (
+        actualX1 === expectedX1 &&
+        actualY1 === expectedY1 &&
+        actualX2 === expectedX2 &&
+        actualY2 === expectedY2
+      );
+      
+      // Display info
+      info.innerHTML = `
+        <div class="${isCorrect ? 'pass' : 'fail'}">${isCorrect ? '✅ PASS' : '❌ FAIL'}</div>
+        <div class="info">Display Size: ${displayWidth}x${displayHeight}</div>
+        <div class="info">Normalized Coords: (${cropCoords.join(', ')})</div>
+        <div class="info">Expected Pixels: (${expectedX1}, ${expectedY1}, ${expectedX2}, ${expectedY2})</div>
+        <div class="info">Actual Pixels: (${actualX1}, ${actualY1}, ${actualX2}, ${actualY2})</div>
+        <div class="info">Crop Dimensions: ${Math.round(width)}x${Math.round(height)}</div>
+        <div class="info">Crop Area: ${cropArea.toFixed(1)}%</div>
+      `;
+    }
+
+    // Run tests when page loads
+    window.addEventListener('load', () => {
+      // Test 1: Square
+      drawTestPattern('img1', 1024, 1024);
+      drawCropOverlay('img1', 'overlay1', 'info1', [0.1, 0.2, 0.9, 0.8]);
+      
+      // Test 2: Landscape
+      drawTestPattern('img2', 1920, 1080);
+      drawCropOverlay('img2', 'overlay2', 'info2', [0.1, 0.2, 0.9, 0.8]);
+      
+      // Test 3: Portrait
+      drawTestPattern('img3', 1080, 1920);
+      drawCropOverlay('img3', 'overlay3', 'info3', [0.25, 0.1, 0.75, 0.9]);
+      
+      // Test 4: Full image
+      drawTestPattern('img4', 1024, 1024);
+      drawCropOverlay('img4', 'overlay4', 'info4', [0.0, 0.0, 1.0, 1.0]);
+    });
+  </script>
+</body>
+</html>
+

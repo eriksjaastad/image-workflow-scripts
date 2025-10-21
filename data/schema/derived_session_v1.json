@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Derived Session v1",
+  "description": "Session derived from file operation events",
+  "type": "object",
+  "required": [
+    "source",
+    "script_id",
+    "session_id",
+    "start_ts_utc",
+    "end_ts_utc",
+    "active_seconds",
+    "files_processed",
+    "params",
+    "day"
+  ],
+  "properties": {
+    "source": {
+      "type": "string",
+      "const": "derived_from_operation_events_v1",
+      "description": "Data source identifier"
+    },
+    "script_id": {
+      "type": "string",
+      "description": "Script that generated the operations"
+    },
+    "session_id": {
+      "type": "string",
+      "pattern": "^derived:[a-f0-9]{12}$",
+      "description": "Stable derived session ID"
+    },
+    "start_ts_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Session start timestamp in UTC ISO format"
+    },
+    "end_ts_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Session end timestamp in UTC ISO format"
+    },
+    "active_seconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Calculated active time with bounded gaps"
+    },
+    "files_processed": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total files processed (sum of file_count)"
+    },
+    "ops_by_type": {
+      "type": "object",
+      "description": "Operation counts by type",
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    },
+    "projects_touched": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "List of projects/directories touched"
+    },
+    "event_count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of events in this session"
+    },
+    "params": {
+      "type": "object",
+      "required": ["gap_min", "max_gap_contrib"],
+      "properties": {
+        "gap_min": {
+          "type": "integer",
+          "description": "Gap threshold in minutes"
+        },
+        "max_gap_contrib": {
+          "type": "integer",
+          "description": "Max gap contribution in seconds"
+        }
+      }
+    },
+    "day": {
+      "type": "string",
+      "pattern": "^[0-9]{8}$",
+      "description": "Partition key: YYYYMMDD from start_ts_utc"
+    }
+  }
+}
+

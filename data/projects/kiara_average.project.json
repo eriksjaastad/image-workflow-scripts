@@ -1,0 +1,40 @@
+{
+  "projectId": "kiara_average",
+  "title": "Kiara_Average",
+  "status": "archived",
+  "createdAt": "2025-09-01T16:00:00Z",
+  "startedAt": "2025-09-01T16:00:00Z",
+  "finishedAt": "2025-09-01T22:00:00Z",
+  "paths": {
+    "root": "PROJECT_ROOT/content/Kiara_Average",
+    "selectedDir": "PROJECT_ROOT/content/Kiara_Average/selected",
+    "cropDir": "PROJECT_ROOT/content/Kiara_Average/crop"
+  },
+  "counts": {
+    "initialImages": 5796,
+    "finalImages": 541
+  },
+  "metrics": {
+    "totalHours": 6.0,
+    "notes": ""
+  },
+  "steps": [
+    {
+      "name": "selection",
+      "status": "completed"
+    },
+    {
+      "name": "sorting",
+      "status": "completed"
+    },
+    {
+      "name": "cropping",
+      "status": "completed"
+    },
+    {
+      "name": "delivery",
+      "status": "completed"
+    }
+  ],
+  "source": "imported_from_timesheet"
+}

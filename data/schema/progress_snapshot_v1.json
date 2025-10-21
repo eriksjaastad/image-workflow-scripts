@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Progress Snapshot v1",
+  "description": "Progress snapshot from crop or sorter tools",
+  "type": "object",
+  "required": [
+    "source",
+    "tool_id",
+    "progress_id",
+    "directory_key",
+    "snapshot_ts_utc",
+    "status",
+    "files_processed",
+    "total_files",
+    "schema_version",
+    "day"
+  ],
+  "properties": {
+    "source": {
+      "type": "string",
+      "enum": ["crop_progress", "sorter_progress"],
+      "description": "Data source"
+    },
+    "tool_id": {
+      "type": "string",
+      "enum": ["multi_crop_tool", "character_sorter"],
+      "description": "Tool that created the snapshot"
+    },
+    "progress_id": {
+      "type": "string",
+      "pattern": "^prog:[a-f0-9]{12}$",
+      "description": "Stable progress snapshot ID"
+    },
+    "directory_key": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{12}$",
+      "description": "Hashed directory identifier"
+    },
+    "snapshot_ts_utc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Snapshot timestamp in UTC ISO format"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "in_progress", "completed", "skipped", "unknown"],
+      "description": "Progress status"
+    },
+    "files_processed": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of files processed"
+    },
+    "total_files": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total files to process"
+    },
+    "completed_files_sample": {
+      "type": ["array", "null"],
+      "items": {"type": "string"},
+      "maxItems": 50,
+      "description": "Sample of completed files"
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "progress_v1",
+      "description": "Schema version"
+    },
+    "day": {
+      "type": "string",
+      "pattern": "^[0-9]{8}$",
+      "description": "Partition key: YYYYMMDD from snapshot_ts_utc"
+    },
+    "extra": {
+      "type": "object",
+      "description": "Tool-specific fields"
+    }
+  }
+}
+

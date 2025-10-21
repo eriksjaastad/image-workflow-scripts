@@ -1,41 +1,55 @@
 # Current TODO List
 
-**Last Updated:** 2025-10-21
+**Last Updated:** 2025-10-21 (Morning)
 
 ---
 
 ## 🎯 Active Tasks
 
-### Phase 2: AI Model Training
+### Phase 3: AI-Assisted Reviewer Testing
 
-#### Data Validation & Collection
-- [ ] **Real-time Data Validation in Collection Tools** [PRIORITY: HIGH]
-  - **Goal:** Show validation errors IMMEDIATELY in the tools as you're working
-  - **Where:** Web Image Selector, Desktop Multi-Crop, Character Sorter
-  - **Ideas to explore:**
-    - Run mini-validation after each logging action
-    - Show warning banner in UI if data looks suspicious
-    - Flash red/yellow indicator if embedding missing or dimensions = (0,0)
-    - Add "Data Health" indicator in tool footer (✅ Green = good, ⚠️ Yellow = warnings, ❌ Red = errors)
-  - **Benefits:**
-    - Catch bugs within MINUTES instead of WEEKS
-    - Immediate feedback loop while tool is fresh in mind
-    - Can fix issues before thousands of entries are logged incorrectly
-  - **Technical Questions:**
-    - Performance impact of validation on every action?
-    - How to show errors without disrupting workflow?
-    - Validate synchronously or async in background?
-  - **Status:** NEEDS INVESTIGATION - Added 2025-10-21 after discovering dimension logging bug 3 weeks too late
+#### Ready to Use Today!
+- [ ] **Test AI-Assisted Reviewer on New Project** [PRIORITY: HIGH]
+  - **Status:** Tool exists at `scripts/01_ai_assisted_reviewer.py`
+  - **Purpose:** REPLACES Web Image Selector - looks at ALL images, selects best from each group, proposes crops
+  - **Currently:** Rule-based (picks highest stage, no crop proposals)
+  - **Future:** Will integrate Ranker v3 + Crop Proposer models
+  - **Usage:** `python scripts/01_ai_assisted_reviewer.py <new-project-directory>/`
+  - **Test Plan:**
+    1. Start new project with raw images
+    2. Run AI-Assisted Reviewer instead of Web Image Selector
+    3. Review AI recommendations (A to approve, 1-4 to override)
+    4. Check .decision sidecar files are created
+    5. Evaluate if this workflow is better than manual selection
 
-#### Model Training (Blocked until data issues resolved)
-- [ ] Test different ranker anomaly weights (5x, 10x, 20x) to find optimal balance
-- [ ] Integrate best ranker model into Phase 3 AI-Assisted Reviewer
-- [ ] Re-train crop proposer once mojo1/mojo2 data is validated and usable
-- [ ] Create integration test script for Phase 3 readiness
+#### Model Integration (Optional - Already Have Great Models)
+- [ ] Integrate Ranker v3 into AI-Assisted Reviewer
+  - **Ranker v3 stats:** 94.4% anomaly accuracy, 98.1% overall
+  - **Replace:** Rule-based logic with model predictions
+  - **Add:** Confidence scores from model
+- [ ] Integrate Crop Proposer v1 (if it completed training)
+  - **Check:** Does `crop_proposer_v1.pt` exist?
+  - **Add:** Crop suggestions to reviewer UI
 
 ---
 
 ## 📅 Backlog
+
+### Historical Crop Data Extraction (Experiment)
+- [ ] **Extract crop dimensions from before/after projects** [PRIORITY: MEDIUM]
+  - **Goal:** Recover crop training data from historical projects by comparing originals vs cropped finals
+  - **Method:** 
+    1. For each historical project with RAW + FINAL directories
+    2. Find matching images (same filename in both)
+    3. Compare image dimensions: if FINAL is smaller, calculate crop coordinates
+    4. Compute crop box coordinates based on aspect ratio and size difference
+    5. Write extracted crop data to `select_crop_log.csv`
+  - **Challenges:**
+    - Crop might have been centered, top-aligned, or manual - hard to know which
+    - Aspect ratio changes would be ambiguous
+    - Only useful if crops were simple (centered or edge-aligned)
+  - **Value:** Could recover thousands of crop training examples from old projects
+  - **Status:** EXPERIMENT - may or may not yield useful data
 
 ### Documentation
 - [ ] Document training data structure rules in `AI_TRAINING_DATA_STRUCTURE.md`
@@ -49,15 +63,31 @@
 
 ## ✅ Recently Completed
 
+**Phase 2: AI Training (90% Complete)**
 - [x] Extract training data from 15 historical projects (21,250 selections, 12,679 crops)
 - [x] Compute embeddings for all training images (77,304 total)
 - [x] Train Ranker v2 with project boundary validation
-- [x] Train Ranker v3 with anomaly oversampling (518 anomaly cases)
-- [x] Analyze anomaly cases to identify model training gaps
+- [x] **Train Ranker v3 with anomaly oversampling** ⭐ **94.4% anomaly accuracy!**
+- [x] Analyze anomaly cases to identify model training gaps (518 cases)
 - [x] Fix Desktop Multi-Crop dimension logging bug
 - [x] Re-compute missing mojo2 embeddings (17,834 new embeddings)
 - [x] Create validation script (`scripts/ai/validate_training_data.py`)
 - [x] Document lessons learned (`Documents/AI_DATA_COLLECTION_LESSONS_LEARNED.md`)
+
+**Data Integrity (Just Completed - Oct 21, 2025 Morning)**
+- [x] **Integrate inline validation into all data collection tools** ⭐ **DONE!**
+- [x] Add dimension validation to `log_select_crop_entry()`
+- [x] Add path validation to `log_selection_only_entry()`
+- [x] Create test suite (`scripts/tests/test_inline_validation.py`)
+- [x] Documentation (`Documents/INLINE_VALIDATION_GUIDE.md`)
+
+**Crop Training Data Schema Evolution (Oct 21, 2025 Afternoon)**
+- [x] **Design and implement NEW minimal crop training schema** ⭐ **8 columns instead of 19!**
+- [x] Create `log_crop_decision()` function with strict validation
+- [x] Update AI-Assisted Reviewer to use new schema
+- [x] Document schema evolution and benefits (`Documents/CROP_TRAINING_SCHEMA_V2.md`)
+- [x] Add to Technical Knowledge Base
+- [ ] **BACKLOG: Migrate 7,194 legacy rows to new schema** (Optional - keep both for now)
 
 ---
 

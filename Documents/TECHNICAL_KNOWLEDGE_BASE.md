@@ -5,9 +5,189 @@
 
 ---
 
+## 🚨 **CRITICAL: Data Operation Best Practices (October 2025)**
+
+**⚠️ READ THIS FIRST - Always Create Inspection Reports Before Bulk Data Operations**
+
+**Rule:** Before running ANY script that modifies bulk data (CSV files, training data, databases), ALWAYS create a detailed inspection report first.
+
+**Why:** Provides confidence, catches corruption, prevents disasters. Example: When backfilling 7,193 crop dimensions, the inspection report revealed 5,431 corrupted rows with invalid timestamps that would have been incorrectly processed.
+
+### **Inspection Report Must Include:**
+1. **Row numbers** - CSV/database line numbers being affected
+2. **Exact field values** - Use `repr()` to show `None` vs `'0'` vs `''` (empty string)
+3. **Validation status** - Which rows pass/fail validation checks
+4. **Sample data** - First 50+ rows in detail, plus summary table of all rows
+5. **Counts by category** - How many rows in each project/status/type
+
+### **Example Report Structure:**
+```
+====================================================================================================
+OPERATION INSPECTION REPORT
+====================================================================================================
+Total rows to modify: 7193
+Operation: Backfill dimensions
+Target file: select_crop_log.csv
+Report generated: 2025-10-21 16:17:38
+====================================================================================================
+
+BREAKDOWN:
+  Mojo1 (Oct 8-11):  3978 rows ✅
+  Mojo2 (Oct 16-19): 3215 rows ✅
+  Corrupted/Invalid:    0 rows (5431 filtered out)
+
+====================================================================================================
+
+FIRST 50 ROWS (showing EXACT values):
+----------------------------------------------------------------------------------------------------
+
+Row 3:
+  Filename:  20250705_230713_stage3_enhanced.png
+  Timestamp: 2025-10-08 18:47:32 ✅
+  Project:   mojo1
+  Crop box:  x1=0.0, y1=66.0, x2=1787.0, y2=1853.0 ✅
+  Dimensions (showing Python repr()):
+    width_0  =      '0' → WILL BE BACKFILLED
+    height_0 =      '0' → WILL BE BACKFILLED
+    width_1  =     None → OK (not required)
+    height_1 =     None → OK (not required)
+```
+
+### **Script Template:**
+```python
+#!/usr/bin/env python3
+"""
+Generate inspection report for [OPERATION]
+Run this BEFORE running the actual operation script!
+"""
+
+def generate_report():
+    # Read data
+    with open(target_file) as f:
+        rows = list(csv.DictReader(f))
+    
+    # Analyze which rows will be affected
+    affected_rows = []
+    for i, row in enumerate(rows, start=2):
+        if should_process(row):  # Your validation logic
+            affected_rows.append({
+                'row': i,
+                'field1': repr(row['field1']),  # Use repr()!
+                'field2': repr(row['field2']),
+                'valid': validate(row)
+            })
+    
+    # Write detailed report
+    with open(report_path, 'w') as f:
+        f.write(f"Total affected: {len(affected_rows)}\n")
+        
+        # Show first 50 in DETAIL
+        for r in affected_rows[:50]:
+            f.write(f"\nRow {r['row']}:\n")
+            f.write(f"  field1: {r['field1']} → valid={r['valid']}\n")
+        
+        # Summary table of ALL rows
+        for r in affected_rows:
+            f.write(f"{r['row']:<6} {r['field1']:<20}\n")
+```
+
+### **Confidence Gained:**
+- ✅ See exact data types (`'0'` vs `None` vs `''`)
+- ✅ Verify validation catches corruption
+- ✅ Confirm row count matches expectations
+- ✅ Review sample data before committing
+- ✅ Catch edge cases (null timestamps, malformed data)
+
+**Erik's Quote:** "Man, we should always build reports of data before we do anything. This gives me a lot of confidence."
+
+---
+
+## 🎯 **Crop Training Data Schema Evolution (October 2025)**
+
+**TL;DR:** We replaced a bloated 19-column CSV with a clean 8-column format. File moves no longer break training data!
+
+### **Problem: Old Schema Was Bloated and Fragile**
+
+The original `select_crop_log.csv` had **19 columns** with massive redundancy:
+
+```csv
+session_id, set_id, directory, image_count, chosen_index, chosen_path,
+crop_x1, crop_y1, crop_x2, crop_y2, timestamp,
+image_0_path, image_0_stage, width_0, height_0,
+image_1_path, image_1_stage, width_1, height_1
+```
+
+**Issues:**
+- ❌ Full paths stored → Break when files move
+- ❌ No project tracking → Must deduce from timestamps/directories
+- ❌ Redundant data → Multiple width/height columns for same image
+- ❌ Irrelevant fields → session_id, set_id, chosen_index, etc.
+- ❌ Directory storage → Meaningless (files move!)
+
+### **Solution: New Minimal Schema (8 columns)**
+
+```csv
+timestamp,project_id,filename,crop_x1,crop_y1,crop_x2,crop_y2,width,height
+```
+
+**Example:**
+```csv
+2025-10-08T18:47:32Z,mojo1,20250705_230713_stage3_enhanced.png,0.0,0.0215,0.5820,0.6030,3072,3072
+```
+
+### **Benefits:**
+1. ✅ **File-move resilient** - No paths, just filenames
+2. ✅ **Project tracking built-in** - No timestamp deduction needed
+3. ✅ **58% smaller** - 8 columns vs 19
+4. ✅ **Faster processing** - Less data to parse
+5. ✅ **Industry standard** - Similar to COCO/YOLO formats
+
+### **Usage:**
+
+```python
+from scripts.utils.companion_file_utils import log_crop_decision
+
+# NEW way (clean!)
+log_crop_decision(
+    project_id='mojo3',
+    filename='20250820_065626_stage2_upscaled.png',
+    crop_coords=(0.0, 0.0215, 0.5820, 0.6030),  # Normalized [0-1]
+    width=3072,
+    height=3072
+)
+
+# OLD way (deprecated - use for legacy code only)
+log_select_crop_entry(
+    session_id=..., set_id=..., directory=..., 
+    image_paths=..., image_stages=..., image_sizes=..., 
+    chosen_index=..., crop_norm=...
+)
+```
+
+### **Validation:**
+
+The new function enforces strict validation:
+- ✅ Project ID must not be empty
+- ✅ Filename must not contain paths (`/` or `\`)
+- ✅ Crop coords must be normalized [0, 1] with x1 < x2, y1 < y2
+- ✅ Dimensions must be positive integers
+- ✅ Timestamp must be valid ISO 8601
+
+**Raises `ValueError` immediately if validation fails!**
+
+### **Files:**
+- **New log:** `data/training/crop_training_data.csv` (new schema)
+- **Legacy log:** `data/training/select_crop_log.csv` (old schema, 7,194 rows, kept for historical data)
+- **Documentation:** `Documents/CROP_TRAINING_SCHEMA_V2.md`
+
+**Status:** ✅ Implemented, documented, ready for production use  
+**Migration:** TODO item to convert 7,194 legacy rows to new format
+
+---
+
 ## 🚨 **CRITICAL: File Safety System (October 2025)**
 
-**⚠️ READ THIS FIRST - File Integrity Protection**
+**⚠️ File Integrity Protection**
 
 **Achievement:** Multi-layer protection against accidental file modifications
 **Impact:** Prevents data loss from accidental overwrites or corruption

@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "projectId": "mojo2",
+  "title": "Mojo2",
+  "status": "active",
+  "createdAt": "2025-10-12T21:31:18Z",
+  "startedAt": "2025-10-12T00:00:00Z",
+  "finishedAt": "2025-10-20T15:17:49Z",
+  "removeFileOnFinish": true,
+  "paths": {
+    "root": "../../mojo2",
+    "selectedDir": "../../selected",
+    "cropDir": "../../crop",
+    "characterGroups": [
+      "../../character_group_1",
+      "../../character_group_2",
+      "../../character_group_3"
+    ]
+  },
+  "counts": {
+    "initialImages": 17935,
+    "finalImages": null
+  },
+  "metrics": {
+    "imagesPerHourEndToEnd": null,
+    "stepRates": {},
+    "stager": {
+      "zip": "PROJECT_ROOT/exports/mojo2_final.zip",
+      "eligibleCount": 13298,
+      "byExtIncluded": {
+        "yaml": 4580,
+        "png": 4580,
+        "caption": 4118,
+        "txt": 20
+      },
+      "excludedCounts": {
+        "hidden": 2,
+        "banned_name": 1,
+        "banned_ext": 0,
+        "banned_pattern": 0,
+        "not_allowed": 0,
+        "no_extension": 0
+      },
+      "incomingByExt": {
+        "csv": 1,
+        "yaml": 4580,
+        "png": 4580,
+        "caption": 4118,
+        "txt": 20
+      }
+    }
+  },
+  "steps": [
+    {
+      "name": "select_versions",
+      "startedAt": null,
+      "finishedAt": null,
+      "imagesProcessed": null
+    },
+    {
+      "name": "character_sort",
+      "startedAt": null,
+      "finishedAt": null,
+      "imagesProcessed": null
+    },
+    {
+      "name": "crop",
+      "startedAt": null,
+      "finishedAt": null,
+      "imagesProcessed": null
+    },
+    {
+      "name": "dedupe",
+      "startedAt": null,
+      "finishedAt": null,
+      "imagesProcessed": null
+    },
+    {
+      "name": "final_review",
+      "startedAt": null,
+      "finishedAt": null,
+      "imagesProcessed": null
+    }
+  ],
+  "notes": "Project manifest stored outside content to avoid inclusion in deliverables."
+}
