@@ -80,7 +80,7 @@ class TestRunner:  # not a pytest test class (has __init__)
             
             # Verify that the script finds groups correctly
             result = subprocess.run([
-                sys.executable, "01_web_image_selector.py",
+                sys.executable, "01_ai_assisted_reviewer.py",
                 str(test_dir), "--print-triplets"
             ], capture_output=True, text=True, cwd=Path(__file__).parent.parent)
             
@@ -124,7 +124,7 @@ class TestRunner:  # not a pytest test class (has __init__)
             
             # Test grouping
             result = subprocess.run([
-                sys.executable, "01_web_image_selector.py",
+                sys.executable, "01_ai_assisted_reviewer.py",
                 str(test_dir), "--print-triplets"
             ], capture_output=True, text=True, cwd=Path(__file__).parent.parent)
             
@@ -166,7 +166,7 @@ class TestRunner:  # not a pytest test class (has __init__)
         
         # Test grouping with the problematic pattern
         result = subprocess.run([
-            sys.executable, "01_web_image_selector.py",
+            sys.executable, "01_ai_assisted_reviewer.py",
             str(test_dir), "--print-triplets"
         ], capture_output=True, text=True, cwd=Path(__file__).parent.parent)
         
@@ -246,7 +246,7 @@ class TestRunner:  # not a pytest test class (has __init__)
             # Test that large dataset can be processed
             start_time = time.time()
             result = subprocess.run([
-                sys.executable, "01_web_image_selector.py",
+                sys.executable, "01_ai_assisted_reviewer.py",
                 str(test_dir), "--print-triplets"
             ], capture_output=True, text=True, timeout=30)  # 30 second timeout
             
@@ -277,7 +277,7 @@ class TestRunner:  # not a pytest test class (has __init__)
             
             # Test recursive scanning
             result = subprocess.run([
-                sys.executable, "01_web_image_selector.py",
+                sys.executable, "01_ai_assisted_reviewer.py",
                 str(test_dir), "--print-triplets"
             ], capture_output=True, text=True, cwd=Path(__file__).parent.parent)
             
@@ -332,7 +332,7 @@ class TestRunner:  # not a pytest test class (has __init__)
             
             # Test that script handles non-standard files gracefully
             result = subprocess.run([
-                sys.executable, "01_web_image_selector.py",
+                sys.executable, "01_ai_assisted_reviewer.py",
                 str(test_dir), "--print-triplets"
             ], capture_output=True, text=True, cwd=Path(__file__).parent.parent)
             
@@ -386,7 +386,7 @@ class TestRunner:  # not a pytest test class (has __init__)
             
             # Run analysis (should not modify files)
             result = subprocess.run([
-                sys.executable, "01_web_image_selector.py",
+                sys.executable, "01_ai_assisted_reviewer.py",
                 str(test_dir), "--print-triplets"
             ], capture_output=True, text=True, cwd=Path(__file__).parent.parent)
             

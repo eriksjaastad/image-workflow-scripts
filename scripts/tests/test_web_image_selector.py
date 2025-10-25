@@ -35,7 +35,7 @@ class WebImageSelectorTest:
         
         # Start server in background
         cmd = [
-            sys.executable, "scripts/01_web_image_selector.py",
+            sys.executable, "scripts/01_ai_assisted_reviewer.py",
             str(self.test_data_dir),
             "--port", "5001",  # Use different port for tests
             "--no-browser",

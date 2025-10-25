@@ -18,7 +18,7 @@ During Phase 2 (AI Model Training), we discovered multiple data integrity issues
 
 ## 💔 What Went Wrong
 
-### Issue #1: Desktop Multi-Crop Tool Logging Bug
+### Issue #1: AI Desktop Multi-Crop Tool Logging Bug
 **Problem:** The tool logged crop coordinates but set image dimensions to `(0, 0)` instead of the actual dimensions.
 
 **Root Cause:**
@@ -37,7 +37,7 @@ image_sizes = [image_info.get('original_size', (0, 0))]  # ✅ CORRECT
 
 **When Detected:** 3 weeks after data collection, during model training
 
-**Fixed:** October 21, 2025 (commit in `scripts/04_desktop_multi_crop.py`)
+**Fixed:** October 21, 2025 (commit in `scripts/02_ai_desktop_multi_crop.py`)
 
 ---
 
@@ -185,7 +185,7 @@ Date: 2025-10-21
    
 🔧 RECOMMENDATIONS:
    1. Run: python scripts/ai/compute_embeddings.py
-   2. Check: scripts/04_desktop_multi_crop.py for dimension logging bug
+   2. Check: scripts/02_ai_desktop_multi_crop.py for dimension logging bug
 ```
 
 ---

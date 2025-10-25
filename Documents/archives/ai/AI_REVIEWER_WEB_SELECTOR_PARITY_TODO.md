@@ -1,5 +1,5 @@
-# AI-Assisted Reviewer: Make It Match Web Image Selector
-**Goal:** Seamless AI integration - as if we took 01_web_image_selector.py and added AI
+# AI-Assisted Reviewer: Make It Match AI-Assisted Reviewer
+**Goal:** Seamless AI integration - as if we took 01_ai_assisted_reviewer.py and added AI
 
 ---
 
@@ -17,7 +17,7 @@
 
 ### **2. Hotkeys (CRITICAL - Must Match Exactly)**
 
-**Web Image Selector Hotkeys:**
+**AI-Assisted Reviewer Hotkeys:**
 ```
 1, 2, 3, 4      → Select image (no crop)
 q, w, e, r      → Select image WITH crop
@@ -43,7 +43,7 @@ ArrowUp         → Previous group
 
 ### **3. Batch Processing (CRITICAL)**
 
-**Web Image Selector Workflow:**
+**AI-Assisted Reviewer Workflow:**
 1. Load 100 groups
 2. User makes selections (hotkeys)
 3. Selections are **queued** (not processed immediately)

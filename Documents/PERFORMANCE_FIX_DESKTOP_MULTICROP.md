@@ -228,7 +228,7 @@ Total lag perceived by user: <50ms
   - Line 356: `plt..draw()` → `self.fig.canvas.draw_idle()` (with comment)
 
 **Affected Scripts (inherit from base class):**
-- `scripts/04_desktop_multi_crop.py` ✅ (main user-facing tool)
+- `scripts/02_ai_desktop_multi_crop.py` ✅ (main user-facing tool)
 - Any future tools using `BaseDesktopImageTool` ✅
 
 ---

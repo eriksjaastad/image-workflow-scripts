@@ -5,7 +5,7 @@ Audience: AI agents (and Erik) running daily workflows.
 
 ## Principles
 - Safety first: follow `Documents/FILE_SAFETY_SYSTEM.md`.
-- Move, don’t modify; only the desktop multi-crop tool writes new images.
+- Move, don’t modify; only the AI desktop multi-crop tool writes new images.
 - Keep snapshots fresh before dashboard sessions.
 - Cleanly start/stop servers; avoid orphaned processes.
 

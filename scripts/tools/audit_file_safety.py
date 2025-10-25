@@ -39,7 +39,7 @@ DANGEROUS_PATTERNS = [
 
 # Files that are ALLOWED to modify files (exceptions)
 ALLOWED_FILES = {
-    '04_desktop_multi_crop.py',  # Crop tool
+    '02_ai_desktop_multi_crop.py',  # Crop tool
     'audit_file_safety.py',  # This script
 }
 

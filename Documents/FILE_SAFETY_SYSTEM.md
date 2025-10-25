@@ -139,7 +139,7 @@ with open('crop/image.yaml', 'w') as f:
     yaml.dump(data, f)
 ```
 
-**Exception:** `04_desktop_multi_crop.py` CAN write cropped images (this is its purpose).
+**Exception:** `02_ai_desktop_multi_crop.py` CAN write cropped images (this is its purpose).
 
 ---
 

@@ -1,5 +1,20 @@
 #!/usr/bin/env python3
 """
+⚠️ ARCHIVED - REPLACED BY AI DESKTOP MULTI-CROP
+================================================
+This script has been superseded by scripts/02_ai_desktop_multi_crop.py
+
+The AI Desktop Multi-Crop Tool provides:
+- AI-powered crop preloading from .decision files
+- All manual editing capabilities of this tool
+- Automatic coordinate validation and clamping
+- SQLite v3 training data integration
+
+Use: python scripts/02_ai_desktop_multi_crop.py
+
+Original Documentation Below:
+==============================
+
 Multi-Directory Crop Tool - Intelligent Directory Processing
 ===========================================================================
 Process multiple character directories in one continuous session with automatic

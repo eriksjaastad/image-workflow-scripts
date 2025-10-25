@@ -36,7 +36,7 @@ FILES = [
     "scripts/00_start_project.py",
     "scripts/01_ai_assisted_reviewer.py",
     "scripts/01_desktop_image_selector_crop.py",
-    "scripts/04_desktop_multi_crop.py",
+    "scripts/02_ai_desktop_multi_crop.py",
     "scripts/cleanup_logs.py",
     
     # AI analysis scripts

@@ -79,7 +79,7 @@ python scripts/data_pipeline/build_daily_aggregates_v1.py
 |--------|-----------|----------------------|
 | `data/projects/*.project.json` | `00_start_project.py`, `07_finish_project.py` | `data/snapshot/projects_v1/projects.jsonl` |
 | `data/file_operations_logs/*.csv` | `FileTracker` (all tools) | `data/snapshot/operation_events_v1/day=YYYYMMDD/events.jsonl` |
-| `data/crop_progress/*.json` | `04_desktop_multi_crop.py` | `data/snapshot/progress_snapshots_v1/day=YYYYMMDD/snapshots.jsonl` |
+| `data/crop_progress/*.json` | `02_ai_desktop_multi_crop.py` | `data/snapshot/progress_snapshots_v1/day=YYYYMMDD/snapshots.jsonl` |
 | `data/sorter_progress/*.json` | `03_web_character_sorter.py` | `data/snapshot/progress_snapshots_v1/day=YYYYMMDD/snapshots.jsonl` |
 | `data/timer_data/*.csv` | Dashboard/timer system | `data/snapshot/timer_sessions_v1/day=YYYYMMDD/sessions.jsonl` |
 

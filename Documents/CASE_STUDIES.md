@@ -178,7 +178,7 @@ This case study demonstrates that systematic workflow analysis and targeted tool
 ## Workflow Modernization
 
 ### Tools Developed
-1. **01_web_image_selector.py**
+1. **01_ai_assisted_reviewer.py**
    - Replaced Matplotlib interface with web-based selection
    - Visual thumbnails with clickable interface
    - Reduced selection errors significantly

@@ -187,7 +187,7 @@ Phase definitions
 Script → Phase mapping (current)
 - Review/Selection:
   - `ai_assisted_reviewer` (units=sections, itemsPerUnit=3 images/section)
-  - `image_version_selector` (01 web image selector) (units=images)
+  - `image_version_selector` (01 AI-assisted reviewer) (units=images)
 - Crop:
   - `desktop_multi_crop` (`02_desktop_multi_crop.py`) (units=images)
   - `02_ai_desktop_multi_crop` (units=images)

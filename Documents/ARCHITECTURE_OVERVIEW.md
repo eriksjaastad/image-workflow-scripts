@@ -40,7 +40,7 @@ One-page map of the system: where code lives, how data flows, and the non-negoti
 
 ## Safety Invariants (must hold)
 - Move, don’t modify; production images are read-only.
-- Only `02_ai_desktop_multi_crop.py` (and legacy `04_desktop_multi_crop.py`) write cropped images (creates NEW files).
+- Only `02_ai_desktop_multi_crop.py` (and legacy `02_ai_desktop_multi_crop.py`) write cropped images (creates NEW files).
 - Deletions go to macOS Trash (recoverable). Prefer `send2trash`.
 - Always move companions together; never orphan metadata.
 - All file ops are logged by FileTracker under `data/file_operations_logs/`.

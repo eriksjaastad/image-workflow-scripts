@@ -116,7 +116,7 @@ python scripts/00_start_project.py
 ### 2. Process Images
 ```bash
 # Run your normal workflow
-python scripts/01_web_image_selector.py ../mojo3
+python scripts/01_ai_assisted_reviewer.py ../mojo3
 python scripts/02_web_character_sorter.py selected
 python scripts/04_multi_crop_tool.py
 ```

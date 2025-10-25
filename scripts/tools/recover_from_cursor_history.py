@@ -22,7 +22,7 @@ RECOVERIES = {
         "resource": "file:///Users/eriksjaastad/projects/Eros%20Mate/scripts/dashboard/templates/current_project.html",
         "latest_file": "entries need checking",
     },
-    # Oct 25 - already recovered 04_desktop_multi_crop.py manually
+    # Oct 25 - already recovered 02_ai_desktop_multi_crop.py manually
 }
 
 def get_latest_file_from_history(history_dir: str) -> str:
@@ -88,7 +88,7 @@ def main():
             print(f"❌ Error recovering from {history_dir}: {e}\n")
     
     print(f"\n✅ Recovery complete: {recovered}/{len(RECOVERIES)} files recovered")
-    print("\nNote: 04_desktop_multi_crop.py was already recovered manually")
+    print("\nNote: 02_ai_desktop_multi_crop.py was already recovered manually")
 
 if __name__ == "__main__":
     main()

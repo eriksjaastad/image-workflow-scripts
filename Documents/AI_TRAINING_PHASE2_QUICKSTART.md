@@ -55,7 +55,7 @@ Phase 4: ⏳ Test in Sandbox + Iterate (CURRENT_TODO_LIST.md)
 
 ### ✅ Data Collection Complete: 17,032 Training Examples
 
-**Selection Data (Web Image Selector):**
+**Selection Data (AI-Assisted Reviewer):**
 - Mojo 1: 5,244 selections
 - Mojo 2: 4,594 selections
 - **Total: 9,838 selection decisions** ✅
@@ -499,7 +499,7 @@ A modified version of your current tools that:
 3. Logs your feedback for continuous learning
 
 **Options:**
-- Modify existing `01_web_image_selector.py` to show AI suggestions
+- Modify existing `01_ai_assisted_reviewer.py` to show AI suggestions
 - Create new `01_ai_assisted_selector.py` script
 - Add "AI mode" toggle to current tools
 

@@ -214,7 +214,7 @@ cd test-recovery
 python3.11 -m venv .venv311
 source .venv311/bin/activate
 pip install -r requirements_ai_training.txt
-python scripts/01_web_image_selector.py --help  # Should work
+python scripts/01_ai_assisted_reviewer.py --help  # Should work
 ```
 
 ---

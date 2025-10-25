@@ -565,7 +565,7 @@ The new function enforces strict validation:
 - **Run Audit:** `python scripts/tools/audit_file_safety.py`
 
 ### **Core Rules (NEVER VIOLATE):**
-1. ✅ **ONLY** `02_ai_desktop_multi_crop.py` (and legacy `04_desktop_multi_crop.py`) may modify images
+1. ✅ **ONLY** `02_ai_desktop_multi_crop.py` (and legacy `02_ai_desktop_multi_crop.py`) may modify images
 2. ✅ Move/delete operations allowed (via safe utilities)
 3. ✅ Create NEW files in safe zones (`data/`, `sandbox/`)
 4. ❌ NO modifications to existing production images/YAML/captions
@@ -1114,7 +1114,7 @@ Production stance: Do not use time gaps in grouping tests. Timestamps are for so
 
 - All human-facing tools MUST call `sort_image_files_by_timestamp_and_stage(files)` before any display or grouping.
 - Determinism: Sorting is by (timestamp, then stage number, then filename) to produce stable order.
-- Where to use: web image selector, desktop selector + crop, multi-crop tool, character sorter, viewers.
+- Where to use: AI-assisted reviewer, desktop selector + crop, multi-crop tool, character sorter, viewers.
 - Unit test added: `scripts/tests/test_sorting_determinism.py` to validate ordering on a known 4-file set.
 
 ### **Test Suite Maintenance**

@@ -1,5 +1,20 @@
 #!/usr/bin/env python3
 """
+⚠️ ARCHIVED - REPLACED BY AI-ASSISTED REVIEWER
+================================================
+This script has been superseded by scripts/01_ai_assisted_reviewer.py
+
+The AI-Assisted Reviewer provides:
+- AI-powered crop suggestions
+- Integrated selection + crop workflow  
+- SQLite v3 training data collection
+- All the features of this tool, plus AI assistance
+
+Use: python scripts/01_ai_assisted_reviewer.py
+
+Original Documentation Below:
+==============================
+
 Step 1: Web Image Selector - Modern Browser Edition
 ====================================================
 Modern web-based tool for selecting the best image from each triplet set.

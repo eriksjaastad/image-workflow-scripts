@@ -35,7 +35,7 @@ FEATURES:
 
 WORKFLOW POSITION:
 ------------------
-Step 1: Image Version Selection → scripts/01_web_image_selector.py
+Step 1: Image Version Selection → scripts/01_ai_assisted_reviewer.py
 Step 2: Face Grouping → scripts/02_face_grouper.py
 Step 3: Character Sorting → scripts/03_web_character_sorter.py
 Step 4: Final Cropping → scripts/04_batch_crop_tool.py

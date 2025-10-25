@@ -1,11 +1,11 @@
-# Web Image Selector Clone + AI Integration
+# AI-Assisted Reviewer Clone + AI Integration
 **Date:** October 21, 2025  
 **Strategy:** Clone web_image_selector.py and add AI features, NOT build from scratch
 
 ---
 
 ## 🎯 **Core Principle:**
-**"Web Image Selector WITH AI integration"**
+**"AI-Assisted Reviewer WITH AI integration"**
 
 NOT: "AI tool that kinda works like web selector"  
 YES: "Exact clone of web selector + AI recommendations"

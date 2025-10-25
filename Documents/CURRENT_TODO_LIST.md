@@ -20,13 +20,13 @@
 #### Ready to Use Today!
 - [ ] **Test AI-Assisted Reviewer on New Project** [PRIORITY: HIGH]
   - **Status:** Tool exists at `scripts/01_ai_assisted_reviewer.py`
-  - **Purpose:** REPLACES Web Image Selector - looks at ALL images, selects best from each group, proposes crops
+  - **Purpose:** REPLACES AI-Assisted Reviewer - looks at ALL images, selects best from each group, proposes crops
   - **Currently:** Rule-based (picks highest stage, no crop proposals)
   - **Future:** Will integrate Ranker v3 + Crop Proposer models
   - **Usage:** `python scripts/01_ai_assisted_reviewer.py <new-project-directory>/`
   - **Test Plan:**
     1. Start new project with raw images
-    2. Run AI-Assisted Reviewer instead of Web Image Selector
+    2. Run AI-Assisted Reviewer instead of AI-Assisted Reviewer
     3. Review AI recommendations (A to approve, 1-4 to override)
     4. Check .decision sidecar files are created
     5. Evaluate if this workflow is better than manual selection

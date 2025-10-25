@@ -70,7 +70,7 @@ All Phase 1 tasks completed and integrated into production code. The AI Training
   - Selection match flag (auto-calculated)
 
 ### **6. Desktop Multi-Crop Integration** ✂️
-- **Modified:** `scripts/04_desktop_multi_crop.py`
+- **Modified:** `scripts/02_ai_desktop_multi_crop.py`
 - **Changes:**
   - Imported SQLite v3 utilities
   - Read `.decision` sidecar file on crop
@@ -105,7 +105,7 @@ All Phase 1 tasks completed and integrated into production code. The AI Training
 ## 📝 **Files Modified (3 existing files):**
 
 1. `scripts/01_ai_assisted_reviewer.py` - Added SQLite logging
-2. `scripts/04_desktop_multi_crop.py` - Added crop update + lag fix
+2. `scripts/02_ai_desktop_multi_crop.py` - Added crop update + lag fix
 3. `Documents/AI_TRAINING_DECISIONS_V3_IMPLEMENTATION.md` - Updated for SQLite
 
 ---

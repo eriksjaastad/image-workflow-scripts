@@ -66,7 +66,7 @@ curl "http://127.0.0.1:5001/api/data/D?lookback_days=3"
   
   "charts": {
     "by_script": {
-      "Web Image Selector": {
+      "AI-Assisted Reviewer": {
         "dates": ["2025-10-13", "2025-10-14", "2025-10-15"],
         "counts": [120, 95, 143]
       },
@@ -97,7 +97,7 @@ curl "http://127.0.0.1:5001/api/data/D?lookback_days=3"
   },
   
   "timing_data": {
-    "Web Image Selector": {
+    "AI-Assisted Reviewer": {
       "work_time_minutes": 127.3,
       "timing_method": "file_operations"
     },
@@ -178,7 +178,7 @@ pytest scripts/tests/test_dashboard*.py -v
 - **M**: Monthly aggregation (first of month)
 
 ### Metrics Tracked
-- **By Script**: Files processed per tool (Web Image Selector, Multi Crop Tool, Character Sorter)
+- **By Script**: Files processed per tool (AI-Assisted Reviewer, Multi Crop Tool, Character Sorter)
 - **By Operation**: Operations by type (crop, delete, move, send_to_trash, skip)
 - **Timing**: Work time per tool (file operations or activity timer)
 - **Projects**: Per-project throughput (images/hour), totals, timeseries
@@ -408,7 +408,7 @@ The API returns exactly the following JSON structure (all fields required, even 
   
   "charts": {
     "by_script": {
-      "Web Image Selector": {
+      "AI-Assisted Reviewer": {
         "dates": ["2025-10-01", "2025-10-02", ...],
         "counts": [120, 95, 0, 143, ...]
       },
@@ -424,7 +424,7 @@ The API returns exactly the following JSON structure (all fields required, even 
   },
   
   "timing_data": {
-    "Web Image Selector": {
+    "AI-Assisted Reviewer": {
       "work_time_minutes": 127.3,
       "timing_method": "file_operations"
     },
@@ -441,7 +441,7 @@ The API returns exactly the following JSON structure (all fields required, even 
       "iph": 45.2,
       "baseline_overall": 42.8,
       "tools": {
-        "Web Image Selector": { "iph": 52.1, "baseline": 48.3 },
+        "AI-Assisted Reviewer": { "iph": 52.1, "baseline": 48.3 },
         "Multi Crop Tool": { "iph": 38.7, "baseline": 35.2 }
       }
     }
@@ -480,12 +480,12 @@ The API returns exactly the following JSON structure (all fields required, even 
       "baseline": {
         "overall_iph_baseline": 42.8,
         "per_tool": {
-          "Web Image Selector": 48.3,
+          "AI-Assisted Reviewer": 48.3,
           "Multi Crop Tool": 35.2
         }
       },
       "tools": {
-        "Web Image Selector": {
+        "AI-Assisted Reviewer": {
           "images_processed": 678,
           "images_per_hour": 52.1
         }
@@ -544,7 +544,7 @@ The dashboard uses two timing methods depending on the tool:
 Tools report their timing method in `timing_data`:
 ```json
 {
-  "Web Image Selector": {
+  "AI-Assisted Reviewer": {
     "work_time_minutes": 127.3,
     "timing_method": "file_operations"
   }

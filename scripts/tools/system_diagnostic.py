@@ -161,10 +161,10 @@ def check_scripts():
     scripts = [
         'scripts/00_start_project.py',
         'scripts/01_ai_assisted_reviewer.py',
-        'scripts/01_web_image_selector.py',
+        'scripts/01_ai_assisted_reviewer.py',
         'scripts/02_character_processor.py',
         'scripts/03_web_character_sorter.py',
-        'scripts/04_desktop_multi_crop.py',
+        'scripts/02_ai_desktop_multi_crop.py',
         'scripts/dashboard/current_project_dashboard_v2.py',
     ]
     

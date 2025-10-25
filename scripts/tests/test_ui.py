@@ -30,7 +30,7 @@ class ImageSelectorUITest:
         
         # Start server in background
         cmd = [
-            sys.executable, "scripts/01_web_image_selector.py",
+            sys.executable, "scripts/01_ai_assisted_reviewer.py",
             str(self.test_data_dir),
             "--port", "5002",  # Use different port for tests
             "--no-browser",

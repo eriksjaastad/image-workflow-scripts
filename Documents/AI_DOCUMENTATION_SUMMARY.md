@@ -16,10 +16,10 @@
 - ✅ **Total: 9,838 selections** (both projects captured correctly!)
 
 **Crop Data Clarification:**
-- The 7,194 crop entries are from Multi Crop Tool, not Web Image Selector
+- The 7,194 crop entries are from Multi Crop Tool, not AI-Assisted Reviewer
 - These are from `crop/` directory and character subdirectories
 - Logged on Oct 4, 8, 16, 19, 2025
-- This is expected - Web Image Selector doesn't log crops (it sends to Multi Crop Tool)
+- This is expected - AI-Assisted Reviewer doesn't log crops (it sends to Multi Crop Tool)
 
 **Final Count: 17,032 total training examples ✅**
 - 9,838 selection decisions (which image is best)
@@ -199,7 +199,7 @@ Before ending any AI session, verify:
 4. ✅ Creating master checklist for complex multi-phase project
 
 ### What to Remember:
-1. 💡 Web Image Selector logs selections, not crops (crops happen in Multi Crop Tool)
+1. 💡 AI-Assisted Reviewer logs selections, not crops (crops happen in Multi Crop Tool)
 2. 💡 Always verify data sources when counts seem off
 3. 💡 Documentation should answer "what's next?" not just "what exists?"
 4. 💡 Checkboxes are powerful for never losing place in long projects

@@ -11,7 +11,7 @@ Automatic data validation that **catches training data errors immediately** as t
 
 ### **The Problem This Solves**
 
-In October 2025, we lost **thousands of training examples** because the Desktop Multi-Crop Tool logged invalid dimensions `(0, 0)` instead of actual image sizes. This wasn't discovered until weeks later during AI training.
+In October 2025, we lost **thousands of training examples** because the AI Desktop Multi-Crop Tool logged invalid dimensions `(0, 0)` instead of actual image sizes. This wasn't discovered until weeks later during AI training.
 
 ### **The Solution**
 
@@ -44,8 +44,8 @@ In October 2025, we lost **thousands of training examples** because the Desktop 
 
 | Script | Writes To | Validation Active |
 |--------|-----------|-------------------|
-| `01_web_image_selector.py` | `selection_only_log.csv` | ✅ YES |
-| `04_desktop_multi_crop.py` | `select_crop_log.csv` | ✅ YES |
+| `01_ai_assisted_reviewer.py` | `selection_only_log.csv` | ✅ YES |
+| `02_ai_desktop_multi_crop.py` | `select_crop_log.csv` | ✅ YES |
 
 **Tools 02, 03, 05, 06** don't write training data, so no validation needed.
 
@@ -56,7 +56,7 @@ In October 2025, we lost **thousands of training examples** because the Desktop 
 ### **Example: Zero Dimensions Bug**
 
 ```python
-# Desktop Multi-Crop Tool tries to log bad data:
+# AI Desktop Multi-Crop Tool tries to log bad data:
 log_select_crop_entry(
     session_id="20251021_150000",
     set_id="batch_42",

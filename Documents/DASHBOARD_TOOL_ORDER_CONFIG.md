@@ -11,7 +11,7 @@ All dashboard charts, tables, and toggles now use a single centralized tool orde
 ```python
 STANDARD_TOOL_ORDER = [
     'Desktop Image Selector Crop',
-    'Web Image Selector',
+    'AI-Assisted Reviewer',
     'Web Character Sorter',
     'Multi Crop Tool'
 ]
@@ -35,7 +35,7 @@ This order is defined in `scripts/dashboard/analytics.py` and exported via the A
 ## Default Visibility
 
 Tools shown by default (checkboxes checked):
-- ✅ Web Image Selector
+- ✅ AI-Assisted Reviewer
 - ✅ Web Character Sorter (newly added to table)
 - ✅ Multi Crop Tool
 
@@ -66,7 +66,7 @@ To add a new tool to the dashboard:
   "metadata": {
     "standard_tool_order": [
       "Desktop Image Selector Crop",
-      "Web Image Selector",
+      "AI-Assisted Reviewer",
       "Web Character Sorter",
       "Multi Crop Tool"
     ]

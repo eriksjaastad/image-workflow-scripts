@@ -111,7 +111,7 @@ Established and documented critical rules for training:
 - `training data/mojo1/file.png`
 - `training data/tattersail-0918/file.png`
 
-But the selection log (from original Web Image Selector sessions) has paths like:
+But the selection log (from original AI-Assisted Reviewer sessions) has paths like:
 - `PROJECT_ROOT/mojo1/file.png`
 - `PROJECT_ROOT/tattersail-0918/file.png`
 

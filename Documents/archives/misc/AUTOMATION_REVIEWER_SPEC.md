@@ -38,14 +38,14 @@ Phase 4: ⏳ Test in Sandbox + Iterate
 
 ## 🎯 **Purpose**
 
-Web UI for reviewing AI automation decisions before applying them. Based on Web Image Selector platform with automation-specific features.
+Web UI for reviewing AI automation decisions before applying them. Based on AI-Assisted Reviewer platform with automation-specific features.
 
 ---
 
 ## 📋 **Core Requirements**
 
 ### **Platform Base**
-- Built on existing Web Image Selector codebase (`scripts/01_web_image_selector.py`)
+- Built on existing AI-Assisted Reviewer codebase (`scripts/01_ai_assisted_reviewer.py`)
 - Reuse: Flask server, HTML/CSS structure, keyboard shortcuts, batch processing
 - New: Automation decision display, crop visualization overlay, approval workflow
 
@@ -57,7 +57,7 @@ Web UI for reviewing AI automation decisions before applying them. Based on Web 
 
 ## 🖼️ **UI Layout**
 
-### **Group Display (like Web Image Selector)**
+### **Group Display (like AI-Assisted Reviewer)**
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  Group 3 of 45                               [Reviewed: 2/45]│
@@ -191,7 +191,7 @@ Web UI for reviewing AI automation decisions before applying them. Based on Web 
 - Endpoint: `/api/automation/submit_batch`
 
 ### **Frontend (HTML/CSS/JS)**
-- Reuse Web Image Selector template structure
+- Reuse AI-Assisted Reviewer template structure
 - Add crop overlay canvas (HTML5 Canvas or SVG)
 - JavaScript for drawing crop rectangles
 - Keyboard event handlers
@@ -229,7 +229,7 @@ function drawCropOverlay(imageElement, cropCoords) {
 **Current Concern:** Image display size for seeing crop details
 
 **Options:**
-1. **Start with existing size** (like Web Image Selector)
+1. **Start with existing size** (like AI-Assisted Reviewer)
    - Quick to implement
    - Test if sufficient
    - Adjust later if needed
@@ -251,7 +251,7 @@ function drawCropOverlay(imageElement, cropCoords) {
 ## 🧪 **Testing Plan (Sandbox Only)**
 
 ### **Phase 1: UI Development**
-- Build reviewer UI (reuse Web Image Selector)
+- Build reviewer UI (reuse AI-Assisted Reviewer)
 - Test with mock decision data
 - Validate keyboard shortcuts
 - Test crop overlay rendering
@@ -308,7 +308,7 @@ function drawCropOverlay(imageElement, cropCoords) {
 
 ## 📝 **Notes from Erik**
 
-- "Based on web image selector platform" ✅
+- "Based on AI-assisted reviewer platform" ✅
 - "Image size might be a concern for crop details" (start simple, iterate)
 - "Start Sunday" ✅
 - "Everything AI learns from me applies to sandbox" ✅

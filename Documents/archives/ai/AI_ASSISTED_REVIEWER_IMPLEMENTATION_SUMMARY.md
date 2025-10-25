@@ -81,7 +81,7 @@ project_root/
 
 ### **5. User Experience Improvements**
 
-1. **ONE tool instead of TWO** (replaces Web Image Selector + Desktop Multi-Crop)
+1. **ONE tool instead of TWO** (replaces AI-Assisted Reviewer + Desktop Multi-Crop)
 2. **Instant file operations** - no separate processing step
 3. **Clear feedback** - status messages show what happened
 4. **Keyboard-driven** - fast navigation and decisions
@@ -158,7 +158,7 @@ python scripts/01_ai_assisted_reviewer.py character_group_1/
 ## 📊 **Impact**
 
 ### **Before:**
-1. Run Web Image Selector → Move winners to `selected/`
+1. Run AI-Assisted Reviewer → Move winners to `selected/`
 2. Run Desktop Multi-Crop → Crop images, delete losers
 3. **Total:** 2 manual steps, ~10-20 minutes per 100 groups
 

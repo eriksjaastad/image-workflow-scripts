@@ -41,10 +41,10 @@ Compact map of key directories, what lives there, and how to treat them.
   - Purpose: All executable code (tools, web apps, pipelines, tests).
   - Key subdirs/files:
     - 00_start_project.py / 07_finish_project.py — project lifecycle automation.
-    - 01_web_image_selector.py — fast selection UI (web).
+    - 01_ai_assisted_reviewer.py — fast selection UI (web).
     - 01_ai_assisted_reviewer.py — AI‑assisted reviewer UI (web).
     - 02_character_processor.py / 03_web_character_sorter.py — character workflows.
-    - 04_desktop_multi_crop.py — desktop crop tool (the only tool allowed to write crops).
+    - 02_ai_desktop_multi_crop.py — desktop crop tool (the only tool allowed to write crops).
     - ai/ — training, backfills, embedding compute, analyzers.
     - archive/ — retired desktop selector + legacy utilities/tests (kept for reference).
     - backup/ — backup helper scripts (sh + py).
@@ -67,7 +67,7 @@ Compact map of key directories, what lives there, and how to treat them.
 
 - crop/ and crop_cropped/
   - Purpose: Source crops and final cropped images.
-  - Safety: Only `scripts/04_desktop_multi_crop.py` is allowed to write/modify images here.
+  - Safety: Only `scripts/02_ai_desktop_multi_crop.py` is allowed to write/modify images here.
 
 - selected/
   - Purpose: Images selected for keep during selection tools.
@@ -94,7 +94,7 @@ Compact map of key directories, what lives there, and how to treat them.
 
 ## Where Code Lives (quick index)
 
-- Web apps: `scripts/dashboard/` (Flask), `scripts/01_web_image_selector.py`, `scripts/01_ai_assisted_reviewer.py`
+- Web apps: `scripts/dashboard/` (Flask), `scripts/01_ai_assisted_reviewer.py`, `scripts/01_ai_assisted_reviewer.py`
 - Pipelines: `scripts/data_pipeline/` (snapshots, bins, validation)
 - Training: `scripts/ai/` (rankers, crop proposer, backfills, embeddings)
 - Utilities: `scripts/tools/` and `scripts/utils/`

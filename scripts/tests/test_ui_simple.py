@@ -53,7 +53,7 @@ def test_key_binding_definitions():
     """Test that all expected key bindings are defined in the code"""
     print("  Testing key binding definitions...")
     
-    script_path = Path(__file__).parent.parent / "01_web_image_selector.py"
+    script_path = Path(__file__).parent.parent / "01_ai_assisted_reviewer.py"
     if not script_path.exists():
         print("⚠️  Web image selector not found, skipping key binding test")
         return
@@ -97,7 +97,7 @@ def test_css_button_classes():
     """Test that expected CSS classes for buttons are defined"""
     print("  Testing CSS button classes...")
     
-    script_path = Path(__file__).parent.parent / "01_web_image_selector.py"
+    script_path = Path(__file__).parent.parent / "01_ai_assisted_reviewer.py"
     if not script_path.exists():
         print("⚠️  Web image selector not found, skipping CSS test")
         return
@@ -127,7 +127,7 @@ def test_keyboard_mapping_consistency():
     """Test that keyboard mapping matches expected behavior"""
     print("  Testing keyboard mapping consistency...")
     
-    script_path = Path(__file__).parent.parent / "01_web_image_selector.py"
+    script_path = Path(__file__).parent.parent / "01_ai_assisted_reviewer.py"
     if not script_path.exists():
         print("⚠️  Web image selector not found, skipping keyboard mapping test")
         return
@@ -165,7 +165,7 @@ def test_help_text_accuracy():
     """Test that help text matches actual key bindings"""
     print("  Testing help text accuracy...")
     
-    script_path = Path(__file__).parent.parent / "01_web_image_selector.py"
+    script_path = Path(__file__).parent.parent / "01_ai_assisted_reviewer.py"
     if not script_path.exists():
         print("⚠️  Web image selector not found, skipping keyboard mapping test")
         return

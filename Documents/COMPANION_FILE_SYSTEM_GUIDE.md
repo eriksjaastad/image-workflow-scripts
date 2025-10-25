@@ -51,14 +51,14 @@ deleted = safe_delete_paths(
 ## ✅ **Production Scripts Using Centralized Utilities**
 
 ### Web Tools:
-- ✅ `scripts/01_web_image_selector.py`
+- ✅ `scripts/01_ai_assisted_reviewer.py`
 - ✅ `scripts/03_web_character_sorter.py`
 - ✅ `scripts/05_web_multi_directory_viewer.py`
 - ✅ `scripts/06_web_duplicate_finder.py`
 
 ### Desktop Tools:
 - ✅ `scripts/utils/base_desktop_image_tool.py` (base class for all desktop tools)
-- ✅ `scripts/04_desktop_multi_crop.py` (uses base class)
+- ✅ `scripts/02_ai_desktop_multi_crop.py` (uses base class)
 
 ### Utilities:
 - ✅ `scripts/utils/triplet_mover.py`

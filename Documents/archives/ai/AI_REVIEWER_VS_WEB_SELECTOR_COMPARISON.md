@@ -1,13 +1,13 @@
-# AI Reviewer vs Web Image Selector - Logic Comparison
+# AI Reviewer vs AI-Assisted Reviewer - Logic Comparison
 
 **Date:** 2025-10-22  
-**Purpose:** Ensure AI Reviewer aligns with Web Image Selector's proven, battle-tested logic
+**Purpose:** Ensure AI Reviewer aligns with AI-Assisted Reviewer's proven, battle-tested logic
 
 ---
 
 ## 🎯 CORE WORKFLOW COMPARISON
 
-### Web Image Selector (`01_web_image_selector.py`)
+### AI-Assisted Reviewer (`01_ai_assisted_reviewer.py`)
 
 **Route:** `/submit` (line 1599)
 
@@ -66,7 +66,7 @@
 
 ## 🔍 KEY INSIGHT: Missing Case
 
-### Web Image Selector Handles:
+### AI-Assisted Reviewer Handles:
 ```javascript
 // Selection with selected_index: null → DELETE ALL
 {groupId: "abc123", selectedIndex: null}
@@ -82,7 +82,7 @@ This allows a user to explicitly say "I looked at this group and want ALL images
 
 ## 🛠️ RECOMMENDED REFACTOR
 
-### **Goal:** Align AI Reviewer with Web Image Selector's proven logic
+### **Goal:** Align AI Reviewer with AI-Assisted Reviewer's proven logic
 
 ### **Changes Needed:**
 
@@ -149,7 +149,7 @@ perform_file_operations(...)  # Same as web_image_selector
 This makes it crystal clear what's AI-specific vs. standard file handling.
 
 #### 4. **Match Parameter Names**
-Web Image Selector uses:
+AI-Assisted Reviewer uses:
 - `selectedIndex` (not `selectedImage`)
 - `crop` (boolean flag)
 
@@ -189,7 +189,7 @@ After refactor, test:
 
 ## 🎓 LESSONS LEARNED
 
-1. **Don't reinvent the wheel** - Web Image Selector works great, build on it!
+1. **Don't reinvent the wheel** - AI-Assisted Reviewer works great, build on it!
 2. **Clear separation of concerns** - AI logic should be additive, not intertwined
 3. **Handle edge cases** - `selected_index: null` is a valid use case
 4. **DRY principle** - Two deletion code paths = double the bugs
@@ -199,7 +199,7 @@ After refactor, test:
 
 ## 📊 COMPLEXITY COMPARISON
 
-| Feature | Web Image Selector | AI Reviewer | Assessment |
+| Feature | AI-Assisted Reviewer | AI Reviewer | Assessment |
 |---------|-------------------|-------------|------------|
 | Core file routing | ✅ Clean | ⚠️ Split across 2 functions | **Simplify** |
 | Deletion handling | ✅ 1 code path | ⚠️ 2 code paths | **Consolidate** |
@@ -213,7 +213,7 @@ After refactor, test:
 
 **Current Status:** AI Reviewer works but has unnecessary complexity and missing edge cases.
 
-**Goal:** Match Web Image Selector's proven logic exactly, with AI features as clean additions.
+**Goal:** Match AI-Assisted Reviewer's proven logic exactly, with AI features as clean additions.
 
 **Benefit:** Easier to maintain, fewer bugs, clearer code.
 

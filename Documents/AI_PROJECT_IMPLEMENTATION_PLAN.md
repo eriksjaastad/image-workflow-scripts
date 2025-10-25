@@ -61,7 +61,7 @@ Phase 5: ⏳ Production Rollout    (Future)
 
 ### Status: ✅ COMPLETE - 21,250 Selections + 12,679 Crops from 15 Projects
 
-**Selection Data (Web Image Selector):**
+**Selection Data (AI-Assisted Reviewer):**
 - [x] **21,250 total selection decisions** from 15 historical projects
 - [x] Major projects: Mojo 1 (5,244), Mojo 2 (4,120), jmlimages-random (2,739), tattersail-0918 (2,610)
 - [x] Additional projects: Eleni_raw, Kiara_Slender, 1100, 1101_hailey, 1011-1013, agent-1001-1003, Aiko_raw
@@ -81,7 +81,7 @@ Phase 5: ⏳ Production Rollout    (Future)
 - [x] Cache: `data/ai_data/cache/processed_images.jsonl`
 
 **Infrastructure:**
-- [x] Training logger integrated in Web Image Selector
+- [x] Training logger integrated in AI-Assisted Reviewer
 - [x] Training logger integrated in Multi Crop Tool
 - [x] CSV format stable and documented
 - [x] Historical data extraction script: `scripts/ai/extract_project_training.py`
@@ -338,7 +338,7 @@ Phase 5: ⏳ Production Rollout    (Future)
 
 ### 3.2: Frontend Development (~4-5 hours)
 
-- [ ] Base on Web Image Selector HTML/CSS/JS
+- [ ] Base on AI-Assisted Reviewer HTML/CSS/JS
 - [ ] Implement group display
   - [ ] Show all images in group (thumbnails)
   - [ ] Highlight AI's choice (green border + "AI Pick" badge)
@@ -594,7 +594,7 @@ After each phase:
 ### Phase 1 (Complete)
 - ✅ Successfully captured 17k examples from Mojo 1 + Mojo 2
 - ✅ CSV format stable and easy to work with
-- ✅ Both Web Image Selector and Multi Crop Tool logging correctly
+- ✅ Both AI-Assisted Reviewer and Multi Crop Tool logging correctly
 
 ### Phase 2 (In Progress)
 - _Add notes as work progresses_

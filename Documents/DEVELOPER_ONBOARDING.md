@@ -4,7 +4,7 @@ Last Updated: 2025-10-23
 Audience: AI assistants starting a new chat session for this repository.
 
 ## 0) Ground Rules (must read)
-- Never modify production images or companions. Only `scripts/02_ai_desktop_multi_crop.py` (and legacy `04_desktop_multi_crop.py`) write NEW crops.
+- Never modify production images or companions. Only `scripts/02_ai_desktop_multi_crop.py` (and legacy `02_ai_desktop_multi_crop.py`) write NEW crops.
 - Writes allowed only to `Documents/`, `data/` (append-only snapshots/JSON/CSV), and `sandbox/`.
 - Use macOS Trash for deletions (prefer `send2trash`); do not hard-delete.
 - Log all file operations via FileTracker.

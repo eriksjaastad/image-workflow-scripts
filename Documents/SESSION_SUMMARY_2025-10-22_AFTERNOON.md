@@ -129,7 +129,7 @@ window.addEventListener('load', function() {
 **1. Run Desktop Multi-Crop:**
 ```bash
 source .venv311/bin/activate
-python scripts/04_desktop_multi_crop.py crop/
+python scripts/02_ai_desktop_multi_crop.py crop/
 ```
 
 **2. Perform these actions and watch console output:**
@@ -210,7 +210,7 @@ Example:
 - **Lines:** 199-234
 - **Impact:** Detailed timing for aspect ratio adjustments
 
-### 3. `scripts/04_desktop_multi_crop.py`
+### 3. `scripts/02_ai_desktop_multi_crop.py`
 - **Change A:** Added performance logging to `set_image_action()`
   - Lines: 762-798
   - Impact: Detailed timing for delete hotkeys

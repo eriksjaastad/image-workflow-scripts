@@ -143,7 +143,7 @@ function selectImage(imageIndex, groupId) {
 - **Large projects:** `--batch-size 200` (even faster)
 
 **Expected speed:**
-- Web Image Selector: 600 images/hour (10/min)
+- AI-Assisted Reviewer: 600 images/hour (10/min)
 - AI-Assisted Reviewer: **Similar or faster** (no dragging crop boxes!)
 
 ---
@@ -201,7 +201,7 @@ python scripts/01_ai_assisted_reviewer.py mojo3/faces/ --port 8082
 
 ## 🎉 **Result**
 
-**AI-Assisted Reviewer is now a direct clone of Web Image Selector's batch processing workflow, with AI recommendations overlaid on top!**
+**AI-Assisted Reviewer is now a direct clone of AI-Assisted Reviewer's batch processing workflow, with AI recommendations overlaid on top!**
 
 User gets:
 - Same speed as web selector

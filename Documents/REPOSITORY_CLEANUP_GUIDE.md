@@ -24,7 +24,7 @@ Keep the repository clean and organized by removing temporary files while preser
 ### ✅ **KEEP - Essential Core Files**
 
 #### Production Workflow Scripts
-- `scripts/01_web_image_selector.py` - Primary version selection tool ✅
+- `scripts/01_ai_assisted_reviewer.py` - Primary version selection tool ✅
 - `scripts/02_web_character_sorter.py` - Character sorting tool ✅
 - `scripts/04_multi_crop_tool.py` - Batch cropping tool ✅
 - `scripts/05_web_multi_directory_viewer.py` - Review tool ✅

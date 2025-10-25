@@ -123,7 +123,7 @@ class TestWebImageSelectorSmoke(WebToolSmokeTest):
         test_dir = self.create_test_images()
         
         # Start the web image selector
-        script_path = Path(__file__).parent.parent / "01_web_image_selector.py"
+        script_path = Path(__file__).parent.parent / "01_ai_assisted_reviewer.py"
         port = 8765
         
         self.process = subprocess.Popen(

@@ -357,7 +357,7 @@ def create_decision_sidecar(image_path, group_id, project_id, needs_crop):
 
 ---
 
-### 3. `scripts/01_web_image_selector.py` (Web Image Selector)
+### 3. `scripts/01_ai_assisted_reviewer.py` (AI-Assisted Reviewer)
 
 **Changes Needed:**
 - ⚠️ **This tool does NOT use AI recommendations!**

@@ -24,7 +24,7 @@ class SimpleWebToolsTest:
         
         # Test that the script can start and analyze data
         result = subprocess.run([
-            sys.executable, "01_web_image_selector.py",
+            sys.executable, "01_ai_assisted_reviewer.py",
             str(test_dir), "--print-triplets"
         ], capture_output=True, text=True, timeout=10, cwd=Path(__file__).parent.parent)
         
@@ -105,7 +105,7 @@ class SimpleWebToolsTest:
     def test_style_guide_references(self):
         """Test that all web files reference the style guide"""
         web_files = [
-            "01_web_image_selector.py",
+            "01_ai_assisted_reviewer.py",
             "03_web_character_sorter.py", 
             "05_web_multi_directory_viewer.py"
         ]
@@ -132,7 +132,7 @@ class SimpleWebToolsTest:
     def test_recent_enhancements_in_code(self):
         """Test that recent enhancements are present in the code"""
         # Test Web Image Selector enhancements
-        selector_content = Path(__file__).parent.parent / "01_web_image_selector.py"
+        selector_content = Path(__file__).parent.parent / "01_ai_assisted_reviewer.py"
         if not selector_content.exists():
             print("⚠️  Web image selector not found, skipping")
             return True

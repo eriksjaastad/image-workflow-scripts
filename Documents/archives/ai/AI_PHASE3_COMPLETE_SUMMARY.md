@@ -16,7 +16,7 @@ A fully functional web-based review tool for image groups with rule-based recomm
 ## ✨ Features Implemented
 
 ### **Core Functionality:**
-✅ **Image Grouping** - Uses exact same logic as Web Image Selector (reuses `find_consecutive_stage_groups`)  
+✅ **Image Grouping** - Uses exact same logic as AI-Assisted Reviewer (reuses `find_consecutive_stage_groups`)  
 ✅ **Rule-Based Recommendations** - Picks highest stage image (stage3 > stage2 > stage1)  
 ✅ **Sidecar Decision Files** - Stores decisions in `.decision` JSON files (single source of truth)  
 ✅ **No File Moves** - Review only, no destructive operations
@@ -109,7 +109,7 @@ python scripts/01_ai_assisted_reviewer.py sandbox/mojo2/selected/ --port 8081
 ✅ `extract_datetime_from_filename` - Timestamp parsing
 
 ### **Design Patterns:**
-✅ Flask web server (like Web Image Selector)  
+✅ Flask web server (like AI-Assisted Reviewer)  
 ✅ Jinja2 templates with inline CSS/JS  
 ✅ Project style guide colors & spacing  
 ✅ Keyboard-first navigation

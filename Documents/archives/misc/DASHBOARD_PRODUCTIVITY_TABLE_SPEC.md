@@ -26,7 +26,7 @@ mixed-0919       | 15500   | -         | -          | 15500
 ## Columns
 
 1. **Project**: Project name (matches detailed table order)
-2. **Web Sel** (img/h): Web Image Selector productivity
+2. **Web Sel** (img/h): AI-Assisted Reviewer productivity
 3. **Char Sort** (img/h): Character Sorter productivity  
 4. **Multi Crop** (img/h): Multi Crop Tool productivity
 5. **Overall** (img/h): **Combined productivity across all tools** (highlighted)
@@ -130,7 +130,7 @@ Crop Tool:     5,000 images in 10 hours = 500 img/h
       "projectId": "mojo2",
       "title": "Mojo2",
       "tool_metrics": {
-        "Web Image Selector": 1448,
+        "AI-Assisted Reviewer": 1448,
         "Web Character Sorter": null,
         "Multi Crop Tool": null
       },

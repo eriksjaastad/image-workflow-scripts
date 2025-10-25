@@ -4,7 +4,7 @@
 ## 🎯 **Purpose**
 
 AI-Assisted Reviewer should **REPLACE** both:
-- 01 Web Image Selector
+- 01 AI-Assisted Reviewer
 - 04 Desktop Multi-Crop
 
 By combining selection + crop proposal + file routing into ONE integrated tool.
@@ -41,7 +41,7 @@ project/
 ## 🔄 **Workflow Comparison**
 
 ### **OLD Workflow (2 tools):**
-1. Web Image Selector → Move winners to `selected/`, losers to `delete_staging/`
+1. AI-Assisted Reviewer → Move winners to `selected/`, losers to `delete_staging/`
 2. Desktop Multi-Crop → Crop images in `selected/`, move to Trash if deleted
 
 ### **NEW Workflow (1 tool):**
@@ -82,7 +82,7 @@ session_id, set_id, directory, image_path_1, stage_1, width_1, height_1, chosen_
 - Logs via FileTracker for audit trail
 
 ### **2. Delete Staging (Fast Delete)**
-- Pattern from Web Image Selector: `delete_staging/` at project root
+- Pattern from AI-Assisted Reviewer: `delete_staging/` at project root
 - Use `Path.rename()` for instant move (much faster than Trash)
 - User can manually empty staging directory later
 
