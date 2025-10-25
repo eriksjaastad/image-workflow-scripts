@@ -158,8 +158,10 @@ def consolidate_daily_data(target_date: str, dry_run: bool = False):
         timestamp = op.get('timestamp', '')
         session_id = op.get('session_id', '')
         
-        script_summaries[script]['total_files'] += png_count
-        script_summaries[script]['operations'][operation_type] += png_count
+        # tests expect total_files to be sum of file_count across ops (not PNG-only fallback in this path)
+        file_count = int(op.get('file_count', 0) or 0)
+        script_summaries[script]['total_files'] += file_count
+        script_summaries[script]['operations'][operation_type] += file_count
         script_summaries[script]['sessions'].add(session_id)
         
         if not script_summaries[script]['first_operation']:

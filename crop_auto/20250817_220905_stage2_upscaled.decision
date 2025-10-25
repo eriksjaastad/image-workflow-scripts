@@ -1,0 +1,13 @@
+{
+  "group_id": "mojo3_group_20251025T134039079175_batch003_img670",
+  "project_id": "mojo3",
+  "needs_crop": true,
+  "ai_crop_coords": [
+    0.08921908587217331,
+    0.0001911409490276128,
+    0.8940312266349792,
+    0.7632378935813904
+  ],
+  "ai_route": "suggestion",
+  "ai_crop_accepted": true
+}

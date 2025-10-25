@@ -91,6 +91,14 @@ try:
     HAS_AI_LOGGING = True
 except ImportError:
     HAS_AI_LOGGING = False
+
+# SQLite v3 Training Data (NEW!)
+try:
+    from scripts.utils.ai_training_decisions_v3 import update_decision_with_crop
+    HAS_SQLITE_V3 = True
+except ImportError:
+    HAS_SQLITE_V3 = False
+    print("[!] Warning: SQLite v3 utilities not available")
     capture_crop_decision = None
 """
 NOTE: Focus timer durations can be edited via FOCUS_TIMER_WORK_MIN and
@@ -604,8 +612,12 @@ class MultiCropTool(BaseDesktopImageTool):
     
     def load_batch(self):
         """Load the current batch of up to 3 images - optimized"""
-        # Use progress tracker's file index as the source of truth
-        start_idx = self.progress_tracker.current_file_index
+        # In single-directory mode, always start from 0 (we re-glob after each batch)
+        # In multi-directory mode, use progress tracker's file index
+        if self.single_directory_mode:
+            start_idx = 0
+        else:
+            start_idx = self.progress_tracker.current_file_index
         end_idx = min(start_idx + 3, len(self.png_files))
         
         # Update current_batch to match the actual position
@@ -749,11 +761,16 @@ class MultiCropTool(BaseDesktopImageTool):
     
     def set_image_action(self, image_idx, action):
         """Toggle between keep (None/crop) and delete for a specific image"""
+        import time
+        t0 = time.perf_counter()
+        
         if image_idx >= len(self.current_images):
             return
             
         # Toggle between None (crop) and 'delete' - matches base class pattern
         current_action = self.image_states[image_idx].get('action')
+        t1 = time.perf_counter()
+        
         if current_action == 'delete':
             self.image_states[image_idx]['action'] = None  # None means crop
             print(f"[*] Image {image_idx + 1} marked to keep/crop")
@@ -762,11 +779,23 @@ class MultiCropTool(BaseDesktopImageTool):
             print(f"[*] Image {image_idx + 1} marked for deletion")
             
         self.has_pending_changes = True
+        t2 = time.perf_counter()
         
         # Update display
         self.update_image_titles(self.image_states)
+        t3 = time.perf_counter()
+        
         self.update_control_labels()
+        t4 = time.perf_counter()
+        
         self.fig.canvas.draw_idle()
+        t5 = time.perf_counter()
+        
+        # Performance logging
+        print(f"[PERF set_image_action] Total: {(t5-t0)*1000:.1f}ms | "
+              f"Get state: {(t1-t0)*1000:.1f}ms | Set action: {(t2-t1)*1000:.1f}ms | "
+              f"Update titles: {(t3-t2)*1000:.1f}ms | Update labels: {(t4-t3)*1000:.1f}ms | "
+              f"Draw: {(t5-t4)*1000:.1f}ms")
     
     def next_directory(self):
         """Move to next directory (multi-directory mode only)."""
@@ -834,19 +863,25 @@ class MultiCropTool(BaseDesktopImageTool):
     
     def submit_batch(self):
         """Process all images in the current batch - optimized for speed"""
-        import traceback
-        print(f"\n[DEBUG submit_batch] CALLED! Stack trace:")
-        for line in traceback.format_stack()[:-1]:
-            print(line.strip())
+        import time
+        t_start = time.perf_counter()
+        
+        # DEBUG: Uncomment for troubleshooting
+        # import traceback
+        # print(f"\n[DEBUG submit_batch] CALLED! Stack trace:")
+        # for line in traceback.format_stack()[:-1]:
+        #     print(line.strip())
         
         if not self.current_images:
-            print("[DEBUG submit_batch] No current images to process")
+            # print("[DEBUG submit_batch] No current images to process")
             return
         
-        print(f"\n[DEBUG submit_batch] Processing batch with {len(self.current_images)} images")
-        print(f"[DEBUG submit_batch] Image states:")
-        for i, state in enumerate(self.image_states):
-            print(f"  Image {i+1}: action={state.get('action')}, has_selection={state.get('has_selection')}, crop_coords={state.get('crop_coords')}")
+        t1 = time.perf_counter()
+        # DEBUG: Uncomment for troubleshooting
+        # print(f"\n[DEBUG submit_batch] Processing batch with {len(self.current_images)} images")
+        # print(f"[DEBUG submit_batch] Image states:")
+        # for i, state in enumerate(self.image_states):
+        #     print(f"  Image {i+1}: action={state.get('action')}, has_selection={state.get('has_selection')}, crop_coords={state.get('crop_coords')}")
             
         # Collect operations first (faster than processing one-by-one)
         operations = []
@@ -857,27 +892,29 @@ class MultiCropTool(BaseDesktopImageTool):
             yaml_path = png_path.with_suffix('.yaml')
             action = state.get('action')
             
-            print(f"[DEBUG] Image {i+1} ({png_path.name}):")
-            print(f"  - action: {action}")
-            print(f"  - has_selection: {state.get('has_selection')}")
-            print(f"  - crop_coords: {state.get('crop_coords')}")
+            # DEBUG: Uncomment for troubleshooting
+            # print(f"[DEBUG] Image {i+1} ({png_path.name}):")
+            # print(f"  - action: {action}")
+            # print(f"  - has_selection: {state.get('has_selection')}")
+            # print(f"  - crop_coords: {state.get('crop_coords')}")
             
             if action == 'skip':
-                print(f"  → Will SKIP")
+                # print(f"  → Will SKIP")
                 operations.append(('skip', png_path, yaml_path, None))
                 processed_count += 1
             elif action == 'delete':
-                print(f"  → Will DELETE")
+                # print(f"  → Will DELETE")
                 operations.append(('delete', png_path, yaml_path, None))
                 processed_count += 1
             elif action is None and state['has_selection'] and state['crop_coords']:
-                print(f"  → Will CROP with coords: {state['crop_coords']}")
+                # print(f"  → Will CROP with coords: {state['crop_coords']}")
                 operations.append(('crop', png_path, yaml_path, (image_info, state['crop_coords'])))
                 processed_count += 1
-            else:
-                print(f"  → NO ACTION (will be left untouched)")
+            # else:
+                # print(f"  → NO ACTION (will be left untouched)")
         
-        print(f"\n[DEBUG submit_batch] Total operations queued: {processed_count}")
+        t2 = time.perf_counter()
+        # print(f"\n[DEBUG submit_batch] Total operations queued: {processed_count}")
         
         # If nothing is queued, don't advance; stay on the same batch
         if processed_count == 0:
@@ -888,8 +925,9 @@ class MultiCropTool(BaseDesktopImageTool):
         self.has_pending_changes = False
         self.quit_confirmed = False
         
-        # 1) Process file operations FIRST
-        print(f"[DEBUG] Processing {len(operations)} file operations...")
+        t3 = time.perf_counter()
+        # 1) Process file operations
+        # print(f"[DEBUG] Processing {len(operations)} file operations...")
         for op_type, png_path, yaml_path, extra in operations:
             try:
                 if op_type == 'skip':
@@ -902,6 +940,7 @@ class MultiCropTool(BaseDesktopImageTool):
             except Exception as e:
                 print(f"Error processing {png_path.name}: {e}")
         
+        t4 = time.perf_counter()
         print(f"✓ Processed {processed_count} images")
         
         # 2) Advance progress by the actual count processed (not by full batch size)
@@ -912,9 +951,18 @@ class MultiCropTool(BaseDesktopImageTool):
             self.current_batch = self.progress_tracker.current_file_index // 3
             self.progress_tracker.save_progress()
         
+        t5 = time.perf_counter()
         # 3) Refresh list from disk (files may have been moved/deleted)
-        self.png_files = self.progress_tracker.get_current_files()
+        if self.single_directory_mode:
+            # In single-directory mode, re-glob the base directory directly
+            # (progress tracker doesn't track files in single-directory mode)
+            all_files = list(self.base_directory.glob("*.png"))
+            self.png_files = sort_image_files_by_timestamp_and_stage(all_files)
+        else:
+            # In multi-directory mode, use progress tracker
+            self.png_files = self.progress_tracker.get_current_files()
         
+        t6 = time.perf_counter()
         # 4) Decide where to go next
         if self.has_next_batch():
             self.load_batch()
@@ -923,14 +971,30 @@ class MultiCropTool(BaseDesktopImageTool):
         else:
             self.show_completion()
             return
+        
+        t_end = time.perf_counter()
+        
+        # Performance logging
+        print(f"[PERF submit_batch] Total: {(t_end-t_start)*1000:.1f}ms | "
+              f"Init: {(t1-t_start)*1000:.1f}ms | Queue ops: {(t2-t1)*1000:.1f}ms | "
+              f"Flags: {(t3-t2)*1000:.1f}ms | File ops: {(t4-t3)*1000:.1f}ms | "
+              f"Progress: {(t5-t4)*1000:.1f}ms | Refresh: {(t6-t5)*1000:.1f}ms | "
+              f"Load next: {(t_end-t6)*1000:.1f}ms")
     
     def has_next_batch(self):
         """Check if there are more batches to process in current directory"""
-        # Use unified logic: look at the progress tracker's file index
-        next_start = self.progress_tracker.current_file_index
-        remaining = len(self.png_files) - next_start
-        print(f"[DEBUG has_next_batch] current_file_index={self.progress_tracker.current_file_index}, remaining={remaining}")
-        return remaining > 0
+        if self.single_directory_mode:
+            # In single-directory mode, just check if there are any files left
+            # (self.png_files is re-globbed after each batch, so files are already removed)
+            remaining = len(self.png_files)
+            print(f"[DEBUG has_next_batch] single-directory mode, files remaining={remaining}")
+            return remaining > 0
+        else:
+            # In multi-directory mode, use progress tracker's file index
+            next_start = self.progress_tracker.current_file_index
+            remaining = len(self.png_files) - next_start
+            print(f"[DEBUG has_next_batch] multi-directory mode, current_file_index={next_start}, remaining={remaining}")
+            return remaining > 0
     
     def show_completion(self):
         """Show completion message"""
@@ -971,38 +1035,52 @@ class MultiCropTool(BaseDesktopImageTool):
             print(f"[!] Error moving files to {cropped_dir.name}: {e}")
             # Continue despite move errors
         
-        # Log training data (existing CSV logging)
-        try:
-            session_id = getattr(self.progress_tracker, 'session_data', {}).get('session_start', '')
-            set_id = f"{source_dir.name}_{png_path.stem}"  # Use directory + filename as set_id
-            directory = str(source_dir)
-            
-            # For multi-crop, we process images individually, so treat each as its own "set"
-            image_paths = [str(png_path)]
-            image_stages = [detect_stage(png_path.name)]
-            image_sizes = [image_info.get('original_size', (0, 0))]  # Fixed: was 'size', should be 'original_size'
-            chosen_idx = 0  # Always 0 since we're logging individual crops
-            
-            # Normalize crop coordinates
-            w, h = image_info.get('original_size', (1, 1))  # Fixed: was 'size', should be 'original_size'
-            x1, y1, x2, y2 = crop_coords
-            crop_norm = (x1/max(1,w), y1/max(1,h), x2/max(1,w), y2/max(1,h))
-            
-            log_select_crop_entry(session_id, set_id, directory, image_paths, image_stages, image_sizes, chosen_idx, crop_norm)
-            
-            # AI training snapshot (NEW - async, non-blocking)
-            if self.enable_ai_logging and capture_crop_decision:
-                capture_crop_decision(
-                    image_path=png_path,
-                    crop_coords=crop_norm,
-                    action="cropped",
-                    image_size=(w, h),
-                    session_id=session_id,
-                    tool="multi_crop_tool"
-                )
-        except Exception as e:
-            # Don't let logging errors break the workflow
-            pass
+        # SQLite v3: Update decision with final crop (NEW!)
+        if HAS_SQLITE_V3:
+            try:
+                # Look for .decision sidecar file
+                decision_file = png_path.with_suffix('.decision')
+                if decision_file.exists():
+                    with open(decision_file) as f:
+                        decision_data = json.load(f)
+                    
+                    group_id = decision_data.get('group_id')
+                    project_id = decision_data.get('project_id')
+                    
+                    if group_id and project_id:
+                        # Get database path
+                        db_path = Path(f"data/training/ai_training_decisions/{project_id}.db")
+                        
+                        if db_path.exists():
+                            # Normalize crop coordinates
+                            w, h = image_info.get('original_size', (1, 1))
+                            x1, y1, x2, y2 = crop_coords
+                            crop_norm = [x1/max(1,w), y1/max(1,h), x2/max(1,w), y2/max(1,h)]
+                            
+                            # Update database
+                            update_decision_with_crop(
+                                db_path=db_path,
+                                group_id=group_id,
+                                final_crop_coords=crop_norm
+                            )
+                            
+                            print(f"[SQLite] Updated decision: {group_id}")
+                            
+                            # Delete .decision file after successful update
+                            decision_file.unlink()
+                        else:
+                            print(f"[!] Database not found: {db_path}")
+                    else:
+                        print(f"[!] Invalid .decision file (missing group_id or project_id)")
+                # else: No .decision file - that's OK (legacy crop or manual run)
+            except Exception as e:
+                print(f"[!] Error updating SQLite decision: {e}")
+                # Don't fail the workflow for logging errors
+        
+        # PERFORMANCE: Heavy logging disabled for speed (will be replaced with SQLite v3)
+        # TODO: Re-enable with background thread or batch logging
+        # For now: Tool responsiveness is priority #1
+        pass
     
     def run(self):
         """Main execution loop"""

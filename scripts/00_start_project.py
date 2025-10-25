@@ -130,6 +130,30 @@ def get_project_manifest_template(
     }
 
 
+def update_gitignore(project_id: str) -> None:
+    """Update .gitignore to exclude the project directory."""
+    gitignore_path = Path(".gitignore")
+    
+    # Create .gitignore if it doesn't exist
+    if not gitignore_path.exists():
+        gitignore_path.write_text("")
+    
+    current_content = gitignore_path.read_text()
+    lines = current_content.splitlines()
+    
+    # Check if project directory is already ignored
+    project_pattern = f"{project_id}/"
+    if project_pattern not in lines:
+        # Add a newline if file doesn't end with one
+        if current_content and not current_content.endswith('\n'):
+            current_content += '\n'
+        
+        # Add project directory to .gitignore
+        current_content += f"# Project directory\n{project_pattern}\n"
+        gitignore_path.write_text(current_content)
+        print(f"✅ Added {project_pattern} to .gitignore")
+
+
 def create_project_manifest(
     project_id: str,
     content_dir: Path,
@@ -228,6 +252,8 @@ def create_project_manifest(
             json.dumps(manifest, indent=2, ensure_ascii=False),
             encoding='utf-8'
         )
+        # Update .gitignore with project directory
+        update_gitignore(project_id)
     except Exception as e:
         return {
             "status": "error",

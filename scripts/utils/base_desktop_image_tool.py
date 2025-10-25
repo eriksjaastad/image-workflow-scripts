@@ -198,21 +198,40 @@ class BaseDesktopImageTool:
 
     def _set_selector_extents_safely(self, image_idx: int, x1: int, x2: int, y1: int, y2: int):
         """Avoid ghost/stacked handles by toggling visibility/active during updates."""
+        import time
+        t0 = time.perf_counter()
+        
         if image_idx >= len(self.selectors) or not self.selectors[image_idx]:
             return
         sel = self.selectors[image_idx]
+        
+        t1 = time.perf_counter()
         try:
             sel.set_active(False)
             sel.set_visible(False)
         except Exception:
             pass
+        t2 = time.perf_counter()
+        
         sel.extents = (x1, x2, y1, y2)
+        t3 = time.perf_counter()
+        
         try:
             sel.set_visible(True)
             sel.set_active(True)
         except Exception:
             pass
-        plt.draw()
+        t4 = time.perf_counter()
+        
+        # PERFORMANCE: Use draw_idle() instead of draw() for async updates
+        # This avoids blocking the UI thread during drag operations
+        self.fig.canvas.draw_idle()
+        t5 = time.perf_counter()
+        
+        # Performance logging
+        print(f"[PERF _set_selector_extents_safely] Total: {(t5-t0)*1000:.1f}ms | "
+              f"Disable: {(t2-t1)*1000:.1f}ms | Set extents: {(t3-t2)*1000:.1f}ms | "
+              f"Enable: {(t4-t3)*1000:.1f}ms | Draw: {(t5-t4)*1000:.1f}ms")
     
     def on_crop_select(self, eclick, erelease, image_idx: int):
         """Handle crop rectangle selection for a specific image."""
@@ -351,7 +370,8 @@ class BaseDesktopImageTool:
         image_aspect_ratio = self.image_states[image_idx]['image_aspect_ratio']
         # Update title to show selection status
         self.update_image_titles(self.image_states)
-        plt.draw()
+        # PERFORMANCE: Use draw_idle() for non-blocking updates
+        self.fig.canvas.draw_idle()
     
     def crop_and_save(self, image_info: Dict, crop_coords: Tuple[int, int, int, int]):
         """Crop image and save over the original file in place."""

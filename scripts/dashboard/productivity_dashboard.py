@@ -23,11 +23,11 @@ from analytics import DashboardAnalytics
 
 class ProductivityDashboard:
     def __init__(self, data_dir: str = "../.."):
-        # Normalize to project root regardless of how this script is invoked
-        project_root = Path(__file__).resolve().parents[2]
-        self.data_engine = DashboardDataEngine(str(project_root))
-        # Analytics engine for normalized/table computations (single source)
-        self.analytics = DashboardAnalytics(project_root)
+        # Honor provided data_dir for testability; resolve relative paths
+        base = Path(data_dir).resolve()
+        self.data_engine = DashboardDataEngine(str(base))
+        # Analytics engine should use the same base
+        self.analytics = DashboardAnalytics(base)
         # Set template folder to current directory
         self.app = Flask(__name__, template_folder='.')
         # Preserve dict order in JSON responses (don't sort keys)
@@ -190,8 +190,14 @@ class ProductivityDashboard:
                 for tool, stats in (rec.get('tools') or {}).items():
                     tools[tool] = {
                         'iph': float(stats.get('images_per_hour') or 0),
-                        'baseline': float(per_tool_base.get(tool) or 0)
+                        'baseline': float(per_tool_base.get(tool) or 0),
+                        'images_processed': int(stats.get('images_processed') or 0),
+                        'work_time_minutes': float(stats.get('work_time_minutes') or 0)
                     }
+                
+                # NEW: Add crop rate data from SQLite v3 database
+                crop_rate = self._get_crop_rate_for_project(pid)
+                
                 comparisons.append({
                     'projectId': pid,
                     'title': title,
@@ -199,7 +205,9 @@ class ProductivityDashboard:
                     'baseline_overall': overall_base,
                     'tools': tools,
                     'startedAt': rec.get('startedAt'),
-                    'finishedAt': rec.get('finishedAt')
+                    'finishedAt': rec.get('finishedAt'),
+                    'total_operations': rec.get('totals', {}).get('total_images_processed', 0),
+                    'crop_rate': crop_rate  # NEW: Crop vs approve stats
                 })
             # sort by startedAt if available
             def _key(x):
@@ -212,6 +220,42 @@ class ProductivityDashboard:
         chart_data['project_productivity_table'] = self._build_project_productivity_table(data)
 
         return chart_data
+    
+    def _get_crop_rate_for_project(self, project_id: str) -> dict | None:
+        """Get crop vs approve statistics from SQLite v3 database."""
+        import sqlite3
+        from pathlib import Path
+        
+        db_path = Path(self.data_dir) / 'data' / 'training' / 'ai_training_decisions' / f'{project_id}.db'
+        if not db_path.exists():
+            return None
+        
+        try:
+            conn = sqlite3.connect(str(db_path))
+            cursor = conn.execute("""
+                SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN user_action = 'crop' THEN 1 ELSE 0 END) as cropped,
+                    SUM(CASE WHEN user_action = 'approve' THEN 1 ELSE 0 END) as approved
+                FROM ai_decisions
+            """)
+            row = cursor.fetchone()
+            conn.close()
+            
+            if row and row[0] > 0:
+                total, cropped, approved = row
+                return {
+                    'total_decisions': total,
+                    'cropped': cropped,
+                    'approved_no_crop': approved,
+                    'crop_percentage': (cropped / total * 100) if total > 0 else 0,
+                    'approve_percentage': (approved / total * 100) if total > 0 else 0
+                }
+        except Exception as e:
+            print(f"[!] Error loading crop rate for {project_id}: {e}")
+            return None
+        
+        return None
     
     def _build_project_productivity_table(self, data):
         """Build project productivity table data"""

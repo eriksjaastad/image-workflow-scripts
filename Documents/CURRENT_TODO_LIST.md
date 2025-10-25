@@ -1,6 +1,6 @@
 # Current TODO List
 
-**Last Updated:** 2025-10-21 (Morning)
+**Last Updated:** 2025-10-22 (Morning)
 
 ---
 
@@ -36,24 +36,84 @@
 ## 📅 Backlog
 
 ### Historical Crop Data Extraction (Experiment)
-- [ ] **Extract crop dimensions from before/after projects** [PRIORITY: MEDIUM]
-  - **Goal:** Recover crop training data from historical projects by comparing originals vs cropped finals
+- [ ] **Extract crop coordinates from historical projects using image matching** [PRIORITY: MEDIUM]
+  - **Goal:** Recover thousands of crop training examples by comparing original vs cropped images
   - **Method:** 
-    1. For each historical project with RAW + FINAL directories
-    2. Find matching images (same filename in both)
-    3. Compare image dimensions: if FINAL is smaller, calculate crop coordinates
-    4. Compute crop box coordinates based on aspect ratio and size difference
-    5. Write extracted crop data to `select_crop_log.csv`
-  - **Challenges:**
-    - Crop might have been centered, top-aligned, or manual - hard to know which
-    - Aspect ratio changes would be ambiguous
-    - Only useful if crops were simple (centered or edge-aligned)
-  - **Value:** Could recover thousands of crop training examples from old projects
-  - **Status:** EXPERIMENT - may or may not yield useful data
+    1. Use project manifests to identify date ranges
+    2. Find cropped images (files within project date range in `_cropped/` or `_final/` directories)
+    3. Find matching original images (same filename in original/raw directory)
+    4. Use OpenCV template matching to find exact crop location
+    5. Extract crop coordinates (x1, y1, x2, y2)
+    6. Normalize coordinates (0.0-1.0 range)
+    7. Write to training CSV or SQLite (decide which)
+  - **Why This Will Work:**
+    - No compression/resizing in workflow = exact pixel match
+    - Template matching will find location with 99.9%+ confidence
+    - Fast processing (seconds per image)
+  - **Implementation:**
+    - Proof of concept: Test on 10 image pairs first
+    - Visual verification: Show matches overlaid
+    - Batch processing: Process all historical projects
+    - Validation: Manual review of sample matches
+  - **Potential Value:**
+    - Could recover 5,000-10,000 crop training examples
+    - Dramatically improve Crop Proposer model
+    - Learn from historical crop patterns
+  - **Output Format:**
+    - Training data (not decision tracking)
+    - Either: Add to crop training CSV
+    - Or: Store in separate "recovered_crops.csv"
+    - Include: timestamp, project_id, filename, crop_coords, image_width, image_height
+  - **Projects to Process:**
+    - Mojo1, Mojo2 (and any other finished projects with original + cropped pairs)
+  - **Status:** EXPERIMENT - Build proof of concept first, then scale if successful
 
 ### Documentation
 - [ ] Document training data structure rules in `AI_TRAINING_DATA_STRUCTURE.md`
 - [ ] Create troubleshooting guide for common training issues
+
+### Dashboard Improvements
+- [ ] **Reimagine/Simplify Productivity Dashboard** [PRIORITY: MEDIUM]
+  - **Issue:** Too many graphs that aren't actually useful
+  - **Keep:** 
+    - Build vs Actual (helpful, locked in)
+    - Billing Efficiency Tracker (fine)
+    - Productivity Table (pretty good)
+    - Input vs Output (favorite graph)
+  - **Reconsider/Remove:**
+    - Project Comparison (confusing - operations > total images?)
+    - Files Processed by Project (lines too small, hard to read with many projects)
+    - Other graphs that don't provide clear insights
+  - **Improvements Needed:**
+    - Make it easier to view just last 2-3 projects together (not all at once)
+    - Better default filters (e.g., only show recent projects by default)
+    - Larger/clearer visualizations (especially for time-series)
+    - Consider minimum thresholds for graphs (500+ files?) to avoid flatlined data
+  - **Goal:** Less overwhelming, more focused on actionable insights
+
+- [ ] **Add AI Performance Stats to Dashboard** [PRIORITY: HIGH]
+  - **Data Source:** SQLite v3 databases (`data/training/ai_training_decisions/*.db`)
+  - **Metrics to Show:**
+    - **Selection Accuracy:** % of times AI picked the same image as user
+    - **Crop Accuracy:** % of times AI's crop was within 5% of user's final crop
+    - **Trend Over Time:** Is AI getting better as it trains on more data?
+    - **Per-Project Stats:** Compare AI performance across Mojo1, Mojo2, Mojo3, etc.
+    - **Confidence Calibration:** Does high AI confidence = correct prediction?
+  - **Visualizations:**
+    - Line graph: Selection accuracy over time (by project)
+    - Bar chart: AI correct vs user override (per project)
+    - Gauge: Current AI accuracy (like a speedometer)
+    - Table: Detailed breakdown (total decisions, correct, wrong, accuracy %)
+  - **Why This Is Awesome:**
+    - See AI improvement in real-time as you work!
+    - Know when to trust AI's suggestions more
+    - Celebrate milestones (50% accuracy → 70% → 85%!)
+    - Identify which types of images AI struggles with
+  - **Implementation:**
+    - Query SQLite databases for `selection_match` and `crop_match` flags
+    - Group by project and timestamp
+    - Calculate rolling accuracy (e.g., last 100 decisions)
+    - Display prominently on dashboard (maybe top section?)
 
 ### Automation
 - [ ] Set up daily validation report (cron job or manual)
@@ -62,6 +122,25 @@
 ---
 
 ## ✅ Recently Completed
+
+**SQLite v3 Training System (Oct 22, 2025 - Night/Morning)**
+- [x] **Design and implement SQLite-based training data system** ⭐ **GAME CHANGER!**
+- [x] Create database schema with decision tracking + crop matching
+- [x] Build utility functions (`scripts/utils/ai_training_decisions_v3.py`)
+- [x] Write comprehensive tests (18 tests, all passing)
+- [x] Integrate into AI Reviewer (log AI decisions + create `.decision` files)
+- [x] Integrate into Desktop Multi-Crop (read `.decision` files + update with final crops)
+- [x] Document complete system (`Documents/AI_TRAINING_DECISIONS_V3_IMPLEMENTATION.md`)
+- [x] Add to Technical Knowledge Base (365 lines)
+- [x] Fix Desktop Multi-Crop performance lag (plt.draw → draw_idle, 20-40x faster!)
+- [x] Test full workflow (90 decisions logged successfully)
+
+**AI Reviewer UX Improvements (Oct 22, 2025 - Morning)**
+- [x] **Add "Remove Crop" toggle button to AI-selected images** ⭐ **TESTED AND WORKING!**
+- [x] Add regular crop button to AI-selected images (for manual cropping)
+- [x] Auto-launch browser when starting AI Reviewer
+- [x] Document --batch-size and other flags in header
+- [x] Remove confusing "Approve" buttons from all images
 
 **Phase 2: AI Training (90% Complete)**
 - [x] Extract training data from 15 historical projects (21,250 selections, 12,679 crops)

@@ -1,0 +1,27 @@
+{
+  "group_id": "20250705_221402",
+  "images": [
+    "20250705_221402_stage1_generated.png",
+    "20250705_221520_stage2_upscaled.png",
+    "20250705_221714_stage3_enhanced.png"
+  ],
+  "ai_recommendation": {
+    "selected_image": "20250705_221520_stage2_upscaled.png",
+    "selected_index": 1,
+    "reason": "AI picked stage2_upscaled (score: -0.40) | stage1_generated: -0.41 \u2022 stage2_upscaled: -0.40 \u2713 \u2022 stage3_enhanced: -0.42",
+    "confidence": 0.40045225620269775,
+    "crop_needed": true,
+    "crop_coords": [
+      0.040277495980262756,
+      0.030883144587278366,
+      0.9687201380729675,
+      0.9620765447616577
+    ]
+  },
+  "user_decision": {
+    "action": "reject",
+    "selected_image": null,
+    "selected_index": null,
+    "timestamp": "2025-10-21T19:09:35.450660Z"
+  }
+}

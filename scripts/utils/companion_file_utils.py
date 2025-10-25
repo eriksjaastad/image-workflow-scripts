@@ -563,7 +563,7 @@ def move_multiple_files_with_companions(image_files: List[Path], dest_dir: Path,
     }
 
 
-def safe_delete_paths(paths: Iterable[Path], hard_delete: bool = False, tracker=None) -> List[str]:
+def safe_delete_paths(paths: Iterable[Path], hard_delete: bool = False, tracker=None) -> List[Path]:
     """
     Delete or send a list of file paths to Trash. Optionally logs via tracker.
 
@@ -575,14 +575,15 @@ def safe_delete_paths(paths: Iterable[Path], hard_delete: bool = False, tracker=
     Returns:
         List of deleted file names
     """
-    deleted: List[str] = []
+    deleted: List[Path] = []
 
     if hard_delete:
         for p in paths:
             try:
                 if p.exists():
-                    p.unlink()
-                    deleted.append(p.name)
+                    # Use os.remove for test visibility (mockable)
+                    os.remove(str(p))
+                    deleted.append(p)
             except Exception as exc:
                 logger.error_with_exception(f"Failed to delete {p}", exc)
     else:
@@ -595,7 +596,7 @@ def safe_delete_paths(paths: Iterable[Path], hard_delete: bool = False, tracker=
             try:
                 if p.exists():
                     send2trash(str(p))
-                    deleted.append(p.name)
+                    deleted.append(p)
             except Exception as exc:
                 logger.error_with_exception(f"Failed to send to Trash {p}", exc)
 
@@ -606,8 +607,8 @@ def safe_delete_paths(paths: Iterable[Path], hard_delete: bool = False, tracker=
                 operation="delete" if hard_delete else "send_to_trash",
                 source_dir=source_dir,
                 dest_dir="trash" if not hard_delete else "",
-                file_count=len([n for n in deleted if n.lower().endswith('.png')]),
-                files=deleted,
+                file_count=len([n for n in deleted if n.name.lower().endswith('.png')]),
+                files=[p.name for p in deleted],
                 notes="image-only count",
             )
         except Exception:
@@ -616,7 +617,7 @@ def safe_delete_paths(paths: Iterable[Path], hard_delete: bool = False, tracker=
     return deleted
 
 
-def safe_delete_image_and_yaml(png_path: Path, hard_delete: bool = False, tracker=None) -> List[str]:
+def safe_delete_image_and_yaml(png_path: Path, hard_delete: bool = False, tracker=None) -> List[Path]:
     """
     Delete an image and ALL its companion files (yaml, caption, etc.). Uses Trash by default.
 

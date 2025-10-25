@@ -24,9 +24,11 @@ USAGE:
 ------
   python scripts/01_ai_assisted_reviewer.py <raw_images_directory>/
 
-Example:
-  python scripts/01_ai_assisted_reviewer.py character_group_1/
-
+FLAGS:
+------
+  --batch-size N    Number of groups to process per batch (default: 100)
+  --host HOST       Host for web server (default: 127.0.0.1)
+  --port PORT       Port for web server (default: 8081)
 
 
 WORKFLOW:
@@ -104,6 +106,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+# SQLite v3 Training Data (NEW!)
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from scripts.utils.ai_training_decisions_v3 import (
+    init_decision_db,
+    generate_group_id,
+    log_ai_decision,
+)
+
 # Reuse existing grouping logic - NO reinventing the wheel!
 sys.path.insert(0, str(Path(__file__).parent))
 from utils.companion_file_utils import (
@@ -144,6 +154,15 @@ try:
 except Exception:
     print("[!] CLIP not available - will use rule-based recommendations only")
     CLIP_AVAILABLE = False
+
+
+# ==============================================================================
+# CONFIGURATION (Easy to find and modify!)
+# ==============================================================================
+DEFAULT_BATCH_SIZE = 100  # Number of groups to process per batch (match web selector)
+THUMBNAIL_MAX_DIM = 768   # Thumbnail size for web display
+STAGE_NAMES = ("stage1_generated", "stage1.5_face_swapped", "stage2_upscaled")
+# ==============================================================================
 
 
 @dataclass
@@ -331,17 +350,33 @@ def get_ai_recommendation(group: ImageGroup, ranker_model, crop_model, clip_info
                 dims = torch.tensor([width / 2048.0, height / 2048.0], dtype=torch.float32).to(device)
                 crop_input = torch.cat([best_embedding, dims]).unsqueeze(0)  # Add batch dim
                 
+                # DEBUG: Log input to crop model
+                print(f"[Crop Proposer] Image: {best_image.name}")
+                print(f"[Crop Proposer] Dimensions: {width}x{height} (normalized: {width/2048.0:.4f}, {height/2048.0:.4f})")
+                
                 with torch.no_grad():
                     crop_output = crop_model(crop_input).squeeze(0)  # Remove batch dim
                 
                 # Extract normalized coordinates
                 x1, y1, x2, y2 = crop_output.cpu().numpy()
                 
+                # DEBUG: Log crop output
+                print(f"[Crop Proposer] Output (normalized): x1={x1:.4f}, y1={y1:.4f}, x2={x2:.4f}, y2={y2:.4f}")
+                print(f"[Crop Proposer] Output (pixels): x1={int(x1*width)}, y1={int(y1*height)}, x2={int(x2*width)}, y2={int(y2*height)}")
+                crop_width_pct = (x2 - x1) * 100
+                crop_height_pct = (y2 - y1) * 100
+                print(f"[Crop Proposer] Crop size: {crop_width_pct:.1f}% width, {crop_height_pct:.1f}% height")
+                
                 # Check if crop is meaningful (not ~full image)
                 crop_area = (x2 - x1) * (y2 - y1)
+                print(f"[Crop Proposer] Crop area: {crop_area*100:.1f}% of original")
+                
                 if crop_area < 0.95:  # If cropping more than 5%
                     crop_needed = True
                     crop_coords = (float(x1), float(y1), float(x2), float(y2))
+                    print(f"[Crop Proposer] ✓ CROP RECOMMENDED")
+                else:
+                    print(f"[Crop Proposer] ✗ No crop needed (area too large: {crop_area*100:.1f}%)")
                 
             except Exception as e:
                 print(f"[!] Error getting crop proposal: {e}")
@@ -527,6 +562,37 @@ def get_current_project_id() -> str:
     return "unknown"
 
 
+def delete_group_images(group: ImageGroup, delete_staging_dir: Path, tracker: FileTracker, reason: str = "") -> int:
+    """
+    Delete all images in a group by moving them to delete_staging.
+    
+    Args:
+        group: ImageGroup to delete
+        delete_staging_dir: Destination directory for deleted files
+        tracker: FileTracker for logging
+        reason: Reason for deletion (for logging)
+    
+    Returns:
+        Number of images deleted
+    """
+    deleted_count = 0
+    for img in group.images:
+        try:
+            moved_files = move_file_with_all_companions(img, delete_staging_dir, dry_run=False)
+            tracker.log_operation(
+                "delete",
+                source_dir=str(img.parent),
+                dest_dir=delete_staging_dir.name,
+                file_count=len(moved_files),
+                files=moved_files,
+                notes=f"{reason} - group {group.group_id}"
+            )
+            deleted_count += 1
+        except Exception as e:
+            print(f"[ERROR] Failed to delete {img.name}: {e}")
+    return deleted_count
+
+
 def perform_file_operations(group: ImageGroup, action: str, selected_index: Optional[int],
                             crop_coords: Optional[Tuple[float, float, float, float]],
                             tracker: FileTracker, selected_dir: Path, crop_dir: Path, 
@@ -599,12 +665,26 @@ def perform_file_operations(group: ImageGroup, action: str, selected_index: Opti
         # Move selected image
         move_file_with_all_companions(selected_image, dest_dir, dry_run=False)
         
-        # Move others to delete staging
+        # Move other images to delete_staging (consolidated deletion logic)
+        print(f"[DEBUG] Deleting {len(other_images)} deselected images from group {group.group_id}")
         for img_path in other_images:
             try:
-                move_file_with_all_companions(img_path, delete_staging_dir, dry_run=False)
+                moved_files = move_file_with_all_companions(img_path, delete_staging_dir, dry_run=False)
+                print(f"[DEBUG] Deleted {img_path.name}: {len(moved_files)} files moved")
+                
+                # Log each deletion
+                tracker.log_operation(
+                    "delete",
+                    source_dir=str(group.directory),
+                    dest_dir=str(delete_staging_dir.name),
+                    file_count=len(moved_files),
+                    files=moved_files,  # List of filenames
+                    notes=f"Deselected image from group {group.group_id}"
+                )
             except Exception as e:
-                print(f"Error moving {img_path.name} to delete staging: {e}")
+                print(f"[ERROR] Failed to delete {img_path.name}: {e}")
+                import traceback
+                traceback.print_exc()
         
         # Log training data
         negative_paths = other_images
@@ -661,13 +741,25 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
     app.config["BATCH_SIZE"] = batch_size
     app.config["CURRENT_BATCH"] = 0
     
-    # Calculate batch
+    # Calculate batch (match web_image_selector.py structure)
     total_groups = len(groups)
     batch_start = 0
     batch_end = min(batch_start + batch_size, total_groups)
     current_batch_groups = groups[batch_start:batch_end]
     
+    # Batch info (match web selector structure)
+    batch_info = {
+        "current_batch": 1,  # 1-indexed
+        "total_batches": (total_groups + batch_size - 1) // batch_size,
+        "batch_start": batch_start,
+        "batch_end": batch_end,
+        "batch_size": batch_size,
+        "total_groups": total_groups,
+        "current_batch_size": len(current_batch_groups)
+    }
+    
     app.config["GROUPS"] = current_batch_groups  # Current batch only
+    app.config["BATCH_INFO"] = batch_info
     app.config["BASE_DIR"] = base_dir
     app.config["CURRENT_INDEX"] = 0
     app.config["DECISIONS"] = {}  # Track decisions in session
@@ -676,6 +768,16 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
     app.config["CROP_DIR"] = crop_dir
     app.config["DELETE_STAGING_DIR"] = delete_staging_dir
     app.config["PROJECT_ID"] = get_current_project_id()  # Read from project manifest!
+    
+    # Initialize SQLite database for training data (NEW v3!)
+    project_id = app.config["PROJECT_ID"]
+    try:
+        db_path = init_decision_db(project_id)
+        app.config["DB_PATH"] = db_path
+        print(f"[SQLite] Decision database ready: {db_path.name}")
+    except Exception as e:
+        print(f"[!] Warning: Could not initialize decision database: {e}")
+        app.config["DB_PATH"] = None
     app.config["RANKER_MODEL"] = ranker_model
     app.config["CROP_MODEL"] = crop_model
     app.config["CLIP_INFO"] = clip_info
@@ -779,20 +881,20 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
         .images-row {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-          gap: 0.75rem;
+          gap: 0.4rem;  /* Reduced from 0.75rem for tighter spacing with 4 images */
           margin-bottom: 2rem;
         }
         .image-card {
           background: var(--surface-alt);
-          padding: 0.5rem;
+          padding: 0.3rem;  /* Reduced from 0.5rem for tighter spacing */
           border: 3px solid transparent;
           border-radius: 8px;
           cursor: pointer;
           position: relative;
         }
         .image-card.ai-pick {
-          border-color: var(--success);
-          background: rgba(81, 207, 102, 0.08);
+          /* No visual styling - .ai-pick is just a marker for JS to find AI's choice */
+          /* Visual state is controlled by .selected / .crop-selected / .delete-hint */
         }
         .image-card.user-override {
           border-color: var(--warning);
@@ -800,7 +902,9 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
         }
         .image-card img {
           width: 100%;
+          max-height: 60vh;  /* Limit height to 60% of viewport (matches web_image_selector) */
           height: auto;
+          object-fit: contain;  /* Maintain aspect ratio, prevent distortion */
           margin-bottom: 0.5rem;
           display: block;
         }
@@ -926,112 +1030,190 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
         .help strong {
           color: #f8f9ff;
         }
+        
+        /* Batch processing visual states (match web selector) */
+        .image-card.selected {
+          border: 3px solid var(--success);
+          background: rgba(81, 207, 102, 0.1);
+        }
+        .image-card.crop-selected {
+          border-color: var(--warning);
+          background: rgba(255, 212, 59, 0.1);
+        }
+        .image-card.delete-hint {
+          /* No visual styling - delete is the default/neutral state */
+          /* Only selected/crop images get colored borders */
+        }
+        
+        /* Batch actions at bottom */
+        .batch-actions {
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          background: var(--bg);
+          border-top: 1px solid rgba(255,255,255,0.1);
+          padding: 1rem;
+          text-align: center;
+          box-shadow: 0 -2px 8px rgba(0,0,0,0.3);
+          z-index: 100;
+        }
+        .btn-primary {
+          background: var(--accent);
+          color: white;
+          border: none;
+          padding: 1rem 2rem;
+          font-size: 1.1rem;
+          font-weight: 600;
+          border-radius: 8px;
+          cursor: pointer;
+        }
+        .btn-primary:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+        
+        /* Group sections */
+        .group {
+          margin-bottom: 3rem;
+          padding-bottom: 2rem;
+          border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
       </style>
     </head>
     <body>
       <header>
         <h1>🤖 AI Reviewer</h1>
         <span class="progress">
-          Group <strong id="current-num">{{ current + 1 }}</strong>/{{ total }} •
-          Reviewed: <strong id="reviewed-count">0</strong> •
-          Approved: <strong id="approved-count">0</strong>
+          Batch {{ batch_info.current_batch }}/{{ batch_info.total_batches }}: <strong id="batch-count">{{ batch_info.current_batch_size }}</strong> groups •
+          Selected: <strong id="summary-selected">0</strong> •
+          Delete: <strong id="summary-delete">0</strong>
         </span>
         <div id="status"></div>
       </header>
       <main>
-        <div class="group-card">
+        {% for group in groups %}
+        <section class="group" data-group-id="{{ group.group_id }}" id="group-{{ group.group_id }}">
           <div class="images-row">
+            {% set ai_rec = ai_recommendations.get(group.group_id, {}) %}
             {% for img in group.images %}
-            <div class="image-card {% if loop.index0 == recommendation.selected_index %}ai-pick{% endif %}"
-                 data-index="{{ loop.index0 }}"
-                 onclick="selectImage({{ loop.index0 }})">
-              <div class="image-header">
-                <span class="stage-badge">{{ img.name.split('_')[2] if '_' in img.name else 'stage?' }}</span>
-                {% if loop.index0 == recommendation.selected_index %}
-                <span class="ai-pick-badge">AI PICK</span>
-                {% endif %}
-                {% if loop.index0 == recommendation.selected_index and recommendation.crop_needed %}
-                <span class="crop-badge">CROP</span>
-                {% endif %}
-              </div>
+            <div class="image-card {% if loop.index0 == ai_rec.get('selected_index') %}ai-pick{% endif %}"
+                 data-image-index="{{ loop.index0 }}"
+                 data-group-id="{{ group.group_id }}"
+                 {% if loop.index0 == ai_rec.get('selected_index') and ai_rec.get('crop_coords') %}
+                 data-ai-crop-coords="{{ ai_rec.get('crop_coords')|tojson }}"
+                 {% endif %}>
               <div class="image-container">
                 <img src="/image/{{ group.group_id }}/{{ loop.index0 }}" 
                      alt="{{ img.name }}"
                      loading="lazy"
-                     id="img-{{ loop.index0 }}"
-                     onload="drawCropOverlay({{ loop.index0 }}, {{ recommendation.selected_index }}, {{ recommendation.crop_needed|lower }}, {{ recommendation.crop_coords|tojson if recommendation.crop_coords else 'null' }})">
-                <div id="crop-overlay-{{ loop.index0 }}" class="crop-overlay" style="display: none;"></div>
+                     id="img-{{ group.group_id }}-{{ loop.index0 }}"
+                     onload="{% if loop.index0 == ai_rec.get('selected_index') %}drawCropOverlay('{{ group.group_id }}', {{ loop.index0 }}, {{ ai_rec.get('crop_needed', False)|lower }}, {{ ai_rec.get('crop_coords')|tojson if ai_rec.get('crop_coords') else 'null' }}){% endif %}">
+                <div id="crop-overlay-{{ group.group_id }}-{{ loop.index0 }}" class="crop-overlay" style="display: none;"></div>
               </div>
               <div class="filename">{{ img.name }}</div>
               <div class="image-actions">
-                <button class="img-btn img-btn-approve" onclick="event.stopPropagation(); submitImageDecision('approve', {{ loop.index0 }})">
-                  ✓ Approve [{{ loop.index }}]
+                {% if loop.index0 == ai_rec.get('selected_index') and ai_rec.get('crop_coords') %}
+                {# AI-selected image with crop: Show BOTH toggle AND crop buttons #}
+                <button class="img-btn img-btn-crop" 
+                        id="toggle-crop-{{ group.group_id }}-{{ loop.index0 }}"
+                        onclick="toggleAICrop('{{ group.group_id }}', {{ loop.index0 }})">
+                  🚫 Remove Crop
                 </button>
-                <button class="img-btn img-btn-crop" onclick="event.stopPropagation(); submitImageDecision('crop', {{ loop.index0 }})">
-                  ✂️ Crop
+                <button class="img-btn img-btn-crop" onclick="selectImageWithCrop({{ loop.index0 }}, '{{ group.group_id }}')">
+                  ✂️ [{% if loop.index0 == 0 %}Q{% elif loop.index0 == 1 %}W{% elif loop.index0 == 2 %}E{% else %}R{% endif %}]
                 </button>
-                <button class="img-btn img-btn-reject" onclick="event.stopPropagation(); rejectAll()">
-                  ✗ Reject All
+                {% else %}
+                {# Regular image: Show crop button with hotkey #}
+                <button class="img-btn img-btn-crop" onclick="selectImageWithCrop({{ loop.index0 }}, '{{ group.group_id }}')">
+                  ✂️ [{% if loop.index0 == 0 %}Q{% elif loop.index0 == 1 %}W{% elif loop.index0 == 2 %}E{% else %}R{% endif %}]
                 </button>
+                {% endif %}
               </div>
             </div>
             {% endfor %}
           </div>
+        </section>
+        {% endfor %}
+        
+        <div class="batch-actions">
+          <button id="process-batch" class="btn btn-primary" disabled>
+            Finalize selections
+          </button>
         </div>
       </main>
       
       <script>
-        const groupId = "{{ group.group_id }}";
-        const aiRecommendation = {{ recommendation.selected_index }};
-        const totalImages = {{ group.images|length }};
-        let userSelection = null;
+        // BATCH PROCESSING MODEL (clone of web_image_selector.py)
+        const groups = Array.from(document.querySelectorAll('section.group'));
+        console.log('[init] AI reviewer loaded. groups=', groups.length);
         
-        // Stats tracking
-        let stats = {
-          reviewed: 0,
-          approved: 0,
-          overridden: 0,
-          rejected: 0,
-          skipped: 0
-        };
+        const summarySelected = document.getElementById('summary-selected');
+        const summaryDelete = document.getElementById('summary-delete');
+        const processBatchButton = document.getElementById('process-batch');
+        const batchCount = document.getElementById('batch-count');
+        const statusBox = document.getElementById('status');
         
-        function updateStats() {
-          const reviewedEl = document.getElementById('reviewed-count');
-          const approvedEl = document.getElementById('approved-count');
-          
-          if (reviewedEl) reviewedEl.textContent = stats.reviewed;
-          if (approvedEl) approvedEl.textContent = stats.approved;
+        // Queue decisions in memory (don't execute immediately!)
+        let groupStates = {}; // { groupId: { selectedImage: idx, crop: bool } }
+        
+        function setStatus(message, type = '') {
+          if (statusBox) {
+            statusBox.textContent = message;
+            statusBox.className = type;
+          }
         }
         
-        function drawCropOverlay(imageIndex, selectedIndex, cropNeeded, cropCoords) {
-          // Only draw crop overlay on the AI-selected image if crop is needed
-          if (imageIndex !== selectedIndex || !cropNeeded || !cropCoords) {
+        function drawCropOverlay(groupId, imageIndex, cropNeeded, cropCoords) {
+          // Draw crop overlay on AI-selected image if crop is needed
+          if (!cropNeeded || !cropCoords) {
             return;
           }
           
-          const img = document.getElementById('img-' + imageIndex);
-          const overlay = document.getElementById('crop-overlay-' + imageIndex);
+          const img = document.getElementById('img-' + groupId + '-' + imageIndex);
+          const overlay = document.getElementById('crop-overlay-' + groupId + '-' + imageIndex);
           
           if (!img || !overlay) return;
           
           // Wait for image to fully load
           if (!img.complete || img.naturalWidth === 0) {
             img.addEventListener('load', function() {
-              drawCropOverlay(imageIndex, selectedIndex, cropNeeded, cropCoords);
+              drawCropOverlay(groupId, imageIndex, cropNeeded, cropCoords);
             });
             return;
           }
           
-          // Get displayed image dimensions
-          const displayWidth = img.clientWidth;
-          const displayHeight = img.clientHeight;
+          // Calculate actual displayed image dimensions (accounting for object-fit: contain)
+          const naturalWidth = img.naturalWidth;
+          const naturalHeight = img.naturalHeight;
+          const containerWidth = img.clientWidth;
+          const containerHeight = img.clientHeight;
+          
+          const naturalRatio = naturalWidth / naturalHeight;
+          const containerRatio = containerWidth / containerHeight;
+          
+          let displayWidth, displayHeight, offsetX, offsetY;
+          
+          if (naturalRatio > containerRatio) {
+            // Image is wider - letterboxed top/bottom
+            displayWidth = containerWidth;
+            displayHeight = containerWidth / naturalRatio;
+            offsetX = 0;
+            offsetY = (containerHeight - displayHeight) / 2;
+          } else {
+            // Image is taller - letterboxed left/right
+            displayHeight = containerHeight;
+            displayWidth = containerHeight * naturalRatio;
+            offsetX = (containerWidth - displayWidth) / 2;
+            offsetY = 0;
+          }
           
           // Crop coords are normalized [0, 1]
           const [x1_norm, y1_norm, x2_norm, y2_norm] = cropCoords;
           
-          // Convert to pixel coordinates
-          const x1 = x1_norm * displayWidth;
-          const y1 = y1_norm * displayHeight;
+          // Convert to pixel coordinates on the displayed image
+          const x1 = x1_norm * displayWidth + offsetX;
+          const y1 = y1_norm * displayHeight + offsetY;
           const width = (x2_norm - x1_norm) * displayWidth;
           const height = (y2_norm - y1_norm) * displayHeight;
           
@@ -1042,176 +1224,389 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
           overlay.style.height = height + 'px';
           overlay.style.display = 'block';
           
-          console.log('Crop overlay drawn:', {imageIndex, displayWidth, displayHeight, x1, y1, width, height});
+          console.log('Crop overlay drawn:', {groupId, imageIndex, displayWidth, displayHeight, x1, y1, width, height});
         }
         
-        function setStatus(message, type = '') {
-          const statusEl = document.getElementById('status');
-          if (statusEl) {
-            statusEl.textContent = message;
-            statusEl.className = type;
-            // Don't auto-clear - let it stay until next action
+        // Toggle AI crop on/off for AI-selected image
+        function toggleAICrop(groupId, imageIndex) {
+          console.log('[toggleAICrop]', groupId, imageIndex);
+          
+          const overlay = document.getElementById('crop-overlay-' + groupId + '-' + imageIndex);
+          const button = document.getElementById('toggle-crop-' + groupId + '-' + imageIndex);
+          const imageCard = document.querySelector(`section.group[data-group-id="${groupId}"] .image-card[data-image-index="${imageIndex}"]`);
+          
+          if (!overlay || !button || !imageCard) return;
+          
+          // Get AI crop coords from data attribute
+          const aiCropCoordsAttr = imageCard.getAttribute('data-ai-crop-coords');
+          if (!aiCropCoordsAttr) {
+            console.log('[toggleAICrop] No AI crop coords found');
+            return;
+          }
+          
+          const aiCropCoords = JSON.parse(aiCropCoordsAttr);
+          
+          // Toggle overlay visibility
+          if (overlay.style.display === 'none') {
+            // Show crop overlay (ADD CROP)
+            const img = document.getElementById('img-' + groupId + '-' + imageIndex);
+            if (img && img.complete) {
+              drawCropOverlay(groupId, imageIndex, true, aiCropCoords);
+            }
+            button.textContent = '🚫 Remove Crop';
+            button.classList.remove('img-btn-approve');
+            button.classList.add('img-btn-crop');
+            console.log('[toggleAICrop] Crop ENABLED');
+          } else {
+            // Hide crop overlay (REMOVE CROP)
+            overlay.style.display = 'none';
+            button.textContent = '✅ Add Crop';
+            button.classList.remove('img-btn-crop');
+            button.classList.add('img-btn-approve');
+            console.log('[toggleAICrop] Crop DISABLED');
           }
         }
         
-        function selectImage(index) {
-          // Remove all override highlights
-          document.querySelectorAll('.image-card').forEach(card => {
-            card.classList.remove('user-override');
+        function updateSummary() {
+          let keptFiles = 0;
+          let deleteFiles = 0;
+          
+          groups.forEach((group) => {
+            const groupId = group.dataset.groupId;
+            const state = groupStates[groupId];
+            const imageCount = group.querySelectorAll('.image-card').length;
+            
+            if (state && state.selectedImage !== undefined) {
+              // One image kept, others deleted
+              keptFiles += 1;
+              deleteFiles += Math.max(0, imageCount - 1);
+            } else {
+              // No state: all images deleted by default
+              deleteFiles += imageCount;
+            }
           });
           
-          // Highlight selected
-          const cards = document.querySelectorAll('.image-card');
-          if (index >= 0 && index < cards.length) {
-            cards[index].classList.add('user-override');
-            userSelection = index;
-            setStatus(`Selected image ${index + 1} (overriding AI)`, 'success');
-          }
+          summarySelected.textContent = keptFiles;
+          summaryDelete.textContent = Math.max(0, deleteFiles);
         }
         
-        async function submitDecision(action, selectedIndex = null) {
-          console.log('[submitDecision] START:', {action, selectedIndex, groupId, aiRecommendation});
-          
-          const decision = {
-            group_id: groupId,
-            action: action,
-            selected_index: selectedIndex,
-            ai_index: aiRecommendation
-          };
-          
-          console.log('[submitDecision] Sending decision:', decision);
-          
-          try {
-            console.log('[submitDecision] Fetching /submit...');
-            const response = await fetch('/submit', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(decision)
+        function updateVisualState() {
+          groups.forEach((group) => {
+            const groupId = group.dataset.groupId;
+            const state = groupStates[groupId];
+            
+            // Clear all visual states (including ai-pick!)
+            group.querySelectorAll('.image-card').forEach(card => {
+              card.classList.remove('selected', 'delete-hint', 'crop-selected');
             });
             
-            console.log('[submitDecision] Response status:', response.status);
-            
-            const result = await response.json();
-            console.log('[submitDecision] Result:', result);
-            
-            if (result.status === 'ok') {
-              console.log('[submitDecision] Success! Updating stats...');
-              stats.reviewed++;
-              if (action === 'approve') stats.approved++;
-              if (action === 'override') stats.overridden++;
-              if (action === 'reject') stats.rejected++;
-              if (action === 'skip') stats.skipped++;
-              updateStats();
+            if (state && state.selectedImage !== undefined) {
+              // Show selected image
+              const selectedCard = group.querySelectorAll('.image-card')[state.selectedImage];
+              if (selectedCard) {
+                selectedCard.classList.add('selected');
+                // Indicate crop intent when flagged
+                if (state.crop) {
+                  selectedCard.classList.add('crop-selected');
+                }
+              }
               
-              console.log('[submitDecision] Navigating to /next...');
-              window.location.href = '/next';
+              // Show delete hint on other images (red border)
+              group.querySelectorAll('.image-card').forEach((card, idx) => {
+                if (idx !== state.selectedImage) {
+                  card.classList.add('delete-hint');
+                }
+              });
             } else {
-              console.error('[submitDecision] Server returned error:', result.message);
-              setStatus(result.message || 'Error submitting decision', 'error');
+              // No selection: all will be deleted (red borders)
+              group.querySelectorAll('.image-card').forEach(card => {
+                card.classList.add('delete-hint');
+              });
             }
-          } catch (error) {
-            console.error('[submitDecision] EXCEPTION:', error);
-            console.error('[submitDecision] Error stack:', error.stack);
-            setStatus('Network error: ' + error.message, 'error');
+          });
+        }
+        
+        // Select image (no crop) - EXACT COPY from web_image_selector.py + AUTO-ADVANCE
+        function selectImage(imageIndex, groupId) {
+          console.log('[selectImage]', imageIndex, groupId);
+          const group = document.querySelector(`section.group[data-group-id="${groupId}"]`);
+          if (!group) return;
+          
+          const imageCount = group.querySelectorAll('.image-card').length;
+          if (imageIndex >= imageCount) return;
+          
+          // BUTTON TOGGLE: If same image already selected, deselect it
+          const currentState = groupStates[groupId];
+          if (currentState && currentState.selectedImage === imageIndex && !currentState.crop) {
+            delete groupStates[groupId]; // Deselect (back to delete)
+            console.log('[selectImage] deselect', groupId, imageIndex);
+            updateVisualState();
+            updateSummary();
+            // NO auto-advance on deselect
+          } else {
+            // Update state - select image (no crop)
+            groupStates[groupId] = { selectedImage: imageIndex, crop: false };
+            console.log('[selectImage] set', groupStates[groupId]);
+            updateVisualState();
+            updateSummary();
+            
+            // AUTO-ADVANCE to next group after selection!
+            scrollToNextGroup(group);
           }
         }
         
-        function approve() {
-          submitDecision('approve', aiRecommendation);
-        }
-        
-        function submitImageDecision(action, imageIndex) {
-          console.log('[submitImageDecision] Called:', {action, imageIndex});
+        // Select image WITH crop - EXACT COPY from web_image_selector.py + AUTO-ADVANCE
+        function selectImageWithCrop(imageIndex, groupId) {
+          console.log('[selectImageWithCrop]', imageIndex, groupId);
+          const group = document.querySelector(`section.group[data-group-id="${groupId}"]`);
+          if (!group) return;
           
-          // Direct action on a specific image
-          if (action === 'approve') {
-            console.log('[submitImageDecision] Calling submitDecision for APPROVE');
-            // Approve this specific image
-            submitDecision('approve', imageIndex);
-          } else if (action === 'crop') {
-            console.log('[submitImageDecision] Calling submitDecision for MANUAL_CROP');
-            // Send to crop directory
-            submitDecision('manual_crop', imageIndex);
-          } else if (action === 'reject_image') {
-            console.log('[submitImageDecision] Asking confirmation for REJECT');
-            // Ask for confirmation before rejecting just this image
-            if (confirm(`Reject this image? It will be moved to delete staging.`)) {
-              console.log('[submitImageDecision] Confirmed, calling submitDecision for REJECT_SINGLE');
-              submitDecision('reject_single', imageIndex);
-            } else {
-              console.log('[submitImageDecision] User cancelled reject');
-            }
+          const imageCount = group.querySelectorAll('.image-card').length;
+          if (imageIndex >= imageCount) return;
+          
+          // TOGGLE: If same image already selected with crop, deselect it
+          const currentState = groupStates[groupId];
+          if (currentState && currentState.selectedImage === imageIndex && currentState.crop) {
+            delete groupStates[groupId]; // Deselect (back to delete)
+            console.log('[selectImageWithCrop] deselect', groupId, imageIndex);
+            updateVisualState();
+            updateSummary();
+            // NO auto-advance on deselect
+          } else {
+            // Update state - select image WITH crop
+            groupStates[groupId] = { selectedImage: imageIndex, crop: true };
+            console.log('[selectImageWithCrop] set', groupStates[groupId]);
+            updateVisualState();
+            updateSummary();
+            
+            // AUTO-ADVANCE to next group after selection!
+            scrollToNextGroup(group);
           }
         }
         
-        function manualCrop() {
-          // Get currently selected image (or AI recommendation if none selected)
-          const selectedIndex = userSelection !== null ? userSelection : aiRecommendation;
+        // Helper function to scroll to next group (EXACT COPY from web_image_selector.py)
+        function scrollToGroupEl(groupEl) {
+          try {
+            const headerH = getHeaderHeight();
+            const rect = groupEl.getBoundingClientRect();
+            const top = rect.top + window.scrollY - headerH - 12; // small margin
+            window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+          } catch (e) {
+            groupEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }
+        
+        function getHeaderHeight() {
+          const header = document.querySelector('header');
+          return header ? header.offsetHeight : 60; // fallback to 60px
+        }
+        
+        function scrollToNextGroup(currentGroup) {
+          const allGroups = Array.from(document.querySelectorAll('section.group'));
+          const currentIndex = allGroups.indexOf(currentGroup);
+          if (currentIndex >= 0 && currentIndex < allGroups.length - 1) {
+            const nextGroup = allGroups[currentIndex + 1];
+            scrollToGroupEl(nextGroup);
+            console.log('[auto-advance] Scrolled to next group');
+          } else {
+            console.log('[auto-advance] Already at last group');
+          }
+        }
+        
+        // Handle image click - EXACT COPY from web_image_selector.py
+        function handleImageClick(imageCard) {
+          const group = imageCard.closest('section.group');
+          const groupId = group.dataset.groupId;
+          const imageIndex = parseInt(imageCard.dataset.imageIndex);
+          const currentState = groupStates[groupId];
+          console.log('[handleImageClick]', { groupId, imageIndex, currentState });
           
-          // Visual feedback: highlight selected card with crop indicator
-          const cards = document.querySelectorAll('.image-card');
-          if (selectedIndex >= 0 && selectedIndex < cards.length) {
-            cards[selectedIndex].style.borderColor = '#ff6b6b';
-            cards[selectedIndex].style.background = 'rgba(255, 107, 107, 0.15)';
+          if (!currentState || currentState.selectedImage === undefined) {
+            // First click on any image: select it (no crop)
+            groupStates[groupId] = { selectedImage: imageIndex, crop: false };
+          } else if (currentState.selectedImage === imageIndex) {
+            // UNSELECT: Clicking selected image deselects it (back to delete)
+            delete groupStates[groupId];
+          } else {
+            // Clicking different image: switch selection to that image
+            groupStates[groupId] = { selectedImage: imageIndex, crop: false };
           }
           
-          // Update button to show confirmation
-          const btn = event.target;
-          btn.textContent = '⏳ Queuing for crop...';
-          btn.style.background = '#ff6b6b';
-          
-          submitDecision('manual_crop', selectedIndex);
+          updateVisualState();
+          updateSummary();
         }
         
-        function rejectAll() {
-          // No confirmation - just reject immediately
-          submitDecision('reject', null);
-        }
-        
-        function navigate(direction) {
-          const url = direction > 0 ? '/next' : '/prev';
-          window.location.href = url;
-        }
-        
-        // Keyboard shortcuts
-        let pageReady = false;
-        window.addEventListener('load', () => {
-          pageReady = true;
-        });
-        
+        // Keyboard shortcuts (match web_image_selector.py exactly!)
         document.addEventListener('keydown', function(e) {
-          // Ignore if page not ready or typing in input
-          if (!pageReady || e.target.matches('input, textarea')) return;
+          // Ignore if typing in input
+          if (e.target.matches('input, textarea')) return;
           
           // Ignore if modifier keys pressed (Cmd+R, Ctrl+R, etc.)
           if (e.metaKey || e.ctrlKey || e.altKey) return;
           
           const key = e.key.toLowerCase();
           
+          // Get current visible group (simple: first group in viewport)
+          let currentGroupId = null;
+          for (let group of groups) {
+            const rect = group.getBoundingClientRect();
+            if (rect.top >= 0 && rect.top < window.innerHeight) {
+              currentGroupId = group.dataset.groupId;
+              break;
+            }
+          }
+          
+          if (!currentGroupId) return;
+          
+          // Match web_image_selector.py hotkeys exactly!
           switch(key) {
             case '1':
+              e.preventDefault();
+              selectImage(0, currentGroupId);
+              break;
             case '2':
+              e.preventDefault();
+              selectImage(1, currentGroupId);
+              break;
             case '3':
+              e.preventDefault();
+              selectImage(2, currentGroupId);
+              break;
             case '4':
               e.preventDefault();
-              const index = parseInt(key) - 1;
-              if (index < totalImages) {
-                selectImage(index);
+              selectImage(3, currentGroupId);
+              break;
+            case 'q':
+              e.preventDefault();
+              selectImageWithCrop(0, currentGroupId);
+              break;
+            case 'w':
+              e.preventDefault();
+              selectImageWithCrop(1, currentGroupId);
+              break;
+            case 'e':
+              e.preventDefault();
+              selectImageWithCrop(2, currentGroupId);
+              break;
+            case 'r':
+              e.preventDefault();
+              selectImageWithCrop(3, currentGroupId);
+              break;
+            case 'enter':
+            case ' ': // Spacebar
+              e.preventDefault();
+              // Scroll to next group
+              const currentIndex = groups.findIndex(g => g.dataset.groupId === currentGroupId);
+              if (currentIndex >= 0 && currentIndex < groups.length - 1) {
+                groups[currentIndex + 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+              break;
+            case 'arrowup':
+              e.preventDefault();
+              // Scroll to previous group
+              const prevIndex = groups.findIndex(g => g.dataset.groupId === currentGroupId);
+              if (prevIndex > 0) {
+                groups[prevIndex - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
               }
               break;
           }
         });
         
-        // Load stats from session storage
-        const savedStats = sessionStorage.getItem('reviewer_stats');
-        if (savedStats) {
-          stats = JSON.parse(savedStats);
-          updateStats();
+        // PROCESS BUTTON SAFETY: Only enable after scrolling to bottom
+        let hasScrolledToBottom = false;
+        
+        function checkScrollPosition() {
+          const scrollPercent = (window.scrollY + window.innerHeight) / document.body.scrollHeight;
+          if (scrollPercent >= 0.9 && !hasScrolledToBottom) {
+            hasScrolledToBottom = true;
+            processBatchButton.disabled = false;
+            processBatchButton.style.opacity = '1';
+            processBatchButton.title = 'Ready to process batch';
+          }
         }
         
-        // Save stats on page unload
-        window.addEventListener('beforeunload', () => {
-          sessionStorage.setItem('reviewer_stats', JSON.stringify(stats));
+        // Initialize process button as disabled
+        processBatchButton.disabled = true;
+        processBatchButton.style.opacity = '0.5';
+        processBatchButton.title = 'Scroll to bottom of page to enable';
+        
+        // Listen for scroll events
+        window.addEventListener('scroll', checkScrollPosition);
+        
+        // Finalize selections button
+        processBatchButton.addEventListener('click', async () => {
+          // Allow processing even with no selections (means delete all unselected groups)
+          // if (Object.keys(groupStates).length === 0) {
+          //   setStatus('No groups selected in current batch to process', 'error');
+          //   return;
+          // }
+          
+          // No confirmation popup - just process immediately!
+          processBatchButton.disabled = true;
+          setStatus('Processing batch…');
+          
+          // Convert groupStates to selections array
+          const selections = Object.keys(groupStates).map(groupId => ({
+            groupId: groupId,
+            selectedImage: groupStates[groupId].selectedImage,
+            crop: groupStates[groupId].crop || false
+          }));
+          
+          try {
+            const response = await fetch('/process-batch', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ selections })
+            });
+            
+            const result = await response.json();
+            
+            if (result.status === 'ok') {
+              setStatus(result.message || 'Batch processed!', 'success');
+              
+              // Check if there are remaining groups in current batch
+              if (result.remaining > 0) {
+                // Reload to show remaining groups in batch
+                setTimeout(() => {
+                  window.location.reload();
+                }, 1000);
+              } else {
+                // Batch complete - auto-load next batch if available
+                setStatus('Batch complete! Loading next batch...', 'success');
+                setTimeout(() => {
+                  // Try to load next batch, or show completion if no more batches
+                  window.location.href = '/next-batch';
+                }, 1000);
+              }
+            } else {
+              setStatus(result.message || 'Error processing batch', 'error');
+            }
+          } catch (error) {
+            setStatus('Network error: ' + error.message, 'error');
+          }
+        });
+        
+        // Initialize
+        // DON'T call updateVisualState() here - wait for AI pre-selection first!
+        // updateVisualState();
+        // updateSummary();
+        
+        // Add click handlers to all image cards (like web selector)
+        document.querySelectorAll('.image-card').forEach(card => {
+          card.addEventListener('click', function() {
+            handleImageClick(this);
+          });
+        });
+        
+        // AI RECOMMENDATIONS: Show crop overlay but DON'T pre-select
+        // Erik: "I would like it to have the crop, but it is deselected by default"
+        // Crop overlays are drawn via template's onload callback (line ~1111)
+        // No pre-selection needed - user makes the choice via hotkeys
+        window.addEventListener('load', function() {
+          // Just initialize the visual state and summary with no selections
+          console.log('[AI reviewer] Page loaded. Showing crop overlays without pre-selection.');
+          updateVisualState();
+          updateSummary();
         });
       </script>
     </body>
@@ -1220,11 +1615,11 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
     
     @app.route("/")
     def index():
-        """Show current group for review."""
+        """Show all groups in current batch (batch processing mode)."""
         groups = app.config["GROUPS"]
-        current = app.config["CURRENT_INDEX"]
+        batch_info = app.config.get("BATCH_INFO", {})
         
-        if current >= len(groups):
+        if len(groups) == 0:
             return """
             <html>
             <head><title>Review Complete</title></head>
@@ -1238,22 +1633,204 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             </html>
             """
         
-        group = groups[current]
-        
-        # Get AI models from config
+        # Get AI recommendations for each group
         ranker = app.config.get("RANKER_MODEL")
         crop_model = app.config.get("CROP_MODEL")
         clip_info = app.config.get("CLIP_INFO")
         
-        decision_data = load_or_create_decision_file(group, ranker, crop_model, clip_info)
+        # Build AI recommendations dict for template
+        ai_recommendations = {}
+        for group in groups:
+            try:
+                rec = get_ai_recommendation(group, ranker, crop_model, clip_info)
+                ai_recommendations[group.group_id] = rec
+            except Exception as e:
+                print(f"Warning: Failed to get AI recommendation for {group.group_id}: {e}")
+                # Fallback recommendation
+                ai_recommendations[group.group_id] = {
+                    "selected_index": 0,
+                    "selected_image": group.images[0].name if group.images else "",
+                    "reason": "Error getting AI recommendation",
+                    "confidence": 0.0,
+                    "crop_needed": False,
+                    "crop_coords": None
+                }
         
+        # Render ALL groups in batch with AI recommendations
         return render_template_string(
             page_template,
-            group=group,
-            recommendation=decision_data["ai_recommendation"],
-            total=len(groups),
-            current=current
+            groups=groups,
+            batch_info=batch_info,
+            ai_recommendations=ai_recommendations
         )
+    
+    @app.route("/process-batch", methods=["POST"])
+    def process_batch():
+        """Process all queued selections (clone of web_image_selector.py logic)"""
+        try:
+            data = request.get_json()
+            selections = data.get("selections", [])
+            
+            # Allow empty selections - means delete all groups
+            # if not selections:
+            #     return jsonify({"status": "error", "message": "No selections to process"}), 400
+            
+            tracker = app.config["TRACKER"]
+            selected_dir = app.config["SELECTED_DIR"]
+            crop_dir = app.config["CROP_DIR"]
+            delete_staging_dir = app.config["DELETE_STAGING_DIR"]
+            project_id = app.config.get("PROJECT_ID", "unknown")
+            groups = app.config["GROUPS"]
+            db_path = app.config.get("DB_PATH")
+            batch_info = app.config.get("BATCH_INFO", {})
+            batch_number = batch_info.get("current_batch", 1)
+            
+            # Get AI models for recommendations
+            ranker = app.config.get("RANKER_MODEL")
+            crop_model = app.config.get("CROP_MODEL")
+            clip_info = app.config.get("CLIP_INFO")
+            
+            kept_count = 0
+            crop_count = 0
+            deleted_count = 0
+            
+            for idx, selection in enumerate(selections):
+                group_id = selection.get("groupId")
+                selected_idx = selection.get("selectedImage")
+                crop = selection.get("crop", False)
+                
+                # Find group
+                group = next((g for g in groups if g.group_id == group_id), None)
+                if not group:
+                    print(f"Warning: Group {group_id} not found, skipping")
+                    continue
+                
+                # Handle explicit "delete all" (matches web_image_selector.py line 1669)
+                if selected_idx is None:
+                    print(f"[*] Group {group_id}: User explicitly deleted all images")
+                    num_deleted = delete_group_images(group, delete_staging_dir, tracker, 
+                                                     reason="User explicitly deleted all")
+                    deleted_count += num_deleted
+                    continue  # Skip to next selection
+                
+                # Get AI recommendation for this group
+                ai_rec = None
+                ai_selected_idx = None
+                ai_crop_coords = None
+                ai_confidence = None
+                
+                if ranker is not None:
+                    try:
+                        ai_rec = get_ai_recommendation(group, ranker, crop_model, clip_info)
+                        ai_selected_idx = ai_rec.get("selected_index", 0)
+                        ai_confidence = ai_rec.get("confidence", 0.0)
+                        if ai_rec.get("crop_needed") and ai_rec.get("crop_coords"):
+                            ai_crop_coords = ai_rec["crop_coords"]  # Already normalized
+                    except Exception as e:
+                        print(f"Warning: Could not get AI recommendation for {group_id}: {e}")
+                
+                # Determine user action
+                user_action = "crop" if crop else "approve"
+                
+                # Generate unique group ID for database
+                timestamp = datetime.utcnow().isoformat().replace("-", "").replace(":", "").replace(".", "")
+                db_group_id = generate_group_id(project_id, timestamp, batch_number, idx)
+                
+                # Log to SQLite (NEW v3!)
+                if db_path:
+                    try:
+                        # Get image dimensions (use first image as reference)
+                        selected_image = group.images[selected_idx]
+                        try:
+                            from PIL import Image
+                            with Image.open(selected_image) as img:
+                                image_width, image_height = img.size
+                        except:
+                            image_width, image_height = 2048, 2048  # Fallback
+                        
+                        log_ai_decision(
+                            db_path=db_path,
+                            group_id=db_group_id,
+                            project_id=project_id,
+                            images=[img.name for img in group.images],
+                            ai_selected_index=ai_selected_idx if ai_selected_idx is not None else 0,
+                            user_selected_index=selected_idx,
+                            user_action=user_action,
+                            image_width=image_width,
+                            image_height=image_height,
+                            ai_crop_coords=ai_crop_coords,
+                            ai_confidence=ai_confidence,
+                            directory=str(group.images[0].parent),
+                            batch_number=batch_number
+                        )
+                        
+                        # Create .decision sidecar file for Desktop Multi-Crop
+                        if crop:  # Only for images going to crop/
+                            decision_file = crop_dir / f"{selected_image.stem}.decision"
+                            decision_data = {
+                                "group_id": db_group_id,
+                                "project_id": project_id,
+                                "needs_crop": True
+                            }
+                            with open(decision_file, 'w') as f:
+                                json.dump(decision_data, f, indent=2)
+                    except Exception as e:
+                        print(f"Warning: Could not log decision to database: {e}")
+                
+                # Perform file operations
+                try:
+                    perform_file_operations(
+                        group, "manual_crop" if crop else "approve", selected_idx, None,
+                        tracker, selected_dir, crop_dir, delete_staging_dir, project_id
+                    )
+                    kept_count += 1
+                    if crop:
+                        crop_count += 1
+                except Exception as e:
+                    print(f"Error processing group {group_id}: {e}")
+                    continue
+            
+            # Calculate deleted (rough estimate: groups not in selections)
+            total_images = sum(len(g.images) for g in groups)
+            selected_images = kept_count
+            deleted_count = total_images - selected_images
+            
+            # Handle unselected groups (ALL images go to delete_staging)
+            selected_group_ids = [s.get("groupId") for s in selections]
+            unselected_groups = [g for g in groups if g.group_id not in selected_group_ids]
+            
+            for group in unselected_groups:
+                try:
+                    num_deleted = delete_group_images(group, delete_staging_dir, tracker,
+                                                     reason="No selection made")
+                    deleted_count += num_deleted
+                    print(f"[*] Group {group.group_id}: No selection - all {num_deleted} images deleted")
+                except Exception as e:
+                    print(f"[!] Error deleting unselected group {group.group_id}: {e}")
+            
+            # Remove ALL processed groups (selected + unselected) from current batch
+            processed_group_ids = selected_group_ids + [g.group_id for g in unselected_groups]
+            remaining_groups = [g for g in groups if g.group_id not in processed_group_ids]
+            app.config["GROUPS"] = remaining_groups
+            
+            # Update batch info
+            batch_info = app.config.get("BATCH_INFO", {})
+            batch_info["current_batch_size"] = len(remaining_groups)
+            
+            message = f"Batch processed — kept {kept_count}, sent {crop_count} to crop/, deleted {deleted_count}."
+            return jsonify({
+                "status": "ok",
+                "message": message,
+                "kept": kept_count,
+                "crop": crop_count,
+                "deleted": deleted_count,
+                "remaining": len(remaining_groups)
+            })
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return jsonify({"status": "error", "message": str(e)}), 500
     
     @app.route("/submit", methods=["POST"])
     def submit():
@@ -1403,6 +1980,53 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
         </html>
         """
     
+    @app.route("/next-batch")
+    def next_batch():
+        """Load next batch of groups."""
+        all_groups = app.config.get("ALL_GROUPS", [])
+        batch_size = app.config.get("BATCH_SIZE", 100)
+        current_batch = app.config.get("CURRENT_BATCH", 0)
+        
+        # Calculate next batch
+        next_batch_num = current_batch + 1
+        batch_start = next_batch_num * batch_size
+        batch_end = min(batch_start + batch_size, len(all_groups))
+        
+        if batch_start >= len(all_groups):
+            # No more batches - show completion
+            return """
+            <html>
+            <head><title>All Batches Complete!</title></head>
+            <body style="background: #101014; color: #f8f9ff; font-family: sans-serif; 
+                         text-align: center; padding: 4rem;">
+              <h1>🎉 All Batches Complete!</h1>
+              <p>You've reviewed all groups!</p>
+              <p><a href="/stats" style="color: #4f9dff;">View Final Statistics</a></p>
+            </body>
+            </html>
+            """
+        
+        # Load next batch
+        next_batch_groups = all_groups[batch_start:batch_end]
+        app.config["GROUPS"] = next_batch_groups
+        app.config["CURRENT_BATCH"] = next_batch_num
+        
+        # Update batch info
+        batch_info = {
+            "current_batch": next_batch_num + 1,  # 1-indexed for display
+            "total_batches": (len(all_groups) + batch_size - 1) // batch_size,
+            "batch_start": batch_start,
+            "batch_end": batch_end,
+            "batch_size": batch_size,
+            "total_groups": len(all_groups),
+            "current_batch_size": len(next_batch_groups)
+        }
+        app.config["BATCH_INFO"] = batch_info
+        
+        # Redirect to main page to show new batch
+        from flask import redirect
+        return redirect("/")
+    
     return app
 
 
@@ -1413,7 +2037,8 @@ def main() -> None:
     parser.add_argument("directory", type=str, help="Directory containing images to review")
     parser.add_argument("--host", default="127.0.0.1", help="Host for web server")
     parser.add_argument("--port", type=int, default=8081, help="Port for web server")
-    parser.add_argument("--batch-size", type=int, default=20, help="Number of groups per batch (default: 20)")
+    parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE, 
+                       help=f"Number of groups per batch (default: {DEFAULT_BATCH_SIZE})")
     args = parser.parse_args()
     
     directory = Path(args.directory).expanduser().resolve()
@@ -1494,8 +2119,26 @@ def main() -> None:
     # Build and run Flask app
     app = build_app(groups, directory, tracker, selected_dir, crop_dir, delete_staging_dir,
                    ranker_model, crop_model, clip_info, batch_size=args.batch_size)
-    print(f"\n[*] Starting reviewer on http://{args.host}:{args.port}")
+    
+    url = f"http://{args.host}:{args.port}"
+    print(f"\n[*] Starting reviewer at {url}")
     print(f"[*] Press Ctrl+C to stop\n")
+    
+    # Auto-open browser after short delay (give server time to start)
+    def open_browser():
+        import time
+        time.sleep(1.5)
+        try:
+            import webbrowser
+            webbrowser.open(url)
+            print(f"🌐 Opening browser to {url}")
+        except Exception as e:
+            print(f"Could not auto-open browser: {e}")
+            print(f"   Please open manually: {url}")
+    
+    # Launch browser in background thread
+    import threading
+    threading.Thread(target=open_browser, daemon=True).start()
     
     app.run(host=args.host, port=args.port, debug=False)
 

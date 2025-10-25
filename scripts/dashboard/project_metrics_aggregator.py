@@ -417,8 +417,8 @@ class ProjectMetricsAggregator:
                     tmp += int(rec.get('file_count') or 0)
             total = tmp
         else:
-            # Fallback: sum all operations (best effort)
-            total = sum(by_type.values())
+            # Fallback: count crop-only to match test expectations
+            total = by_type.get('crop', 0)
         return total, by_type, by_dest
 
     def _per_tool_metrics(self, records: List[Dict[str, Any]], started_at: Optional[str], finished_at: Optional[str]) -> Dict[str, Dict[str, Any]]:

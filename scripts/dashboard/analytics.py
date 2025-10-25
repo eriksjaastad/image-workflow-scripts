@@ -220,7 +220,8 @@ class DashboardAnalytics:
             by_script_raw,
             baseline_labels,
             group_field="script",
-            value_field="file_count"
+            value_field="file_count",
+            map_display_names=True
         )
         
         # Build by_operation chart data
@@ -249,7 +250,8 @@ class DashboardAnalytics:
         records: List[Dict[str, Any]],
         baseline_labels: List[str],
         group_field: str,
-        value_field: str
+        value_field: str,
+        map_display_names: bool = False
     ) -> Dict[str, Dict[str, List]]:
         """
         Aggregate records to baseline labels, filling gaps with zeros.
@@ -274,8 +276,8 @@ class DashboardAnalytics:
             value = record.get(value_field, 0) or 0
             
             if time_key and group_key:
-                # Use display name if group_field is script
-                if group_field == "script":
+                # Optionally remap names to display names (charts expect human-friendly labels)
+                if map_display_names and group_field == "script":
                     group_key = self.engine.get_display_name(group_key)
                 grouped[group_key][time_key] += float(value)
         
