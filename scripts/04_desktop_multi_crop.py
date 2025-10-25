@@ -13,11 +13,11 @@ Activate virtual environment first:
 USAGE:
 ------
 Multi-directory mode (NEW):
-  python scripts/04_desktop_multi_crop.py selected/
-  python scripts/04_desktop_multi_crop.py crop/
+  python scripts/02_desktop_multi_crop.py selected/
+  python scripts/02_desktop_multi_crop.py crop/
 
 Single directory mode (legacy):
-  python scripts/04_desktop_multi_crop.py selected/kelly_mia/
+  python scripts/02_desktop_multi_crop.py selected/kelly_mia/
 
 FEATURES:
 ---------
@@ -42,7 +42,7 @@ PROGRESS TRACKING:
 WORKFLOW POSITION:
 ------------------
 Step 1: Character Processing → scripts/02_character_processor.py
-Step 2: Final Cropping → THIS SCRIPT (scripts/04_desktop_multi_crop.py)
+Step 2: Final Cropping → THIS SCRIPT (scripts/02_desktop_multi_crop.py)
 Step 3: Basic Review → scripts/05_web_multi_directory_viewer.py
 
 FILE HANDLING:
@@ -50,6 +50,10 @@ FILE HANDLING:
 • Cropped images: Saved over original files in place (emily/image.png → emily/image.png)
 • Skipped images: Left unchanged in original directory
 • Deleted images: Moved to trash (no longer in directory)
+
+FILE SAFETY:
+------------
+See Documents/FILE_SAFETY_SYSTEM.md. This is the ONLY tool permitted to write new image content (crop). All other tools must move/copy/delete only. Deletions use system Trash by default.
 
 CONTROLS:
 ---------
@@ -84,6 +88,7 @@ from utils.companion_file_utils import (
     move_file_with_all_companions,
     extract_timestamp_from_filename
 )
+from utils.ai_crop_utils import normalize_and_clamp_rect  # type: ignore
 
 # AI Training (optional, non-blocking)
 try:
@@ -486,6 +491,23 @@ class MultiDirectoryProgressTracker:
 
 class MultiCropTool(BaseDesktopImageTool):
     """Multi-directory crop tool - inherits from BaseDesktopImageTool."""
+    def apply_crop_rect(self, image_index: int, x1: int, y1: int, x2: int, y2: int) -> None:
+        """Public API: apply a crop rectangle to the given image index and update UI/state.
+
+        Coordinates are assumed to be pixel-based and valid (x2>x1, y2>y1, within image bounds).
+        """
+        if image_index < 0 or image_index >= len(self.current_images):
+            raise IndexError("image_index out of range")
+        if image_index >= len(self.selectors) or self.selectors[image_index] is None:
+            raise RuntimeError("selector not initialized for image index")
+
+        # Update selector and internal state
+        self._set_selector_extents_safely(image_index, x1, x2, y1, y2)
+        self.image_states[image_index]['crop_coords'] = (x1, y1, x2, y2)
+        self.image_states[image_index]['has_selection'] = True
+        self.image_states[image_index]['action'] = None
+        # Caller may refresh titles/labels as needed
+
     
     def __init__(self, directory, aspect_ratio=None, enable_ai_logging=True):
         """Initialize multi-directory crop tool."""
@@ -1038,41 +1060,54 @@ class MultiCropTool(BaseDesktopImageTool):
         # SQLite v3: Update decision with final crop (NEW!)
         if HAS_SQLITE_V3:
             try:
-                # Look for .decision sidecar file
-                decision_file = png_path.with_suffix('.decision')
-                if decision_file.exists():
+                # Determine possible .decision locations: destination first, then source (fallback)
+                dest_decision = cropped_dir / f"{png_path.stem}.decision"
+                src_decision = png_path.with_suffix('.decision')
+
+                decision_file = None
+                if dest_decision.exists():
+                    decision_file = dest_decision
+                elif src_decision.exists():
+                    decision_file = src_decision
+
+                if decision_file and decision_file.exists():
                     with open(decision_file) as f:
                         decision_data = json.load(f)
-                    
+
                     group_id = decision_data.get('group_id')
                     project_id = decision_data.get('project_id')
-                    
+
                     if group_id and project_id:
                         # Get database path
                         db_path = Path(f"data/training/ai_training_decisions/{project_id}.db")
-                        
+
                         if db_path.exists():
                             # Normalize crop coordinates
                             w, h = image_info.get('original_size', (1, 1))
                             x1, y1, x2, y2 = crop_coords
                             crop_norm = [x1/max(1,w), y1/max(1,h), x2/max(1,w), y2/max(1,h)]
-                            
+
                             # Update database
                             update_decision_with_crop(
                                 db_path=db_path,
                                 group_id=group_id,
                                 final_crop_coords=crop_norm
                             )
-                            
+
                             print(f"[SQLite] Updated decision: {group_id}")
-                            
+
                             # Delete .decision file after successful update
-                            decision_file.unlink()
+                            try:
+                                decision_file.unlink()
+                            except Exception as ee:
+                                print(f"[!] Warning: could not delete sidecar {decision_file.name}: {ee}")
                         else:
                             print(f"[!] Database not found: {db_path}")
                     else:
                         print(f"[!] Invalid .decision file (missing group_id or project_id)")
-                # else: No .decision file - that's OK (legacy crop or manual run)
+                else:
+                    # No .decision file - acceptable if manual/legacy crop
+                    pass
             except Exception as e:
                 print(f"[!] Error updating SQLite decision: {e}")
                 # Don't fail the workflow for logging errors
