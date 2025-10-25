@@ -4,13 +4,31 @@ Current Project Dashboard V2 - Process-Centric View
 ===================================================
 Tracks time spent per PROCESS (selection, crop, sort) and compares to historical averages.
 
+VIRTUAL ENVIRONMENT:
+--------------------
+Activate virtual environment first:
+  source .venv311/bin/activate
+
+USAGE:
+------
+Run the dashboard server:
+  python scripts/dashboard/current_project_dashboard_v2.py
+
+Optional flags:
+  --port 8082              # Specify port (default: 8082)
+  --no-browser             # Don't auto-open browser
+  --debug                  # Enable Flask debug mode
+
+Access the dashboard:
+  http://localhost:8082
+
 Key Features:
+-------------
 - Integrates timesheet data for accurate billing hours
 - Per-process breakdown: selection, crop, sort
 - Current project vs historical baseline
 - Real-time progress tracking
-
-Serves on port 8082 by default
+- Automatically opens in browser on launch
 """
 
 from __future__ import annotations
