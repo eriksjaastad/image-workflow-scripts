@@ -321,7 +321,7 @@ print(f"Total Decisions: {stats['total_decisions']}")
 
 **Scripts Using SQLite v3:**
 1. `scripts/01_ai_assisted_reviewer.py` - Logs AI decisions + creates `.decision` files
-2. `scripts/04_desktop_multi_crop.py` - Reads `.decision` files + updates with final crops
+2. `scripts/02_ai_desktop_multi_crop.py` - Reads `.decision` files + updates with final crops
 3. `scripts/ai/train_ranker_model.py` - Loads training data from SQLite
 4. `scripts/ai/train_crop_model.py` - Loads crop training data from SQLite
 
@@ -418,7 +418,7 @@ pytest scripts/tests/test_ai_training_integration.py -v       # Integration test
 
 **Documentation:**
 - `Documents/AI_TRAINING_DECISIONS_V3_IMPLEMENTATION.md` - Complete spec (930 lines)
-- `Documents/PHASE1_COMPLETE_SUMMARY.md` - Implementation summary
+- `Documents/archives/misc/PHASE1_COMPLETE_SUMMARY.md` - Implementation summary
 
 **Tests:**
 - `scripts/tests/test_ai_training_decisions_v3.py` - Unit tests (460 lines)
@@ -543,7 +543,7 @@ The new function enforces strict validation:
 ### **Files:**
 - **New log:** `data/training/crop_training_data.csv` (new schema)
 - **Legacy log:** `data/training/select_crop_log.csv` (old schema, 7,194 rows, kept for historical data)
-- **Documentation:** `Documents/CROP_TRAINING_SCHEMA_V2.md`
+- **Documentation:** `Documents/archives/misc/CROP_TRAINING_SCHEMA_V2.md`
 
 **Status:** ✅ Implemented, documented, ready for production use  
 **Migration:** TODO item to convert 7,194 legacy rows to new format
@@ -565,7 +565,7 @@ The new function enforces strict validation:
 - **Run Audit:** `python scripts/tools/audit_file_safety.py`
 
 ### **Core Rules (NEVER VIOLATE):**
-1. ✅ **ONLY** `04_desktop_multi_crop.py` may modify images
+1. ✅ **ONLY** `02_ai_desktop_multi_crop.py` (and legacy `04_desktop_multi_crop.py`) may modify images
 2. ✅ Move/delete operations allowed (via safe utilities)
 3. ✅ Create NEW files in safe zones (`data/`, `sandbox/`)
 4. ❌ NO modifications to existing production images/YAML/captions
@@ -1311,7 +1311,7 @@ except PermissionError:
 
 ### Tool Behavior at a Glance
 
-- Web Image Selector (`scripts/01_web_image_selector.py`):
+- AI-Assisted Reviewer (`scripts/01_ai_assisted_reviewer.py`):
   - Modern batch UI; exactly one selection per group; selected items move to `selected/`, others go to Trash by default (`send2trash`).
   - Requires `send2trash` unless `--hard-delete` is explicitly used (dangerous).
   - Uses centralized grouping; timestamps used only for sorting.
@@ -1695,7 +1695,7 @@ chrome_options.add_argument('--log-level=3')            # Errors only
 
 1. **Case Studies** (2 files → 1):
    - Combined `professional_case_study_draft.md` + `image_workflow_case_study.md`
-   - Result: `CASE_STUDIES.md` with clear section dividers
+   - Result: `archives/misc/CASE_STUDIES.md` with clear section dividers
    - Benefit: Complete story in one place
 
 2. **Dashboard Documentation** (3 files → 1):
@@ -1705,7 +1705,7 @@ chrome_options.add_argument('--log-level=3')            # Errors only
 
 3. **Feature Specifications** (5 files → 1):
    - Combined all `SPEC_*.md` files
-   - Result: `FEATURE_SPECIFICATIONS.md` with active/reference sections
+   - Result: `archives/misc/FEATURE_SPECIFICATIONS.md` with active/reference sections
    - Benefit: One source of truth for all specs
 
 **Why This Pattern Works:**
@@ -1797,8 +1797,8 @@ chrome_options.add_argument('--log-level=3')            # Errors only
 
 **Examples of Good Names:**
 - `AI_TRAINING_CROP_AND_RANKING.md` - Clear: AI training for crop/rank models
-- `DASHBOARD_PRODUCTIVITY_TABLE_SPEC.md` - Clear: Dashboard feature spec
-- `PROJECT_ALLOWLIST_SCHEMA.md` - Clear: Project-related schema
+- `archives/misc/DASHBOARD_PRODUCTIVITY_TABLE_SPEC.md` - Clear: Dashboard feature spec
+- `archives/misc/PROJECT_ALLOWLIST_SCHEMA.md` - Clear: Project-related schema
 - `TOOL_MULTICROP_PROGRESS_TRACKING.md` - Clear: Tool-specific feature
 
 **Examples of Bad Names (Replaced):**
@@ -1809,10 +1809,10 @@ chrome_options.add_argument('--log-level=3')            # Errors only
   - ✅ `AI_ANOMALY_DETECTION_OPTIONS.md` - Clear: AI detection approaches
 
 - ❌ `BASELINE_TEMPLATES_AND_README.md` - Vague: Baseline for what?
-  - ✅ `DASHBOARD_BASELINE_TEMPLATES.md` - Clear: Dashboard baseline data
+  - ✅ `archives/misc/DASHBOARD_BASELINE_TEMPLATES.md` - Clear: Dashboard baseline data
 
 - ❌ `CENTRALIZED_TOOL_ORDER.md` - Abstract: Centralized where?
-  - ✅ `DASHBOARD_TOOL_ORDER_CONFIG.md` - Clear: Dashboard config
+  - ✅ `archives/misc/DASHBOARD_TOOL_ORDER_CONFIG.md` - Clear: Dashboard config
 
 **Why This Pattern Works:**
 

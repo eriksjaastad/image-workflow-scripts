@@ -5,6 +5,15 @@
 ---
 
 ## 🎯 Active Tasks
+### Phase 3: Two-Action Crop Flow (Reviewer)
+- [ ] Implement aiCropAccepted two-action routing semantics
+  - Current: 1–4 with overlay ON → route to crop_auto (approve_ai_suggestion intent in sidecar)
+  - Current: 1–4 with overlay OFF → selected (approve)
+  - Future: Shift+1–4 → approve_ai_crop (auto-crop safe path)
+- [ ] Update sidecar schema for crop_auto items: add `ai_route: 'suggestion'`
+- [ ] Add analytics view for “perfect crop” (final ≈ AI crop within 5%) in SQLite v3
+- [ ] Optional migration: extend user_action enum to include approve_ai_suggestion and approve_ai_crop (Phase 3B)
+
 
 ### Phase 3: AI-Assisted Reviewer Testing
 
@@ -30,6 +39,39 @@
 - [ ] Integrate Crop Proposer v1 (if it completed training)
   - **Check:** Does `crop_proposer_v1.pt` exist?
   - **Add:** Crop suggestions to reviewer UI
+
+### AI Reviewer: Batch Summary Delete Count (Bug)
+- [ ] Fix "deleted" double-count in batch summary [PRIORITY: HIGH]
+  - **Cause:** In `scripts/01_ai_assisted_reviewer.py` `process_batch()`, `deleted_count` is first estimated as `total_images - selected_images`, then the code also deletes unselected groups and adds their deleted counts again. This mixes a heuristic (per-batch images) with actual per-group deletions and can double-count. See around the section where it sets `deleted_count = total_images - selected_images` and then loops calling `delete_group_images(...)` and incrementing `deleted_count` again.
+  - **Fix:**
+    1. Make `perform_file_operations(...)` return a structured result (e.g., `{"moved_selected": n, "moved_crop": n, "moved_crop_auto": n, "deleted_images": n}`) for each processed group.
+    2. In `process_batch()`, accumulate exact counts from those return values for selected groups; for unselected groups, use only the integer returned by `delete_group_images(...)`. Remove the heuristic `total_images - selected_images` entirely.
+    3. Update the batch summary message to use these precise totals so UI/debug output matches the audit log.
+  - **Cleanup:**
+    - No historical correction needed (only the transient summary text was inaccurate); the file-operation audit log already reflects truth.
+    - Add an optional lightweight batch-summary JSON line logger in `data/log_archives/` (one line per batch) to aid quick reviews without retaining verbose server stdout.
+    - Add/extend unit test in `scripts/tests/test_ai_assisted_reviewer_batch.py` to assert accurate kept/crop/deleted counts for mixed scenarios (approve, crop, explicit delete-all, and unselected groups).
+
+### Test Follow-ups (Dashboard + Utils)
+- [ ] Migrate tests off legacy desktop selector shim and remove file
+  - File: `scripts/01_desktop_image_selector_crop.py` (now a compat shim)
+  - Action: Update tests to import archived path `scripts/archive/01_desktop_image_selector_crop.py` or remove usages
+  - Then: Delete the shim file once tests no longer reference it
+- [ ] Fix prompt extraction tests (scripts/tests/test_prompt_extraction.py) — 3 failures
+- [ ] Satisfy file safety audit (scripts/tests/test_file_safety_audit.py)
+- [ ] Crop overlay rounding to integers (scripts/tests/test_ai_assisted_reviewer_batch.py)
+- [ ] Full pytest rerun and address any remaining stragglers
+ - [ ] Investigate dashboard API timeouts in test runner (local)
+   - Reference test: `scripts/tests/test_dashboard.py` (server subprocess + API checks)
+   - Symptom: HTTP read timeouts on 15min endpoint (and others) despite local data
+   - Likely cause: Flask subprocess started with stdout/stderr PIPEs; pipe buffer fills → server blocks on write → requests hang
+     - Evidence: server launched via `subprocess.Popen(..., stdout=PIPE, stderr=PIPE)` then not drained
+   - Possible fixes:
+     - Start server with `stdout=subprocess.DEVNULL`, `stderr=subprocess.DEVNULL`
+     - Or drain PIPEs in background threads; or log to a temp file and close handles
+     - Bump request timeout in test to 20s to account for heavy 15min slice
+     - Optionally reduce lookback/labels in this test case
+   - Status: Deferred — Erik chose not to address today; proceed with other dashboard tests (DataEngine/transform) which are passing
 
 ---
 
@@ -151,20 +193,20 @@
 - [x] Fix Desktop Multi-Crop dimension logging bug
 - [x] Re-compute missing mojo2 embeddings (17,834 new embeddings)
 - [x] Create validation script (`scripts/ai/validate_training_data.py`)
-- [x] Document lessons learned (`Documents/AI_DATA_COLLECTION_LESSONS_LEARNED.md`)
+- [x] Document lessons learned (`Documents/archives/ai/AI_DATA_COLLECTION_LESSONS_LEARNED.md`)
 
 **Data Integrity (Just Completed - Oct 21, 2025 Morning)**
 - [x] **Integrate inline validation into all data collection tools** ⭐ **DONE!**
 - [x] Add dimension validation to `log_select_crop_entry()`
 - [x] Add path validation to `log_selection_only_entry()`
 - [x] Create test suite (`scripts/tests/test_inline_validation.py`)
-- [x] Documentation (`Documents/INLINE_VALIDATION_GUIDE.md`)
+- [x] Documentation (`Documents/archives/misc/INLINE_VALIDATION_GUIDE.md`)
 
 **Crop Training Data Schema Evolution (Oct 21, 2025 Afternoon)**
 - [x] **Design and implement NEW minimal crop training schema** ⭐ **8 columns instead of 19!**
 - [x] Create `log_crop_decision()` function with strict validation
 - [x] Update AI-Assisted Reviewer to use new schema
-- [x] Document schema evolution and benefits (`Documents/CROP_TRAINING_SCHEMA_V2.md`)
+- [x] Document schema evolution and benefits (`Documents/archives/misc/CROP_TRAINING_SCHEMA_V2.md`)
 - [x] Add to Technical Knowledge Base
 - [ ] **BACKLOG: Migrate 7,194 legacy rows to new schema** (Optional - keep both for now)
 

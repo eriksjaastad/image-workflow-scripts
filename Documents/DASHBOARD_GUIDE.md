@@ -24,17 +24,19 @@ pip install -r scripts/dashboard/requirements.txt
 ```
 
 ### 2. Start the API Server
+Option A (recommended launcher):
 ```bash
-python3 scripts/dashboard/productivity_dashboard.py
+python3 scripts/dashboard/run_dashboard.py --host 127.0.0.1 --port 5001
+```
+Option B (direct server):
+```bash
+python3 scripts/dashboard/productivity_dashboard.py --host 127.0.0.1 --port 5001 --data-dir .
 ```
 
 You should see:
 ```
-🚀 Starting Productivity Dashboard API...
-📂 Data directory: PROJECT_ROOT
-🌐 API docs: http://localhost:8000/docs
-INFO:     Started server process
-INFO:     Uvicorn running on http://0.0.0.0:8000
+🚀 Productivity Dashboard starting at http://127.0.0.1:5001
+🌐 Opening browser to http://127.0.0.1:5001 (if not in debug)
 ```
 
 ### 3. Open the Dashboard
@@ -48,7 +50,7 @@ Open `scripts/dashboard/dashboard_template.html` in your browser. The dashboard 
 
 **Request:**
 ```bash
-curl "http://localhost:8000/api/data?slice=D&lookback_days=3"
+curl "http://127.0.0.1:5001/api/data/D?lookback_days=3"
 ```
 
 **Response (simplified):**
@@ -111,7 +113,7 @@ curl "http://localhost:8000/api/data?slice=D&lookback_days=3"
 
 **Request:**
 ```bash
-curl "http://localhost:8000/api/data?slice=1H&lookback_days=1"
+curl "http://127.0.0.1:5001/api/data/1H?lookback_days=1"
 ```
 
 **Response (3 hours shown):**
@@ -155,7 +157,7 @@ Expected output:
 Next steps:
   1. Start the API server: python3 scripts/dashboard/productivity_dashboard.py
   2. Open dashboard: scripts/dashboard/dashboard_template.html
-  3. Test endpoints: curl http://localhost:8000/api/data
+  3. Test endpoints: curl "http://127.0.0.1:5001/api/data/D?lookback_days=7"
 ```
 
 ### Run Unit Tests (requires pytest)
@@ -262,13 +264,13 @@ This data layer serves aggregated productivity metrics to the dashboard frontend
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  Dashboard Template (HTML + Chart.js)                   │
-│  Expects: /api/data?slice=D&lookback_days=N&project_id= │
+│  Expects: /api/data/<time_slice>?lookback_days=&project_id= │
 └─────────────────────────────────────────────────────────┘
                            │
                            ▼
 ┌─────────────────────────────────────────────────────────┐
 │  productivity_dashboard.py (Flask Server)               │
-│  Route: GET /api/data                                   │
+│  Route: GET /api/data/<time_slice>                      │
 └─────────────────────────────────────────────────────────┘
                            │
                            ▼
@@ -362,15 +364,12 @@ This data layer serves aggregated productivity metrics to the dashboard frontend
 
 ## API Endpoint
 
-### `GET /api/data`
+### `GET /api/data/<time_slice>`
+
+**Path Parameter:**
+- `<time_slice>` (required): `15min` | `1H` | `D` | `W` | `M`
 
 **Query Parameters:**
-- `slice` (required): Time slice granularity
-  - `15min` - 15-minute intervals (intraday)
-  - `1H` - Hourly intervals (intraday)
-  - `D` - Daily aggregation
-  - `W` - Weekly aggregation (Monday start)
-  - `M` - Monthly aggregation (first of month)
 - `lookback_days` (int, default=30): Number of days to look back (1-365)
 - `project_id` (string, optional): Filter to specific project (empty = all projects)
 
@@ -378,7 +377,7 @@ This data layer serves aggregated productivity metrics to the dashboard frontend
 
 **Example:**
 ```bash
-curl "http://localhost:8000/api/data?slice=D&lookback_days=7&project_id=mojo1"
+curl "http://127.0.0.1:5001/api/data/D?lookback_days=7&project_id=mojo1"
 ```
 
 ## Response Contract

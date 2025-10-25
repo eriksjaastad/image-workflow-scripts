@@ -74,8 +74,8 @@ rm -rf sandbox/mojo2_subset/       # 5.2 GB
 
 **Documentation:**
 - `Documents/AI_PROJECT_IMPLEMENTATION_PLAN.md` - Master checklist (UPDATED)
-- `Documents/AI_SESSION_SUMMARY_2025-10-20.md` - Today's work summary
-- `Documents/AI_HISTORICAL_DATA_EXTRACTION_PLAN.md` - Extraction strategy
+- `Documents/archives/ai/AI_SESSION_SUMMARY_2025-10-20.md` - Today's work summary
+- `Documents/archives/ai/AI_HISTORICAL_DATA_EXTRACTION_PLAN.md` - Extraction strategy
 
 ---
 
@@ -112,7 +112,7 @@ NEXT STEPS:
 
 KEY FILES:
 - Models: data/ai_data/models/ranker_v1.pt, crop_proposer_v1.pt
-- Docs: Documents/AI_SESSION_SUMMARY_2025-10-20.md
+- Docs: Documents/archives/ai/AI_SESSION_SUMMARY_2025-10-20.md
 - Plan: Documents/AI_PROJECT_IMPLEMENTATION_PLAN.md
 
 What should we work on first?

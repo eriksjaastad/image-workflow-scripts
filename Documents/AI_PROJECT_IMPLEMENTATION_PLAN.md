@@ -39,8 +39,8 @@ Each project (Mojo 1, Mojo 2, Eleni, etc.) represents a **different character**.
 
 **Related Documents:**
 - **[AI_TRAINING_PHASE2_QUICKSTART.md](AI_TRAINING_PHASE2_QUICKSTART.md)** - Step-by-step Phase 2 guide
-- **[AUTOMATION_REVIEWER_SPEC.md](AUTOMATION_REVIEWER_SPEC.md)** - Phase 3 review UI spec
-- **[AI_TRAINING_CROP_AND_RANKING.md](AI_TRAINING_CROP_AND_RANKING.md)** - Technical training details
+- **[AUTOMATION_REVIEWER_SPEC.md](archives/misc/AUTOMATION_REVIEWER_SPEC.md)** - Phase 3 review UI spec (archived)
+- **[AI_TRAINING_CROP_AND_RANKING.md](archives/ai/AI_TRAINING_CROP_AND_RANKING.md)** - Technical training details (archived)
 - **[CURRENT_TODO_LIST.md](CURRENT_TODO_LIST.md)** - Lines 251-490: Full automation pipeline
 
 ---
@@ -92,7 +92,7 @@ Phase 5: ⏳ Production Rollout    (Future)
 - ✅ Project 1101_hailey has highest anomaly rate (58.7%) - excellent for learning quality judgment
 - ✅ Mojo1/Mojo2 have very low anomaly rates (0.5-0.6%) - mostly picked highest stage
 
-**📁 Complete Details:** See `Documents/AI_PHASE2_STATUS.md` for full breakdown by project
+**📁 Complete Details:** See `Documents/archives/ai/AI_PHASE2_STATUS.md` for full breakdown by project
 
 ---
 

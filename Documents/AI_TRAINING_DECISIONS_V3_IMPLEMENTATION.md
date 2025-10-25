@@ -1,6 +1,6 @@
 # AI Training Decisions v3 - Complete Implementation Plan
 **Date:** October 21, 2025  
-**Status:** Design Phase - Not Yet Implemented  
+**Status:** Implemented (migrated on 2025-10-24)  
 **Goal:** Link AI recommendations with user corrections for superior training data
 
 ---
@@ -61,6 +61,7 @@ Current training data logs crops in isolation, without context:
 | `ai_confidence` | REAL | Model confidence (0.0-1.0) |
 | `user_selected_index` | INTEGER NOT NULL | Which image user picked (0-3) |
 | `user_action` | TEXT NOT NULL | `'approve'` \| `'crop'` \| `'reject'` |
+| `ai_crop_accepted` | BOOLEAN | TRUE if user explicitly accepted AI crop suggestion; FALSE if declined; NULL if not applicable |
 | `final_crop_coords` | TEXT | JSON array: `[x1, y1, x2, y2]` (filled later) |
 | `crop_timestamp` | TEXT | ISO 8601 UTC when crop completed |
 | `image_width` | INTEGER NOT NULL | Original image width in pixels |
@@ -93,6 +94,10 @@ CHECK(image_width > 0 AND image_height > 0)
 ---
 
 ## 🔄 How It Works in Practice
+Update 2025-10-24
+- Reviewer now logs `ai_crop_accepted` when user approves AI-picked image with crop overlay ON.
+- Databases migrated to add `ai_crop_accepted`. Optional backfill applied to rows meeting strict approval criteria.
+- Reviewer loads `crop_proposer_v3.pt`; crop overlays sized correctly (no CLIP L2-normalization at inference).
 
 ### Phase 1: AI Reviewer (Image Selection)
 
@@ -126,6 +131,7 @@ CHECK(image_width > 0 AND image_height > 0)
     
     'user_selected_index': 2,                  # USER picked image 3!
     'user_action': 'crop',                     # Needs manual cropping
+    'ai_crop_accepted': True,                  # New: user left AI crop ON (if same image approved)
     
     'final_crop_x1': None,                     # Not cropped yet
     'final_crop_y1': None,
@@ -184,6 +190,19 @@ For each moved file, create a `.decision` sidecar file:
     'crop_match': False          # AI crop was 5%+ different
 }
 ```
+
+### ai_crop_accepted Semantics
+Update 2025-10-24: Field is live in all active DBs; legacy rows may be NULL.
+
+- ai_crop_accepted = True: User approved the AI-picked image and left the AI crop overlay ON. The file is routed to `crop_auto/` with a `.decision` sidecar containing `ai_crop_coords`.
+- ai_crop_accepted = False: User approved the AI-picked image but toggled the AI crop OFF (no crop needed). The file is routed to `selected/` and no `.decision` is created.
+- ai_crop_accepted = None: No AI crop was proposed, the user approved a different image than AI picked, or the decision predates this field.
+
+Backfill guidance (optional):
+- For rows where `ai_crop_coords IS NOT NULL AND user_action='approve' AND ai_selected_index=user_selected_index`:
+  - If file is in `crop_auto/` with a sidecar → set `ai_crop_accepted=True`.
+  - If file is in `selected/` and no sidecar in `crop_auto/` → set `ai_crop_accepted=False`.
+  - Else keep `NULL`.
 
 ---
 
@@ -384,7 +403,7 @@ def create_decision_sidecar(image_path, group_id, project_id, needs_crop):
 
 ---
 
-### 6. `scripts/04_desktop_multi_crop.py` (Desktop Multi-Crop)
+### 6. `scripts/02_ai_desktop_multi_crop.py` (AI Desktop Multi-Crop)
 
 **Changes Needed:**
 - ✅ **CRITICAL: This is Phase 2 of the two-stage logging!**
@@ -476,7 +495,7 @@ def calculate_crop_match(row: Dict) -> Optional[bool]:
 
 ---
 
-### 8. `scripts/06_web_duplicate_finder.py` (Duplicate Finder)
+### 8. `scripts/99_web_duplicate_finder.py` (Duplicate Finder)
 
 **Changes Needed:**
 - ❌ **No changes needed**
@@ -895,7 +914,7 @@ def load_crop_training_data_v3(project_ids: List[str]):
 ## 📚 Related Documents
 
 - `AI_TRAINING_DATA_STRUCTURE.md` - Original training data design
-- `AI_TRAINING_CROP_AND_RANKING.md` - Model architecture docs
+- `archives/ai/AI_TRAINING_CROP_AND_RANKING.md` - Model architecture docs (archived)
 - `COMPANION_FILE_SYSTEM_GUIDE.md` - File handling patterns
 - `FILE_SAFETY_SYSTEM.md` - Data integrity rules
 - `TECHNICAL_KNOWLEDGE_BASE.md` - General system knowledge

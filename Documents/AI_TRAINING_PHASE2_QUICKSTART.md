@@ -13,12 +13,12 @@
    - Install dependencies → Extract features → Train models
    - **Status:** Training data ready (17k examples), models not yet trained
 
-2. **[AUTOMATION_REVIEWER_SPEC.md](AUTOMATION_REVIEWER_SPEC.md)** ⭐ **BUILD NEXT**
+2. **[AUTOMATION_REVIEWER_SPEC.md](archives/misc/AUTOMATION_REVIEWER_SPEC.md)** ⭐ **BUILD NEXT**
    - Complete spec for the review UI (`scripts/07_automation_reviewer.py`)
    - Web interface for approving/rejecting AI recommendations
    - **Status:** Fully documented, ready to build
 
-3. **[AI_TRAINING_CROP_AND_RANKING.md](AI_TRAINING_CROP_AND_RANKING.md)**
+3. **[AI_TRAINING_CROP_AND_RANKING.md](archives/ai/AI_TRAINING_CROP_AND_RANKING.md)**
    - Comprehensive technical training plan
    - Details: CLIP embeddings, saliency, anomaly detection, crop optimization
    - **Status:** Reference document for deep dives

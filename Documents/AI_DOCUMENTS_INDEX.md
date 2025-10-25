@@ -9,7 +9,7 @@ version: 2025-10-20
 ## 🎯 START HERE: AI Automation Project
 
 **New to this project or resuming after a break?**  
-→ Read **[AI_DOCUMENTATION_SUMMARY.md](AI_DOCUMENTATION_SUMMARY.md)** first (2 min orientation)
+→ Read **[ARCHITECTURE_OVERVIEW.md](ARCHITECTURE_OVERVIEW.md)** and **[DEVELOPER_ONBOARDING.md](DEVELOPER_ONBOARDING.md)** first (2–5 min orientation)
 
 **Ready to work on AI automation?**  
 → Open **[AI_PROJECT_IMPLEMENTATION_PLAN.md](AI_PROJECT_IMPLEMENTATION_PLAN.md)** (master checklist)
@@ -19,15 +19,21 @@ version: 2025-10-20
 ## AI Automation Project Documents
 
 ### Essential Documents (Read in Order):
-1. **AI_DOCUMENTATION_SUMMARY.md** — 📖 **START HERE** Orientation guide, what was done Oct 20, how to never lose context; tags: [ai, orientation, summary]
-2. **AI_PROJECT_IMPLEMENTATION_PLAN.md** — ⭐ **MASTER CHECKLIST** Complete phase-by-phase plan with checkboxes for all AI automation work. Updated continuously as phases complete; tags: [ai, automation, checklist, progress-tracking]
-3. **🚨 AI_TRAINING_DATA_STRUCTURE.md** — **CRITICAL RULES** How training data is organized, project boundaries, what NOT to do. **READ BEFORE TRAINING ANY MODELS**; tags: [ai, training, data-structure, critical, rules]
-4. **AI_TRAINING_PHASE2_QUICKSTART.md** — Step-by-step guide for Phase 2 (train models). Training data status: 17,032 examples ready; tags: [ai, training, phase2, quickstart]
-5. **AUTOMATION_REVIEWER_SPEC.md** — Complete spec for Phase 3 review UI (scripts/07_automation_reviewer.py); tags: [ai, automation, ui, review, phase3]
+1. **ARCHITECTURE_OVERVIEW.md** — One-page map of system, dataflows, safety invariants; tags: [architecture, map]
+2. **DEVELOPER_ONBOARDING.md** — AI-agent onboarding, safety checklist, run/stop discipline; tags: [onboarding, safety]
+3. **OPERATIONS_GUIDE.md** — Daily runs, checkpoints, failure modes; tags: [operations, runbook]
+4. **DASHBOARD_API.md** — Endpoint and parameter reference; tags: [dashboard, api]
+5. **SCHEMA_REFERENCE.md** — SQLite and snapshot schemas; tags: [schema, reference]
+6. **AI_TRAINING_PLAYBOOK.md** — Integrity checks, workflows, cost gates; tags: [ai, training, playbook]
+7. **AI_PROJECT_IMPLEMENTATION_PLAN.md** — ⭐ **MASTER CHECKLIST** Complete phase-by-phase plan with checkboxes; tags: [ai, automation, checklist, progress-tracking]
+8. **🚨 AI_TRAINING_DATA_STRUCTURE.md** — **CRITICAL RULES** How training data is organized; tags: [ai, training, data-structure, critical]
+9. **AI_TRAINING_PHASE2_QUICKSTART.md** — Step-by-step for Phase 2; tags: [ai, training, phase2, quickstart]
+10. **AI_ASSISTED_REVIEWER_PHASE3_SPEC.md** — Phase 3 two-action crop flow (current); tags: [ai, reviewer, crop, phase3]
+11. **archives/misc/AUTOMATION_REVIEWER_SPEC.md** — Spec for Phase 3 review UI (archived); tags: [ai, automation, ui, review, phase3]
+11. **TESTS_GUIDE.md** — How to run quick safety tests and the full suite; tags: [tests, ci]
 
 ### Reference Documents:
-5. **AI_TRAINING_CROP_AND_RANKING.md** — Technical deep-dive: CLIP embeddings, crop optimization, ranking models; tags: [ai, training, technical, reference]
-6. **AI_ANOMALY_DETECTION_OPTIONS.md** — Hand/foot anomaly detection options (MediaPipe, OpenPose, etc.); tags: [ai, anomaly-detection, reference]
+- Historical AI docs have been archived to keep the core set lean. See: `archives/ai/`
 
 ---
 

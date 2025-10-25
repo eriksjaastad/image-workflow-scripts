@@ -46,7 +46,7 @@
    - ✅ Added Quick Navigation section
    - ✅ Updated timestamps
 
-3. **`AUTOMATION_REVIEWER_SPEC.md`**
+3. **`archives/misc/AUTOMATION_REVIEWER_SPEC.md`**
    - ✅ Added Quick Navigation section
    - ✅ Added training data status
    - ✅ Added phase context
@@ -58,11 +58,11 @@
 
 ### Documents Reviewed (No Changes Needed):
 
-5. **`AI_TRAINING_CROP_AND_RANKING.md`**
+5. **`archives/ai/AI_TRAINING_CROP_AND_RANKING.md`**
    - Technical reference document
    - Still accurate and current
 
-6. **`AI_ANOMALY_DETECTION_OPTIONS.md`**
+6. **`archives/ai/AI_ANOMALY_DETECTION_OPTIONS.md`**
    - Reference document
    - Still accurate and current
 
@@ -93,7 +93,7 @@
 **Solution:** Clear hierarchy:
 1. **Start:** `AI_PROJECT_IMPLEMENTATION_PLAN.md` (master checklist)
 2. **Phase 2:** `AI_TRAINING_PHASE2_QUICKSTART.md` (step-by-step)
-3. **Phase 3:** `AUTOMATION_REVIEWER_SPEC.md` (UI spec)
+3. **Phase 3:** `archives/misc/AUTOMATION_REVIEWER_SPEC.md` (UI spec)
 4. **Reference:** Other docs as needed
 
 ---
