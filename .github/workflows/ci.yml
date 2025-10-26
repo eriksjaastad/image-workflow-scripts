@@ -3,8 +3,18 @@ name: CI
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'scripts/**'
+      - '.github/workflows/**'
   pull_request:
     branches: [ main ]
+    paths:
+      - 'scripts/**'
+      - '.github/workflows/**'
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:
@@ -23,10 +33,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff
 
-      - name: Run ruff lint
+      - name: Run ruff
         run: |
           ruff --version
-          # Make lint non-blocking to avoid notification spam while we stabilize
-          ruff check scripts --exit-zero
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            ruff check scripts
+          else
+            ruff check scripts --exit-zero
+          fi
 
 
