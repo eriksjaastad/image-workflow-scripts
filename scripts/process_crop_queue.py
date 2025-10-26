@@ -143,13 +143,11 @@ class CropQueueProcessor:
         self,
         queue_manager: CropQueueManager,
         timing_simulator: Optional[HumanTimingSimulator] = None,
-        preview_mode: bool = False,
-        dry_run: bool = False
+        preview_mode: bool = False
     ):
         self.queue_manager = queue_manager
         self.timing_simulator = timing_simulator
         self.preview_mode = preview_mode
-        self.dry_run = dry_run
         self.tracker = FileTracker("crop_queue_processor")
 
     def process_batch(self, batch: Dict) -> bool:
@@ -299,12 +297,13 @@ class CropQueueProcessor:
         print("✅ Validation passed!\n")
         return True, []
 
-    def run(self, limit: Optional[int] = None):
+    def run(self, limit: Optional[int] = None, skip_confirmation: bool = False):
         """
         Process the queue with human-like timing.
 
         Args:
             limit: Maximum number of batches to process (None = all)
+            skip_confirmation: If True, skip user confirmation prompt
         """
         stats = self.queue_manager.get_queue_stats()
         pending_count = stats['pending']
@@ -327,17 +326,29 @@ class CropQueueProcessor:
         # Get pending batches
         pending_batches = self.queue_manager.get_pending_batches(limit=limit)
 
-        # Run preflight validation
+        # ALWAYS run preflight validation (built-in safety)
         is_valid, validation_errors = self.preflight_validation(pending_batches)
 
         if not is_valid:
             print("❌ Preflight validation failed. Fix errors and try again.")
             return
 
-        # Dry-run mode: exit after validation
-        if self.dry_run:
-            print("✅ Dry-run complete. No files were modified.")
-            return
+        # Interactive confirmation (unless skipped with --yes)
+        if not skip_confirmation and not self.preview_mode:
+            total_crops = sum(len(b['crops']) for b in pending_batches)
+            print(f"Ready to process {len(pending_batches)} batches ({total_crops} crops).")
+            print("⚠️  This will modify files. Proceed? [y/N]: ", end='', flush=True)
+
+            try:
+                response = input().strip().lower()
+                if response not in ('y', 'yes'):
+                    print("\n❌ Cancelled by user.")
+                    return
+            except (KeyboardInterrupt, EOFError):
+                print("\n\n❌ Cancelled by user.")
+                return
+
+            print()  # Blank line after confirmation
 
         if self.timing_simulator:
             self.timing_simulator.start_session()
@@ -381,7 +392,7 @@ def main():
     parser.add_argument("--speed", type=float, default=1.0, help="Speed multiplier (default: 1.0)")
     parser.add_argument("--no-breaks", action="store_true", help="Skip break periods")
     parser.add_argument("--preview", action="store_true", help="Preview mode (don't actually process)")
-    parser.add_argument("--dry-run", action="store_true", help="Validate queue without processing")
+    parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt (auto-approve)")
     parser.add_argument("--limit", type=int, help="Process only N batches")
     args = parser.parse_args()
 
@@ -409,12 +420,11 @@ def main():
     processor = CropQueueProcessor(
         queue_manager,
         timing_simulator=timing_simulator,
-        preview_mode=args.preview,
-        dry_run=args.dry_run
+        preview_mode=args.preview
     )
 
-    # Run
-    processor.run(limit=args.limit)
+    # Run (with built-in validation and confirmation)
+    processor.run(limit=args.limit, skip_confirmation=args.yes)
 
 
 if __name__ == '__main__':
