@@ -45,5 +45,6 @@ version: 2025-10-26
 - ../guides/COMPANION_FILE_SYSTEM_GUIDE.md — Companion file handling; tags: [companion-files, utilities]
 - ../core/PROJECT_LIFECYCLE_SCRIPTS.md — Start/finish automation; tags: [project-lifecycle]
 - ../guides/CROP_TIMER_USER_GUIDE.md — Crop timer usage, schedules, dry-runs; tags: [crop, timer]
+- ../guides/AUDIT_FILES_VS_DB_GUIDE.md — Audit files vs decisions DB; tags: [audit, safety]
 
 
