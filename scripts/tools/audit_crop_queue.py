@@ -72,7 +72,7 @@ def check_db_record(project_id: str, group_id: str) -> Tuple[bool, str]:
 
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT id, final_crop_coords FROM decisions WHERE group_id = ?", (group_id,))
+        cursor.execute("SELECT id, final_crop_coords FROM ai_decisions WHERE group_id = ?", (group_id,))
         result = cursor.fetchone()
         conn.close()
 

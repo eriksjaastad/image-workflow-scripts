@@ -317,13 +317,28 @@ class CropQueueProcessor:
                 if dest_file.exists():
                     warnings.append(f"[{batch_id}] Will overwrite existing file: {dest_file}")
 
-                # Strict safe-zone validation (must match allowed zones)
-                dest_str = str(dest_directory)
-                is_safe = any(safe_zone in dest_str for safe_zone in allowed_safe_zones)
+                # Strict safe-zone validation (check Path.parts to avoid false positives)
+                dest_parts = dest_directory.parts
+                is_safe = False
+
+                for safe_zone in allowed_safe_zones:
+                    # Split safe_zone into parts (e.g., 'data/ai_data' -> ['data', 'ai_data'])
+                    safe_parts = safe_zone.split('/')
+
+                    # Check if safe_parts appear consecutively in dest_parts
+                    for i in range(len(dest_parts) - len(safe_parts) + 1):
+                        if dest_parts[i:i+len(safe_parts)] == tuple(safe_parts):
+                            is_safe = True
+                            break
+
+                    if is_safe:
+                        break
+
                 if not is_safe:
                     errors.append(
                         f"[{batch_id}] Destination outside allowed safe zones: {dest_directory}\n"
-                        f"              Allowed zones: {', '.join(allowed_safe_zones)}"
+                        f"              Allowed zones: {', '.join(allowed_safe_zones)}\n"
+                        f"              Path parts: {dest_parts}"
                     )
 
                 # Validate decisions DB linkage (required for training data integrity)
@@ -361,7 +376,7 @@ class CropQueueProcessor:
                             db_path = init_decision_db(project_id)
                             conn = sqlite3.connect(db_path)
                             cursor = conn.cursor()
-                            cursor.execute("SELECT id FROM decisions WHERE group_id = ?", (group_id,))
+                            cursor.execute("SELECT id FROM ai_decisions WHERE group_id = ?", (group_id,))
                             db_record = cursor.fetchone()
                             conn.close()
 

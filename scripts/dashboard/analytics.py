@@ -1421,7 +1421,8 @@ def main():
     
     # Save sample output
     import json
-    output_file = project_root / "dashboard_analytics_sample.json"
+    output_file = project_root / "data" / "dashboard_cache" / "dashboard_analytics_sample.json"
+    output_file.parent.mkdir(parents=True, exist_ok=True)
     with open(output_file, 'w') as f:
         json.dump(data, f, indent=2, default=str)
     print(f"\n💾 Sample output saved to: {output_file}")
