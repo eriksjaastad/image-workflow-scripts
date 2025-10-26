@@ -1,0 +1,14 @@
+# CODEOWNERS - require review for critical paths
+
+# Default owners (fallback)
+*       @eriksjaastad
+
+# Scripts and utilities require explicit review
+scripts/**           @eriksjaastad
+
+# Safety and core policies
+Documents/safety/**  @eriksjaastad
+Documents/core/**    @eriksjaastad
+
+# Docs can be self-merged if needed (owner still notified)
+Documents/**         @eriksjaastad
