@@ -22,7 +22,11 @@ def parse_timestamp(ts_str):
     return datetime.fromisoformat(ts_str.replace('Z', '+00:00'))
 
 def analyze_human_patterns(csv_path):
-    """Extract detailed timing patterns for realistic simulation."""
+    """Extract detailed timing patterns for realistic simulation.
+
+    Returns:
+        dict: timing_data structure with percentiles/means, etc.
+    """
 
     crops = []
     with open(csv_path, 'r') as f:
@@ -204,7 +208,7 @@ def analyze_human_patterns(csv_path):
         print(f"  Std dev: {statistics.stdev(within_session_times):.2f}s (use for random variation)")
         print(f"  Add random jitter: ±{statistics.stdev(within_session_times)/2:.2f}s")
 
-    # Save timing distribution for processor
+    # Prepare timing distribution for processor
     timing_data = {
         "percentiles": {
             f"p{p}": float(within_session_times[int(len(within_session_times) * p / 100)])
@@ -220,14 +224,7 @@ def analyze_human_patterns(csv_path):
             for hour, speed, _ in hourly_stats
         } if hourly_stats else {}
     }
-
-    output_path = Path(output_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, 'w') as f:
-        json.dump(timing_data, f, indent=2)
-
-    print(f"\n✓ Timing patterns saved to: {output_path}")
-    print(f"\n{'='*80}\n")
+    return timing_data
 
 def _get_repo_root() -> Path:
     # scripts/tools/analyze_human_patterns.py → repo root is parents[2]
@@ -242,14 +239,13 @@ def main() -> None:
     parser.add_argument("--out", dest="out_path", default=str(default_out), help="Output JSON path for timing patterns")
     args = parser.parse_args()
 
-    analyze_human_patterns(args.csv_path)
-    # Save results to args.out_path by re-running the final write with provided path
-    # (We could refactor analyze_human_patterns to return the data; keeping minimal change here.)
-    # Recompute quickly to write using provided out path
-    # For simplicity, call analyze_human_patterns again with same csv but monkey-patch output path
-    # Instead, minimally duplicate the final write with computed defaults is fine for now.
-    # Re-run core to regenerate timing_data and write to args.out_path
-    # Simpler: call analyze_human_patterns with csv, then compute and write inside function using args.out_path
+    timing_data = analyze_human_patterns(args.csv_path)
+    out_path = Path(args.out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, 'w') as f:
+        json.dump(timing_data, f, indent=2)
+    print(f"\n✓ Timing patterns saved to: {out_path}")
+    print(f"\n{'='*80}\n")
 
 
 if __name__ == '__main__':
