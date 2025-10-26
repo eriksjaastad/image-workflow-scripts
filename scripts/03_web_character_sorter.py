@@ -89,6 +89,8 @@ import csv
 import json
 import os
 import signal
+import shutil
+import shutil
 import sys
 import threading
 import time
@@ -888,6 +890,70 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
             "remaining": remaining,
             "processed": reviewed_count
         })
+
+    @app.route("/orphan-decisions/preview", methods=["GET"])
+    def preview_orphan_decisions():
+        """Preview orphan .decision files in current folder (no matching PNG anywhere)."""
+        folder = app.config["FOLDER"]
+        # Resolve repo root: scripts/03_web_character_sorter.py → repo root = parents[1]
+        repo_root = Path(__file__).resolve().parents[1]
+
+        # Build PNG stems set once for O(1) lookups across repo
+        png_stems = {p.stem for p in repo_root.rglob("**/*.png")}
+
+        decisions = list(folder.glob("*.decision"))
+        orphans = []
+        for d in decisions:
+            if d.stem not in png_stems:
+                orphans.append(str(d.resolve()))
+
+        return jsonify({
+            "status": "ok",
+            "folder": str(folder),
+            "total_decisions": len(decisions),
+            "orphan_count": len(orphans),
+            "orphans": orphans[:200]  # cap list for payload
+        })
+
+    @app.route("/orphan-decisions/stage", methods=["POST"])
+    def stage_orphan_decisions():
+        """Move orphan .decision files to __delete_staging and log via FileTracker."""
+        folder = app.config["FOLDER"]
+        repo_root = Path(__file__).resolve().parents[1]
+        staging = repo_root / "__delete_staging"
+        staging.mkdir(exist_ok=True)
+
+        tracker: FileTracker = app.config["TRACKER"]
+
+        # Build PNG stems set once for O(1) lookups across repo
+        png_stems = {p.stem for p in repo_root.rglob("**/*.png")}
+
+        decisions = list(folder.glob("*.decision"))
+        moved = []
+        for d in decisions:
+            if d.stem not in png_stems and d.exists():
+                try:
+                    # Move using companion-aware mover to avoid orphaning sidecars
+                    from utils.companion_file_utils import move_file_with_all_companions
+                    move_file_with_all_companions(d, staging, dry_run=False)
+                    moved.append(d.name)
+                except Exception as e:
+                    return jsonify({"status": "error", "message": f"Failed moving {d.name}: {e}"}), 500
+
+        if moved:
+            try:
+                tracker.log_operation(
+                    operation="move",
+                    source_dir=str(folder.name),
+                    dest_dir=str(staging.name),
+                    file_count=len(moved),
+                    files=moved[:10],
+                    notes=f"orphan .decision staged ({len(moved)} total)"
+                )
+            except Exception:
+                pass  # best-effort logging
+
+        return jsonify({"status": "ok", "moved_count": len(moved), "staging": str(staging)})
     
     @app.route("/process-viewport-batch", methods=["POST"])
     def process_viewport_batch():

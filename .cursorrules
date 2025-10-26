@@ -1,5 +1,5 @@
-# Eros Mate Project - Cursor AI Rules
-# =====================================
+# Project - Cursor AI Rules
+# ========================
 
 ## 🚨 CRITICAL FILE SAFETY RULES - NEVER VIOLATE
 
@@ -30,6 +30,7 @@
 - `data/file_operations_logs/` - Operation logs
 - `data/daily_summaries/` - Report files
 - `sandbox/` - Testing and experiments
+- `__delete_staging/` - Orphaned files awaiting manual review before deletion
 - Temporary directories created by scripts
 
 **Where files CANNOT be modified:**
