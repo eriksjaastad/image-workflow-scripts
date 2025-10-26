@@ -1,8 +1,18 @@
 #!/usr/bin/env python3
-"""Analyze crop timing patterns from historical data to understand human work patterns."""
+"""Analyze crop timing patterns from historical data to understand human work patterns.
 
+Usage:
+  python scripts/tools/analyze_crop_timing.py \
+    --csv data/training/select_crop_log.csv
+
+If --csv is omitted, the script will default to the repository path:
+  <repo>/data/training/select_crop_log.csv
+"""
+
+import argparse
 import csv
 from datetime import datetime, timedelta
+from pathlib import Path
 from collections import defaultdict
 import statistics
 
@@ -176,6 +186,19 @@ def analyze_crop_timing(csv_path):
 
     print(f"\n{'='*80}\n")
 
+def _get_repo_root() -> Path:
+    # scripts/tools/analyze_crop_timing.py → repo root is parents[2]
+    return Path(__file__).resolve().parents[2]
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Analyze crop timing patterns from historical select_crop_log.csv")
+    default_csv = _get_repo_root() / "data" / "training" / "select_crop_log.csv"
+    parser.add_argument("--csv", dest="csv_path", default=str(default_csv), help="Path to select_crop_log.csv")
+    args = parser.parse_args()
+
+    analyze_crop_timing(args.csv_path)
+
+
 if __name__ == '__main__':
-    csv_path = '/home/user/image-workflow-scripts/data/training/select_crop_log.csv'
-    analyze_crop_timing(csv_path)
+    main()
