@@ -639,7 +639,12 @@ def perform_file_operations(group: ImageGroup, action: str, selected_index: Opti
     if action == "reject_single":
         # Delete just one image - move to delete_staging
         if selected_index is None:
-            return "Error: No image selected for rejection"
+            return {
+                "moved_selected": 0,
+                "moved_crop": 0,
+                "deleted_images": 0,
+                "message": "Error: No image selected for rejection"
+            }
         
         selected_image = group.images[selected_index]
         try:
@@ -667,7 +672,12 @@ def perform_file_operations(group: ImageGroup, action: str, selected_index: Opti
             }
     
     if selected_index is None:
-        return "Error: No image selected"
+        return {
+            "moved_selected": 0,
+            "moved_crop": 0,
+            "deleted_images": 0,
+            "message": "Error: No image selected"
+        }
     
     selected_image = group.images[selected_index]
     other_images = [img for i, img in enumerate(group.images) if i != selected_index]
