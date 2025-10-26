@@ -11,7 +11,7 @@ If omitted, defaults are resolved relative to the repo root.
 
 import argparse
 import csv
-from datetime import datetime, timedelta
+from datetime import datetime
 from collections import defaultdict
 from pathlib import Path
 import statistics

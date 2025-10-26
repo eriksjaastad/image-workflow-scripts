@@ -11,9 +11,8 @@ If --csv is omitted, the script will default to the repository path:
 
 import argparse
 import csv
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from collections import defaultdict
 import statistics
 
 def parse_timestamp(ts_str):
