@@ -174,3 +174,80 @@ Deliver in one step:
 - A 3-label sample that proves alignment.
 If it fails again, STOP and offer 2 options (Fast/Safe) with a default.
 ```
+
+---
+
+## Repository Hygiene Rules (Root Files + Commit Communication)
+
+### Root-File Policy (block new files at repo root)
+- Do not add new files directly under the repository root.
+- Allowed root entries (allowlist):
+  - `.git*`, `.cursor*`, `.editorconfig`, `.pre-commit-config.yaml`
+  - `README.md`, `LICENSE*`, `cursor_global_rules_kit.md`
+  - Project bootstrap files explicitly approved in this repo
+- Everything else must live under a proper folder: `scripts/`, `Documents/`, `configs/`, `data/`, `sandbox/`, `.github/`, etc.
+
+Recommended pre-commit hook (drop into `.git/hooks/pre-commit`, make executable):
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Identify newly added files (A) staged for commit
+added_files=$(git diff --cached --name-status --diff-filter=A | awk '{print $2}')
+
+# Root allowlist (exact filenames only, no slash)
+allowlist=(
+  ".gitignore"
+  ".cursorrules"
+  ".editorconfig"
+  "README.md"
+  "LICENSE"
+  "LICENSE.md"
+  "cursor_global_rules_kit.md"
+)
+
+fail=0
+for f in $added_files; do
+  # Root files have no '/'
+  if [[ "$f" != */* ]]; then
+    allowed=0
+    for a in "${allowlist[@]}"; do
+      if [[ "$f" == "$a" ]]; then allowed=1; break; fi
+    done
+    if [[ $allowed -eq 0 ]]; then
+      echo "\n❌ Root-file policy: New file at repo root is not allowed: $f" >&2
+      echo "   Move it under an appropriate folder (e.g., Documents/, scripts/, configs/, data/)" >&2
+      fail=1
+    fi
+  fi
+done
+
+if [[ $fail -ne 0 ]]; then
+  echo "\nCommit aborted by pre-commit hook." >&2
+  exit 1
+fi
+```
+
+### Commit Communication Standard (share commits unambiguously)
+Always share commit details in this exact format. All fields required.
+
+```
+Commit: <short-sha> (<full-sha>)
+Branch: <branch-name>
+Files: <comma-separated relative paths>
+
+Summary:
+- <≤80-char bullet 1>
+- <≤80-char bullet 2>
+- <≤80-char bullet 3>
+
+Links:
+- Commit: https://github.com/<org>/<repo>/commit/<full-sha>
+- PR (if any): https://github.com/<org>/<repo>/pull/<number>
+
+Verify:
+- git show --name-only <short-sha>
+- git show <short-sha> -- <path/to/file>
+```
+
