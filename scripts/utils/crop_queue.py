@@ -10,12 +10,25 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import threading
 import fcntl
+import sys
+
+# Add parent directory to path for imports
+_parent = Path(__file__).parent.parent
+if str(_parent) not in sys.path:
+    sys.path.insert(0, str(_parent))
+
+from file_tracker import FileTracker
 
 
 class CropQueueManager:
     """Manages the crop queue (JSONL file) with thread-safe operations."""
 
-    def __init__(self, queue_file: Path):
+    def __init__(self, queue_file: Optional[Path] = None):
+        # Default to safe zone if not specified
+        if queue_file is None:
+            safe_zone = Path(__file__).parent.parent.parent / "data" / "ai_data" / "crop_queue"
+            queue_file = safe_zone / "crop_queue.jsonl"
+
         self.queue_file = Path(queue_file)
         self.queue_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -23,13 +36,16 @@ class CropQueueManager:
         if not self.queue_file.exists():
             self.queue_file.touch()
 
-        # Timing log
+        # Timing log (in same safe zone directory)
         self.timing_log = self.queue_file.parent / "timing_log.csv"
         if not self.timing_log.exists():
             self.timing_log.write_text(
                 "batch_id,timestamp_queued,timestamp_started,timestamp_completed,"
                 "crops_in_batch,total_time_ms,avg_time_per_crop_ms,project_id,session_id\n"
             )
+
+        # File tracker for logging operations
+        self.tracker = FileTracker("crop_queue_manager")
 
     def _generate_batch_id(self) -> str:
         """Generate unique batch ID with timestamp and sequence."""
@@ -100,6 +116,14 @@ class CropQueueManager:
                 f.flush()
             finally:
                 fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+
+        # Log operation to FileTracker
+        self.tracker.log_operation(
+            "create",
+            dest_dir=str(self.queue_file.parent),
+            file_count=len(crops),
+            metadata=f"batch_id={batch_id}, project={project_id}"
+        )
 
         return batch_id
 

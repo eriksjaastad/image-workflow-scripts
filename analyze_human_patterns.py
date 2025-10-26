@@ -211,7 +211,7 @@ def analyze_human_patterns(csv_path):
         } if hourly_stats else {}
     }
 
-    output_path = "/home/user/image-workflow-scripts/data/crop_queue/timing_patterns.json"
+    output_path = "/home/user/image-workflow-scripts/data/ai_data/crop_queue/timing_patterns.json"
     import os
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, 'w') as f:

@@ -108,10 +108,10 @@ class AIMultiCropTool(MultiCropTool):
 
         if self.queue_mode:
             from utils.crop_queue import CropQueueManager
-            from pathlib import Path as _Path
-            queue_file = _Path(__file__).parent.parent / "data" / "crop_queue" / "crop_queue.jsonl"
-            self.queue_manager = CropQueueManager(queue_file)
+            # Queue manager defaults to safe zone (data/ai_data/crop_queue/)
+            self.queue_manager = CropQueueManager()
             print("[Queue Mode] Enabled - crops will be queued for later processing")
+            print(f"[Queue Mode] Queue file: {self.queue_manager.queue_file}")
 
     def crop_and_save(self, image_info, crop_coords):
         """Crop image, save in place, then move to central __cropped directory (or queue)."""

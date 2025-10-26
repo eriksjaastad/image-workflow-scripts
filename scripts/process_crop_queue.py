@@ -45,9 +45,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from PIL import Image
 from scripts.utils.crop_queue import CropQueueManager
-from scripts.utils.companion_file_utils import move_file_with_all_companions
+from scripts.utils.ai_crop_utils import headless_crop
 
 
 class HumanTimingSimulator:
@@ -170,23 +169,14 @@ class CropQueueProcessor:
         timestamp_started = datetime.now(timezone.utc).isoformat()
 
         try:
-            # Process each crop in the batch
+            # Process each crop in the batch using the trusted crop path
             for crop in crops:
                 source_path = Path(crop['source_path'])
-                crop_rect = crop['crop_rect']
+                crop_rect = tuple(crop['crop_rect'])  # Convert list to tuple
                 dest_directory = Path(crop['dest_directory'])
 
-                # Ensure destination exists
-                dest_directory.mkdir(parents=True, exist_ok=True)
-
-                # Load image, crop, and save
-                with Image.open(source_path) as img:
-                    x1, y1, x2, y2 = crop_rect
-                    cropped = img.crop((x1, y1, x2, y2))
-                    cropped.save(source_path)  # Save in place
-
-                # Move cropped image (with companions) to destination
-                moved_files = move_file_with_all_companions(source_path, dest_directory, dry_run=False)
+                # Use headless_crop (trusted path - same code as desktop tool)
+                moved_files = headless_crop(source_path, crop_rect, dest_directory)
 
             # Calculate processing time
             end_time = time.time()
@@ -287,14 +277,13 @@ def main():
     parser.add_argument("--limit", type=int, help="Process only N batches")
     args = parser.parse_args()
 
-    # Load queue manager
-    queue_file = PROJECT_ROOT / "data" / "crop_queue" / "crop_queue.jsonl"
-    queue_manager = CropQueueManager(queue_file)
+    # Load queue manager (defaults to safe zone: data/ai_data/crop_queue/)
+    queue_manager = CropQueueManager()
 
-    # Load timing patterns
+    # Load timing patterns (from safe zone)
     timing_simulator = None
     if not args.fast:
-        timing_file = PROJECT_ROOT / "data" / "crop_queue" / "timing_patterns.json"
+        timing_file = PROJECT_ROOT / "data" / "ai_data" / "crop_queue" / "timing_patterns.json"
         if timing_file.exists():
             with open(timing_file, 'r') as f:
                 timing_data = json.load(f)

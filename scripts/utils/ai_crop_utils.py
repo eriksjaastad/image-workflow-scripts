@@ -4,6 +4,12 @@ AI Crop Utilities - Helper functions for AI crop coordinate handling.
 """
 
 from typing import Dict, List, Optional, Tuple
+from pathlib import Path
+
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
 
 
 def normalize_and_clamp_rect(
@@ -105,3 +111,68 @@ def decision_matches_image(decision: Dict, filename: str) -> bool:
 
     # If no filename field found, assume it matches (permissive)
     return True
+
+
+def headless_crop(
+    source_path: Path,
+    crop_rect: Tuple[int, int, int, int],
+    dest_directory: Path
+) -> List[Path]:
+    """
+    Perform trusted crop operation without UI (headless mode).
+
+    This is the ONLY function outside the desktop crop tool that can write image pixels.
+    It follows the same code path as the interactive tool to maintain safety.
+
+    Args:
+        source_path: Path to source image
+        crop_rect: Crop rectangle (x1, y1, x2, y2) in pixels
+        dest_directory: Destination directory for cropped image
+
+    Returns:
+        List of moved file paths
+
+    Raises:
+        RuntimeError: If PIL is not available
+        FileNotFoundError: If source image doesn't exist
+        ValueError: If crop coordinates are invalid
+    """
+    if Image is None:
+        raise RuntimeError("PIL (Pillow) is required for image cropping")
+
+    source_path = Path(source_path)
+    if not source_path.exists():
+        raise FileNotFoundError(f"Source image not found: {source_path}")
+
+    x1, y1, x2, y2 = crop_rect
+
+    # Validate crop coordinates
+    if x1 < 0 or y1 < 0 or x2 <= x1 or y2 <= y1:
+        raise ValueError(f"Invalid crop coordinates: ({x1}, {y1}, {x2}, {y2})")
+
+    # Load image, crop, and save in place (trusted path)
+    with Image.open(source_path) as img:
+        width, height = img.size
+
+        # Final validation against image dimensions
+        if x2 > width or y2 > height:
+            raise ValueError(
+                f"Crop coordinates ({x1}, {y1}, {x2}, {y2}) exceed image dimensions ({width}, {height})"
+            )
+
+        # Perform crop
+        cropped = img.crop((x1, y1, x2, y2))
+
+        # Save in place (overwrite original with cropped version)
+        cropped.save(source_path)
+
+    # Move cropped image (and companions) to destination
+    dest_directory = Path(dest_directory)
+    dest_directory.mkdir(parents=True, exist_ok=True)
+
+    # Import here to avoid circular dependency
+    from companion_file_utils import move_file_with_all_companions
+
+    moved_files = move_file_with_all_companions(source_path, dest_directory, dry_run=False)
+
+    return moved_files
