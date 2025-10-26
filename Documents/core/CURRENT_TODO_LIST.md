@@ -8,6 +8,23 @@
 ---
 
 ## 🎯 Active Tasks
+
+### TOP PRIORITY: Artifact Groups (cross-group/misaligned images)
+- [ ] Document and mitigate "artifact" groups observed in the reviewer (images from different groups shown together or odd stems/no group)
+  - **What’s happening:** Occasionally, a decision’s `images` set spans multiple parent directories or contains filenames with mismatched stems (outliers), causing cross-group horizontal layout and odd group composition.
+  - **Impact:**
+    - DB integrity is safe (decisions are recorded), but analytics/training can be skewed (group diversity, duplicate filenames) and audits may show `kept_missing` when an expected winner isn’t in scanned dirs.
+    - Crop automation: preflight may skip these safely, but visibility is needed.
+  - **Safeguards:**
+    - Reviewer (submit): warn on multi-dir or mismatched stems; allow continue or auto-split; log an `artifact` flag in `.decision` (and DB if available).
+    - Snapshots/analytics: label and exclude `artifact` decisions from default stats; include separate counts.
+    - Audit: extend audit to emit an "artifact candidates" section (multi-dir group, odd stems, duplicates) without blocking.
+  - **Tasks:**
+    - [ ] Add artifact detection + warning flow to reviewer submit (optional auto-split into clean groups)
+    - [ ] Extend `scripts/tools/audit_files_vs_db.py` to detect and report artifact candidates
+    - [ ] Update snapshot extraction to mark artifact decisions for filtering
+    - [ ] Dashboard: expose artifact counts and filters; add a small panel
+
 ### Phase 3: Two-Action Crop Flow (Reviewer)
 - [ ] Implement aiCropAccepted two-action routing semantics
   - Current: 1–4 with overlay ON → route to crop_auto (approve_ai_suggestion intent in sidecar)
