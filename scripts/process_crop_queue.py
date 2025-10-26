@@ -326,6 +326,73 @@ class CropQueueProcessor:
                         f"              Allowed zones: {', '.join(allowed_safe_zones)}"
                     )
 
+                # Validate decisions DB linkage (required for training data integrity)
+                decision_path = source_path.with_suffix('.decision')
+                if not decision_path.exists():
+                    errors.append(
+                        f"[{batch_id}] Missing .decision file for {source_path.name}\n"
+                        f"              Expected: {decision_path}\n"
+                        f"              Decisions DB linkage required for crop operations"
+                    )
+                    continue
+
+                # Read and validate decision file content
+                try:
+                    import json
+                    with open(decision_path, 'r') as f:
+                        decision_data = json.load(f)
+
+                    group_id = decision_data.get('group_id')
+                    if not group_id:
+                        errors.append(
+                            f"[{batch_id}] .decision file missing 'group_id' for {source_path.name}\n"
+                            f"              File: {decision_path}\n"
+                            f"              DB linkage incomplete"
+                        )
+                        continue
+
+                    # Verify DB record exists
+                    project_id = batch.get('project_id', decision_data.get('project_id'))
+                    if project_id:
+                        try:
+                            from utils.ai_training_decisions_v3 import init_decision_db
+                            import sqlite3
+
+                            db_path = init_decision_db(project_id)
+                            conn = sqlite3.connect(db_path)
+                            cursor = conn.cursor()
+                            cursor.execute("SELECT id FROM decisions WHERE group_id = ?", (group_id,))
+                            db_record = cursor.fetchone()
+                            conn.close()
+
+                            if not db_record:
+                                errors.append(
+                                    f"[{batch_id}] No DB record found for group_id '{group_id}'\n"
+                                    f"              Source: {source_path.name}\n"
+                                    f"              Database: {db_path}\n"
+                                    f"              DB must be source of truth for crop operations"
+                                )
+                        except Exception as e:
+                            errors.append(
+                                f"[{batch_id}] Cannot verify DB record for {source_path.name}: {e}\n"
+                                f"              group_id: {group_id}, project_id: {project_id}"
+                            )
+                    else:
+                        warnings.append(
+                            f"[{batch_id}] No project_id found for DB verification: {source_path.name}"
+                        )
+
+                except json.JSONDecodeError as e:
+                    errors.append(
+                        f"[{batch_id}] Invalid JSON in .decision file: {decision_path}\n"
+                        f"              Error: {e}"
+                    )
+                except Exception as e:
+                    errors.append(
+                        f"[{batch_id}] Error reading .decision file: {decision_path}\n"
+                        f"              Error: {e}"
+                    )
+
         # Print summary
         print(f"Validated {sum(len(b['crops']) for b in batches)} crop operations across {len(batches)} batches\n")
 
