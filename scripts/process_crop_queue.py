@@ -47,6 +47,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from scripts.utils.crop_queue import CropQueueManager
 from scripts.utils.ai_crop_utils import headless_crop
+from scripts.file_tracker import FileTracker
 
 
 class HumanTimingSimulator:
@@ -142,11 +143,14 @@ class CropQueueProcessor:
         self,
         queue_manager: CropQueueManager,
         timing_simulator: Optional[HumanTimingSimulator] = None,
-        preview_mode: bool = False
+        preview_mode: bool = False,
+        dry_run: bool = False
     ):
         self.queue_manager = queue_manager
         self.timing_simulator = timing_simulator
         self.preview_mode = preview_mode
+        self.dry_run = dry_run
+        self.tracker = FileTracker("crop_queue_processor")
 
     def process_batch(self, batch: Dict) -> bool:
         """
@@ -178,6 +182,15 @@ class CropQueueProcessor:
                 # Use headless_crop (trusted path - same code as desktop tool)
                 moved_files = headless_crop(source_path, crop_rect, dest_directory)
 
+                # Log crop operation
+                self.tracker.log_operation(
+                    "crop",
+                    source_dir=str(source_path.parent),
+                    dest_dir=str(dest_directory),
+                    file_count=len(moved_files),
+                    metadata=f"batch={batch_id}, crop={crop_rect}"
+                )
+
             # Calculate processing time
             end_time = time.time()
             processing_time_ms = int((end_time - start_time) * 1000)
@@ -206,6 +219,86 @@ class CropQueueProcessor:
             self.queue_manager.update_batch_status(batch_id, 'failed', error=str(e))
             return False
 
+    def preflight_validation(self, batches: List[Dict]) -> Tuple[bool, List[str]]:
+        """
+        Perform preflight validation on all batches.
+
+        Returns:
+            Tuple of (is_valid, list_of_errors)
+        """
+        errors = []
+        warnings = []
+
+        print(f"\n{'='*80}")
+        print(f"PREFLIGHT VALIDATION")
+        print(f"{'='*80}\n")
+
+        for batch in batches:
+            batch_id = batch['batch_id']
+            crops = batch['crops']
+
+            for crop in crops:
+                source_path = Path(crop['source_path'])
+                dest_directory = Path(crop['dest_directory'])
+                crop_rect = crop.get('crop_rect', [])
+
+                # Check source file exists
+                if not source_path.exists():
+                    errors.append(f"[{batch_id}] Source file missing: {source_path}")
+                    continue
+
+                # Check source is readable
+                if not source_path.is_file():
+                    errors.append(f"[{batch_id}] Source is not a file: {source_path}")
+                    continue
+
+                # Validate crop coordinates
+                if len(crop_rect) != 4:
+                    errors.append(f"[{batch_id}] Invalid crop coordinates: {crop_rect}")
+                    continue
+
+                x1, y1, x2, y2 = crop_rect
+                if x1 >= x2 or y1 >= y2:
+                    errors.append(f"[{batch_id}] Invalid crop dimensions: {crop_rect}")
+
+                # Check destination directory
+                if not dest_directory.exists():
+                    warnings.append(f"[{batch_id}] Destination will be created: {dest_directory}")
+                elif not dest_directory.is_dir():
+                    errors.append(f"[{batch_id}] Destination exists but is not a directory: {dest_directory}")
+
+                # Check for potential overwrites
+                dest_file = dest_directory / source_path.name
+                if dest_file.exists():
+                    warnings.append(f"[{batch_id}] Will overwrite existing file: {dest_file}")
+
+                # Validate safe zone (destination should be in __cropped or similar)
+                if not any(part.startswith('__') or part.startswith('data/') for part in dest_directory.parts):
+                    warnings.append(f"[{batch_id}] Destination outside typical safe zones: {dest_directory}")
+
+        # Print summary
+        print(f"Validated {sum(len(b['crops']) for b in batches)} crop operations across {len(batches)} batches\n")
+
+        if warnings:
+            print(f"⚠️  {len(warnings)} warnings:")
+            for warning in warnings[:10]:  # Show first 10
+                print(f"   {warning}")
+            if len(warnings) > 10:
+                print(f"   ... and {len(warnings) - 10} more warnings")
+            print()
+
+        if errors:
+            print(f"❌ {len(errors)} errors:")
+            for error in errors[:10]:  # Show first 10
+                print(f"   {error}")
+            if len(errors) > 10:
+                print(f"   ... and {len(errors) - 10} more errors")
+            print()
+            return False, errors
+
+        print("✅ Validation passed!\n")
+        return True, []
+
     def run(self, limit: Optional[int] = None):
         """
         Process the queue with human-like timing.
@@ -231,11 +324,25 @@ class CropQueueProcessor:
             print(f"Breaks enabled: {self.timing_simulator.enable_breaks}")
         print()
 
+        # Get pending batches
+        pending_batches = self.queue_manager.get_pending_batches(limit=limit)
+
+        # Run preflight validation
+        is_valid, validation_errors = self.preflight_validation(pending_batches)
+
+        if not is_valid:
+            print("❌ Preflight validation failed. Fix errors and try again.")
+            return
+
+        # Dry-run mode: exit after validation
+        if self.dry_run:
+            print("✅ Dry-run complete. No files were modified.")
+            return
+
         if self.timing_simulator:
             self.timing_simulator.start_session()
 
         processed = 0
-        pending_batches = self.queue_manager.get_pending_batches(limit=limit)
 
         for i, batch in enumerate(pending_batches):
             # Check if we should take a break
@@ -274,6 +381,7 @@ def main():
     parser.add_argument("--speed", type=float, default=1.0, help="Speed multiplier (default: 1.0)")
     parser.add_argument("--no-breaks", action="store_true", help="Skip break periods")
     parser.add_argument("--preview", action="store_true", help="Preview mode (don't actually process)")
+    parser.add_argument("--dry-run", action="store_true", help="Validate queue without processing")
     parser.add_argument("--limit", type=int, help="Process only N batches")
     args = parser.parse_args()
 
@@ -301,7 +409,8 @@ def main():
     processor = CropQueueProcessor(
         queue_manager,
         timing_simulator=timing_simulator,
-        preview_mode=args.preview
+        preview_mode=args.preview,
+        dry_run=args.dry_run
     )
 
     # Run

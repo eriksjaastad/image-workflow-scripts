@@ -108,15 +108,17 @@ class AIMultiCropTool(MultiCropTool):
 
         if self.queue_mode:
             from utils.crop_queue import CropQueueManager
+            from file_tracker import FileTracker
             # Queue manager defaults to safe zone (data/ai_data/crop_queue/)
             self.queue_manager = CropQueueManager()
+            self.tracker = FileTracker("ai_desktop_multi_crop_queue")
             print("[Queue Mode] Enabled - crops will be queued for later processing")
             print(f"[Queue Mode] Queue file: {self.queue_manager.queue_file}")
 
     def crop_and_save(self, image_info, crop_coords):
         """Crop image, save in place, then move to central __cropped directory (or queue)."""
         if self.queue_mode and self.queue_manager:
-            # Queue mode: just record the operation, don't process yet
+            # Queue mode: record operation AND update decisions DB
             png_path = image_info['path']
 
             try:
@@ -126,11 +128,43 @@ class AIMultiCropTool(MultiCropTool):
                 from pathlib import Path as _Path
                 cropped_dir = _Path(__file__).parent.parent / "__cropped"
 
+            # Compute normalized coordinates (DB source of truth)
+            x1, y1, x2, y2 = crop_coords
+            width = image_info['image'].width
+            height = image_info['image'].height
+            normalized_coords = [x1/width, y1/height, x2/width, y2/height]
+
+            # Try to update decisions DB with final crop
+            try:
+                from utils.ai_training_decisions_v3 import update_decision_with_crop, init_decision_db
+
+                # Look for .decision file to get group_id
+                decision_path = png_path.with_suffix('.decision')
+                if decision_path.exists():
+                    with open(decision_path, 'r') as f:
+                        decision_data = json.load(f)
+
+                    group_id = decision_data.get('group_id')
+                    project_id = getattr(self, 'project_id', decision_data.get('project_id', 'unknown'))
+
+                    if group_id:
+                        # Initialize/get DB path
+                        db_path = init_decision_db(project_id)
+
+                        # Update with final crop coordinates (normalized)
+                        update_decision_with_crop(db_path, group_id, normalized_coords)
+            except Exception as e:
+                # Don't fail the crop if DB update fails
+                print(f"[Queue] Warning: couldn't update decisions DB: {e}")
+
             # Store absolute paths for queue
             crop_entry = {
                 "source_path": str(png_path.absolute()),
-                "crop_rect": list(crop_coords),  # [x1, y1, x2, y2]
+                "crop_rect": list(crop_coords),  # Pixel coords for convenience
+                "crop_rect_normalized": normalized_coords,  # DB source of truth
                 "dest_directory": str(cropped_dir.absolute()),
+                "image_width": width,
+                "image_height": height,
                 "index_in_batch": 0  # Will be set by submit_batch_to_queue
             }
 
@@ -269,14 +303,25 @@ class AIMultiCropTool(MultiCropTool):
                     queued_dir = _Path(__file__).parent.parent / "__crop_queued"
                     queued_dir.mkdir(exist_ok=True)
 
+                    total_moved = 0
                     for crop_entry in self._queue_batch:
                         source_path = _Path(crop_entry['source_path'])
                         if source_path.exists():
                             try:
                                 moved_files = move_file_with_all_companions(source_path, queued_dir, dry_run=False)
+                                total_moved += len(moved_files)
                                 # Silently move files - no per-file output in queue mode
                             except Exception as e:
                                 print(f"[Queue] Warning: couldn't move {source_path.name}: {e}")
+
+                    # Log the move operation
+                    if hasattr(self, 'tracker') and total_moved > 0:
+                        self.tracker.log_operation(
+                            "move",
+                            dest_dir=str(queued_dir),
+                            file_count=total_moved,
+                            metadata=f"batch={batch_id}, queued_for_processing"
+                        )
                 except Exception as e:
                     print(f"[Queue] Warning: file movement error: {e}")
 
