@@ -44,5 +44,6 @@ version: 2025-10-26
 - ../reference/TECHNICAL_KNOWLEDGE_BASE.md — Technical patterns; tags: [patterns, knowledge-base]
 - ../guides/COMPANION_FILE_SYSTEM_GUIDE.md — Companion file handling; tags: [companion-files, utilities]
 - ../core/PROJECT_LIFECYCLE_SCRIPTS.md — Start/finish automation; tags: [project-lifecycle]
+- ../guides/CROP_TIMER_USER_GUIDE.md — Crop timer usage, schedules, dry-runs; tags: [crop, timer]
 
 

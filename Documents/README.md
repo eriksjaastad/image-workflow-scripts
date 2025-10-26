@@ -19,6 +19,12 @@ This knowledge base documents the end-to-end image workflow automation system: t
 - Understand the data schema: `data/SCHEMA_REFERENCE.md` (10–15 min).
 - Run the dashboard: `dashboard/DASHBOARD_GUIDE.md` (5–10 min).
 
+## Start Here
+- If you’re landing fresh or returning after a break:
+  - Read `core/ARCHITECTURE_OVERVIEW.md` for the system map
+  - Then skim `AI_DOCUMENTS_INDEX.md` for AI-specific pointers
+  - Daily driver links are in “Daily Shortcuts” above
+
 ## Core Documentation
 - `core/CURRENT_TODO_LIST.md`
 - `core/ARCHITECTURE_OVERVIEW.md`
