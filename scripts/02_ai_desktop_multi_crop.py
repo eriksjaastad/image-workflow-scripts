@@ -99,10 +99,49 @@ from utils.ai_crop_utils import normalize_and_clamp_rect, decision_matches_image
 
 class AIMultiCropTool(MultiCropTool):
     """Desktop multi-crop that preloads AI crop rectangles when available."""
-    
+
+    def __init__(self, *args, queue_mode=False, **kwargs):
+        """Initialize with optional queue mode."""
+        super().__init__(*args, **kwargs)
+        self.queue_mode = queue_mode
+        self.queue_manager = None
+
+        if self.queue_mode:
+            from utils.crop_queue import CropQueueManager
+            from pathlib import Path as _Path
+            queue_file = _Path(__file__).parent.parent / "data" / "crop_queue" / "crop_queue.jsonl"
+            self.queue_manager = CropQueueManager(queue_file)
+            print("[Queue Mode] Enabled - crops will be queued for later processing")
+
     def crop_and_save(self, image_info, crop_coords):
-        """Crop image, save in place, then move to central __cropped directory."""
-        # Perform the actual crop/save using parent implementation
+        """Crop image, save in place, then move to central __cropped directory (or queue)."""
+        if self.queue_mode and self.queue_manager:
+            # Queue mode: just record the operation, don't process yet
+            png_path = image_info['path']
+
+            try:
+                from utils.standard_paths import get_cropped_dir
+                cropped_dir = get_cropped_dir()
+            except Exception:
+                from pathlib import Path as _Path
+                cropped_dir = _Path(__file__).parent.parent / "__cropped"
+
+            # Store absolute paths for queue
+            crop_entry = {
+                "source_path": str(png_path.absolute()),
+                "crop_rect": list(crop_coords),  # [x1, y1, x2, y2]
+                "dest_directory": str(cropped_dir.absolute()),
+                "index_in_batch": 0  # Will be set by submit_batch_to_queue
+            }
+
+            # Store in instance variable to be batched
+            if not hasattr(self, '_queue_batch'):
+                self._queue_batch = []
+            self._queue_batch.append(crop_entry)
+
+            return  # Don't do actual processing
+
+        # Normal mode: perform the actual crop/save using parent implementation
         super().crop_and_save(image_info, crop_coords)
 
         # After saving, move the file (and companions) to the central __cropped directory
@@ -197,15 +236,71 @@ class AIMultiCropTool(MultiCropTool):
         except Exception:
             pass
 
+    def submit_batch(self):
+        """Override submit_batch to flush queue in queue mode."""
+        if self.queue_mode and self.queue_manager and hasattr(self, '_queue_batch'):
+            # Submit accumulated crops to queue
+            if self._queue_batch:
+                # Set index_in_batch for each entry
+                for idx, crop_entry in enumerate(self._queue_batch):
+                    crop_entry['index_in_batch'] = idx
+
+                # Get session/project info
+                try:
+                    session_id = getattr(self, 'session_id', f"crop_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+                except Exception:
+                    from datetime import datetime
+                    session_id = f"crop_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+                project_id = getattr(self, 'project_id', 'unknown')
+
+                # Enqueue the batch
+                batch_id = self.queue_manager.enqueue_batch(
+                    crops=self._queue_batch,
+                    session_id=session_id,
+                    project_id=project_id
+                )
+
+                print(f"[Queue] Batch {batch_id} queued ({len(self._queue_batch)} crops)")
+
+                # Move source files to __crop_queued directory to get them out of the way
+                try:
+                    from pathlib import Path as _Path
+                    queued_dir = _Path(__file__).parent.parent / "__crop_queued"
+                    queued_dir.mkdir(exist_ok=True)
+
+                    for crop_entry in self._queue_batch:
+                        source_path = _Path(crop_entry['source_path'])
+                        if source_path.exists():
+                            try:
+                                moved_files = move_file_with_all_companions(source_path, queued_dir, dry_run=False)
+                                # Silently move files - no per-file output in queue mode
+                            except Exception as e:
+                                print(f"[Queue] Warning: couldn't move {source_path.name}: {e}")
+                except Exception as e:
+                    print(f"[Queue] Warning: file movement error: {e}")
+
+                # Clear the batch
+                self._queue_batch = []
+
+        # Call parent submit_batch (which handles progress tracking and loading next batch)
+        super().submit_batch()
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="AI-assisted desktop multi-crop (preloads AI crop rectangles)")
     parser.add_argument("directory", help="Directory containing PNG images (or parent of subdirectories)")
     parser.add_argument("--aspect-ratio", help="Target aspect ratio (e.g., '16:9', '4:3', '1:1')")
     parser.add_argument("--no-ai-logging", action="store_true", help="Disable AI training data capture")
+    parser.add_argument("--queue-mode", action="store_true", help="Queue crops instead of processing immediately")
     args = parser.parse_args()
 
-    tool = AIMultiCropTool(args.directory, aspect_ratio=args.aspect_ratio, enable_ai_logging=(not args.no_ai_logging))
+    tool = AIMultiCropTool(
+        args.directory,
+        aspect_ratio=args.aspect_ratio,
+        enable_ai_logging=(not args.no_ai_logging),
+        queue_mode=args.queue_mode
+    )
     tool.run()
 
 
