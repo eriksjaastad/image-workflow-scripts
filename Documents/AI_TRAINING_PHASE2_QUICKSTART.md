@@ -299,7 +299,7 @@ print(f"Saved {len(embeddings)} embeddings")
 
 **Run:**
 ```bash
-python scripts/ai_training/compute_embeddings.py
+python scripts/ai/compute_embeddings.py
 # Takes ~1-2 hours for thousands of images
 ```
 
@@ -329,8 +329,8 @@ print(f"Saved {len(hashes)} hashes")
 
 **Run:**
 ```bash
-python scripts/ai_training/compute_hashes.py
-# Takes ~10-30 minutes
+# Planned utility; not currently implemented as a standalone script
+# python scripts/ai_training/compute_hashes.py
 ```
 
 #### 2C. Saliency & Hand Detection (optional but recommended)
@@ -391,7 +391,7 @@ print("Ranking model trained!")
 
 **Run:**
 ```bash
-python scripts/ai_training/train_ranker.py
+python scripts/ai/train_ranker.py
 # Takes ~30-60 minutes
 ```
 
@@ -445,7 +445,7 @@ print("Crop proposer trained!")
 
 **Run:**
 ```bash
-python scripts/ai_training/train_crop_proposer.py
+python scripts/ai/train_crop_proposer.py
 # Takes ~30-60 minutes
 ```
 
@@ -453,7 +453,7 @@ python scripts/ai_training/train_crop_proposer.py
 
 ### Step 5: Test Inference
 
-**Script to create:** `scripts/ai_training/test_inference.py`
+**Script to create:** `scripts/ai/test_models.py` (exists; extend as needed)
 ```python
 #!/usr/bin/env python3
 """Test AI predictions on new images"""

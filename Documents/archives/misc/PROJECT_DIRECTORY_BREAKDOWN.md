@@ -1,4 +1,9 @@
 # Project Directory Breakdown
+**Status:** Active
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 
 Compact map of key directories, what lives there, and how to treat them.
 
@@ -65,15 +70,15 @@ Compact map of key directories, what lives there, and how to treat them.
   - Purpose: Temporary/testbed data and UI runs; safe to experiment.
   - Notes: Contents can be cleared; do not rely on permanence.
 
-- crop/ and crop_cropped/
+- __crop/ and __cropped/
   - Purpose: Source crops and final cropped images.
   - Safety: Only `scripts/02_ai_desktop_multi_crop.py` is allowed to write/modify images here.
 
-- selected/
+- __selected/
   - Purpose: Images selected for keep during selection tools.
   - Safety: Treated as production images; do not overwrite in place.
 
-- delete_staging/
+- __delete_staging/
   - Purpose: Staging for deletes (to macOS Trash or review) with companion files.
   - Safety: Deletes must go to Trash (send2trash or mv to ~/.Trash) — never hard delete by default.
 

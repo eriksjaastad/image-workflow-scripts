@@ -1,4 +1,8 @@
 # AI Reviewer UX Fix - Crop Toggle Button
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 **Date:** October 22, 2025 (Morning)  
 **Issue:** Clicking AI-selected image didn't remove crop - caused confusion  
 **Status:** ✅ FIXED

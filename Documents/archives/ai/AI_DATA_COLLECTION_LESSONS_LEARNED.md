@@ -1,4 +1,9 @@
 # AI Data Collection: Lessons Learned
+**Status:** Active
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 
 **Created:** 2025-10-21  
 **Purpose:** Document critical lessons from Phase 2 data collection issues to prevent future problems
@@ -423,6 +428,6 @@ with open('data/ai_data/cache/processed_images.jsonl') as f:
 
 ## Related Documents
 - `AI_PROJECT_IMPLEMENTATION_PLAN.md` - Phase 2 overview
-- `AI_TRAINING_PHASE2_QUICKSTART.md` - Technical training guide
-- `FILE_SAFETY_SYSTEM.md` - File operation safety rules
+- `../../ai/AI_TRAINING_GUIDE.md` - Technical training guide
+- `../../safety/FILE_SAFETY_SYSTEM.md` - File operation safety rules
 

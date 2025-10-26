@@ -1,4 +1,8 @@
 # Desktop Multi-Crop Performance Fix
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 **Date:** October 22, 2025 (Morning)  
 **Issue:** 1-2 second lag when dragging crop handles  
 **Status:** ✅ FIXED

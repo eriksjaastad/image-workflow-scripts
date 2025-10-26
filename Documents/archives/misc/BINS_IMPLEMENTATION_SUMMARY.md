@@ -1,4 +1,8 @@
 # 15-Minute Bins Implementation - Complete ✅
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 
 **Date:** October 17, 2025  
 **Status:** Ready for pilot testing  
@@ -315,8 +319,8 @@ Before enabling in production:
 
 ### Related Documents
 - `DATA_PIPELINE_PERFORMANCE_ANALYSIS.md` - Original bottleneck analysis
-- `DASHBOARD_GUIDE.md` - Dashboard usage
-- `PROJECT_MANIFEST_GUIDE.md` - Project lifecycle
+- `../../dashboard/DASHBOARD_GUIDE.md` - Dashboard usage
+- `../../data/PROJECT_MANIFEST_GUIDE.md` - Project lifecycle
 
 ---
 

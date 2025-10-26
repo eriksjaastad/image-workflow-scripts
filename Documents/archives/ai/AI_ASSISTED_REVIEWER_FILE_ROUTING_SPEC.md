@@ -1,4 +1,9 @@
 # AI-Assisted Reviewer - File Routing Specification
+**Status:** Active
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 ## Created: October 21, 2025
 
 ## 🎯 **Purpose**
@@ -17,11 +22,11 @@ By combining selection + crop proposal + file routing into ONE integrated tool.
 
 | User Action | Crop Proposal | File Routing | Notes |
 |------------|---------------|--------------|-------|
-| **Approve** | No crop needed | Selected image → `selected/`<br>Others → `delete_staging/` | Most common path |
-| **Approve** | Crop proposed | Perform crop → `selected/`<br>Others → `delete_staging/` | Integrated cropping |
-| **Override** | Any | Selected image → `selected/`<br>Others → `delete_staging/` | User picks different image |
-| **Manual Crop** | Any | Selected image → `crop/`<br>Others → `delete_staging/` | User wants to crop manually later |
-| **Reject/Delete** | Any | ALL images → `delete_staging/` | User doesn't want any of them |
+| **Approve** | No crop needed | Selected image → `__selected/`<br>Others → `__delete_staging/` | Most common path |
+| **Approve** | Crop proposed | Perform crop → `__selected/`<br>Others → `__delete_staging/` | Integrated cropping |
+| **Override** | Any | Selected image → `__selected/`<br>Others → `__delete_staging/` | User picks different image |
+| **Manual Crop** | Any | Selected image → `__crop/`<br>Others → `__delete_staging/` | User wants to crop manually later |
+| **Reject/Delete** | Any | ALL images → `__delete_staging/` | User doesn't want any of them |
 | **Skip** | Any | NO file moves | Review later |
 
 ---
@@ -31,9 +36,9 @@ By combining selection + crop proposal + file routing into ONE integrated tool.
 ```
 project/
 ├── raw_images/           # Input: Unsorted images from multiple projects
-├── selected/             # Output: Final selected images (cropped or uncropped)
-├── crop/                 # Staging: Images that need manual cropping
-└── delete_staging/       # Staging: Fast deletion (move to Trash later)
+├── __selected/           # Output: Final selected images (cropped or uncropped)
+├── __crop/               # Staging: Images that need manual cropping
+└── __delete_staging/     # Staging: Fast deletion (move to Trash later)
 ```
 
 ---
@@ -41,8 +46,8 @@ project/
 ## 🔄 **Workflow Comparison**
 
 ### **OLD Workflow (2 tools):**
-1. AI-Assisted Reviewer → Move winners to `selected/`, losers to `delete_staging/`
-2. Desktop Multi-Crop → Crop images in `selected/`, move to Trash if deleted
+1. AI-Assisted Reviewer → Move winners to `__selected/`, losers to `__delete_staging/`
+2. Desktop Multi-Crop → Crop images in `__selected/`, move to Trash if deleted
 
 ### **NEW Workflow (1 tool):**
 1. AI-Assisted Reviewer → Select + Crop + Route in ONE PASS

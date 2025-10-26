@@ -1,4 +1,9 @@
 # AI Reviewer vs AI-Assisted Reviewer - Logic Comparison
+**Status:** Active
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 
 **Date:** 2025-10-22  
 **Purpose:** Ensure AI Reviewer aligns with AI-Assisted Reviewer's proven, battle-tested logic

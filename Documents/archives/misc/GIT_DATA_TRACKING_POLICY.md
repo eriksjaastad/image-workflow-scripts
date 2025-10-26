@@ -1,4 +1,8 @@
 # Git Tracking Policy for data/ Directory
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 **Date:** October 21, 2025  
 **Status:** ✅ Implemented and verified
 

@@ -1,4 +1,6 @@
 # 15-Minute Bins: Pre-Aggregation System
+**Audience:** Developers
+
 **Version:** 1.0  
 **Date:** October 17, 2025  
 **Status:** ✅ Implemented, Ready for Pilot
@@ -519,8 +521,8 @@ python scripts/data_pipeline/archive_project_bins.py <project_id>
 
 ### Related Documents
 - `DATA_PIPELINE_PERFORMANCE_ANALYSIS.md` - Original performance analysis
-- `DASHBOARD_GUIDE.md` - Dashboard usage and architecture
-- `PROJECT_MANIFEST_GUIDE.md` - Project lifecycle and manifests
+- `../../dashboard/DASHBOARD_GUIDE.md` - Dashboard usage and architecture
+- `../../data/PROJECT_MANIFEST_GUIDE.md` - Project lifecycle and manifests
 
 ### Source Files
 - `scripts/data_pipeline/aggregate_to_15m.py` - Bin aggregation

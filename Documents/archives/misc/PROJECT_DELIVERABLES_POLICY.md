@@ -1,4 +1,9 @@
 # Deliverables Policy (Allowed vs Banned Types)
+**Status:** Active
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 
 Purpose: Ensure only client-eligible files are included in the final zip while preventing any internal files (manifests, logs, markers) from shipping. Policy is per-project and enforced by a pre-zip stager.
 

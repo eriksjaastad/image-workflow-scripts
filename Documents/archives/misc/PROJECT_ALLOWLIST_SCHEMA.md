@@ -1,4 +1,9 @@
 # Per-Project Allowed Extensions Schema
+**Status:** Active
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 
 Purpose: Capture the exact set of file extensions present in the original `content/` at project start to form an allowlist for pre-zip deliverables.
 

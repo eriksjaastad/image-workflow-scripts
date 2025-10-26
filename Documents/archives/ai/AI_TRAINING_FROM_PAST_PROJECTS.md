@@ -1,4 +1,9 @@
 # Training Data from Past Projects (Before/After)
+**Status:** Active
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 
 ## 🎯 Goal
 Extract training examples from completed projects where we have:

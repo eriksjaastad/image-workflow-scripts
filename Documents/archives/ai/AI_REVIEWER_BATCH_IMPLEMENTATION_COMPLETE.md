@@ -1,4 +1,8 @@
 # AI-Assisted Reviewer - Batch Processing Implementation
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 **Date:** October 21, 2025  
 **Status:** ✅ COMPLETE
 

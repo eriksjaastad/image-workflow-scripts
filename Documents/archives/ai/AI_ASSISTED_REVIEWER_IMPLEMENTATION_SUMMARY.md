@@ -1,4 +1,9 @@
 # AI-Assisted Reviewer - Implementation Summary
+**Status:** Active
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 ## Completed: October 21, 2025
 
 ---
@@ -11,10 +16,10 @@ The AI-Assisted Reviewer now performs automatic file operations based on user de
 
 | User Action | Selected Image → | Other Images → | Notes |
 |------------|------------------|----------------|-------|
-| **Approve (A)** | `selected/` | `delete_staging/` | Most common path |
-| **Override (1-4)** | `selected/` | `delete_staging/` | User picks different image |
-| **Manual Crop (C)** | `crop/` | `delete_staging/` | Needs manual cropping later |
-| **Reject (R)** | `delete_staging/` | `delete_staging/` | Delete all images |
+| **Approve (A)** | `__selected/` | `__delete_staging/` | Most common path |
+| **Override (1-4)** | `__selected/` | `__delete_staging/` | User picks different image |
+| **Manual Crop (C)** | `__crop/` | `__delete_staging/` | Needs manual cropping later |
+| **Reject (R)** | `__delete_staging/` | `__delete_staging/` | Delete all images |
 | **Skip (S)** | No moves | No moves | Review later |
 
 ---
@@ -45,7 +50,7 @@ The AI-Assisted Reviewer now performs automatic file operations based on user de
 
 #### **E. Main Function Updates**
 - Finds project root automatically
-- Creates necessary directories (`selected/`, `crop/`, `delete_staging/`)
+- Creates necessary directories (`__selected/`, `__crop/`, `__delete_staging/`)
 - Initializes FileTracker
 - Passes all configuration to Flask app
 
@@ -58,9 +63,9 @@ The script automatically creates and manages these directories:
 ```
 project_root/
 ├── raw_images/              # Input directory (user provides)
-├── selected/                # AUTO-CREATED: Approved images go here
-├── crop/                    # AUTO-CREATED: Images needing manual crop
-├── delete_staging/          # AUTO-CREATED: Fast deletion staging
+├── __selected/              # AUTO-CREATED: Approved images go here
+├── __crop/                  # AUTO-CREATED: Images needing manual crop
+├── __delete_staging/        # AUTO-CREATED: Fast deletion staging
 ├── data/
 │   └── training/
 │       └── selection_only_log.csv  # Training data logs
@@ -99,7 +104,7 @@ project_root/
 
 ### **Manual Testing Needed**
 - ⚠️  Test on actual project directory with image groups
-- ⚠️  Verify file routing (selected/, crop/, delete_staging/)
+- ⚠️  Verify file routing (__selected/, __crop/, __delete_staging/)
 - ⚠️  Check training data logs are written correctly
 - ⚠️  Confirm FileTracker logs are created
 - ⚠️  Test all keyboard shortcuts (A/C/R/S/1-4)
@@ -123,16 +128,16 @@ python scripts/01_ai_assisted_reviewer.py character_group_1/
 ```
 
 ### **3. Test Workflow**
-1. **Approve (A)** - Verify image moves to `selected/`
-2. **Override (1-4)** - Select different image, verify it moves to `selected/`
-3. **Manual Crop (C)** - Verify image moves to `crop/`
-4. **Reject (R)** - Verify ALL images move to `delete_staging/`
+1. **Approve (A)** - Verify image moves to `__selected/`
+2. **Override (1-4)** - Select different image, verify it moves to `__selected/`
+3. **Manual Crop (C)** - Verify image moves to `__crop/`
+4. **Reject (R)** - Verify ALL images move to `__delete_staging/`
 5. **Skip (S)** - Verify no file moves
 
 ### **4. Verify Results**
-- ✅ Check `selected/` directory has approved images
-- ✅ Check `crop/` directory has manual crop images
-- ✅ Check `delete_staging/` has rejected images
+- ✅ Check `__selected/` directory has approved images
+- ✅ Check `__crop/` directory has manual crop images
+- ✅ Check `__delete_staging/` has rejected images
 - ✅ Check `data/training/selection_only_log.csv` has entries
 - ✅ Check `data/file_operations_logs/` has FileTracker logs
 - ✅ Check companion files (YAML/caption) moved with images

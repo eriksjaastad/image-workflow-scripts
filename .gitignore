@@ -80,6 +80,10 @@ data/dashboard_archives/
 data/data/
 data/file_operations_logs/
 data/log_archives/
+# Keep structure but ignore archived log data
+!data/log_archives/
+data/log_archives/*
+!data/log_archives/.gitkeep
 data/snapshot/
 data/sorter_progress/
 data/timer_data/
@@ -103,28 +107,10 @@ scripts/tests/data/test_subdirs*/
 memory/
 
 # Image Processing Working Directories
-_CONTENT/
-XXX_CONTENT/
-crop/
-cropped/
-temp/
-back_files_*/
-1100/
-1101/
-boobs_*/
-character_group_*/
-face_group_*/
-face_groups/
-Reviewed/
-Hailey/
-tattersail-*/
-00_*/
-selected/
+/__*/
 
 # Content Directories (large datasets - do not track)
-mojo1/
-mojo2/
-exports/
+mojo3/
 
 # Image and Data Files
 *.png
@@ -136,12 +122,14 @@ exports/
 *.pt
 *.content
 *.caption
+*.zip
 
 # AI Training Files (sidecar files - NEW, removable before delivery)
 *.embedding.npy
 *.phash
 *.saliency.npy
 *.hands.json
+*.decision
 
 # Personal billing/timesheet data (private)
 data/timesheet.csv

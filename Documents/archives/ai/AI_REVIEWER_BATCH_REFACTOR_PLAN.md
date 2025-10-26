@@ -1,4 +1,9 @@
 # AI Reviewer Batch Processing Refactor
+**Status:** Active
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 **Date:** October 21, 2025  
 **Goal:** Clone web_image_selector.py batch processing workflow
 

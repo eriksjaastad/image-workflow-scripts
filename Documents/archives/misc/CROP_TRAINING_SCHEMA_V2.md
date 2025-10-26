@@ -1,4 +1,9 @@
 # Crop Training Data Schema Evolution
+**Status:** Active
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 **Date:** October 21, 2025
 
 ---

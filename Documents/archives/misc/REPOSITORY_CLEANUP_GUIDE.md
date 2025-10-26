@@ -6,6 +6,9 @@ tags: [cleanup, policy, repository, protected-files]
 last_updated: 2025-10-16
 ---
 
+**Last Updated:** 2025-10-26
+
+
 # Repository Cleanup Guide - Updated October 2025
 
 ## Purpose
@@ -239,7 +242,7 @@ All documents follow a clear prefix system:
 
 **Examples:**
 - ✅ `AI_TRAINING_CROP_AND_RANKING.md` - Clear
-- ✅ `DASHBOARD_PRODUCTIVITY_TABLE_SPEC.md` - Clear
+- ✅ `../../dashboard/DASHBOARD_PRODUCTIVITY_TABLE_SPEC.md` - Clear
 - ✅ `PROJECT_ALLOWLIST_SCHEMA.md` - Clear
 - ❌ `PHASE2_QUICKSTART.md` - Vague (what is Phase 2?)
 
@@ -350,9 +353,9 @@ When multiple documents cover the same topic:
    - Progressive complexity (basics → advanced)
 
 2. **Use clear naming** with prefixes:
-   - Multiple dashboard docs → `DASHBOARD_GUIDE.md`
+   - Multiple dashboard docs → `../../dashboard/DASHBOARD_GUIDE.md`
    - Multiple specs → `FEATURE_SPECIFICATIONS.md`
-   - Multiple case studies → `CASE_STUDIES.md`
+   - Multiple case studies → `../../reference/CASE_STUDIES.md`
 
 3. **Benefits:**
    - Easier to read one guide than three fragments

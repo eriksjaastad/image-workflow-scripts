@@ -1,4 +1,9 @@
 # Possible Scripts for Detecting Hand & Foot Anomalies in AI Images
+**Status:** Active
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 
 This document outlines several production‑quality approaches you can try for automatically flagging problematic hands and feet in photo‑realistic AI images. Each entry includes a short description, pros, cons, and notes.
 

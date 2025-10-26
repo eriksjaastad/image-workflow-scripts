@@ -1,4 +1,9 @@
 # Historical Backfill - Quick Start Guide
+**Status:** Active
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 
 ## 🎯 What We're Doing
 Extracting v3 training data from old project archives by matching cropped images back to originals using computer vision.

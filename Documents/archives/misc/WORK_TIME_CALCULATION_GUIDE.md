@@ -1,4 +1,7 @@
 # Work Time Calculation Guide
+**Status:** Active
+**Audience:** Developers
+
 
 **CRITICAL: Single Source of Truth for Accurate Work Hours**
 

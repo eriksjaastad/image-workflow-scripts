@@ -1,4 +1,9 @@
 # Productivity Overview Table
+**Status:** Active
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 
 **Status**: ✅ Implemented  
 **Date**: October 16, 2025  
@@ -152,7 +157,7 @@ Possible additions:
 ## Related Documentation
 
 - `IMAGE_PROCESSING_WORKFLOW.md` - Workflow context
-- `WEB_STYLE_GUIDE.md` - UI design patterns
+- `../../reference/WEB_STYLE_GUIDE.md` - UI design patterns
 - `CENTRALIZED_TOOL_ORDER.md` - Tool ordering consistency
 - `HOUR_BLOCKING_SYSTEM.md` - How hours are calculated
 

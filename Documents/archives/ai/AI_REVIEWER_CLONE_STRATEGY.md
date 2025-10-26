@@ -1,4 +1,9 @@
 # AI-Assisted Reviewer Clone + AI Integration
+**Status:** Active
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 **Date:** October 21, 2025  
 **Strategy:** Clone web_image_selector.py and add AI features, NOT build from scratch
 

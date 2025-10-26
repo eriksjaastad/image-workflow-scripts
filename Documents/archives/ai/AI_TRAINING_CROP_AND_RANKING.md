@@ -1,4 +1,9 @@
 # Offline Training Plan — Best-Photo Ranking, Fixed-Aspect Cropping, and Anomaly Checks (Mac, compute‑light)
+**Status:** Active
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 
 **Device target:** MacBook Pro (16‑inch, Nov 2024), **Apple M4 Pro**, **24 GB RAM**, macOS **15.6.1**  
 **Workflow order:** 1) **Rank best photo** in each 2–4 image set → 2) **Propose a crop** that removes anomalies **without changing aspect ratio** → 3) **Flag residual anomalies**. You review/approve at every step until the system hits ~100% agreement, then (optionally) batch with review.

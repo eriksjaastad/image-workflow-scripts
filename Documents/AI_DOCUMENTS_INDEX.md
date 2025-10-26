@@ -3,7 +3,7 @@ title: AI Documents Index
 status: Current
 audience: AI
 tags: [index, map]
-version: 2025-10-20
+version: 2025-10-26
 ---
 
 ## 🎯 START HERE: AI Automation Project
@@ -24,12 +24,11 @@ version: 2025-10-20
 3. **OPERATIONS_GUIDE.md** — Daily runs, checkpoints, failure modes; tags: [operations, runbook]
 4. **DASHBOARD_API.md** — Endpoint and parameter reference; tags: [dashboard, api]
 5. **SCHEMA_REFERENCE.md** — SQLite and snapshot schemas; tags: [schema, reference]
-6. **AI_TRAINING_PLAYBOOK.md** — Integrity checks, workflows, cost gates; tags: [ai, training, playbook]
-7. **AI_PROJECT_IMPLEMENTATION_PLAN.md** — ⭐ **MASTER CHECKLIST** Complete phase-by-phase plan with checkboxes; tags: [ai, automation, checklist, progress-tracking]
-8. **🚨 AI_TRAINING_DATA_STRUCTURE.md** — **CRITICAL RULES** How training data is organized; tags: [ai, training, data-structure, critical]
-9. **AI_TRAINING_PHASE2_QUICKSTART.md** — Step-by-step for Phase 2; tags: [ai, training, phase2, quickstart]
-10. **AI_ASSISTED_REVIEWER_PHASE3_SPEC.md** — Phase 3 two-action crop flow (current); tags: [ai, reviewer, crop, phase3]
-11. **archives/misc/AUTOMATION_REVIEWER_SPEC.md** — Spec for Phase 3 review UI (archived); tags: [ai, automation, ui, review, phase3]
+6. **AI_PROJECT_IMPLEMENTATION_PLAN.md** — ⭐ MASTER CHECKLIST; tags: [ai, automation, checklist]
+7. **🚨 AI_TRAINING_DATA_STRUCTURE.md** — CRITICAL RULES; tags: [ai, training, data-structure]
+8. **ai/AI_TRAINING_GUIDE.md** — Consolidated how-to (Phase 2); tags: [ai, training, guide]
+9. **ai/AI_TRAINING_REFERENCE.md** — Technical reference; tags: [ai, training, reference]
+10. **ai/AI_ASSISTED_REVIEWER.md** — Reviewer overview, routing, usage; tags: [ai, reviewer]
 11. **TESTS_GUIDE.md** — How to run quick safety tests and the full suite; tags: [tests, ci]
 
 ### Reference Documents:

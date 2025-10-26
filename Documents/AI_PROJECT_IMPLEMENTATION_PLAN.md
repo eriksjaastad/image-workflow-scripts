@@ -31,14 +31,14 @@ Each project (Mojo 1, Mojo 2, Eleni, etc.) represents a **different character**.
 4. **One unified model across all projects (recommended)**
    - Model learns your general aesthetic preferences
    - Training pairs always stay within same project
-   - See `AI_TRAINING_PHASE2_QUICKSTART.md` for detailed implementation guide
+   - See `ai/AI_TRAINING_GUIDE.md` for detailed implementation guide
 
 ---
 
 ## 📚 Quick Navigation
 
 **Related Documents:**
-- **[AI_TRAINING_PHASE2_QUICKSTART.md](AI_TRAINING_PHASE2_QUICKSTART.md)** - Step-by-step Phase 2 guide
+- **[AI_TRAINING_PHASE2_QUICKSTART.md](ai/AI_TRAINING_GUIDE.md)** - Step-by-step Phase 2 guide
 - **[AUTOMATION_REVIEWER_SPEC.md](archives/misc/AUTOMATION_REVIEWER_SPEC.md)** - Phase 3 review UI spec (archived)
 - **[AI_TRAINING_CROP_AND_RANKING.md](archives/ai/AI_TRAINING_CROP_AND_RANKING.md)** - Technical training details (archived)
 - **[CURRENT_TODO_LIST.md](CURRENT_TODO_LIST.md)** - Lines 251-490: Full automation pipeline
@@ -300,7 +300,7 @@ Phase 5: ⏳ Production Rollout    (Future)
 - [ ] Update `scripts/ai/README.md` with new scripts
 - [ ] Document model architectures and training hyperparameters
 - [ ] Document inference usage
-- [ ] Update `AI_TRAINING_PHASE2_QUICKSTART.md` with actual results
+- [ ] Update `ai/AI_TRAINING_GUIDE.md` with actual results
 - [ ] Mark Phase 2 as COMPLETE in this document
 
 ---
@@ -313,7 +313,7 @@ Phase 5: ⏳ Production Rollout    (Future)
 
 ### 3.1: Backend Development (~3-4 hours)
 
-- [ ] Create Flask app: `scripts/07_automation_reviewer.py`
+- [ ] Create Flask app: `scripts/07_automation_reviewer.py` (Planned - not yet implemented)
 - [ ] Implement data loading
   - [ ] Load `sandbox/automation_decisions.jsonl`
   - [ ] Parse group data, AI choices, crop proposals
@@ -407,7 +407,7 @@ Phase 5: ⏳ Production Rollout    (Future)
 
 ### 4.1: Build Decision Generator (~2-3 hours)
 
-- [ ] Create script: `scripts/ai/generate_automation_decisions.py`
+- [ ] Create script: `scripts/ai/generate_automation_decisions.py` (Planned - not yet implemented)
 - [ ] Implement grouping logic
   - [ ] pHash near-duplicate detection
   - [ ] CLIP semantic similarity

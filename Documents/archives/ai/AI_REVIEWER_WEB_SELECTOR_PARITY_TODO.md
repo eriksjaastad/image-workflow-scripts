@@ -1,4 +1,9 @@
 # AI-Assisted Reviewer: Make It Match AI-Assisted Reviewer
+**Status:** Active
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 **Goal:** Seamless AI integration - as if we took 01_ai_assisted_reviewer.py and added AI
 
 ---

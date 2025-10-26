@@ -7,7 +7,7 @@ These scripts standardize project creation and completion to ensure consistent m
 | Script | Purpose | When to Use |
 |--------|---------|-------------|
 | `00_start_project.py` | Create new project manifest | Beginning of each project |
-| `00_finish_project.py` | Mark project as complete | When project is ready for delivery |
+| `07_finish_project.py` | Mark project as complete | When project is ready for delivery |
 | `prezip_stager.py` | Package for delivery | Final step before client handoff |
 
 ## 🚀 Starting a New Project
@@ -57,7 +57,7 @@ Started At:       2025-10-15T19:30:00Z
 
 ### Interactive Mode (Recommended)
 ```bash
-python scripts/00_finish_project.py
+python scripts/07_finish_project.py
 ```
 
 The script will:
@@ -70,10 +70,10 @@ The script will:
 ### Command-Line Mode
 ```bash
 # Dry run (preview only - safe to test)
-python scripts/00_finish_project.py --project-id mojo3
+python scripts/07_finish_project.py --project-id mojo3
 
 # Commit (finalize and create ZIP)
-python scripts/00_finish_project.py --project-id mojo3 --commit
+python scripts/07_finish_project.py --project-id mojo3 --commit
 ```
 
 ### What It Does
@@ -85,7 +85,7 @@ python scripts/00_finish_project.py --project-id mojo3 --commit
 ✅ Changes status to `finished`  
 ✅ Creates backup before updating  
 
-**Note**: This script wraps `prezip_stager.py` to provide a friendly interface for project completion.
+**Note**: This script wraps `scripts/tools/prezip_stager.py` to provide a friendly interface for project completion.
 
 ### Example Output
 ```
@@ -117,8 +117,8 @@ python scripts/00_start_project.py
 ```bash
 # Run your normal workflow
 python scripts/01_ai_assisted_reviewer.py ../mojo3
-python scripts/02_web_character_sorter.py selected
-python scripts/04_multi_crop_tool.py
+python scripts/03_web_character_sorter.py selected
+python scripts/02_ai_desktop_multi_crop.py
 ```
 
 ### 3. Finish Project (with automatic ZIP creation)

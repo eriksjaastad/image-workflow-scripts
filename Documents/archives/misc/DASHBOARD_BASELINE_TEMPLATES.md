@@ -1,4 +1,9 @@
 # Baseline Templates & README
+**Status:** Active
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 
 This doc provides CSV templates and concise instructions for building historical throughput baselines from archives and timesheets.
 

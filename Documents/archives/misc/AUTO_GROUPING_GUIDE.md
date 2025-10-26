@@ -1,4 +1,9 @@
 # Auto-Grouping Guide for Character Sorter
+**Status:** Active
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 
 **⚠️ DEPRECATION NOTICE:** Auto-grouping functionality has been moved to `scripts/02_character_processor.py`.  
 The web character sorter (`03_web_character_sorter.py`) is now a purely interactive manual sorting tool.

@@ -1,4 +1,8 @@
 # Automation Reviewer - Technical Specification
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 
 **Created:** October 16, 2025  
 **Status:** Specification / Planning  
@@ -11,7 +15,7 @@
 **Current Document:** AUTOMATION_REVIEWER_SPEC.md (Phase 3 - Build Review UI)
 
 ### Core Workflow Documents:
-1. **[AI_TRAINING_PHASE2_QUICKSTART.md](AI_TRAINING_PHASE2_QUICKSTART.md)** ⭐ Phase 2
+1. **[AI_TRAINING_PHASE2_QUICKSTART.md](ai/AI_TRAINING_GUIDE.md)** ⭐ Phase 2
    - Step-by-step: Install deps → Train models → Test inference
    - **Status:** ✅ Training data ready (17,032 examples from Mojo 1 + Mojo 2)
 
@@ -27,7 +31,7 @@
 ```
 Phase 1: ✅ Data Collection (COMPLETE - 17k examples)
          ↓
-Phase 2: ⏳ Train AI Models (AI_TRAINING_PHASE2_QUICKSTART.md)
+Phase 2: ⏳ Train AI Models (ai/AI_TRAINING_GUIDE.md)
          ↓
 Phase 3: ⏳ Build Review UI (THIS DOCUMENT)
          ↓

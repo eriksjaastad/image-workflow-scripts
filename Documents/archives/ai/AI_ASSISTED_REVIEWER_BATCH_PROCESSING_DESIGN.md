@@ -1,4 +1,9 @@
 # AI-Assisted Reviewer - Batch Processing Design
+**Status:** Active
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 ## Future Enhancement - Not Implemented Yet
 
 ---

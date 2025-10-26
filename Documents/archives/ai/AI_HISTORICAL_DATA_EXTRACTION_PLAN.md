@@ -1,4 +1,9 @@
 # Historical Project Training Data Extraction Plan
+**Status:** Active
+**Audience:** Developers
+
+**Last Updated:** 2025-10-26
+
 
 ## 🎯 Goal
 Extract training data from past projects where we have:
