@@ -90,6 +90,7 @@ import json
 import os
 import signal
 import shutil
+import shutil
 import sys
 import threading
 import time
@@ -897,12 +898,13 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
         # Resolve repo root: scripts/03_web_character_sorter.py → repo root = parents[1]
         repo_root = Path(__file__).resolve().parents[1]
 
+        # Build PNG stems set once for O(1) lookups across repo
+        png_stems = {p.stem for p in repo_root.rglob("**/*.png")}
+
         decisions = list(folder.glob("*.decision"))
         orphans = []
         for d in decisions:
-            stem = d.stem
-            matches = list(repo_root.rglob(f"**/{stem}.png"))
-            if len(matches) == 0:
+            if d.stem not in png_stems:
                 orphans.append(str(d.resolve()))
 
         return jsonify({
@@ -923,15 +925,17 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
 
         tracker: FileTracker = app.config["TRACKER"]
 
+        # Build PNG stems set once for O(1) lookups across repo
+        png_stems = {p.stem for p in repo_root.rglob("**/*.png")}
+
         decisions = list(folder.glob("*.decision"))
         moved = []
         for d in decisions:
-            stem = d.stem
-            matches = list(repo_root.rglob(f"**/{stem}.png"))
-            if len(matches) == 0 and d.exists():
-                dest = staging / d.name
+            if d.stem not in png_stems and d.exists():
                 try:
-                    shutil.move(str(d), str(dest))
+                    # Move using companion-aware mover to avoid orphaning sidecars
+                    from utils.companion_file_utils import move_file_with_all_companions
+                    move_file_with_all_companions(d, staging, dry_run=False)
                     moved.append(d.name)
                 except Exception as e:
                     return jsonify({"status": "error", "message": f"Failed moving {d.name}: {e}"}), 500
@@ -944,7 +948,7 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
                     dest_dir=str(staging.name),
                     file_count=len(moved),
                     files=moved[:10],
-                    notes="orphan .decision staged"
+                    notes=f"orphan .decision staged ({len(moved)} total)"
                 )
             except Exception:
                 pass  # best-effort logging

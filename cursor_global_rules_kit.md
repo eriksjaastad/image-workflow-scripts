@@ -186,6 +186,7 @@ If it fails again, STOP and offer 2 options (Fast/Safe) with a default.
   - `README.md`, `LICENSE*`, `cursor_global_rules_kit.md`
   - Project bootstrap files explicitly approved in this repo
 - Everything else must live under a proper folder: `scripts/`, `Documents/`, `configs/`, `data/`, `sandbox/`, `.github/`, etc.
+  - Special staging directories allowed: `__delete_staging/` (orphaned files staged for manual review)
 
 Recommended pre-commit hook (drop into `.git/hooks/pre-commit`, make executable):
 
