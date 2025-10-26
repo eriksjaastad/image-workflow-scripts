@@ -1225,7 +1225,7 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
         const statusBox = document.getElementById('status');
         
         // Queue decisions in memory (don't execute immediately!)
-        let groupStates = {}; // { groupId: { selectedImage: idx, crop: bool } }
+        let groupStates = {}; // { groupId: { selectedImage: idx, crop: bool, aiCropAccepted: bool } }
         
         function setStatus(message, type = '') {
           if (statusBox) {
@@ -1327,6 +1327,10 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             button.classList.remove('img-btn-approve');
             button.classList.add('img-btn-crop');
             console.log('[toggleAICrop] Crop ENABLED');
+            // Mark AI crop accepted and set selection to this image (suggestion path)
+            groupStates[groupId] = { selectedImage: imageIndex, crop: false, aiCropAccepted: true };
+            updateVisualState();
+            updateSummary();
           } else {
             // Hide crop overlay (REMOVE CROP)
             overlay.style.display = 'none';
@@ -1334,6 +1338,13 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             button.classList.remove('img-btn-crop');
             button.classList.add('img-btn-approve');
             console.log('[toggleAICrop] Crop DISABLED');
+            // Disable AI crop acceptance (keep selection if any)
+            const state = groupStates[groupId];
+            if (state) {
+              groupStates[groupId] = { selectedImage: state.selectedImage, crop: false, aiCropAccepted: false };
+              updateVisualState();
+              updateSummary();
+            }
           }
         }
         
@@ -1415,7 +1426,7 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             // NO auto-advance on deselect
           } else {
             // Update state - select image (no crop)
-            groupStates[groupId] = { selectedImage: imageIndex, crop: false };
+            groupStates[groupId] = { selectedImage: imageIndex, crop: false, aiCropAccepted: false };
             console.log('[selectImage] set', groupStates[groupId]);
             updateVisualState();
             updateSummary();
@@ -1444,7 +1455,7 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             // NO auto-advance on deselect
           } else {
             // Update state - select image WITH crop
-            groupStates[groupId] = { selectedImage: imageIndex, crop: true };
+            groupStates[groupId] = { selectedImage: imageIndex, crop: true, aiCropAccepted: false };
             console.log('[selectImageWithCrop] set', groupStates[groupId]);
             updateVisualState();
             updateSummary();
@@ -1493,13 +1504,13 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
           
           if (!currentState || currentState.selectedImage === undefined) {
             // First click on any image: select it (no crop)
-            groupStates[groupId] = { selectedImage: imageIndex, crop: false };
+            groupStates[groupId] = { selectedImage: imageIndex, crop: false, aiCropAccepted: false };
           } else if (currentState.selectedImage === imageIndex) {
             // UNSELECT: Clicking selected image deselects it (back to delete)
             delete groupStates[groupId];
           } else {
             // Clicking different image: switch selection to that image
-            groupStates[groupId] = { selectedImage: imageIndex, crop: false };
+            groupStates[groupId] = { selectedImage: imageIndex, crop: false, aiCropAccepted: false };
           }
           
           updateVisualState();
@@ -1619,7 +1630,8 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
           const selections = Object.keys(groupStates).map(groupId => ({
             groupId: groupId,
             selectedImage: groupStates[groupId].selectedImage,
-            crop: groupStates[groupId].crop || false
+            crop: groupStates[groupId].crop || false,
+            aiCropAccepted: groupStates[groupId].aiCropAccepted || false
           }));
           
           try {

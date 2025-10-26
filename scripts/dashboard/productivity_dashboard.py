@@ -64,6 +64,11 @@ class ProductivityDashboard:
                     project_id=pid
                 )
                 chart_data = analytics_resp
+                # Attach artifact stats to API payload for UI consumption
+                try:
+                    chart_data['artifact_stats'] = data.get('artifact_stats', {})
+                except Exception:
+                    pass
                 # Debug provenance marker and no-cache headers
                 try:
                     chart_data['metadata']['table_source'] = 'analytics'
