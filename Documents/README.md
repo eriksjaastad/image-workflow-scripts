@@ -99,5 +99,47 @@ Quarterly cleanup (review-first, no auto-deletes):
 - Cross-link related docs; use section anchors where helpful.
 - Archive superseded docs instead of deleting.
 
+## Collaboration Standards
+
+When working with multiple AI collaborators (Claude Code, ChatGPT in Cursor, etc.):
+
+### Commit Communication Standard
+
+Always share commits using the format defined in `.cursorrules`. Required fields:
+- **Short and full commit SHA** - Short for readability, full for uniqueness
+- **Branch name** - Critical for multi-branch workflows
+- **Files modified** - With brief descriptions
+- **Summary bullets** - ≤80 chars each, max 3 bullets
+- **GitHub links** - Direct commit URL
+- **Verification commands** - Exact git commands to verify
+
+**Example:**
+```
+Commit: 09d979f (09d979f4e...)
+Branch: main
+
+Files (1 added):
+- Documents/todos/QUEUE_AUTOMATION_TODO_2025-10-26.md (task delegation)
+
+Summary:
+- Added shared TODO list for queue automation work split
+- Defined branch owners (ChatGPT vs Claude tasks)
+
+Links:
+- https://github.com/eriksjaastad/image-workflow-scripts/commit/09d979f4e
+
+Verify:
+- git show --name-only 09d979f
+- git show 09d979f -- Documents/todos/QUEUE_AUTOMATION_TODO_2025-10-26.md
+```
+
+**Why this matters:**
+- Eliminates "where is that commit?" confusion
+- Makes cross-tool collaboration smooth (browser Claude ↔ Cursor ChatGPT)
+- Creates searchable, verifiable conversation history
+- Teaches good git hygiene to all participants
+
+See `.cursorrules` for complete format specification, code reference guidelines, and more examples.
+
 ## Index
 For a fuller list, see `ai/AI_DOCUMENTS_INDEX.md` and browse topical folders above.
