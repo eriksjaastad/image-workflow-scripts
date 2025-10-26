@@ -3,7 +3,7 @@
 **Audience:** Developers
 
 
-**Last Updated:** 2025-10-22 (Morning)
+**Last Updated:** 2025-10-26 (Afternoon)
 
 ---
 
@@ -135,6 +135,17 @@
     - Larger/clearer visualizations (especially for time-series)
     - Consider minimum thresholds for graphs (500+ files?) to avoid flatlined data
   - **Goal:** Less overwhelming, more focused on actionable insights
+
+- [ ] Composition Metrics (2-up vs 3-up) [PRIORITY: HIGH]
+  - **Goal:** Establish baseline composition per project (group size distribution) and kept rates (approve/crop) from the decisions DB; inform predictions for future projects.
+  - **Analyzer Script:** Create `scripts/tools/analyze_composition.py` to compute per-project:
+    - groups_by_size (e.g., {2: N, 3: N})
+    - by_action counts (approve/crop/reject)
+    - kept rates per group size and overall
+  - **Historical Baseline:** Extend snapshot pipeline to persist composition metrics across all projects (daily snapshot or per-project summary).
+  - **API:** Expose metrics via dashboard API for current and historical projects.
+  - **UI:** Add dashboard cards/charts for composition and kept rates; compare Mojo1 vs Mojo3.
+  - **Data Source:** SQLite v3 (`data/training/ai_training_decisions/*.db`) — DB is single source of truth.
 
 - [ ] **Add AI Performance Stats to Dashboard** [PRIORITY: HIGH]
   - **Data Source:** SQLite v3 databases (`data/training/ai_training_decisions/*.db`)
