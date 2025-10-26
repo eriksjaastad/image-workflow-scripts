@@ -171,7 +171,7 @@ def headless_crop(
     dest_directory.mkdir(parents=True, exist_ok=True)
 
     # Import here to avoid circular dependency
-    from companion_file_utils import move_file_with_all_companions
+    from utils.companion_file_utils import move_file_with_all_companions
 
     moved_files = move_file_with_all_companions(source_path, dest_directory, dry_run=False)
 
