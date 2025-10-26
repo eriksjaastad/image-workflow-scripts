@@ -644,9 +644,14 @@ def create_app(output_dir):
             
             try:
                 if action == 'crop':
-                    # Move to crop directory with ALL companion files
-                    crop_dir = output_path.parent / 'crop'
-                    crop_dir.mkdir(exist_ok=True)
+                    # Move to central __crop directory with ALL companion files
+                    try:
+                        from utils.standard_paths import get_crop_dir
+                        crop_dir = get_crop_dir()
+                        crop_dir.mkdir(exist_ok=True)
+                    except Exception:
+                        crop_dir = output_path.parent / '__crop'
+                        crop_dir.mkdir(exist_ok=True)
                     
                     dest_path = crop_dir / image
                     

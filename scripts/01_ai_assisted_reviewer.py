@@ -39,19 +39,19 @@ WORKFLOW:
    - User reviews: Approve (A), Override (1/2/3/4), Manual Crop (C), Reject (R)
 3. FILE OPERATIONS executed immediately:
    - Approve/Override → Move to selected/
-   - Manual Crop → Move to crop/ (for manual cropping later)
+   - Manual Crop → Move to __crop/ (for manual cropping later)
    - Reject → Move ALL to delete_staging/ (fast deletion staging)
 4. Training data logged automatically (selection + crop decisions)
 5. Logs decisions to sidecar .decision files (single source of truth)
 
 FILE ROUTING:
 -------------
-| Action       | Selected Image → | Other Images →    |
-|--------------|------------------|-------------------|
-| Approve      | selected/        | delete_staging/   |
-| Override     | selected/        | delete_staging/   |
-| Manual Crop  | crop/            | delete_staging/   |
-| Reject       | delete_staging/  | delete_staging/   |
+| Action       | Selected Image →   | Other Images →    |
+|--------------|--------------------|-------------------|
+| Approve      | __selected/        | delete_staging/   |
+| Override     | __selected/        | delete_staging/   |
+| Manual Crop  | __crop/            | delete_staging/   |
+| Reject       | __delete_staging/  | delete_staging/   |
 
 NOTE: All images MUST be processed. Directory should be empty when done.
 
@@ -91,9 +91,9 @@ Enter/↓ - Next group
 DIRECTORY STRUCTURE:
 --------------------
 The script will automatically create and use these directories at the project root:
-  selected/         - Final selected images (ready for next step)
-  crop/             - Images that need manual cropping
-  delete_staging/   - Fast deletion staging (move to Trash later)
+  __selected/         - Final selected images (ready for next step)
+  __crop/             - Images that need manual cropping
+  __delete_staging/   - Fast deletion staging (move to Trash later)
 """
 
 from __future__ import annotations
@@ -506,8 +506,8 @@ def find_project_root(directory: Path) -> Path:
     """
     current = directory.resolve()
     
-    # Look for project markers
-    markers = ["scripts", "data", "selected", "crop"]
+    # Look for project markers (support legacy and new double-underscore dirs)
+    markers = ["scripts", "data", "selected", "crop", "__selected", "__crop"]
     
     for _ in range(5):  # Search up to 5 levels
         if any((current / marker).exists() for marker in markers):
@@ -2050,9 +2050,21 @@ def main() -> None:
     project_root = find_project_root(directory)
     print(f"[*] Project root: {project_root}")
     
-    selected_dir = project_root / "selected"
-    crop_dir = project_root / "crop"
-    delete_staging_dir = project_root / "delete_staging"
+    # Use centralized standard paths (double-underscore directories)
+    try:
+        from utils.standard_paths import (
+            get_selected_dir,
+            get_crop_dir,
+            get_delete_staging_dir,
+        )
+        selected_dir = get_selected_dir()
+        crop_dir = get_crop_dir()
+        delete_staging_dir = get_delete_staging_dir()
+    except Exception:
+        # Fallback to legacy names if helper unavailable
+        selected_dir = project_root / "__selected"
+        crop_dir = project_root / "__crop"
+        delete_staging_dir = project_root / "__delete_staging"
     models_dir = project_root / "data" / "ai_data" / "models"
     
     # Ensure directories exist

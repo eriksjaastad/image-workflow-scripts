@@ -411,7 +411,7 @@ class ProjectMetricsAggregator:
             for rec in png_records:
                 op = str(rec.get('operation') or '').lower()
                 dest = str(rec.get('dest_dir') or '').lower()
-                if op == 'move' and dest in {'selected', 'crop'}:
+                if op == 'move' and dest in {'selected', '__selected', 'crop', '__crop', '__crop_auto', 'crop_auto'}:
                     tmp += int(rec.get('file_count') or 0)
                 elif op == 'crop':
                     tmp += int(rec.get('file_count') or 0)

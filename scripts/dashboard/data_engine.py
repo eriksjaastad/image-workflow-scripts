@@ -1362,7 +1362,7 @@ class DashboardDataEngine:
                 # images kept (PNG) by script
                 kept_png = [r for r in png_only_records
                             if (str(r.get('operation')).lower() == 'move' and 
-                                str(r.get('dest_dir') or '').lower() in {'selected', 'crop'})]
+                                str(r.get('dest_dir') or '').lower() in {'selected','__selected','crop','__crop','__crop_auto','crop_auto'})]
                 # images deleted (PNG) by script
                 deleted_png = [r for r in png_only_records
                                if str(r.get('operation')).lower() in {'delete', 'send_to_trash'}]

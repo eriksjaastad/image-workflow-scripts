@@ -296,6 +296,8 @@ def prezip_stage(cfg: StagerConfig) -> Dict:
                 }
                 if not m.get('finishedAt'):
                     m['finishedAt'] = now
+                # Ensure status reflects completion
+                m['status'] = 'finished'
                 # Backup then write
                 backup = manifest_path.with_suffix('.project.json.bak')
                 try:

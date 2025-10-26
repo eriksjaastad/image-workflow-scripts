@@ -134,7 +134,7 @@ def check_file_system():
     
     # Check large data directories
     print("\nData Directories (checking .gitignore):")
-    data_dirs = ['crop_auto', 'crop_cropped', 'mojo1', 'mojo2', 'mojo3', 'training data']
+    data_dirs = ['__crop_auto', '__cropped', 'mojo1', 'mojo2', 'mojo3', 'training data']
     for dir_name in data_dirs:
         full_path = repo_root / dir_name
         if full_path.exists():

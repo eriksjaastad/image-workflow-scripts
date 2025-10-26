@@ -809,8 +809,8 @@ class DashboardAnalytics:
             images = sum(count_pngs(r) for r in records)
 
             if display_name == "Web Image Selector":
-                selected = sum(count_pngs(r) for r in records if (r.get('operation') == 'move' and 'selected' in str(r.get('dest_dir') or '').lower()))
-                cropped = sum(count_pngs(r) for r in records if (r.get('operation') == 'move' and 'crop' in str(r.get('dest_dir') or '').lower()))
+                selected = sum(count_pngs(r) for r in records if (r.get('operation') == 'move' and any(k in str(r.get('dest_dir') or '').lower() for k in ['selected','__selected'])))
+                cropped = sum(count_pngs(r) for r in records if (r.get('operation') == 'move' and any(k in str(r.get('dest_dir') or '').lower() for k in ['crop','__crop','__crop_auto','crop_auto'])))
                 tools_breakdown[display_name] = {
                     'hours': round(hours, 1),
                     'days': days,

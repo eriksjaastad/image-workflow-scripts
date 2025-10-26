@@ -456,8 +456,8 @@ class ProductivityDashboard:
             images = sum(int(r.get('file_count') or 0) for r in recs)
 
             if disp == "Web Image Selector":
-                selected = sum(int(r.get('file_count') or 0) for r in recs if (r.get('operation') == 'move' and str(r.get('dest_dir') or '').lower() == 'selected'))
-                cropped = sum(int(r.get('file_count') or 0) for r in recs if (r.get('operation') == 'move' and str(r.get('dest_dir') or '').lower() == 'crop'))
+                selected = sum(int(r.get('file_count') or 0) for r in recs if (r.get('operation') == 'move' and str(r.get('dest_dir') or '').lower() in {'selected','__selected'}))
+                cropped = sum(int(r.get('file_count') or 0) for r in recs if (r.get('operation') == 'move' and any(k in str(r.get('dest_dir') or '').lower() for k in ['crop','__crop','__crop_auto','crop_auto'])))
                 temp_breakdown[disp] = {
                     "hours": hours,
                     "days": days,

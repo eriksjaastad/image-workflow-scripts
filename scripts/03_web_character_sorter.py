@@ -605,11 +605,15 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
     # Initialize FileTracker
     tracker = FileTracker("character_sorter")
     
-    # Set up target directories - always in project root
-    project_root = Path(__file__).parent.parent  # scripts/.. -> project root
-    character_group_1 = project_root / "character_group_1"
-    character_group_2 = project_root / "character_group_2"  
-    character_group_3 = project_root / "character_group_3"
+    # Set up target directories using centralized standard paths
+    try:
+        from utils.standard_paths import get_character_group_dirs
+        character_group_1, character_group_2, character_group_3 = get_character_group_dirs()
+    except Exception:
+        project_root = Path(__file__).parent.parent  # fallback
+        character_group_1 = project_root / "__character_group_1"
+        character_group_2 = project_root / "__character_group_2"  
+        character_group_3 = project_root / "__character_group_3"
     
     # Create directories if they don't exist
     for group_dir in [character_group_1, character_group_2, character_group_3]:
@@ -931,9 +935,14 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
                     processed_count += 1
                     
                 elif action == "crop":
-                    # Move to crop directory for further processing
-                    crop_dir = Path.cwd() / "crop"
-                    crop_dir.mkdir(exist_ok=True)
+                    # Move to central __crop directory for further processing
+                    try:
+                        from utils.standard_paths import get_crop_dir
+                        crop_dir = get_crop_dir()
+                        crop_dir.mkdir(exist_ok=True)
+                    except Exception:
+                        crop_dir = Path.cwd() / "__crop"
+                        crop_dir.mkdir(exist_ok=True)
                     moved_files = move_with_metadata(image_path, crop_dir, tracker, "crop_processing")
                     history.append((image_path.name, "SENT_TO_CROP", moved_files))
                     processed_count += 1

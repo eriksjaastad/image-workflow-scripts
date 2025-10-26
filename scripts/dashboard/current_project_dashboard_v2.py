@@ -37,10 +37,11 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sys
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Callable
 import threading
 
 from flask import Flask, jsonify, render_template_string
+import logging
 
 # Ensure project root is importable
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -58,12 +59,19 @@ TIMESHEET_PATH = DATA_DIR / "timesheet.csv"
 
 
 def _parse_iso(ts: Optional[str]) -> Optional[datetime]:
-    """Parse ISO timestamp to datetime."""
+    """Parse ISO timestamp and normalize to naive UTC.
+
+    - If tz-aware, convert to UTC and drop tzinfo
+    - If naive, assume it's already UTC and return as-is
+    """
     if not ts:
         return None
     try:
-        v = ts.replace("Z", "+00:00") if ts.endswith("Z") else ts
-        return datetime.fromisoformat(v)
+        v = ts.replace("Z", "+00:00") if isinstance(ts, str) and ts.endswith("Z") else ts
+        dt = datetime.fromisoformat(v) if isinstance(v, str) else v
+        if isinstance(dt, datetime) and getattr(dt, "tzinfo", None) is not None:
+            return dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt
     except Exception:
         return None
 
@@ -74,6 +82,10 @@ def find_active_project() -> Optional[Dict[str, Any]]:
         return None
 
     candidates: List[Tuple[datetime, Dict[str, Any]]] = []
+    scanned = 0
+    finished_count = 0
+    not_finished_count = 0
+    status_counts: Dict[str, int] = {}
     for manifest_file in PROJECTS_DIR.glob("*.project.json"):
         try:
             project_data = json.loads(manifest_file.read_text(encoding="utf-8"))
@@ -90,15 +102,28 @@ def find_active_project() -> Optional[Dict[str, Any]]:
         except Exception:
             start_dt = datetime.fromtimestamp(manifest_file.stat().st_mtime)
 
-        # Include if active status or no finish date
-        is_active = status == "active"
+        # Track counts for diagnostics
+        scanned += 1
+        if finished_at in (None, "", []):
+            not_finished_count += 1
+        else:
+            finished_count += 1
+        status_counts[status] = status_counts.get(status, 0) + 1
+
+        # Include any project without finishedAt (regardless of status)
         not_finished = finished_at in (None, "", [])
 
-        if is_active or not_finished:
+        if not_finished:
             project_data["manifestPath"] = str(manifest_file)
             candidates.append((start_dt, project_data))
 
     if not candidates:
+        try:
+            logging.info(
+                f"No active project candidates. scanned={scanned} not_finished={not_finished_count} finished={finished_count} status_counts={status_counts}"
+            )
+        except Exception:
+            pass
         return None
 
     # Return most recent
@@ -117,25 +142,44 @@ def load_timesheet_data() -> Dict[str, Any]:
 
 def get_project_file_operations(
     engine: DashboardDataEngine,
-    project: Dict[str, Any]
+    project: Dict[str, Any],
+    preloaded_ops: Optional[List[Dict[str, Any]]] = None
 ) -> List[Dict[str, Any]]:
     """Get all file operations for a specific project."""
-    # Load all file operations
-    all_ops = engine.load_file_operations()
+    # Load all file operations (use preloaded if provided)
+    all_ops = preloaded_ops if preloaded_ops is not None else engine.load_file_operations()
 
     # Filter to this project
     started_at = _parse_iso(project.get("startedAt"))
     finished_at = _parse_iso(project.get("finishedAt"))
     root_hint = (project.get("paths") or {}).get("root") or ""
+    try:
+        root_hint_resolved = str(Path(root_hint).resolve()) if root_hint else ""
+    except Exception:
+        root_hint_resolved = root_hint
 
     project_ops = []
     for op in all_ops:
         # Match by path
         matches_path = False
-        if root_hint:
+        if root_hint_resolved:
             for key in ("source_dir", "dest_dir", "working_dir"):
                 v = str(op.get(key) or "")
-                if root_hint in v:
+                if not v:
+                    continue
+                try:
+                    pv = Path(v).resolve()
+                    pr = Path(root_hint_resolved)
+                    try:
+                        is_sub = pv.is_relative_to(pr)  # py3.9+ in pathlib
+                    except AttributeError:
+                        spr = str(pr)
+                        sep = str(Path.sep)
+                        spr = spr if spr.endswith(sep) else spr + sep
+                        is_sub = str(pv).startswith(spr)
+                except Exception:
+                    is_sub = str(v).startswith(root_hint_resolved)
+                if is_sub:
                     matches_path = True
                     break
 
@@ -146,17 +190,14 @@ def get_project_file_operations(
             try:
                 op_dt = _parse_iso(ts)
                 if op_dt:
-                    # Make naive for comparison
-                    if op_dt.tzinfo:
-                        op_dt = op_dt.replace(tzinfo=None)
-
-                    start_compare = started_at.replace(tzinfo=None) if started_at else None
-                    end_compare = finished_at.replace(tzinfo=None) if finished_at else datetime.now()
-                    if end_compare.tzinfo:
-                        end_compare = end_compare.replace(tzinfo=None)
-
-                    if start_compare and start_compare <= op_dt <= end_compare:
-                        matches_time = True
+                    start_compare = started_at
+                    end_compare = finished_at or datetime.utcnow()
+                    if start_compare:
+                        if start_compare <= op_dt <= end_compare:
+                            matches_time = True
+                    else:
+                        if op_dt <= end_compare:
+                            matches_time = True
             except Exception:
                 pass
 
@@ -169,22 +210,31 @@ def get_project_file_operations(
 def classify_operation_phase(op: Dict[str, Any]) -> str:
     """Classify a file operation into a phase: selection, crop, or sort."""
     operation = str(op.get("operation") or "").lower()
-    dest_dir = str(op.get("dest_dir") or "").lower().strip()
+    dest_dir_raw = str(op.get("dest_dir") or "").strip()
+    dest_base = Path(dest_dir_raw).name.lower() if dest_dir_raw else ""
 
     # Crop phase
     if operation == "crop":
         return "crop"
 
+    # Fallback: infer crop from save/export that only contain PNGs
+    files = op.get("files") or []
+    if operation in {"save", "export"} and files:
+        try:
+            if all(str(f).lower().endswith(".png") for f in files):
+                return "crop"
+        except Exception:
+            pass
+
     # Move operations
     if operation == "move":
-        # Selection phase: moved to 'selected'
-        if dest_dir == "selected":
+        # Selection phase: moved to 'selected' or '__selected'
+        if dest_base in {"selected", "__selected"}:
             return "selection"
 
-        # Sort phase: moved to character_group_* folders
-        if dest_dir.startswith("character_group") or dest_dir.startswith("_"):
-            if dest_dir not in {"_trash", "_tmp", "_temp"}:
-                return "sort"
+        # Sort phase: moved to character_group_* or __character_group_*
+        if dest_base.startswith("character_group") or dest_base.startswith("__character_group_"):
+            return "sort"
 
     return "unknown"
 
@@ -292,8 +342,8 @@ def compute_phase_hours(
     current_dt = start_dt
 
     while current_dt <= end_dt:
-        # Format as M/D/YYYY (no leading zeros)
-        date_key = current_dt.strftime("%-m/%-d/%Y")  # macOS/Linux format
+        # Cross-platform M/D/YYYY without leading zeros
+        date_key = f"{current_dt.month}/{current_dt.day}/{current_dt.year}"
 
         hours_for_day = daily_hours.get(date_key, 0)
         total_hours += hours_for_day
@@ -305,7 +355,9 @@ def compute_phase_hours(
 
 def build_historical_baseline(
     timesheet_data: Dict[str, Any],
-    engine: DashboardDataEngine
+    engine: DashboardDataEngine,
+    preloaded_ops: Optional[List[Dict[str, Any]]] = None,
+    progress_cb: Optional[Callable[[int, int, str], None]] = None,
 ) -> Dict[str, Dict[str, Any]]:
     """Build per-phase baseline from completed projects."""
     baselines = {
@@ -315,13 +367,29 @@ def build_historical_baseline(
     }
 
     # Find all completed projects
-    for manifest_file in PROJECTS_DIR.glob("*.project.json"):
+    all_manifests = list(PROJECTS_DIR.glob("*.project.json"))
+    # Pre-count finished projects for progress reporting
+    finished_total = 0
+    for manifest_file in all_manifests:
         try:
             project = json.loads(manifest_file.read_text(encoding="utf-8"))
         except Exception:
             continue
 
         # Only include finished projects
+        if not project.get("finishedAt"):
+            continue
+
+        finished_total += 1
+
+    processed_count = 0
+
+    for manifest_file in all_manifests:
+        try:
+            project = json.loads(manifest_file.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+
         if not project.get("finishedAt"):
             continue
 
@@ -332,10 +400,13 @@ def build_historical_baseline(
         # Match with timesheet
         ts_project = match_timesheet_to_project(timesheet_data, project_id)
         if not ts_project:
+            processed_count += 1
+            if progress_cb:
+                progress_cb(processed_count, finished_total, f"skip:{project_id}")
             continue
 
         # Get file operations for this project
-        ops = get_project_file_operations(engine, project)
+        ops = get_project_file_operations(engine, project, preloaded_ops=preloaded_ops)
 
         # Compute per-phase metrics
         for phase in ["selection", "crop", "sort"]:
@@ -355,10 +426,15 @@ def build_historical_baseline(
                     baselines[phase]["total_images"] += images
                     baselines[phase]["projects"] += 1
 
+        processed_count += 1
+        if progress_cb:
+            progress_cb(processed_count, finished_total, project_id)
+
     # Compute averages
     result = {}
     for phase, data in baselines.items():
-        if data["projects"] > 0 and data["total_hours"] > 0:
+        # Require at least 2 projects and non-zero totals to compute
+        if data["projects"] >= 2 and data["total_hours"] > 0 and data["total_images"] > 0:
             result[phase] = {
                 "avg_hours": round(data["total_hours"] / data["projects"], 1),
                 "avg_images": round(data["total_images"] / data["projects"], 0),
@@ -370,7 +446,7 @@ def build_historical_baseline(
                 "avg_hours": 0,
                 "avg_images": 0,
                 "avg_rate": 0,
-                "projects_count": 0
+                "projects_count": data["projects"]
             }
 
     return result
@@ -381,16 +457,50 @@ def create_app() -> Flask:
     app.config['JSON_SORT_KEYS'] = False
 
     engine = DashboardDataEngine(str(PROJECT_ROOT))
+    logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+
+    # Simple in-process progress tracker
+    progress_state: Dict[str, Any] = {
+        "phase": "idle",
+        "detail": "",
+        "current": 0,
+        "total": 0
+    }
 
     @app.route("/")
     def index():
         return render_template_string(DASHBOARD_TEMPLATE)
 
+    @app.route("/api/health")
+    def health():
+        return jsonify({"ok": True})
+
+    @app.route("/api/progress_status")
+    def progress_status():
+        return jsonify(progress_state)
+
+    # Simple memo cache for progress responses
+    _progress_cache: Dict[str, Any] = {"data": None, "ts": None}
+
     @app.route("/api/progress")
     def progress_api():
+        from datetime import datetime, timedelta
+        # Serve cached response if within 5 minutes and not forced
+        force = False
+        try:
+            from flask import request
+            force = request.args.get('force') == '1'
+        except Exception:
+            force = False
+        now = datetime.utcnow()
+        if (not force) and _progress_cache["data"] is not None and _progress_cache["ts"] is not None:
+            if (now - _progress_cache["ts"]).total_seconds() < 300:
+                return jsonify(_progress_cache["data"])  # Cached
+        progress_state.update({"phase": "start", "detail": "locating project", "current": 0, "total": 0})
         # Find active project
         active_project = find_active_project()
         if not active_project:
+            progress_state.update({"phase": "idle", "detail": "", "current": 0, "total": 0})
             return jsonify({"error": "No active project found"}), 404
 
         project_id = active_project.get("projectId")
@@ -401,11 +511,37 @@ def create_app() -> Flask:
         # Load timesheet
         timesheet_data = load_timesheet_data()
 
+        # Preload operations ONCE to avoid multiple heavy loads per request
+        progress_state.update({"phase": "loading_ops", "detail": "Loading file operations", "current": 0, "total": 1})
+        all_ops = engine.load_file_operations()
+        progress_state.update({"phase": "loading_ops", "detail": "Loaded file operations", "current": 1, "total": 1})
+
         # Build historical baseline
-        baseline = build_historical_baseline(timesheet_data, engine)
+        progress_state.update({"phase": "baseline", "detail": "Building historical baseline", "current": 0, "total": 0})
+        def baseline_progress(cur: int, tot: int, pid: str):
+            progress_state.update({"phase": "baseline", "detail": f"{pid}", "current": cur, "total": max(tot, 1)})
+        baseline = build_historical_baseline(timesheet_data, engine, preloaded_ops=all_ops, progress_cb=baseline_progress)
+        progress_state.update({"phase": "baseline", "detail": "Baseline ready", "current": progress_state.get("current", 0), "total": progress_state.get("total", 1)})
 
         # Get file operations for current project
-        ops = get_project_file_operations(engine, active_project)
+        progress_state.update({"phase": "filter_ops", "detail": "Filtering project operations", "current": 0, "total": 1})
+        ops = get_project_file_operations(engine, active_project, preloaded_ops=all_ops)
+        progress_state.update({"phase": "filter_ops", "detail": "Project operations ready", "current": 1, "total": 1})
+
+        # Fallback initialImages from unique PNGs in ops if missing/zero
+        if total_images <= 0:
+            from os.path import basename
+            seen_pngs = set()
+            for op in ops:
+                files = op.get("files") or []
+                for f in files:
+                    try:
+                        s = str(f)
+                        if s.lower().endswith(".png"):
+                            seen_pngs.add(basename(s).lower())
+                    except Exception:
+                        continue
+            total_images = len(seen_pngs)
 
         # Match with timesheet
         ts_project = match_timesheet_to_project(timesheet_data, project_id)
@@ -413,7 +549,9 @@ def create_app() -> Flask:
 
         # Compute per-phase metrics for current project
         phases_current = {}
-        for phase in ["selection", "crop", "sort"]:
+        phases = ["selection", "crop", "sort"]
+        progress_state.update({"phase": "metrics", "detail": "Computing phase metrics", "current": 0, "total": len(phases)})
+        for idx, phase in enumerate(phases, start=1):
             metrics = compute_phase_metrics(ops, phase)
             images = metrics["images"]
 
@@ -430,7 +568,7 @@ def create_app() -> Flask:
 
             # Compare to baseline
             baseline_rate = baseline.get(phase, {}).get("avg_rate", 0)
-            vs_baseline = round((rate / baseline_rate - 1) * 100, 1) if baseline_rate > 0 else 0
+            vs_baseline = round((rate / baseline_rate - 1) * 100, 1) if baseline_rate > 0 and rate >= 0 else None
 
             phases_current[phase] = {
                 "images": images,
@@ -442,12 +580,37 @@ def create_app() -> Flask:
                 "baseline_rate": baseline_rate,
                 "vs_baseline_pct": vs_baseline
             }
+            progress_state.update({"phase": "metrics", "detail": f"Computed {phase}", "current": idx, "total": len(phases)})
 
         # Overall progress
         total_processed = sum(p["images"] for p in phases_current.values())
         percent_complete = round((total_processed / total_images) * 100, 1) if total_images > 0 else 0
 
-        return jsonify({
+        # Build historical timeline from timesheet
+        historical_timeline: List[Dict[str, Any]] = []
+        for ts_proj in timesheet_data.get("projects", []):
+            try:
+                historical_timeline.append({
+                    "name": ts_proj.get("name"),
+                    "rate": ts_proj.get("images_per_hour", 0) or 0,
+                    "hours": ts_proj.get("total_hours", 0) or 0
+                })
+            except Exception:
+                continue
+
+        # Final log line to confirm response isn't hanging
+        logging.info("/api/progress computed. images=%s processed=%s", total_images, total_processed)
+        progress_state.update({"phase": "idle", "detail": "", "current": 0, "total": 0})
+
+        # Helpful logging
+        root_hint = (active_project.get("paths") or {}).get("root")
+        logging.info(f"Active project: id={project_id} title={title} root={root_hint}")
+        logging.info(f"Initial images: {counts.get('initialImages')} (effective: {total_images})")
+        logging.info(f"Loaded file ops: {len(ops)}")
+        for ph, data in phases_current.items():
+            logging.info(f"Phase {ph}: images={data['images']} hours={data['hours']} rate={data['rate']} baseline_rate={data['baseline_rate']} vs={data['vs_baseline_pct']}%")
+
+        resp_data = {
             "project": {
                 "projectId": project_id,
                 "title": title,
@@ -457,8 +620,12 @@ def create_app() -> Flask:
                 "totalBilledHours": total_billed_hours
             },
             "phases": phases_current,
-            "baseline": baseline
-        })
+            "baseline": baseline,
+            "historical_timeline": historical_timeline
+        }
+        _progress_cache["data"] = resp_data
+        _progress_cache["ts"] = now
+        return jsonify(resp_data)
 
     return app
 
@@ -588,14 +755,33 @@ DASHBOARD_TEMPLATE = """
         </header>
 
         <div id="dashboard-content" class="loading">
-            Loading dashboard...
+            <div id="loading-status">Loading dashboard...</div>
+            <div id="loading-detail" style="margin-top:6px;color:var(--muted);"></div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+        let statusTimer = null;
         async function loadDashboard() {
             try {
                 const response = await fetch('/api/progress');
+                if (!response.ok) {
+                    const msg = response.status === 404 ? 'No active project found' : `HTTP ${response.status}`;
+                    document.getElementById('dashboard-content').innerHTML = `
+                        <div class="error">
+                            ${msg}
+                            <div style="margin-top:10px;color:var(--muted);font-size:0.95rem;">
+                                Checklist:
+                                <ul>
+                                    <li>Ensure there is an active project in data/projects/*.project.json</li>
+                                    <li>Confirm data/timesheet.csv exists (optional)</li>
+                                    <li>Verify file operation logs under data/file_operations_logs/</li>
+                                </ul>
+                            </div>
+                        </div>`;
+                    return;
+                }
                 const data = await response.json();
 
                 if (data.error) {
@@ -612,11 +798,12 @@ DASHBOARD_TEMPLATE = """
                 // Build phases grid
                 const phasesHTML = ['selection', 'crop', 'sort'].map(phase => {
                     const phaseData = data.phases[phase];
-                    const baseline = data.baseline[phase];
+                    const baseline = data.baseline && data.baseline[phase] ? data.baseline[phase] : { avg_rate: 0 };
 
-                    const vsBaseline = phaseData.vs_baseline_pct;
-                    const vsClass = vsBaseline > 10 ? 'ahead' : (vsBaseline < -10 ? 'behind' : 'ontrack');
-                    const vsLabel = vsBaseline > 0 ? `+${vsBaseline}%` : `${vsBaseline}%`;
+                    const vsBaseline = (baseline.avg_rate && baseline.avg_rate > 0 && phaseData.rate > 0) ? phaseData.vs_baseline_pct : null;
+                    const vsClass = vsBaseline === null ? '' : (vsBaseline > 10 ? 'ahead' : (vsBaseline < -10 ? 'behind' : 'ontrack'));
+                    const vsLabel = vsBaseline === null ? '—' : (vsBaseline > 0 ? `+${vsBaseline}%` : `${vsBaseline}%`);
+                    const baselineRateLabel = (baseline.avg_rate && baseline.avg_rate > 0) ? baseline.avg_rate : 'N/A';
 
                     return `
                         <div class="phase-card">
@@ -643,15 +830,74 @@ DASHBOARD_TEMPLATE = """
                             </div>
 
                             <div class="vs-baseline">
-                                <div class="vs-baseline-label">vs Historical Avg (${baseline.avg_rate} img/h)</div>
+                                <div class="vs-baseline-label">vs Historical Avg (${baselineRateLabel} img/h)</div>
                                 <div class="vs-baseline-value ${vsClass}">${vsLabel}</div>
                             </div>
                         </div>
                     `;
                 }).join('');
 
+                let extra = '';
+                if (data.historical_timeline) {
+                    extra = `
+                    <h2 style="margin: 40px 0 20px 0; color: var(--accent);">Historical Productivity</h2>
+                    <div class="chart-container" style="background: var(--surface); padding: 20px; border-radius: 12px;">
+                        <canvas id="historyChart"></canvas>
+                    </div>`;
+                }
+
                 document.getElementById('dashboard-content').innerHTML =
-                    `<div class="phases-grid">${phasesHTML}</div>`;
+                    `<div class="phases-grid">${phasesHTML}</div>${extra}`;
+                // Stop loader polling now that content is rendered
+                const dc = document.getElementById('dashboard-content');
+                if (dc && dc.classList.contains('loading')) {
+                    dc.classList.remove('loading');
+                }
+                if (statusTimer) { clearInterval(statusTimer); statusTimer = null; }
+
+                // Render historical chart
+                if (data.historical_timeline) {
+                    const labels = data.historical_timeline.map(p => p.name);
+                    const rates = data.historical_timeline.map(p => p.rate);
+                    const baselineSel = (data.baseline && data.baseline.selection) ? data.baseline.selection.avg_rate : 0;
+                    const colors = rates.map(r =>
+                        r > baselineSel * 1.1 ? '#51cf66' :
+                        r < baselineSel * 0.9 ? '#ff6b6b' : '#4f9dff'
+                    );
+                    if (window.Chart) {
+                        new Chart(document.getElementById('historyChart'), {
+                            type: 'bar',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: 'Images per Hour',
+                                    data: rates,
+                                    backgroundColor: colors
+                                }, {
+                                    label: 'Baseline',
+                                    data: Array(labels.length).fill(baselineSel),
+                                    type: 'line',
+                                    borderColor: '#ffd43b',
+                                    borderDash: [5, 5],
+                                    pointRadius: 0
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                scales: {
+                                    y: {
+                                        ticks: { color: '#a0a3b1' },
+                                        title: { display: true, text: 'img/h', color: 'white' }
+                                    },
+                                    x: { ticks: { color: '#a0a3b1', maxRotation: 45 } }
+                                },
+                                plugins: {
+                                    legend: { labels: { color: 'white' } }
+                                }
+                            }
+                        });
+                    }
+                }
 
             } catch (error) {
                 console.error('Error loading dashboard:', error);
@@ -660,11 +906,41 @@ DASHBOARD_TEMPLATE = """
             }
         }
 
-        // Load on page load
-        loadDashboard();
+        // Simple loader that polls /api/progress_status while dashboard loads
+        async function pollStatus() {
+            try {
+                const r = await fetch('/api/progress_status');
+                if (!r.ok) return;
+                const s = await r.json();
+                const map = {
+                    start: 'Starting...',
+                    loading_ops: 'Loading operations...',
+                    baseline: 'Building baseline...',
+                    filter_ops: 'Filtering project operations...',
+                    metrics: 'Computing metrics...',
+                    idle: 'Ready.'
+                };
+                document.getElementById('loading-status').textContent = map[s.phase] || 'Loading...';
+                const detail = s.detail ? `${s.detail}` : '';
+                const frac = (s.total && s.total > 0) ? ` (${s.current}/${s.total})` : '';
+                document.getElementById('loading-detail').textContent = detail + frac;
+            } catch (e) { /* noop */ }
+        }
 
-        // Refresh every 30 seconds
-        setInterval(loadDashboard, 30000);
+        // Load on page load (manual refresh only; no periodic auto-refresh)
+        loadDashboard();
+        // Poll status more frequently while loading
+        statusTimer = setInterval(pollStatus, 400);
+        // Stop status polling once content is rendered
+        const observer = new MutationObserver(() => {
+            const content = document.getElementById('dashboard-content');
+            if (content && !content.classList.contains('loading')) {
+                clearInterval(statusTimer);
+                observer.disconnect();
+            }
+        });
+        observer.observe(document.getElementById('dashboard-content'), { childList: true, subtree: true });
+        // Removed periodic auto-refresh to prevent unnecessary load
     </script>
 </body>
 </html>
@@ -672,19 +948,34 @@ DASHBOARD_TEMPLATE = """
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=int, default=8082)
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--no-browser", action="store_true")
+    parser.add_argument("--debug", action="store_true")
+    args = parser.parse_args()
+
     app = create_app()
-    host = "127.0.0.1"
-    port = 8082
+    host = args.host
+    port = args.port
 
     # Auto-launch browser
-    threading.Thread(target=launch_browser, args=(host, port, 1.2), daemon=True).start()
+    if not args.no_browser:
+        threading.Thread(target=launch_browser, args=(host, port, 1.2), daemon=True).start()
 
     print(f"🚀 Current Project Dashboard starting at http://{host}:{port}")
     print("📊 Process-centric view: Selection • Crop • Sort")
     print("📈 Current vs Historical Baseline")
     print("\nPress Ctrl+C to stop")
 
-    app.run(host=host, port=port, debug=False)
+    # Avoid caching through proxies/CDNs just in case
+    @app.after_request
+    def add_no_store(resp):
+        resp.headers['Cache-Control'] = 'no-store'
+        return resp
+
+    app.run(host=host, port=port, debug=args.debug)
 
 
 if __name__ == "__main__":

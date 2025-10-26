@@ -71,12 +71,12 @@ def get_project_manifest_template(
         "removeFileOnFinish": True,
         "paths": {
             "root": str(content_dir),
-            "selectedDir": "../../selected",
-            "cropDir": "../../crop",
+            "selectedDir": "../../__selected",
+            "cropDir": "../../__crop",
             "characterGroups": [
-                "../../character_group_1",
-                "../../character_group_2",
-                "../../character_group_3"
+                "../../__character_group_1",
+                "../../__character_group_2",
+                "../../__character_group_3"
             ]
         },
         "counts": {
@@ -130,8 +130,8 @@ def get_project_manifest_template(
     }
 
 
-def update_gitignore(project_id: str) -> None:
-    """Update .gitignore to exclude the project directory."""
+def update_gitignore(project_id: str, content_dir_name: str | None = None) -> None:
+    """Update .gitignore to exclude the project directory (and content dir name if different)."""
     gitignore_path = Path(".gitignore")
     
     # Create .gitignore if it doesn't exist
@@ -141,17 +141,19 @@ def update_gitignore(project_id: str) -> None:
     current_content = gitignore_path.read_text()
     lines = current_content.splitlines()
     
-    # Check if project directory is already ignored
+    patterns = []
     project_pattern = f"{project_id}/"
-    if project_pattern not in lines:
-        # Add a newline if file doesn't end with one
+    patterns.append(project_pattern)
+    if content_dir_name and content_dir_name != project_id:
+        patterns.append(f"{content_dir_name}/")
+
+    to_add = [p for p in patterns if p not in lines]
+    if to_add:
         if current_content and not current_content.endswith('\n'):
             current_content += '\n'
-        
-        # Add project directory to .gitignore
-        current_content += f"# Project directory\n{project_pattern}\n"
+        current_content += "# Project directories\n" + "\n".join(to_add) + "\n"
         gitignore_path.write_text(current_content)
-        print(f"✅ Added {project_pattern} to .gitignore")
+        print(f"✅ Added {', '.join(to_add)} to .gitignore")
 
 
 def create_project_manifest(
@@ -252,8 +254,8 @@ def create_project_manifest(
             json.dumps(manifest, indent=2, ensure_ascii=False),
             encoding='utf-8'
         )
-        # Update .gitignore with project directory
-        update_gitignore(project_id)
+        # Update .gitignore with project directory and content directory name
+        update_gitignore(project_id, content_dir.name)
     except Exception as e:
         return {
             "status": "error",

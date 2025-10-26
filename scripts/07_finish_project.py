@@ -191,10 +191,8 @@ def finish_project(
     final_images = count_images(content_dir)
     print(f"📊 Found {final_images} PNG images in {content_dir}")
     
-    # Determine output ZIP path
-    exports_dir = Path("exports")
-    exports_dir.mkdir(exist_ok=True)
-    output_zip = exports_dir / f"{project_id}_final.zip"
+    # Determine output ZIP path (no exports/ dir; place at repo root)
+    output_zip = Path(f"{project_id}_final.zip")
     
     # Run prezip_stager
     result = run_prezip_stager(
@@ -213,6 +211,34 @@ def finish_project(
             manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
             finished_at = manifest.get('finishedAt')
             stager_metrics = manifest.get('metrics', {}).get('stager', {})
+            # Ensure status is finished if finishedAt present
+            if finished_at and manifest.get('status') != 'finished':
+                manifest['status'] = 'finished'
+                # Backup and write
+                backup = manifest_path.with_suffix('.project.json.bak')
+                try:
+                    import shutil
+                    shutil.copy2(manifest_path, backup)
+                except Exception:
+                    pass
+                manifest_path.write_text(json.dumps(manifest, indent=2), encoding='utf-8')
+            # Remove project/content dir patterns from .gitignore
+            try:
+                gitignore_path = Path('.gitignore')
+                if gitignore_path.exists():
+                    content_dir_rel = manifest.get('paths', {}).get('root') or ''
+                    content_name = Path(content_dir_rel).name if content_dir_rel else ''
+                    project_pattern = f"{project_id}/"
+                    content_pattern = f"{content_name}/" if content_name else None
+                    lines = gitignore_path.read_text().splitlines()
+                    new_lines = []
+                    for ln in lines:
+                        if ln.strip() in {project_pattern, content_pattern}:
+                            continue
+                        new_lines.append(ln)
+                    gitignore_path.write_text("\n".join(new_lines) + ("\n" if new_lines else ""))
+            except Exception:
+                pass
         except Exception:
             finished_at = None
             stager_metrics = {}

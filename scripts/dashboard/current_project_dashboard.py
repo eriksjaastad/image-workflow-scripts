@@ -171,7 +171,7 @@ def compute_current_session_rate(file_ops_records: List[Dict[str, Any]], hours: 
             if dest == "selected":
                 stage_counts["selection"] += count
                 stage_counts["reviewed"] += count
-            elif dest in {"crop", "crop_auto"}:
+            elif dest in {"__crop", "__crop_auto", "crop", "crop_auto"}:
                 stage_counts["reviewed"] += count
             elif dest.startswith("character_group") or dest.startswith("_"):
                 stage_counts["sort"] += count
@@ -481,7 +481,7 @@ def create_app() -> Flask:
 
         # Stage completions (png-only counts already enforced upstream in aggregator):
         selection_done = int(move_dest_counts.get("selected", 0))
-        reviewed_done = selection_done + int(move_dest_counts.get("crop_auto", 0)) + int(move_dest_counts.get("crop", 0))
+        reviewed_done = selection_done + int(move_dest_counts.get("__crop_auto", 0)) + int(move_dest_counts.get("__crop", 0)) + int(move_dest_counts.get("crop_auto", 0)) + int(move_dest_counts.get("crop", 0))
         crop_done = int(ops_by_type.get("crop", 0))
         def is_sort_bucket(name: str) -> bool:
             n = name.lower().strip()
@@ -527,7 +527,7 @@ def create_app() -> Flask:
                 by_dest_all = totals.get("operations_by_dest", {}) or {}
                 move_dest = by_dest_all.get("move", {}) or {}
                 sel = int(move_dest.get("selected", 0))
-                rev = sel + int(move_dest.get("crop", 0)) + int(move_dest.get("crop_auto", 0))
+                rev = sel + int(move_dest.get("__crop", 0)) + int(move_dest.get("__crop_auto", 0)) + int(move_dest.get("crop", 0)) + int(move_dest.get("crop_auto", 0))
                 cr = int(by_type.get("crop", 0))
                 so = sum(v for k, v in move_dest.items() if str(k).startswith("character_group"))
                 sel_rates.append((sel / work_hours) * weight); sel_w.append(weight)
@@ -603,7 +603,7 @@ def create_app() -> Flask:
                 dest = str(r.get("dest_dir") or "").lower().strip()
                 is_match = False
                 if classifier == "reviewed":
-                    is_match = (op == "move" and (dest == "selected" or dest in {"crop", "crop_auto"}))
+                    is_match = (op == "move" and (dest in {"__selected", "selected"} or dest in {"__crop", "__crop_auto", "crop", "crop_auto"}))
                 elif classifier == "crop":
                     is_match = (op == "crop")
                 elif classifier == "sort":
@@ -627,8 +627,11 @@ def create_app() -> Flask:
         # Stage remaining
         sel_rem = max(0, total_images - selection_done)
         rev_rem = max(0, total_images - reviewed_done)
-        # Total to crop is everything sent to crop or crop_auto
-        total_to_crop = int(move_dest_counts.get("crop", 0)) + int(move_dest_counts.get("crop_auto", 0))
+        # Total to crop is everything sent to crop or crop_auto (support legacy and new names)
+        total_to_crop = (
+            int(move_dest_counts.get("__crop", 0)) + int(move_dest_counts.get("__crop_auto", 0)) +
+            int(move_dest_counts.get("crop", 0)) + int(move_dest_counts.get("crop_auto", 0))
+        )
         crop_rem = max(0, total_to_crop - crop_done)
         sort_rem = max(0, total_images - sort_done)
         # Bottleneck projection: max of per-stage time remaining
@@ -756,12 +759,12 @@ def create_app() -> Flask:
         # Read-only inventory using manifest paths
         paths = active.get('paths') or {}
         root_dir = paths.get('root')
-        selected_dir = paths.get('selectedDir') or str(PROJECT_ROOT / 'selected')
-        crop_dir = paths.get('cropDir') or str(PROJECT_ROOT / 'crop')
-        crop_auto_dir = str(PROJECT_ROOT / 'crop_auto')
-        crop_cropped_dir = str(PROJECT_ROOT / 'crop_cropped')
-        crop_auto_cropped_dir = str(PROJECT_ROOT / 'crop_auto_cropped')
-        delete_staging_dir = str(PROJECT_ROOT / 'delete_staging')
+        selected_dir = paths.get('selectedDir') or str(PROJECT_ROOT / '__selected')
+        crop_dir = paths.get('cropDir') or str(PROJECT_ROOT / '__crop')
+        crop_auto_dir = str(PROJECT_ROOT / '__crop_auto')
+        crop_cropped_dir = str(PROJECT_ROOT / '__cropped')
+        crop_auto_cropped_dir = str(PROJECT_ROOT / '__cropped')
+        delete_staging_dir = str(PROJECT_ROOT / '__delete_staging')
 
         # Cache key based on directory mtimes (so we don't rescan every 30s)
         inv_sig = (

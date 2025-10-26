@@ -126,8 +126,8 @@ if __name__ == "__main__":
     if args.directory:
         crop_dir = Path(args.directory).expanduser().resolve()
     else:
-        # Default to project crop directory
-        crop_dir = Path(__file__).parent.parent.parent / "crop"
+        # Default to project crop directory (double-underscore)
+        crop_dir = Path(__file__).parent.parent.parent / "__cropped"
     
     if not crop_dir.exists():
         print(f"[!] Directory not found: {crop_dir}")

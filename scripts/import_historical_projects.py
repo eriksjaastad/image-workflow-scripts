@@ -225,8 +225,8 @@ def create_project_manifest(project: Dict, workspace_root: Path, dry_run: bool =
         'finishedAt': finished_at,
         'paths': {
             'root': str(content_dir),
-            'selectedDir': str(content_dir / 'selected'),
-            'cropDir': str(content_dir / 'crop')
+            'selectedDir': str(content_dir / '__selected'),
+            'cropDir': str(content_dir / '__crop')
         },
         'counts': {
             'initialImages': project.get('initial_images', 0) or 0,

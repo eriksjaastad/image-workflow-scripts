@@ -85,6 +85,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent))
 import importlib.util as _il_util  # noqa: E402
 from importlib.machinery import SourceFileLoader as _SrcLoader  # noqa: E402
+from utils.companion_file_utils import move_file_with_all_companions  # noqa: E402
 
 _module_path = Path(__file__).parent / "02_desktop_multi_crop.py"
 _spec = _il_util.spec_from_file_location("desktop_multi_crop", str(_module_path))
@@ -98,6 +99,32 @@ from utils.ai_crop_utils import normalize_and_clamp_rect, decision_matches_image
 
 class AIMultiCropTool(MultiCropTool):
     """Desktop multi-crop that preloads AI crop rectangles when available."""
+    
+    def crop_and_save(self, image_info, crop_coords):
+        """Crop image, save in place, then move to central __cropped directory."""
+        # Perform the actual crop/save using parent implementation
+        super().crop_and_save(image_info, crop_coords)
+
+        # After saving, move the file (and companions) to the central __cropped directory
+        try:
+            from utils.standard_paths import get_cropped_dir
+            cropped_dir = get_cropped_dir()
+            cropped_dir.mkdir(exist_ok=True)
+        except Exception:
+            from pathlib import Path as _Path
+            cropped_dir = _Path(__file__).parent.parent / "__cropped"
+            cropped_dir.mkdir(exist_ok=True)
+
+        try:
+            png_path = image_info['path']
+            moved_files = move_file_with_all_companions(png_path, cropped_dir, dry_run=False)
+            try:
+                count = len([f for f in moved_files if str(f).lower().endswith('.png')])
+            except Exception:
+                count = len(moved_files)
+            print(f"[*] Moved {count} file(s) to {cropped_dir.name}/")
+        except Exception as e:
+            print(f"[!] Error moving files to {cropped_dir.name}: {e}")
 
     def load_batch(self):
         # Load batch normally (sets up selectors and default full-image crops)
