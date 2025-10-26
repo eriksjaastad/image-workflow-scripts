@@ -1,6 +1,7 @@
 # Current TODO List
 **Status:** Active
 **Audience:** Developers
+**Policy:** This is the single authoritative TODO list. Do not create separate TODO docs; add sections here instead.
 
 
 **Last Updated:** 2025-10-26 (Afternoon)
@@ -268,3 +269,18 @@
 - **Data Collection Crisis:** Discovered 3 weeks after the fact that Desktop Multi-Crop was logging dimensions as (0,0) instead of actual values. Lost ~6,700 potential training examples. Need real-time validation to prevent this in the future.
 - **Embeddings Issue:** Some embeddings exist in cache but files are missing from disk. Need verification step after embedding generation.
 - **Historical Data Limitation:** Only projects processed AFTER data collection system was built have usable crop data.
+
+
+### AI Automation (Imported 2025-10-26)
+- [in_progress] Add configurable safe-zone allowlist (read from `configs/` and used in validation)
+- [pending] Add retry with backoff for per-crop failures and partial progress resume
+- [pending] Queue manager maintenance CLI: `clear_completed` + timing/log rotation helpers
+- [pending] Pre-commit installer script for root-file policy hook in `scripts/tools/`
+- [pending] Makefile shortcuts: `make timing`, `make queue-test`, `make process-fast`
+- [pending] CLI to delete/restore a batch to `__delete_staging` using companion utils
+- [pending] Processor: enforce decisions DB linkage in preflight (fail with clear error when missing)
+- [pending] Docs: Queue quickstart + analyzer usage (place in `Documents/guides/`)
+- [pending] Docs: Commit communication standard snippet in `Documents/README.md`
+- [pending] Dashboard: queue stats panel (pending/processing/completed/failed)
+- [pending] Dashboard: processing time trends and batches-per-session charts
+- [pending] Tool: audit of queue vs filesystem and DB (orphan/consistency report)

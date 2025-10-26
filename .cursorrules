@@ -63,6 +63,12 @@ Before writing ANY file operation code, verify:
 - Operations: 'move', 'delete', 'crop', 'copy', 'create'
 - This creates an audit trail for safety verification
 
+### **Rule #8: Single TODO List Policy**
+- Maintain ONE authoritative TODO document: `Documents/core/CURRENT_TODO_LIST.md`
+- Do NOT create separate TODO lists elsewhere (no duplicates in Documents/, scripts/, etc.)
+- If a sub-area needs grouping, add a section/header inside the single TODO doc (e.g., "AI Automation")
+- When consolidating, move remaining items into the single doc and delete the extra file
+
 ## 📋 Quick Reference
 
 **Safe patterns:**
