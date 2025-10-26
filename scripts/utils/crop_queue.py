@@ -47,28 +47,37 @@ class CropQueueManager:
         # File tracker for logging operations
         self.tracker = FileTracker("crop_queue_manager")
 
-    def _generate_batch_id(self) -> str:
-        """Generate unique batch ID with timestamp and sequence."""
+    def _generate_batch_id(self, f_locked) -> str:
+        """
+        Generate unique batch ID with timestamp and sequence.
+
+        Args:
+            f_locked: File handle with exclusive lock already held
+
+        Returns:
+            Unique batch ID
+        """
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
 
         # Find next sequence number for this timestamp
+        # Lock is already held by caller
         seq = 1
-        with open(self.queue_file, 'r') as f:
-            for line in f:
-                if line.strip():
-                    try:
-                        batch = json.loads(line)
-                        if batch.get('batch_id', '').startswith(timestamp):
-                            # Extract sequence number
-                            parts = batch['batch_id'].split('_')
-                            if len(parts) >= 3:
-                                try:
-                                    existing_seq = int(parts[-1])
-                                    seq = max(seq, existing_seq + 1)
-                                except ValueError:
-                                    pass
-                    except json.JSONDecodeError:
-                        pass
+        f_locked.seek(0)  # Reset to beginning
+        for line in f_locked:
+            if line.strip():
+                try:
+                    batch = json.loads(line)
+                    if batch.get('batch_id', '').startswith(timestamp):
+                        # Extract sequence number
+                        parts = batch['batch_id'].split('_')
+                        if len(parts) >= 3:
+                            try:
+                                existing_seq = int(parts[-1])
+                                seq = max(seq, existing_seq + 1)
+                            except ValueError:
+                                pass
+                except json.JSONDecodeError:
+                    pass
 
         return f"{timestamp}_{seq:03d}"
 
@@ -93,25 +102,29 @@ class CropQueueManager:
         Returns:
             batch_id: Unique identifier for this batch
         """
-        batch_id = self._generate_batch_id()
-        timestamp = datetime.now(timezone.utc).isoformat()
-
-        batch = {
-            "batch_id": batch_id,
-            "timestamp_queued": timestamp,
-            "session_id": session_id,
-            "project_id": project_id,
-            "crops": crops,
-            "status": "pending",
-            "timestamp_processed": None,
-            "processing_time_ms": None,
-            "error": None
-        }
-
-        # Append to queue file (thread-safe)
-        with open(self.queue_file, 'a') as f:
+        # Open file with exclusive lock for ID generation AND append
+        # This prevents race conditions in ID generation
+        with open(self.queue_file, 'a+') as f:  # a+ allows reading too
             fcntl.flock(f.fileno(), fcntl.LOCK_EX)
             try:
+                # Generate unique ID while holding lock
+                batch_id = self._generate_batch_id(f)
+                timestamp = datetime.now(timezone.utc).isoformat()
+
+                batch = {
+                    "batch_id": batch_id,
+                    "timestamp_queued": timestamp,
+                    "session_id": session_id,
+                    "project_id": project_id,
+                    "crops": crops,
+                    "status": "pending",
+                    "timestamp_processed": None,
+                    "processing_time_ms": None,
+                    "error": None
+                }
+
+                # Append to queue file (still holding lock)
+                f.seek(0, 2)  # Seek to end for append
                 f.write(json.dumps(batch) + '\n')
                 f.flush()
             finally:
@@ -122,7 +135,7 @@ class CropQueueManager:
             "create",
             dest_dir=str(self.queue_file.parent),
             file_count=len(crops),
-            metadata=f"batch_id={batch_id}, project={project_id}"
+            notes=f"batch_id={batch_id}, project={project_id}"
         )
 
         return batch_id

@@ -186,7 +186,7 @@ class CropQueueProcessor:
                     source_dir=str(source_path.parent),
                     dest_dir=str(dest_directory),
                     file_count=len(moved_files),
-                    metadata=f"batch={batch_id}, crop={crop_rect}"
+                    notes=f"batch={batch_id}, crop={crop_rect}"
                 )
 
             # Calculate processing time
@@ -231,6 +231,15 @@ class CropQueueProcessor:
         print(f"PREFLIGHT VALIDATION")
         print(f"{'='*80}\n")
 
+        # Define allowed safe zones (strict whitelist)
+        allowed_safe_zones = {
+            '__cropped',
+            '__crop_queued',
+            'data/ai_data',
+            '__final',
+            '__temp'
+        }
+
         for batch in batches:
             batch_id = batch['batch_id']
             crops = batch['crops']
@@ -239,6 +248,7 @@ class CropQueueProcessor:
                 source_path = Path(crop['source_path'])
                 dest_directory = Path(crop['dest_directory'])
                 crop_rect = crop.get('crop_rect', [])
+                crop_rect_normalized = crop.get('crop_rect_normalized', [])
 
                 # Check source file exists
                 if not source_path.exists():
@@ -250,7 +260,7 @@ class CropQueueProcessor:
                     errors.append(f"[{batch_id}] Source is not a file: {source_path}")
                     continue
 
-                # Validate crop coordinates
+                # Validate crop coordinates (pixel)
                 if len(crop_rect) != 4:
                     errors.append(f"[{batch_id}] Invalid crop coordinates: {crop_rect}")
                     continue
@@ -258,6 +268,43 @@ class CropQueueProcessor:
                 x1, y1, x2, y2 = crop_rect
                 if x1 >= x2 or y1 >= y2:
                     errors.append(f"[{batch_id}] Invalid crop dimensions: {crop_rect}")
+                    continue
+
+                if x1 < 0 or y1 < 0:
+                    errors.append(f"[{batch_id}] Negative crop coordinates: {crop_rect}")
+                    continue
+
+                # Validate normalized coordinates (DB consistency check)
+                if crop_rect_normalized:
+                    if len(crop_rect_normalized) != 4:
+                        errors.append(f"[{batch_id}] Invalid normalized coordinates: {crop_rect_normalized}")
+                        continue
+
+                    nx1, ny1, nx2, ny2 = crop_rect_normalized
+                    # All values must be in [0, 1] range
+                    if not all(0 <= v <= 1 for v in [nx1, ny1, nx2, ny2]):
+                        errors.append(f"[{batch_id}] Normalized coords out of range [0,1]: {crop_rect_normalized}")
+                        continue
+
+                    # nx1 < nx2 and ny1 < ny2
+                    if nx1 >= nx2 or ny1 >= ny2:
+                        errors.append(f"[{batch_id}] Invalid normalized dimensions: {crop_rect_normalized}")
+                        continue
+
+                # Validate crop coordinates are within image bounds
+                try:
+                    from PIL import Image
+                    with Image.open(source_path) as img:
+                        img_width, img_height = img.size
+
+                        if x2 > img_width or y2 > img_height:
+                            errors.append(
+                                f"[{batch_id}] Crop {crop_rect} exceeds image dimensions "
+                                f"({img_width}x{img_height}) for {source_path.name}"
+                            )
+                except Exception as e:
+                    errors.append(f"[{batch_id}] Cannot read image {source_path}: {e}")
+                    continue
 
                 # Check destination directory
                 if not dest_directory.exists():
@@ -270,9 +317,14 @@ class CropQueueProcessor:
                 if dest_file.exists():
                     warnings.append(f"[{batch_id}] Will overwrite existing file: {dest_file}")
 
-                # Validate safe zone (destination should be in __cropped or similar)
-                if not any(part.startswith('__') or part.startswith('data/') for part in dest_directory.parts):
-                    warnings.append(f"[{batch_id}] Destination outside typical safe zones: {dest_directory}")
+                # Strict safe-zone validation (must match allowed zones)
+                dest_str = str(dest_directory)
+                is_safe = any(safe_zone in dest_str for safe_zone in allowed_safe_zones)
+                if not is_safe:
+                    errors.append(
+                        f"[{batch_id}] Destination outside allowed safe zones: {dest_directory}\n"
+                        f"              Allowed zones: {', '.join(allowed_safe_zones)}"
+                    )
 
         # Print summary
         print(f"Validated {sum(len(b['crops']) for b in batches)} crop operations across {len(batches)} batches\n")

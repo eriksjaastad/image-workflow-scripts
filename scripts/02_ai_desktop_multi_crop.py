@@ -320,7 +320,7 @@ class AIMultiCropTool(MultiCropTool):
                             "move",
                             dest_dir=str(queued_dir),
                             file_count=total_moved,
-                            metadata=f"batch={batch_id}, queued_for_processing"
+                            notes=f"batch={batch_id}, queued_for_processing"
                         )
                 except Exception as e:
                     print(f"[Queue] Warning: file movement error: {e}")
