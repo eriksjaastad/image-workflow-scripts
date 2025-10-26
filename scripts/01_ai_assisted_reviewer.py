@@ -104,7 +104,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 
 # SQLite v3 Training Data (NEW!)
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -596,14 +596,20 @@ def delete_group_images(group: ImageGroup, delete_staging_dir: Path, tracker: Fi
 def perform_file_operations(group: ImageGroup, action: str, selected_index: Optional[int],
                             crop_coords: Optional[Tuple[float, float, float, float]],
                             tracker: FileTracker, selected_dir: Path, crop_dir: Path, 
-                            delete_staging_dir: Path, project_id: str = "unknown") -> str:
+                            delete_staging_dir: Path, project_id: str = "unknown") -> Dict[str, any]:
     """
     Execute file operations based on user decision.
     
     Args:
         project_id: Project identifier (e.g., 'mojo1', 'mojo3') for training data
     
-    Returns: Summary message of what was done
+    Returns: Structured result dict with counts and summary message
+        {
+          "moved_selected": int,  # 1 if selected image moved to selected/
+          "moved_crop": int,      # 1 if selected image moved to crop/
+          "deleted_images": int,  # number of images moved to delete staging
+          "message": str
+        }
     """
     if action == "reject":
         # Delete all images in group - move to delete_staging
@@ -623,7 +629,12 @@ def perform_file_operations(group: ImageGroup, action: str, selected_index: Opti
             f"Rejected group {group.group_id}",
             [img.name for img in group.images[:5]]
         )
-        return f"Rejected: {moved_count} images moved to delete staging"
+        return {
+            "moved_selected": 0,
+            "moved_crop": 0,
+            "deleted_images": moved_count,
+            "message": f"Rejected: {moved_count} images moved to delete staging"
+        }
     
     if action == "reject_single":
         # Delete just one image - move to delete_staging
@@ -641,9 +652,19 @@ def perform_file_operations(group: ImageGroup, action: str, selected_index: Opti
                 f"Rejected single image from group {group.group_id}",
                 [selected_image.name]
             )
-            return f"Rejected: {selected_image.name} moved to delete staging"
+            return {
+                "moved_selected": 0,
+                "moved_crop": 0,
+                "deleted_images": 1,
+                "message": f"Rejected: {selected_image.name} moved to delete staging"
+            }
         except Exception as e:
-            return f"Error: {e}"
+            return {
+                "moved_selected": 0,
+                "moved_crop": 0,
+                "deleted_images": 0,
+                "message": f"Error: {e}"
+            }
     
     if selected_index is None:
         return "Error: No image selected"
@@ -725,11 +746,21 @@ def perform_file_operations(group: ImageGroup, action: str, selected_index: Opti
             f"Selected image from group {group.group_id}",
             [selected_image.name]
         )
-        
-        return f"Moved {selected_image.name} to {dest_label}, {len(other_images)} to delete staging"
+        result = {
+            "moved_selected": 1 if dest_dir == selected_dir else 0,
+            "moved_crop": 1 if dest_dir == crop_dir else 0,
+            "deleted_images": len(other_images),
+            "message": f"Moved {selected_image.name} to {dest_label}, {len(other_images)} to delete staging"
+        }
+        return result
         
     except Exception as e:
-        return f"Error during file operations: {e}"
+        return {
+            "moved_selected": 0,
+            "moved_crop": 0,
+            "deleted_images": 0,
+            "message": f"Error during file operations: {e}"
+        }
 
 
 def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker, 
@@ -768,6 +799,14 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
     app.config["CROP_DIR"] = crop_dir
     app.config["DELETE_STAGING_DIR"] = delete_staging_dir
     app.config["PROJECT_ID"] = get_current_project_id()  # Read from project manifest!
+    # Configure log archives directory for batch JSON logger
+    try:
+        project_root = find_project_root(base_dir)
+    except Exception:
+        project_root = Path(__file__).parent.parent
+    log_archives_dir = project_root / "data" / "log_archives"
+    log_archives_dir.mkdir(parents=True, exist_ok=True)
+    app.config["LOG_ARCHIVES_DIR"] = log_archives_dir
     
     # Initialize SQLite database for training data (NEW v3!)
     project_id = app.config["PROJECT_ID"]
@@ -1693,6 +1732,7 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             kept_count = 0
             crop_count = 0
             deleted_count = 0
+            per_group_results: Dict[str, Dict[str, Any]] = {}
             
             for idx, selection in enumerate(selections):
                 group_id = selection.get("groupId")
@@ -1779,21 +1819,18 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
                 
                 # Perform file operations
                 try:
-                    perform_file_operations(
+                    ops_result = perform_file_operations(
                         group, "manual_crop" if crop else "approve", selected_idx, None,
                         tracker, selected_dir, crop_dir, delete_staging_dir, project_id
                     )
-                    kept_count += 1
-                    if crop:
-                        crop_count += 1
+                    # Accumulate exact counts
+                    kept_count += int(ops_result.get("moved_selected", 0)) + int(ops_result.get("moved_crop", 0))
+                    crop_count += int(ops_result.get("moved_crop", 0))
+                    deleted_count += int(ops_result.get("deleted_images", 0))
+                    per_group_results[group_id] = ops_result
                 except Exception as e:
                     print(f"Error processing group {group_id}: {e}")
                     continue
-            
-            # Calculate deleted (rough estimate: groups not in selections)
-            total_images = sum(len(g.images) for g in groups)
-            selected_images = kept_count
-            deleted_count = total_images - selected_images
             
             # Handle unselected groups (ALL images go to delete_staging)
             selected_group_ids = [s.get("groupId") for s in selections]
@@ -1816,6 +1853,26 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             # Update batch info
             batch_info = app.config.get("BATCH_INFO", {})
             batch_info["current_batch_size"] = len(remaining_groups)
+            
+            # Lightweight JSON line logger to data/log_archives/
+            try:
+                logs_dir: Path = app.config.get("LOG_ARCHIVES_DIR")
+                if logs_dir:
+                    log_path = logs_dir / "reviewer_batch_summaries.jsonl"
+                    summary_record = {
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "project_id": project_id,
+                        "batch_number": batch_number,
+                        "kept": kept_count,
+                        "crop": crop_count,
+                        "deleted": deleted_count,
+                        "selected_group_ids": selected_group_ids,
+                        "unselected_group_ids": [g.group_id for g in unselected_groups],
+                    }
+                    with open(log_path, 'a') as f:
+                        f.write(json.dumps(summary_record) + "\n")
+            except Exception as e:
+                print(f"[!] Failed to write batch summary log: {e}")
             
             message = f"Batch processed — kept {kept_count}, sent {crop_count} to crop/, deleted {deleted_count}."
             return jsonify({
@@ -1877,24 +1934,24 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             delete_staging_dir = app.config["DELETE_STAGING_DIR"]
             project_id = app.config.get("PROJECT_ID", "unknown")
             
-            file_ops_msg = perform_file_operations(
+            file_ops_result = perform_file_operations(
                 group, action, selected_index, None,  # crop_coords=None for now
                 tracker, selected_dir, crop_dir, delete_staging_dir, project_id
             )
             
             # Build response message
             if action == "approve":
-                msg = f"✓ Approved: {group.images[selected_index].name}\n{file_ops_msg}"
+                msg = f"✓ Approved: {group.images[selected_index].name}\n{file_ops_result.get('message', '')}"
             elif action == "override":
-                msg = f"⚡ Override: Selected {group.images[selected_index].name}\n{file_ops_msg}"
+                msg = f"⚡ Override: Selected {group.images[selected_index].name}\n{file_ops_result.get('message', '')}"
             elif action == "manual_crop":
-                msg = f"✂️ Manual crop: {group.images[selected_index].name}\n{file_ops_msg}"
+                msg = f"✂️ Manual crop: {group.images[selected_index].name}\n{file_ops_result.get('message', '')}"
             elif action == "reject":
-                msg = f"✗ Rejected all images\n{file_ops_msg}"
+                msg = f"✗ Rejected all images\n{file_ops_result.get('message', '')}"
             elif action == "reject_single":
-                msg = f"✗ Rejected: {group.images[selected_index].name}\n{file_ops_msg}"
+                msg = f"✗ Rejected: {group.images[selected_index].name}\n{file_ops_result.get('message', '')}"
             else:
-                msg = f"Decision recorded\n{file_ops_msg}"
+                msg = f"Decision recorded\n{file_ops_result.get('message', '')}"
             
             return jsonify({"status": "ok", "message": msg})
             
