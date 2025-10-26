@@ -26,6 +26,7 @@ sys.path.insert(0, str(project_root))
 from scripts.dashboard.data_engine import DashboardDataEngine
 from scripts.dashboard.project_metrics_aggregator import ProjectMetricsAggregator
 from scripts.dashboard.timesheet_parser import TimesheetParser
+from scripts.dashboard.queue_reader import QueueDataReader
 
 
 # Centralized tool order - used across ALL charts, tables, and toggles
@@ -49,14 +50,15 @@ class DashboardAnalytics:
         # Timesheet is in project_root/data/timesheet.csv
         timesheet_path = self.data_dir / "data" / "timesheet.csv"
         self.timesheet_parser = TimesheetParser(timesheet_path)
+        self.queue_reader = QueueDataReader(data_dir)
         print(f"[INIT DEBUG] Analytics data_dir: {self.data_dir}")
         print(f"[INIT DEBUG] Timesheet path: {timesheet_path}")
-        
+
         # PERFORMANCE FIX: Cache file operations to avoid reloading 19+ times
         self._cached_file_ops = None
         self._cached_file_ops_for_daily = None
         self._cache_timestamp = None
-        
+
         # Track timesheet modification time for cache invalidation
         self._timesheet_mtime = None
     
@@ -169,12 +171,18 @@ class DashboardAnalytics:
         response["billed_vs_actual_timeseries"] = self._build_billed_vs_actual_timeseries(timesheet_data, project_metrics)
         step_time = time.time() - step_start
         print(f"[TIMING] ✓ _build_billed_vs_actual: {step_time:.3f}s")
-        
+
+        # Add queue stats
+        step_start = time.time()
+        response["queue_stats"] = self._build_queue_stats(lookback_days)
+        step_time = time.time() - step_start
+        print(f"[TIMING] ✓ _build_queue_stats: {step_time:.3f}s")
+
         overall_time = time.time() - overall_start
         print(f"\n{'='*70}")
         print(f"[TIMING] TOTAL DASHBOARD RESPONSE TIME: {overall_time:.3f}s")
         print(f"{'='*70}\n")
-        
+
         return response
     
     def _build_projects_list(self, raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -1307,6 +1315,84 @@ class DashboardAnalytics:
             print(f"[TIMESHEET ERROR] Traceback: {traceback.format_exc()}")
             return {"projects": [], "totals": {"total_hours": 0, "total_projects": 0}}
 
+    def _build_queue_stats(self, lookback_days: int) -> Dict[str, Any]:
+        """
+        Build queue statistics for dashboard.
+
+        Returns:
+            Dict with queue status, trends, and session stats
+        """
+        try:
+            # Get comprehensive stats
+            summary = self.queue_reader.get_summary_stats(lookback_days)
+
+            # Get time-series data for charts
+            throughput_by_day = self.queue_reader.get_throughput_by_day(lookback_days)
+            sessions = self.queue_reader.get_batches_per_session(lookback_days)
+
+            # Format for dashboard charts
+            # Throughput trend (crops per day)
+            throughput_labels = sorted(throughput_by_day.keys())
+            throughput_data = [throughput_by_day[date]['crops'] for date in throughput_labels]
+
+            # Batches per session
+            session_labels = [s['session_start'][:10] for s in sessions]  # Date only
+            session_batch_counts = [s['batch_count'] for s in sessions]
+            session_crop_counts = [s['total_crops'] for s in sessions]
+
+            return {
+                'status': summary['queue_status'],
+                'session_stats': summary['session_stats'],
+                'throughput': summary['throughput'],
+                'charts': {
+                    'throughput_trend': {
+                        'labels': throughput_labels,
+                        'datasets': [{
+                            'label': 'Crops Processed',
+                            'data': throughput_data,
+                            'borderColor': 'rgb(75, 192, 192)',
+                            'backgroundColor': 'rgba(75, 192, 192, 0.2)',
+                            'tension': 0.1
+                        }]
+                    },
+                    'batches_per_session': {
+                        'labels': session_labels,
+                        'datasets': [
+                            {
+                                'label': 'Batches',
+                                'data': session_batch_counts,
+                                'borderColor': 'rgb(54, 162, 235)',
+                                'backgroundColor': 'rgba(54, 162, 235, 0.2)',
+                                'tension': 0.1,
+                                'yAxisID': 'y'
+                            },
+                            {
+                                'label': 'Total Crops',
+                                'data': session_crop_counts,
+                                'borderColor': 'rgb(255, 99, 132)',
+                                'backgroundColor': 'rgba(255, 99, 132, 0.2)',
+                                'tension': 0.1,
+                                'yAxisID': 'y1'
+                            }
+                        ]
+                    }
+                }
+            }
+
+        except Exception as e:
+            print(f"[QUEUE STATS ERROR] Failed to build queue stats: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'status': {'pending': 0, 'processing': 0, 'completed': 0, 'failed': 0, 'total_crops': 0},
+                'session_stats': {'total_sessions': 0, 'avg_batches_per_session': 0, 'avg_crops_per_session': 0},
+                'throughput': {'total_crops_processed': 0, 'total_batches_processed': 0, 'days_with_activity': 0, 'avg_crops_per_day': 0, 'avg_batches_per_day': 0},
+                'charts': {
+                    'throughput_trend': {'labels': [], 'datasets': []},
+                    'batches_per_session': {'labels': [], 'datasets': []}
+                }
+            }
+
 
 def main():
     """Test the analytics engine."""
@@ -1335,7 +1421,8 @@ def main():
     
     # Save sample output
     import json
-    output_file = project_root / "dashboard_analytics_sample.json"
+    output_file = project_root / "data" / "dashboard_cache" / "dashboard_analytics_sample.json"
+    output_file.parent.mkdir(parents=True, exist_ok=True)
     with open(output_file, 'w') as f:
         json.dump(data, f, indent=2, default=str)
     print(f"\n💾 Sample output saved to: {output_file}")

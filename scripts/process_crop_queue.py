@@ -317,13 +317,95 @@ class CropQueueProcessor:
                 if dest_file.exists():
                     warnings.append(f"[{batch_id}] Will overwrite existing file: {dest_file}")
 
-                # Strict safe-zone validation (must match allowed zones)
-                dest_str = str(dest_directory)
-                is_safe = any(safe_zone in dest_str for safe_zone in allowed_safe_zones)
+                # Strict safe-zone validation (check Path.parts to avoid false positives)
+                dest_parts = dest_directory.parts
+                is_safe = False
+
+                for safe_zone in allowed_safe_zones:
+                    # Split safe_zone into parts (e.g., 'data/ai_data' -> ['data', 'ai_data'])
+                    safe_parts = safe_zone.split('/')
+
+                    # Check if safe_parts appear consecutively in dest_parts
+                    for i in range(len(dest_parts) - len(safe_parts) + 1):
+                        if dest_parts[i:i+len(safe_parts)] == tuple(safe_parts):
+                            is_safe = True
+                            break
+
+                    if is_safe:
+                        break
+
                 if not is_safe:
                     errors.append(
                         f"[{batch_id}] Destination outside allowed safe zones: {dest_directory}\n"
-                        f"              Allowed zones: {', '.join(allowed_safe_zones)}"
+                        f"              Allowed zones: {', '.join(allowed_safe_zones)}\n"
+                        f"              Path parts: {dest_parts}"
+                    )
+
+                # Validate decisions DB linkage (required for training data integrity)
+                decision_path = source_path.with_suffix('.decision')
+                if not decision_path.exists():
+                    errors.append(
+                        f"[{batch_id}] Missing .decision file for {source_path.name}\n"
+                        f"              Expected: {decision_path}\n"
+                        f"              Decisions DB linkage required for crop operations"
+                    )
+                    continue
+
+                # Read and validate decision file content
+                try:
+                    import json
+                    with open(decision_path, 'r') as f:
+                        decision_data = json.load(f)
+
+                    group_id = decision_data.get('group_id')
+                    if not group_id:
+                        errors.append(
+                            f"[{batch_id}] .decision file missing 'group_id' for {source_path.name}\n"
+                            f"              File: {decision_path}\n"
+                            f"              DB linkage incomplete"
+                        )
+                        continue
+
+                    # Verify DB record exists
+                    project_id = batch.get('project_id', decision_data.get('project_id'))
+                    if project_id:
+                        try:
+                            from utils.ai_training_decisions_v3 import init_decision_db
+                            import sqlite3
+
+                            db_path = init_decision_db(project_id)
+                            conn = sqlite3.connect(db_path)
+                            cursor = conn.cursor()
+                            cursor.execute("SELECT id FROM ai_decisions WHERE group_id = ?", (group_id,))
+                            db_record = cursor.fetchone()
+                            conn.close()
+
+                            if not db_record:
+                                errors.append(
+                                    f"[{batch_id}] No DB record found for group_id '{group_id}'\n"
+                                    f"              Source: {source_path.name}\n"
+                                    f"              Database: {db_path}\n"
+                                    f"              DB must be source of truth for crop operations"
+                                )
+                        except Exception as e:
+                            errors.append(
+                                f"[{batch_id}] Cannot verify DB record for {source_path.name}: {e}\n"
+                                f"              group_id: {group_id}, project_id: {project_id}"
+                            )
+                    else:
+                        warnings.append(
+                            f"[{batch_id}] No project_id found for DB verification: {source_path.name}"
+                        )
+
+                except json.JSONDecodeError as e:
+                    errors.append(
+                        f"[{batch_id}] Invalid JSON in .decision file: {decision_path}\n"
+                        f"              Error: {e}"
+                    )
+                except Exception as e:
+                    errors.append(
+                        f"[{batch_id}] Error reading .decision file: {decision_path}\n"
+                        f"              Error: {e}"
                     )
 
         # Print summary

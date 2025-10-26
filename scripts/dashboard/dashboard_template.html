@@ -373,7 +373,83 @@
                 </table>
             </div>
         </div>
-        
+
+        <!-- Queue Stats Section -->
+        <div class="chart-container" style="margin-top: 2rem;">
+            <div class="chart-header">
+                <div>
+                    <h3 class="chart-title">📦 Queue System Stats</h3>
+                    <p class="chart-subtitle">Crop queue status and processing trends</p>
+                </div>
+            </div>
+
+            <!-- Queue Status Cards -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-top: 1.5rem;">
+                <div style="background: var(--surface); padding: 1.5rem; border-radius: 8px; border-left: 4px solid #fbbf24;">
+                    <div style="font-size: 2rem; font-weight: 700; color: #fbbf24;" id="queue-pending-count">-</div>
+                    <div style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem;">Pending Batches</div>
+                </div>
+                <div style="background: var(--surface); padding: 1.5rem; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                    <div style="font-size: 2rem; font-weight: 700; color: #3b82f6;" id="queue-processing-count">-</div>
+                    <div style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem;">Processing</div>
+                </div>
+                <div style="background: var(--surface); padding: 1.5rem; border-radius: 8px; border-left: 4px solid #10b981;">
+                    <div style="font-size: 2rem; font-weight: 700; color: #10b981;" id="queue-completed-count">-</div>
+                    <div style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem;">Completed</div>
+                </div>
+                <div style="background: var(--surface); padding: 1.5rem; border-radius: 8px; border-left: 4px solid #ef4444;">
+                    <div style="font-size: 2rem; font-weight: 700; color: #ef4444;" id="queue-failed-count">-</div>
+                    <div style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem;">Failed</div>
+                </div>
+                <div style="background: var(--surface); padding: 1.5rem; border-radius: 8px; border-left: 4px solid var(--accent);">
+                    <div style="font-size: 2rem; font-weight: 700; color: var(--accent);" id="queue-total-crops">-</div>
+                    <div style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem;">Total Crops</div>
+                </div>
+            </div>
+
+            <!-- Session Stats -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1.5rem;">
+                <div style="background: var(--surface); padding: 1rem; border-radius: 8px;">
+                    <div style="color: var(--text-secondary); font-size: 0.85rem;">Total Sessions</div>
+                    <div style="font-size: 1.5rem; font-weight: 600; color: var(--text-primary); margin-top: 0.25rem;" id="queue-total-sessions">-</div>
+                </div>
+                <div style="background: var(--surface); padding: 1rem; border-radius: 8px;">
+                    <div style="color: var(--text-secondary); font-size: 0.85rem;">Avg Batches/Session</div>
+                    <div style="font-size: 1.5rem; font-weight: 600; color: var(--text-primary); margin-top: 0.25rem;" id="queue-avg-batches">-</div>
+                </div>
+                <div style="background: var(--surface); padding: 1rem; border-radius: 8px;">
+                    <div style="color: var(--text-secondary); font-size: 0.85rem;">Avg Crops/Session</div>
+                    <div style="font-size: 1.5rem; font-weight: 600; color: var(--text-primary); margin-top: 0.25rem;" id="queue-avg-crops">-</div>
+                </div>
+                <div style="background: var(--surface); padding: 1rem; border-radius: 8px;">
+                    <div style="color: var(--text-secondary); font-size: 0.85rem;">Avg Crops/Day</div>
+                    <div style="font-size: 1.5rem; font-weight: 600; color: var(--text-primary); margin-top: 0.25rem;" id="queue-avg-crops-day">-</div>
+                </div>
+            </div>
+
+            <!-- Throughput Trend Chart -->
+            <div style="margin-top: 2rem;">
+                <h4 style="color: var(--text-primary); margin-bottom: 1rem;">Crops Processed Per Day</h4>
+                <div class="chart-canvas" style="position: relative;">
+                    <canvas id="queue-throughput-chart"></canvas>
+                    <div class="loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--text-muted);">
+                        Loading queue data...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Batches Per Session Chart -->
+            <div style="margin-top: 2rem;">
+                <h4 style="color: var(--text-primary); margin-bottom: 1rem;">Batches & Crops Per Session</h4>
+                <div class="chart-canvas" style="position: relative;">
+                    <canvas id="queue-session-chart"></canvas>
+                    <div class="loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--text-muted);">
+                        Loading session data...
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Timesheet Billing Efficiency Chart -->
         <div class="chart-container" style="margin-top: 2rem;">
             <div class="chart-header">
@@ -1542,8 +1618,117 @@
                 console.warn('No by_operation data available');
                 showChartError('operations-by-type-chart', 'No operation data available');
             }
+
+            // Render queue stats
+            if (data.queue_stats) {
+                renderQueueStats(data.queue_stats);
+            }
         }
-        
+
+        function renderQueueStats(queueStats) {
+            // Update status cards
+            document.getElementById('queue-pending-count').textContent = queueStats.status.pending || 0;
+            document.getElementById('queue-processing-count').textContent = queueStats.status.processing || 0;
+            document.getElementById('queue-completed-count').textContent = queueStats.status.completed || 0;
+            document.getElementById('queue-failed-count').textContent = queueStats.status.failed || 0;
+            document.getElementById('queue-total-crops').textContent = queueStats.status.total_crops || 0;
+
+            // Update session stats
+            document.getElementById('queue-total-sessions').textContent = queueStats.session_stats.total_sessions || 0;
+            document.getElementById('queue-avg-batches').textContent = queueStats.session_stats.avg_batches_per_session || 0;
+            document.getElementById('queue-avg-crops').textContent = queueStats.session_stats.avg_crops_per_session || 0;
+            document.getElementById('queue-avg-crops-day').textContent = queueStats.throughput.avg_crops_per_day || 0;
+
+            // Render throughput trend chart
+            const throughputCtx = document.getElementById('queue-throughput-chart');
+            if (throughputCtx && queueStats.charts.throughput_trend) {
+                if (window.queueThroughputChart) {
+                    window.queueThroughputChart.destroy();
+                }
+                window.queueThroughputChart = new Chart(throughputCtx, {
+                    type: 'line',
+                    data: queueStats.charts.throughput_trend,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                labels: { color: 'rgb(229, 231, 235)' }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { color: 'rgb(156, 163, 175)' },
+                                grid: { color: 'rgba(75, 85, 99, 0.2)' }
+                            },
+                            y: {
+                                ticks: { color: 'rgb(156, 163, 175)' },
+                                grid: { color: 'rgba(75, 85, 99, 0.2)' },
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Render session chart with dual y-axis
+            const sessionCtx = document.getElementById('queue-session-chart');
+            if (sessionCtx && queueStats.charts.batches_per_session) {
+                if (window.queueSessionChart) {
+                    window.queueSessionChart.destroy();
+                }
+                window.queueSessionChart = new Chart(sessionCtx, {
+                    type: 'line',
+                    data: queueStats.charts.batches_per_session,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        plugins: {
+                            legend: {
+                                display: true,
+                                labels: { color: 'rgb(229, 231, 235)' }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { color: 'rgb(156, 163, 175)' },
+                                grid: { color: 'rgba(75, 85, 99, 0.2)' }
+                            },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                ticks: { color: 'rgb(156, 163, 175)' },
+                                grid: { color: 'rgba(75, 85, 99, 0.2)' },
+                                title: {
+                                    display: true,
+                                    text: 'Batches',
+                                    color: 'rgb(156, 163, 175)'
+                                }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                ticks: { color: 'rgb(156, 163, 175)' },
+                                grid: { drawOnChartArea: false },
+                                title: {
+                                    display: true,
+                                    text: 'Total Crops',
+                                    color: 'rgb(156, 163, 175)'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
         function createChart(chartName, chartType, chartData) {
             
             // Map chart names to canvas IDs
