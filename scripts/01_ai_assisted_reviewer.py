@@ -773,6 +773,27 @@ def perform_file_operations(group: ImageGroup, action: str, selected_index: Opti
         }
 
 
+def detect_artifact(group: ImageGroup) -> Tuple[bool, List[str]]:
+    """Detect artifact conditions for a group.
+    Rules:
+      - Multi-directory: images span multiple parent directories
+      - Mismatched stems: base stem before '_stage' differs across images
+    Returns (is_artifact, reasons)
+    """
+    reasons: List[str] = []
+    parents = {str(p.parent) for p in group.images}
+    if len(parents) > 1:
+        reasons.append("multi_directory")
+    # Extract base stems by splitting before '_stage'
+    def base_stem(name: str) -> str:
+        parts = name.split('_stage')
+        return parts[0] if parts else Path(name).stem
+    stems = {base_stem(p.name) for p in group.images}
+    if len(stems) > 1:
+        reasons.append("mismatched_stems")
+    return (len(reasons) > 0, reasons)
+
+
 def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker, 
                selected_dir: Path, crop_dir: Path, delete_staging_dir: Path,
                ranker_model=None, crop_model=None, clip_info=None, batch_size: int = 20) -> Flask:
@@ -1748,6 +1769,7 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
                 group_id = selection.get("groupId")
                 selected_idx = selection.get("selectedImage")
                 crop = selection.get("crop", False)
+                ai_crop_accepted = selection.get("aiCropAccepted", False)
                 
                 # Find group
                 group = next((g for g in groups if g.group_id == group_id), None)
@@ -1779,7 +1801,8 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
                     except Exception as e:
                         print(f"Warning: Could not get AI recommendation for {group_id}: {e}")
                 
-                # Determine user action
+                # Determine user action (Phase 3: Two-Action Crop Flow - suggestion path only)
+                # If user accepts AI crop but does not request manual crop, we will route to crop_auto later via sidecar flag
                 user_action = "crop" if crop else "approve"
                 
                 # Generate unique group ID for database
@@ -1815,12 +1838,18 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
                         )
                         
                         # Create .decision sidecar file for Desktop Multi-Crop
-                        if crop:  # Only for images going to crop/
-                            decision_file = crop_dir / f"{selected_image.stem}.decision"
+                        # Create .decision sidecar for crop destinations
+                        if crop or ai_crop_accepted:
+                            # manual crop → crop/ ; AI crop suggestion → crop_auto/
+                            target_dir = crop_dir if crop else (app.config.get("CROP_AUTO_DIR") or (app.config["BASE_DIR"] / "__crop_auto"))
+                            Path(target_dir).mkdir(parents=True, exist_ok=True)
+                            decision_file = Path(target_dir) / f"{selected_image.stem}.decision"
                             decision_data = {
                                 "group_id": db_group_id,
                                 "project_id": project_id,
-                                "needs_crop": True
+                                "needs_crop": True,
+                                "ai_route": "suggestion" if ai_crop_accepted and ai_crop_coords else "manual",
+                                "ai_crop_coords": ai_crop_coords if (ai_crop_accepted and ai_crop_coords) else None
                             }
                             with open(decision_file, 'w') as f:
                                 json.dump(decision_data, f, indent=2)
@@ -1829,6 +1858,11 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
                 
                 # Perform file operations
                 try:
+                    # Artifact detection prior to file ops
+                    is_artifact, reasons = detect_artifact(group)
+                    if is_artifact:
+                        print(f"[ARTIFACT] Group {group_id}: {', '.join(reasons)}")
+                    # Include artifact flags in tracker notes via log_operation extra? We attach in JSONL below; avoid altering FileTracker schema.
                     ops_result = perform_file_operations(
                         group, "manual_crop" if crop else "approve", selected_idx, None,
                         tracker, selected_dir, crop_dir, delete_staging_dir, project_id
@@ -1878,6 +1912,13 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
                         "deleted": deleted_count,
                         "selected_group_ids": selected_group_ids,
                         "unselected_group_ids": [g.group_id for g in unselected_groups],
+                        # Include artifact candidates seen during this batch for quick visibility
+                        "artifact_candidates": [
+                            {
+                                "group_id": g.group_id,
+                                "reasons": detect_artifact(g)[1]
+                            } for g in groups if any(detect_artifact(g))
+                        ]
                     }
                     with open(log_path, 'a') as f:
                         f.write(json.dumps(summary_record) + "\n")

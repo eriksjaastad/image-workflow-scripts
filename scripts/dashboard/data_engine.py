@@ -1416,6 +1416,21 @@ class DashboardDataEngine:
                 }
 
         dashboard_data['timing_data'] = timing_by_display
+
+        # Compute artifact stats from operation events extra fields if present
+        try:
+            events = self.loader.load_operation_events(lookback_days)
+            artifact_count = 0
+            for evt in events:
+                extra = evt.get('extra') or {}
+                if extra.get('artifact'):
+                    artifact_count += 1
+            dashboard_data['artifact_stats'] = {
+                'artifact_events': artifact_count
+            }
+        except Exception:
+            # Best effort; do not break dashboard
+            dashboard_data['artifact_stats'] = {'artifact_events': 0}
         
         overall_time = time_module.time() - overall_start
         print(f"\n{'='*70}")
