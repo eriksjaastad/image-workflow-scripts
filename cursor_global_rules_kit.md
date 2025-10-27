@@ -132,7 +132,7 @@ data/raw/**
 .DS_Store
 ```
 
-> Put this file at your repo root. It keeps Cursor’s AI from wandering into logs/junk by default. You can temporarily comment out lines when you *do* want it to peek at something.
+> Put this file at your repo root. It keeps Cursor’s AI from wandering into logs/junk by default. You can temporarily comment out lines when you do want it to peek at something.
 
 ---
 
@@ -178,6 +178,12 @@ If it fails again, STOP and offer 2 options (Fast/Safe) with a default.
 ---
 
 ## Repository Hygiene Rules (Root Files + Commit Communication)
+
+### Branch Lifecycle Policy (hard rule)
+- Create short‑lived feature branches only when needed.
+- Open a PR early if review is required.
+- After merge to `main`, **delete the branch immediately** (both local and remote).
+- Do not keep stale branches. If work is shelved, capture notes in `Documents/` and delete the branch.
 
 ### Root-File Policy (block new files at repo root)
 - Do not add new files directly under the repository root.
