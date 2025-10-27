@@ -2,9 +2,9 @@
 Timesheet Parser - Reads and aggregates timesheet CSV data for dashboard
 """
 import csv
-from pathlib import Path
-from typing import Dict, List, Any
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict
 
 
 class TimesheetParser:
@@ -57,11 +57,11 @@ class TimesheetParser:
             # Check if first line looks like a header (contains "Date" or "Project")
             if 'Date' in first_line or 'Project' in first_line:
                 # Has headers - use DictReader normally
-                print(f"[TIMESHEET] Headers detected in CSV")
+                print("[TIMESHEET] Headers detected in CSV")
                 reader = csv.DictReader(f)
             else:
                 # Missing headers - add them manually
-                print(f"[TIMESHEET] No headers detected - adding manually")
+                print("[TIMESHEET] No headers detected - adding manually")
                 headers = ['Date', 'Start', 'End', 'Duration', 'Project', 'Hours', 'Starting Images', 'Final Images', 'Notes']
                 reader = csv.DictReader(f, fieldnames=headers)
             

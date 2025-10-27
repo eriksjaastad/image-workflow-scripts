@@ -3,14 +3,12 @@
 Crop Queue Manager - handles queuing and status tracking for batch crop operations.
 """
 
+import fcntl
 import json
-import time
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-import threading
-import fcntl
-import sys
+from typing import Dict, List, Optional
 
 # Add parent directory to path for imports
 _parent = Path(__file__).parent.parent

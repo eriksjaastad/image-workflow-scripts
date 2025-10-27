@@ -6,21 +6,18 @@ Shared utilities for handling companion files with wildcard logic.
 Any file with the same base name as an image will be considered a companion.
 """
 
-import os
-from pathlib import Path
-from typing import List, Dict, Tuple, Optional
-import re
-import time
-import webbrowser
-from io import BytesIO
-from functools import lru_cache
-import sys
-from datetime import datetime, timedelta
-from typing import Iterable
 import csv
 import json
+import os
+import re
+import sys
+import time
+import webbrowser
+from datetime import datetime, timedelta
 from functools import lru_cache
-
+from io import BytesIO
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Tuple
 
 try:
     from PIL import Image

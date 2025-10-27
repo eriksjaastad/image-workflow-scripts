@@ -12,9 +12,7 @@ This script:
 import json
 import subprocess
 import sys
-import unittest
 from pathlib import Path
-from datetime import datetime
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -40,7 +38,7 @@ def run_unit_tests_with_coverage():
     ])
     
     # Generate JSON data for our custom report
-    json_result = subprocess.run([
+    subprocess.run([
         sys.executable, "-m", "coverage", "json",
         "--output-file=scripts/tests/htmlcov/coverage.json"
     ], capture_output=True, text=True)
@@ -80,7 +78,7 @@ def run_selenium_tests():
             self.failures = []
             self.errors = []
     
-    result_obj = MockResult()
+    MockResult()
     
     # Parse results
     selenium_results = {

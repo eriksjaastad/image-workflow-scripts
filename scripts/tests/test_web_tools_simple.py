@@ -4,11 +4,11 @@ Simplified Web Tools Tests
 Tests basic functionality without complex browser automation
 """
 
-import sys
 import subprocess
-import tempfile
+import sys
 import time
 from pathlib import Path
+
 
 class SimpleWebToolsTest:
     def __init__(self):
@@ -209,7 +209,7 @@ class SimpleWebToolsTest:
                 self.results[test_name] = "ERROR"
         
         # Print summary
-        print(f"\n📊 SIMPLIFIED TEST SUMMARY")
+        print("\n📊 SIMPLIFIED TEST SUMMARY")
         print(f"{'='*50}")
         
         for test_name, result in self.results.items():

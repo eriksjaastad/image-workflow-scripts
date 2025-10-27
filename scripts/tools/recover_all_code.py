@@ -4,8 +4,8 @@ Complete Code & Docs Recovery from Backup
 Recovers all missing scripts and documentation
 """
 
-import subprocess
 import os
+import subprocess
 from pathlib import Path
 
 BACKUP = "backup/main-corrupted-20251025-144705"
@@ -80,10 +80,10 @@ for file_path in FILES:
     result = subprocess.run(cmd, shell=True, capture_output=True)
     
     if result.returncode == 0:
-        print(f"  ✓ Recovered")
+        print("  ✓ Recovered")
         recovered += 1
     else:
-        print(f"  ✗ FAILED")
+        print("  ✗ FAILED")
         failed.append(file_path)
 
 print("\n" + "="*80)

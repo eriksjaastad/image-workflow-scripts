@@ -6,14 +6,13 @@ Tests the cron job setup, scheduling, and execution to ensure the automated
 data consolidation system works correctly.
 """
 
-import unittest
-import tempfile
 import subprocess
-import json
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-from datetime import datetime, timedelta
 import sys
+import tempfile
+import unittest
+from datetime import datetime, timedelta
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 # Add the scripts directory to the path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -159,7 +158,6 @@ class TestCronJobSystem(unittest.TestCase):
 
     def test_date_calculation_for_cron_job(self):
         """Test that the date calculation for cron job is correct"""
-        from datetime import datetime, timedelta
         
         # Test the date calculation logic that would be used in cron job
         # This simulates what "date -d '2 days ago' +%Y%m%d" would return
@@ -241,7 +239,6 @@ class TestCronJobIntegration(unittest.TestCase):
     
     def test_complete_cron_job_workflow_simulation(self):
         """Test the complete cron job workflow simulation"""
-        from datetime import datetime, timedelta
         
         # Simulate the cron job workflow
         # 1. Calculate target date (2 days ago)
@@ -299,7 +296,7 @@ class TestCronJobIntegration(unittest.TestCase):
             
         except subprocess.TimeoutExpired:
             pass  # Timeout is expected for invalid arguments
-        except Exception as e:
+        except Exception:
             pass  # Exception is expected for invalid arguments
         finally:
             # Clean up

@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from data_engine import DashboardDataEngine
 
+
 def main():
     print("🧪 Testing Dashboard Data Engine...")
     print("=" * 50)
@@ -23,7 +24,7 @@ def main():
         print("📊 Generating dashboard data...")
         data = engine.generate_dashboard_data(time_slice='D', lookback_days=14)
         
-        print(f"\n✅ Data generated successfully!")
+        print("\n✅ Data generated successfully!")
         print(f"📈 Metadata: {data['metadata']}")
         
         # Show file operations by script
@@ -50,17 +51,17 @@ def main():
             for record in data['file_operations_data']['by_script']:
                 total_files += record['file_count'] or 0
         
-        print(f"\n🎯 Summary:")
+        print("\n🎯 Summary:")
         print(f"  📁 Total files processed: {total_files:,}")
         print(f"  📊 Time slice: {data['metadata']['time_slice']}")
         data_range = data['metadata'].get('data_range', {})
         if data_range.get('file_ops_start') and data_range.get('file_ops_end'):
             print(f"  📅 Date range: {data_range['file_ops_start']} to {data_range['file_ops_end']}")
         else:
-            print(f"  📅 Date range: Available")
+            print("  📅 Date range: Available")
         
-        print(f"\n🚀 Dashboard data engine is working perfectly!")
-        print(f"💡 Ready for Flask web interface (requires: pip install flask)")
+        print("\n🚀 Dashboard data engine is working perfectly!")
+        print("💡 Ready for Flask web interface (requires: pip install flask)")
         
     except Exception as e:
         print(f"❌ Error testing dashboard: {e}")

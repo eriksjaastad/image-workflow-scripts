@@ -13,13 +13,13 @@ Example:
     python scripts/import_historical_projects.py ~/Downloads/timesheet.csv --commit
 """
 
+import argparse
 import csv
 import json
 import sys
-from pathlib import Path
 from datetime import datetime, time
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-import argparse
 
 
 def parse_time(time_str: str) -> Optional[time]:
@@ -90,7 +90,7 @@ def parse_csv_to_projects(csv_path: Path) -> List[Dict]:
             date_str = row[0] if len(row) > 0 else ''
             start_time_str = row[1] if len(row) > 1 else ''
             end_time_str = row[2] if len(row) > 2 else ''
-            hours_str = row[3] if len(row) > 3 else ''
+            row[3] if len(row) > 3 else ''
             project_name = row[4] if len(row) > 4 else ''
             hours_num_str = row[5] if len(row) > 5 else ''
             initial_images_str = row[6] if len(row) > 6 else ''
@@ -280,7 +280,7 @@ def main():
     workspace_root = Path(__file__).parent.parent
     
     print(f"{'='*70}")
-    print(f"Import Historical Projects from Timesheet")
+    print("Import Historical Projects from Timesheet")
     print(f"{'='*70}")
     print(f"CSV file: {csv_path}")
     print(f"Mode: {'DRY RUN (preview only)' if dry_run else 'COMMIT (creating files)'}")
@@ -327,7 +327,7 @@ def main():
     print(f"   → {len(projects)} projects ready to import\n")
     
     # Show project summary
-    print(f"Projects Found:")
+    print("Projects Found:")
     print(f"{'-'*70}")
     for i, project in enumerate(projects, 1):
         project_id = sanitize_project_id(project['project_id'])
@@ -343,7 +343,7 @@ def main():
     print(f"{'-'*70}\n")
     
     # Create manifests
-    print(f"Creating Manifests:")
+    print("Creating Manifests:")
     print(f"{'-'*70}")
     
     success_count = 0
@@ -363,16 +363,16 @@ def main():
             error_count += 1
     
     print(f"{'-'*70}")
-    print(f"\n📊 Summary:")
+    print("\n📊 Summary:")
     print(f"   Total projects: {len(projects)}")
     print(f"   Created: {success_count}")
     print(f"   Skipped: {skip_count}")
     print(f"   Errors: {error_count}")
     
     if dry_run:
-        print(f"\n💡 This was a DRY RUN. To create manifests, run with --commit")
+        print("\n💡 This was a DRY RUN. To create manifests, run with --commit")
     else:
-        print(f"\n✅ Import complete!")
+        print("\n✅ Import complete!")
     
     return 0 if error_count == 0 else 1
 

@@ -24,10 +24,10 @@ Usage:
 
 import csv
 import shutil
-from pathlib import Path
-from PIL import Image
 from datetime import datetime
-import sys
+from pathlib import Path
+
+from PIL import Image
 
 # Paths
 WORKSPACE = Path(__file__).resolve().parents[2]
@@ -116,7 +116,7 @@ def backfill_dimensions(dry_run: bool = True, test_mode: bool = False, test_coun
         return
     
     print(f"\n{'='*70}")
-    print(f"BACKFILL SELECT_CROP_LOG.CSV DIMENSIONS")
+    print("BACKFILL SELECT_CROP_LOG.CSV DIMENSIONS")
     print(f"{'='*70}")
     print(f"Mode: {'DRY RUN' if dry_run else 'LIVE'} | {'TEST (' + str(test_count) + ' rows)' if test_mode else 'FULL'}")
     print(f"Log file: {CROP_LOG}")
@@ -124,7 +124,7 @@ def backfill_dimensions(dry_run: bool = True, test_mode: bool = False, test_coun
     print(f"Mojo2 dir: {MOJO2_DIR} {'✅' if MOJO2_DIR.exists() else '❌ NOT FOUND'}")
     
     # Read existing CSV
-    print(f"\n📖 Reading CSV...")
+    print("\n📖 Reading CSV...")
     with CROP_LOG.open('r') as f:
         reader = csv.DictReader(f)
         fieldnames = reader.fieldnames
@@ -148,7 +148,7 @@ def backfill_dimensions(dry_run: bool = True, test_mode: bool = False, test_coun
             try:
                 datetime.fromisoformat(timestamp.replace('Z', ''))
                 has_valid_timestamp = True
-            except:
+            except Exception:
                 pass
         
         # Check if dimensions are missing or zero
@@ -185,7 +185,7 @@ def backfill_dimensions(dry_run: bool = True, test_mode: bool = False, test_coun
         return
     
     # Process rows
-    print(f"\n🔍 Processing rows...")
+    print("\n🔍 Processing rows...")
     success_count = 0
     fail_count = 0
     project_counts = {"mojo1": 0, "mojo2": 0, "unknown": 0}
@@ -238,7 +238,7 @@ def backfill_dimensions(dry_run: bool = True, test_mode: bool = False, test_coun
         if idx <= 20:
             print(f"   ✅ Row {row_idx+2}: {filename} → {width}x{height} (from {project}/)")
     
-    print(f"\n📊 Summary:")
+    print("\n📊 Summary:")
     print(f"   ✅ Success: {success_count}")
     print(f"   ❌ Failed:  {fail_count}")
     print(f"   📁 Projects: mojo1={project_counts['mojo1']}, mojo2={project_counts['mojo2']}, unknown={project_counts['unknown']}")
@@ -270,7 +270,7 @@ def backfill_dimensions(dry_run: bool = True, test_mode: bool = False, test_coun
         
         # Verify temp file
         if not temp_path.exists():
-            print(f"❌ ERROR: Temp file not created!")
+            print("❌ ERROR: Temp file not created!")
             return
         
         temp_size = temp_path.stat().st_size
@@ -278,7 +278,7 @@ def backfill_dimensions(dry_run: bool = True, test_mode: bool = False, test_coun
         
         if not test_mode:
             # Replace original with temp
-            print(f"\n🔄 Replacing original with temp file...")
+            print("\n🔄 Replacing original with temp file...")
             temp_path.replace(CROP_LOG)
             print(f"   ✅ Done! {CROP_LOG.name} updated")
         else:

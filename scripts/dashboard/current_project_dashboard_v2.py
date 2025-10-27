@@ -34,24 +34,23 @@ Key Features:
 from __future__ import annotations
 
 import json
+import logging
+import sys
+import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-import sys
-from typing import Any, Dict, List, Optional, Tuple, Callable
-import threading
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from flask import Flask, jsonify, render_template_string
-import logging
 
 # Ensure project root is importable
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.dashboard.timesheet_parser import TimesheetParser
 from scripts.dashboard.data_engine import DashboardDataEngine
+from scripts.dashboard.timesheet_parser import TimesheetParser
 from scripts.utils.companion_file_utils import launch_browser
-
 
 DATA_DIR = PROJECT_ROOT / "data"
 PROJECTS_DIR = DATA_DIR / "projects"
@@ -484,7 +483,7 @@ def create_app() -> Flask:
 
     @app.route("/api/progress")
     def progress_api():
-        from datetime import datetime, timedelta
+        from datetime import datetime
         # Serve cached response if within 5 minutes and not forced
         force = False
         try:

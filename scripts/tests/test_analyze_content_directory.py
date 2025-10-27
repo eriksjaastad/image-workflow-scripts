@@ -1,6 +1,6 @@
-from pathlib import Path
-import tempfile
 import shutil
+import tempfile
+from pathlib import Path
 
 
 def test_analyze_helpers_smoke():

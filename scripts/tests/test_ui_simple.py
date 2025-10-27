@@ -4,11 +4,12 @@ Simple UI Tests - Check for basic UI integrity without browser automation
 Tests that the HTML/JS/CSS is well-formed and key functions are defined
 """
 
-import sys
 import re
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
+
 
 def test_javascript_syntax():
     """Test that the JavaScript in the HTML is syntactically valid"""
@@ -30,7 +31,7 @@ def test_javascript_syntax():
         
         # Get the HTML by running the script with a quick exit
         result = subprocess.run([
-            sys.executable, "-c", f"""
+            sys.executable, "-c", """
 import sys
 sys.path.insert(0, '.')
 # Simple test - just check that we can import basic modules
@@ -39,7 +40,7 @@ try:
     from pathlib import Path
     print("Basic imports work")
 except ImportError as e:
-    print(f"Import error: {{e}}")
+    print(f"Import error: {e}")
 """
         ], capture_output=True, text=True, cwd=Path.cwd())
         

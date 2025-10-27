@@ -16,7 +16,7 @@ import hashlib
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 def compute_sha256(path: Path, buf_size: int = 1024 * 1024) -> str:

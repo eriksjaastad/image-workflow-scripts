@@ -25,18 +25,18 @@ USAGE:
   python scripts/tools/similar_image_grouper.py selected/ selected_clustered --dry-run
 """
 
-import os, shutil, sys
-from pathlib import Path
-from PIL import Image, UnidentifiedImageError
-import numpy as np
-from tqdm import tqdm
-from sentence_transformers import SentenceTransformer
-import hdbscan
 import argparse
+import sys
+from pathlib import Path
+
+import hdbscan
+from PIL import Image, UnidentifiedImageError
+from sentence_transformers import SentenceTransformer
+from tqdm import tqdm
 
 # Import standardized companion file utilities
 sys.path.append(str(Path(__file__).parent.parent))
-from utils.companion_file_utils import find_all_companion_files, move_file_with_all_companions
+from utils.companion_file_utils import move_file_with_all_companions
 
 # --- Parse arguments ---
 parser = argparse.ArgumentParser(description='Group similar images using CLIP embeddings')
@@ -140,7 +140,7 @@ def main():
         singles = sizes.get(-1, 0)
         
         print(f"{'='*70}")
-        print(f"SUMMARY:")
+        print("SUMMARY:")
         print(f"  Total groups: {num_groups}")
         print(f"  Images in groups: {clustered}")
         print(f"  Singles: {singles}")
@@ -150,7 +150,7 @@ def main():
         print(f"📁 Target would be: {TARGET_PARENT.resolve()}")
         
     else:
-        print(f"\nMoving files to group directories...")
+        print("\nMoving files to group directories...")
         
         for lbl, members in groups.items():
             name = "singles" if lbl == -1 else f"group_{lbl:04d}"

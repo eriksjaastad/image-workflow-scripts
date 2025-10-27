@@ -5,9 +5,9 @@ Comprehensive Tests for BaseDesktopImageTool
 Tests the shared base class used by desktop tools (including multi crop tool)
 """
 
+import sys
 import unittest
 from pathlib import Path
-import sys
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -127,7 +127,7 @@ class TestBaseDesktopImageToolConcepts(unittest.TestCase):
     def test_directory_discovery_concepts(self):
         """Test directory discovery concepts"""
         # Multi crop tool can discover character subdirectories
-        root_dir = Path("/tmp/selected")
+        Path("/tmp/selected")
         
         # Expected subdirectories: kelly_mia/, astrid_kelly/, etc.
         # Each should be processed alphabetically

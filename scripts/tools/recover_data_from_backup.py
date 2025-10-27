@@ -8,7 +8,6 @@ that are legitimate data files (not venv files) and restores them to the working
 """
 
 import subprocess
-import os
 from pathlib import Path
 
 BACKUP_BRANCH = "backup/main-corrupted-20251025-144705"
@@ -47,7 +46,7 @@ def extract_file_from_branch(file_path, branch):
     code, stdout, stderr = run_command(cmd)
     
     if code == 0:
-        print(f"    ✓ Recovered")
+        print("    ✓ Recovered")
         return True
     else:
         print(f"    ✗ Failed: {stderr}")
@@ -62,7 +61,7 @@ def extract_directory_from_branch(dir_path, branch):
     code, stdout, stderr = run_command(cmd)
     
     if code != 0:
-        print(f"    ⚠ Directory not found in backup")
+        print("    ⚠ Directory not found in backup")
         return 0
     
     files = [f for f in stdout.strip().split('\n') if f]
@@ -95,7 +94,7 @@ def main():
         print(f"\n✗ ERROR: Backup branch not found: {BACKUP_BRANCH}")
         return 1
     
-    print(f"\n✓ Backup branch found")
+    print("\n✓ Backup branch found")
     
     # Recover individual files
     print("\n" + "-"*80)

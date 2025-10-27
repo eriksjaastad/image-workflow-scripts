@@ -12,16 +12,17 @@ Architecture: MLP regression model
 Loss: MSE (Mean Squared Error) on normalized coordinates
 """
 
+import csv
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
-import numpy as np
-import csv
-import json
-from pathlib import Path
-from typing import List, Dict, Tuple
-from dataclasses import dataclass
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 
@@ -173,7 +174,7 @@ def load_crop_training_data(log_file: Path, embeddings: Dict[str, np.ndarray]) -
                     crop_y2=crop_y2
                 ))
             
-            except (ValueError, KeyError) as e:
+            except (ValueError, KeyError):
                 skipped += 1
                 continue
     
@@ -291,7 +292,7 @@ def main():
                 'val_loss': val_loss,
             }, model_dir / "crop_proposer_v1.pt")
     
-    print(f"\n[*] Training complete!")
+    print("\n[*] Training complete!")
     print(f"[*] Best epoch: {best_epoch}")
     print(f"[*] Best val loss: {best_val_loss:.6f}")
     

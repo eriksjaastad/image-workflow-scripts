@@ -13,10 +13,10 @@ Contents per day:
 """
 
 import json
-from pathlib import Path
-from datetime import datetime, timezone, timedelta
 from collections import defaultdict
-from typing import Dict, Any, List
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List
 
 # Load config
 CONFIG_PATH = Path(__file__).resolve().parents[2] / "configs" / "metrics_config.json"

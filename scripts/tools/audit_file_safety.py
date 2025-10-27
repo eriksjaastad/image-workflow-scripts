@@ -132,19 +132,19 @@ def main():
                 print(f"   Line {line_num}: {description}")
                 print(f"      {line_content[:80]}...")
         
-        print(f"\n" + "=" * 70)
-        print(f"Summary:")
+        print("\n" + "=" * 70)
+        print("Summary:")
         print(f"  • Total files scanned: {total_files}")
         print(f"  • Files with issues: {files_with_issues}")
         print(f"  • Total issues found: {sum(len(issues) for issues in all_issues.values())}")
-        print(f"\n⚠️  Review these files to ensure they don't modify production files!")
+        print("\n⚠️  Review these files to ensure they don't modify production files!")
         print(f"✅ Safe zones: {', '.join(SAFE_DIRECTORIES)}")
     else:
-        print(f"✅ No issues found!")
+        print("✅ No issues found!")
         print(f"   • Scanned {total_files} files")
-        print(f"   • All file operations appear safe")
+        print("   • All file operations appear safe")
     
-    print(f"\n" + "=" * 70)
+    print("\n" + "=" * 70)
     
     # Return exit code
     return 1 if all_issues else 0

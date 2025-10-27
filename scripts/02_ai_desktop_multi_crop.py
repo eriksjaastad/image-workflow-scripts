@@ -72,7 +72,6 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import Optional
 
 try:
     from PIL import Image
@@ -82,9 +81,10 @@ except Exception:
 
 # Import the existing MultiCropTool and base behavior
 import sys
+
 sys.path.insert(0, str(Path(__file__).parent))
 import importlib.util as _il_util  # noqa: E402
-from importlib.machinery import SourceFileLoader as _SrcLoader  # noqa: E402
+
 from utils.companion_file_utils import move_file_with_all_companions  # noqa: E402
 
 _module_path = Path(__file__).parent / "02_desktop_multi_crop.py"
@@ -94,7 +94,10 @@ if _spec is None or _spec.loader is None:  # pragma: no cover
 _desktop_multi_crop = _il_util.module_from_spec(_spec)
 _spec.loader.exec_module(_desktop_multi_crop)  # type: ignore
 MultiCropTool = _desktop_multi_crop.MultiCropTool  # type: ignore
-from utils.ai_crop_utils import normalize_and_clamp_rect, decision_matches_image  # type: ignore  # noqa: E402
+from utils.ai_crop_utils import (  # type: ignore  # noqa: E402
+    decision_matches_image,
+    normalize_and_clamp_rect,
+)
 
 
 class AIMultiCropTool(MultiCropTool):
@@ -107,8 +110,8 @@ class AIMultiCropTool(MultiCropTool):
         self.queue_manager = None
 
         if self.queue_mode:
-            from utils.crop_queue import CropQueueManager
             from file_tracker import FileTracker
+            from utils.crop_queue import CropQueueManager
             # Queue manager defaults to safe zone (data/ai_data/crop_queue/)
             self.queue_manager = CropQueueManager()
             self.tracker = FileTracker("ai_desktop_multi_crop_queue")
@@ -136,7 +139,10 @@ class AIMultiCropTool(MultiCropTool):
 
             # Try to update decisions DB with final crop
             try:
-                from utils.ai_training_decisions_v3 import update_decision_with_crop, init_decision_db
+                from utils.ai_training_decisions_v3 import (
+                    init_decision_db,
+                    update_decision_with_crop,
+                )
 
                 # Look for .decision file to get group_id
                 decision_path = png_path.with_suffix('.decision')
@@ -280,11 +286,8 @@ class AIMultiCropTool(MultiCropTool):
                     crop_entry['index_in_batch'] = idx
 
                 # Get session/project info
-                try:
-                    session_id = getattr(self, 'session_id', f"crop_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
-                except Exception:
-                    from datetime import datetime
-                    session_id = f"crop_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                from datetime import datetime
+                session_id = getattr(self, 'session_id', f"crop_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
 
                 project_id = getattr(self, 'project_id', 'unknown')
 

@@ -11,11 +11,10 @@ record errors and load recent entries for UI banners.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Dict, Any, Optional
-
+from typing import Any, Dict, List, Optional
 
 LOG_DIR = Path("data") / "log_archives"
 LOG_DIR.mkdir(parents=True, exist_ok=True)

@@ -11,12 +11,12 @@ Session derivation rules:
 - Files processed = sum of file_count for file_operation events
 """
 
-import json
 import hashlib
-from pathlib import Path
-from datetime import datetime, timezone, timedelta
+import json
 from collections import defaultdict
-from typing import List, Dict, Any
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any, Dict, List
 
 # Load config
 CONFIG_PATH = Path(__file__).resolve().parents[2] / "configs" / "metrics_config.json"

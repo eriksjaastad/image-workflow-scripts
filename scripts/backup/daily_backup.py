@@ -24,11 +24,10 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 
 def copy_tree(src: Path, dst: Path, glob_pattern: str | None = None) -> Dict[str, Any]:

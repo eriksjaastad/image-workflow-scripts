@@ -10,11 +10,11 @@ Tests 00_start_project.py and 07_finish_project.py to ensure proper:
 """
 
 import json
+import sys
 import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
-import sys
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -280,7 +280,7 @@ class TestProjectEdgeCases(unittest.TestCase):
     def test_missing_required_directories(self):
         """Test behavior when project directories are missing"""
         # This would test directory creation logic
-        project_root = Path("/tmp/test-project")
+        Path("/tmp/test-project")
         required_dirs = ["selected", "crop"]
         
         # Verify we know what directories are required

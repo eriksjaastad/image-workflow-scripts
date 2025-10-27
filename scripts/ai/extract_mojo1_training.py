@@ -24,7 +24,7 @@ import re
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional
 
 # Project configuration
 RAW_DIR = Path("/Users/eriksjaastad/projects/Eros Mate/training data/mojo1")
@@ -295,7 +295,7 @@ def main():
     print("=" * 70)
     print("MOJO 1 TRAINING DATA EXTRACTION")
     print("=" * 70)
-    print(f"Project: Mojo 1 (Oct 1-11, 2025)")
+    print("Project: Mojo 1 (Oct 1-11, 2025)")
     print(f"Raw dir: {RAW_DIR}")
     print(f"Final dir: {FINAL_DIR}")
     print()
@@ -307,13 +307,13 @@ def main():
     winners = find_winners(raw_groups)
     
     # Step 3: Create selection training data
-    print(f"\n🧠 Creating selection training data...")
+    print("\n🧠 Creating selection training data...")
     selection_entries = create_selection_training_data(winners)
     print(f"   Created {len(selection_entries)} selection entries")
     print(f"   Anomalies (chose lower stage): {sum(1 for e in selection_entries if e['is_anomaly'])}")
     
     # Step 4: Create crop training data
-    print(f"\n✂️  Creating crop training data...")
+    print("\n✂️  Creating crop training data...")
     crop_entries = create_crop_training_data(winners)
     print(f"   Created {len(crop_entries)} crop entries")
     
@@ -328,7 +328,7 @@ def main():
     write_crop_log(crop_entries, crop_path)
     
     # Step 6: Generate report
-    print(f"\n📊 Generating extraction report...")
+    print("\n📊 Generating extraction report...")
     report = generate_report(raw_groups, winners, selection_entries, crop_entries)
     
     with report_path.open('w') as f:
@@ -344,7 +344,7 @@ def main():
     print(f"⚠️  Anomaly cases: {sum(1 for e in selection_entries if e['is_anomaly'])}")
     print(f"   ({sum(1 for e in selection_entries if e['is_anomaly'])/len(selection_entries)*100:.1f}% of selections)")
     print()
-    print(f"📁 Files created:")
+    print("📁 Files created:")
     print(f"   - {selection_path}")
     print(f"   - {crop_path}")
     print(f"   - {report_path}")

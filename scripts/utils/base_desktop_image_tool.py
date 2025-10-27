@@ -13,10 +13,11 @@ making maintenance easier.
 import sys
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, Optional, Tuple
 
 # Set matplotlib backend before importing pyplot
 import matplotlib
+
 matplotlib.rcParams['toolbar'] = 'None'
 
 try:
@@ -30,16 +31,16 @@ except Exception as e:
     backend_interactive = False
 
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
+import numpy as np
 from matplotlib.widgets import RectangleSelector
 from PIL import Image
-import numpy as np
-from send2trash import send2trash
+
 from utils.companion_file_utils import safe_delete_image_and_yaml
 
 # Add the project root to the path for importing
 sys.path.append(str(Path(__file__).parent.parent.parent))
 from scripts.file_tracker import FileTracker
+
 from utils.companion_file_utils import format_image_display_name
 
 
@@ -137,7 +138,7 @@ class BaseDesktopImageTool:
             self.fig.canvas.toolbar_visible = False
             if hasattr(self.fig.canvas, 'toolbar'):
                 self.fig.canvas.toolbar = None
-        except:
+        except Exception:
             pass
         
         # Center images with minimal margins and good spacing
@@ -198,7 +199,6 @@ class BaseDesktopImageTool:
 
     def _set_selector_extents_safely(self, image_idx: int, x1: int, x2: int, y1: int, y2: int):
         """Avoid ghost/stacked handles by toggling visibility/active during updates."""
-        import time
         t0 = time.perf_counter()
         
         if image_idx >= len(self.selectors) or not self.selectors[image_idx]:
@@ -367,7 +367,7 @@ class BaseDesktopImageTool:
         self.image_states[image_idx]['has_selection'] = True
         self.image_states[image_idx]['action'] = None
         
-        image_aspect_ratio = self.image_states[image_idx]['image_aspect_ratio']
+        self.image_states[image_idx]['image_aspect_ratio']
         # Update title to show selection status
         self.update_image_titles(self.image_states)
         # PERFORMANCE: Use draw_idle() for non-blocking updates
@@ -376,7 +376,7 @@ class BaseDesktopImageTool:
     def crop_and_save(self, image_info: Dict, crop_coords: Tuple[int, int, int, int]):
         """Crop image and save over the original file in place."""
         png_path = image_info['path']
-        yaml_path = png_path.with_suffix('.yaml')
+        png_path.with_suffix('.yaml')
         
         x1, y1, x2, y2 = crop_coords
         

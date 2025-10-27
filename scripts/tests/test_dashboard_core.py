@@ -1,7 +1,10 @@
-import types
 from pathlib import Path
 
-from scripts.dashboard.current_project_dashboard_v2 import _parse_iso, classify_operation_phase, compute_phase_hours
+from scripts.dashboard.current_project_dashboard_v2 import (
+    _parse_iso,
+    classify_operation_phase,
+    compute_phase_hours,
+)
 
 
 def test_parse_iso_naive_utc():

@@ -28,7 +28,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 CREATION_LINK_PATTERNS = [
     re.compile(r"https?://github\.com/[^\s]*/pull/new/", re.I),
     re.compile(r"https?://github\.com/[^\s]*/compare/[^\s]*\?expand=1", re.I),

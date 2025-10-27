@@ -11,10 +11,11 @@ Usage:
 """
 
 import json
-import sys
-from pathlib import Path
-from collections import defaultdict
 import re
+import sys
+from collections import defaultdict
+from pathlib import Path
+
 
 def analyze_directory(content_dir):
     """Analyze directory structure and create test manifest"""
@@ -143,12 +144,12 @@ if __name__ == "__main__":
         manifest = analyze_directory(content_dir)
         
         # Print summary to stderr
-        print(f"\n📊 ANALYSIS SUMMARY:", file=sys.stderr)
+        print("\n📊 ANALYSIS SUMMARY:", file=sys.stderr)
         print(f"Total files: {manifest['total_files']}", file=sys.stderr)
         print(f"Total groups: {manifest['total_groups']}", file=sys.stderr)
         print(f"Stage distribution: {manifest['stage_distribution']}", file=sys.stderr)
         print(f"Group types: {manifest['group_types']}", file=sys.stderr)
-        print(f"\n✅ Test manifest generated successfully!", file=sys.stderr)
+        print("\n✅ Test manifest generated successfully!", file=sys.stderr)
         
         # Output JSON to stdout
         print(json.dumps(manifest, indent=2))

@@ -19,21 +19,21 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import os
 import shutil
-from pathlib import Path
-from typing import List
 
 # Ensure project root on sys.path when invoked directly
 import sys
+from pathlib import Path
+from typing import List
+
 _ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from scripts.utils.companion_file_utils import (
-    sort_image_files_by_timestamp_and_stage,
-    find_consecutive_stage_groups,
     find_all_companion_files,
+    find_consecutive_stage_groups,
+    sort_image_files_by_timestamp_and_stage,
 )
 
 
@@ -57,8 +57,8 @@ def _score_group_fast(group: List[Path], thumb_size: int = 128) -> float:
     Heuristic: compare top stage vs median of group using simple Tenengrad and clip fraction.
     """
     try:
-        from PIL import Image
         import numpy as np
+        from PIL import Image
     except Exception:
         return 0.0
     def metrics(p: Path) -> tuple:
@@ -74,7 +74,8 @@ def _score_group_fast(group: List[Path], thumb_size: int = 128) -> float:
                 def conv2(x, k):
                     w = sliding_window_view(x, k.shape)
                     return (w * k).sum(axis=(-1,-2))
-                gx = conv2(a, kx); gy = conv2(a, ky)
+                gx = conv2(a, kx)
+                gy = conv2(a, ky)
                 ten = (gx*gx + gy*gy).mean()
                 v = a.reshape(-1)
                 clip = ((v <= 1).sum() + (v >= 254).sum()) / float(v.size if v.size else 1)

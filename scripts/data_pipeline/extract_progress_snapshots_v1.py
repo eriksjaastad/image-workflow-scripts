@@ -14,10 +14,10 @@ Outputs to:
 
 import hashlib
 import json
-from pathlib import Path
-from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional
 from collections import defaultdict
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CROP_PROGRESS_DIR = PROJECT_ROOT / "data" / "crop_progress"
@@ -200,7 +200,7 @@ def extract_from_progress_file(progress_path: Path, tool_type: str) -> List[Dict
 
 def main():
     """Main entry point."""
-    print(f"Extracting progress snapshots...")
+    print("Extracting progress snapshots...")
     
     # Collect all progress files
     progress_files = []

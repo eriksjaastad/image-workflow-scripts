@@ -9,12 +9,10 @@ Tests the new snapshot-based data pipeline including:
 """
 
 import json
-import tempfile
+import sys
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
-import sys
-import subprocess
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))

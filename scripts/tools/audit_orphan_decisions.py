@@ -16,10 +16,10 @@ This tool is READ-ONLY and does not move or modify any files.
 import argparse
 import csv
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Dict
+from typing import Dict, List
 
 
 @dataclass
@@ -37,7 +37,6 @@ def find_matching_pngs(repo_root: Path, stem: str) -> List[Path]:
 
 
 def classify_record(decision_path: Path, found_pngs: List[Path]) -> DecisionRecord:
-    stem = decision_path.stem
     expected_png = decision_path.with_suffix('.png')
     png_in_same_dir = expected_png.exists()
 

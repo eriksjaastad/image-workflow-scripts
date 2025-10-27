@@ -4,17 +4,19 @@ UI Tests for Image Selector
 Tests keyboard shortcuts, button behavior, and visual feedback
 """
 
-import sys
-import time
 import subprocess
+import sys
 import tempfile
+import time
 from pathlib import Path
+
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+
 
 class ImageSelectorUITest:
     def __init__(self):
@@ -158,7 +160,6 @@ class ImageSelectorUITest:
         body = self.driver.find_element(By.TAG_NAME, "body")
         
         # Get initial group info
-        initial_url = self.driver.current_url
         
         # Press Enter to go to next group
         body.send_keys(Keys.RETURN)
@@ -253,10 +254,8 @@ class ImageSelectorUITest:
 
 def main():
     """Run UI tests"""
-    try:
-        # Check if Chrome/selenium is available
-        from selenium import webdriver
-    except ImportError:
+    import importlib.util
+    if importlib.util.find_spec("selenium") is None:
         print("❌ Selenium not available. Install with: pip install selenium")
         print("❌ Also need ChromeDriver: https://chromedriver.chromium.org/")
         return False

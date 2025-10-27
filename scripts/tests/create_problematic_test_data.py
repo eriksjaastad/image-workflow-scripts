@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Create test data that reproduces the sequential timestamp + same stage problem"""
 
-import os
 from pathlib import Path
+
 
 def create_problematic_test_data():
     """Create test data with sequential timestamps but same stages (the problem pattern)"""

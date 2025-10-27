@@ -234,7 +234,7 @@ def create_project_manifest(
     
     # Make content_dir relative to project root (for manifest storage)
     try:
-        repo_root = Path.cwd()
+        Path.cwd()
         relative_content = Path("../../" + content_dir.name)
     except Exception:
         relative_content = content_dir
@@ -349,8 +349,8 @@ def interactive_mode():
         print(f"Started At:       {result['started_at']}")
         print()
         print("🎯 Next steps:")
-        print(f"   1. Run your image processing tools")
-        print(f"   2. When complete, run the prezip_stager to finish the project")
+        print("   1. Run your image processing tools")
+        print("   2. When complete, run the prezip_stager to finish the project")
         print("=" * 60)
     else:
         print()

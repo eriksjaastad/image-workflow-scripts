@@ -25,11 +25,10 @@ from __future__ import annotations
 import argparse
 import json
 import sqlite3
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
-
+from typing import Dict, List, Optional, Tuple
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 
@@ -167,7 +166,6 @@ def compute_audit(
 
     found_details: Dict[str, FoundFile] = {}
     problems: List[str] = []
-    artifact_candidates: List[str] = []
 
     # Evaluate kept expectations
     for e in expected_kept:

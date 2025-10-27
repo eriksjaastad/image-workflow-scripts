@@ -24,7 +24,7 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any, Dict
 
 
 def count_images(directory: Path) -> int:
@@ -426,7 +426,7 @@ def interactive_mode():
             print()
             print("🎯 Next steps:")
             print(f"   • Upload: {result['output_zip']}")
-            print(f"   • View dashboard for final metrics")
+            print("   • View dashboard for final metrics")
         print("=" * 70)
     else:
         print()

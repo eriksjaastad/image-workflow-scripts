@@ -7,13 +7,11 @@ to prevent regression issues like the historical data loss we just fixed.
 """
 
 import json
+import sys
 import tempfile
 import unittest
-from datetime import datetime, date
+from datetime import date, datetime
 from pathlib import Path
-from unittest.mock import patch, mock_open
-import sys
-import os
 
 # Add the dashboard directory to the path
 sys.path.insert(0, str(Path(__file__).parent.parent / "dashboard"))

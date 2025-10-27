@@ -20,21 +20,19 @@ Exit codes:
 """
 
 import json
-import gzip
-from pathlib import Path
-from datetime import datetime, timezone
-from typing import Dict, List, Any, Set, Tuple
-from collections import defaultdict
 import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Set
 
 # Add project root to path
 project_root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(project_root))
 
 from scripts.data_pipeline.aggregate_to_15m import (
-    load_raw_logs_for_day,
     count_png_files,
-    parse_timestamp_to_utc
+    load_raw_logs_for_day,
+    parse_timestamp_to_utc,
 )
 from scripts.utils.companion_file_utils import get_file_operation_metrics
 
@@ -348,7 +346,7 @@ class BinValidator:
         print(f"Validation Report: {self.day_str}")
         print(f"{'='*70}")
         
-        print(f"\nData Summary:")
+        print("\nData Summary:")
         print(f"  Raw records:  {len(self.raw_records)}")
         print(f"  Bins:         {len(self.bins)}")
         
@@ -363,9 +361,9 @@ class BinValidator:
                 print(warning)
         
         if not self.errors and not self.warnings:
-            print(f"\n✅ All validation checks passed!")
+            print("\n✅ All validation checks passed!")
         elif not self.errors:
-            print(f"\n✅ All critical checks passed (warnings only)")
+            print("\n✅ All critical checks passed (warnings only)")
         else:
             print(f"\n❌ Validation failed with {len(self.errors)} error(s)")
         

@@ -85,32 +85,42 @@ WHAT HAPPENS:
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 import os
 import signal
-import shutil
-import shutil
 import sys
 import threading
 import time
-import webbrowser
 from functools import lru_cache
-from io import BytesIO
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from file_tracker import FileTracker
-from utils.companion_file_utils import find_all_companion_files, move_file_with_all_companions, safe_delete_image_and_yaml, launch_browser, generate_thumbnail, get_error_display_html, format_image_display_name, sort_image_files_by_timestamp_and_stage
+from utils.companion_file_utils import (
+    format_image_display_name,
+    generate_thumbnail,
+    get_error_display_html,
+    launch_browser,
+    move_file_with_all_companions,
+    safe_delete_image_and_yaml,
+    sort_image_files_by_timestamp_and_stage,
+)
 
 try:
-    from flask import Flask, Response, jsonify, render_template_string, request, redirect
+    from flask import (
+        Flask,
+        Response,
+        jsonify,
+        redirect,
+        render_template_string,
+        request,
+    )
 except Exception:  # pragma: no cover - import guard for clearer error
     print("[!] Flask is required. Install with: pip install flask", file=sys.stderr)
     raise
 
 try:
-    from PIL import Image
+    pass
 except Exception:
     print("[!] Pillow is required. Install with: pip install pillow", file=sys.stderr)
     raise
@@ -124,7 +134,6 @@ except Exception:
 
 _SEND2TRASH_AVAILABLE = False
 try:
-    from send2trash import send2trash
     _SEND2TRASH_AVAILABLE = True
 except Exception:
     _SEND2TRASH_AVAILABLE = False
@@ -487,11 +496,6 @@ def move_with_metadata(src_path: Path, dest_dir: Path, tracker: FileTracker, gro
     
     return moved_files
 
-def launch_browser(host: str, port: int):
-    """Launch browser after a short delay."""
-    from utils.companion_file_utils import launch_browser as shared_launch_browser
-    shared_launch_browser(host, port, delay=1.5)
-
 def detect_face_groups_context(folder: Path) -> dict:
     """Detect context when working in face_groups structure."""
     face_groups_root = folder.parent
@@ -659,7 +663,7 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
             if app.config["IS_MULTI_DIRECTORY_MODE"] and app.config["MULTI_DIRECTORY_TRACKER"]:
                 tracker = app.config["MULTI_DIRECTORY_TRACKER"]
                 if tracker.has_more_directories():
-                    current_dir_info = tracker.get_current_directory()
+                    tracker.get_current_directory()
                     tracker.advance_directory()
                     next_dir_info = tracker.get_current_directory()
                     
@@ -670,16 +674,16 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
             
             # Check for auto-advance in face groups mode
             elif app.config["IS_FACE_GROUPS_MODE"] and app.config["FACE_GROUPS_INFO"]:
-                print(f"DEBUG: Face groups mode detected, checking for next directory...")
+                print("DEBUG: Face groups mode detected, checking for next directory...")
                 next_dir = find_next_person_directory(app.config["FACE_GROUPS_INFO"])
                 if next_dir:
                     print(f"DEBUG: Found next directory: {next_dir.name}")
                     # Direct redirect to next directory instead of showing countdown page
                     return redirect(f'/switch-directory/{next_dir.name}')
                 else:
-                    print(f"DEBUG: No next directory found, showing completion")
+                    print("DEBUG: No next directory found, showing completion")
             else:
-                print(f"DEBUG: Single directory mode")
+                print("DEBUG: Single directory mode")
             
             return render_template_string(COMPLETION_TEMPLATE, 
                                         history=app.config["HISTORY"])
@@ -828,8 +832,6 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
     
     def process_shutdown():
         """Graceful shutdown."""
-        import os
-        import signal
         os.kill(os.getpid(), signal.SIGTERM)
     
     @app.route("/complete", methods=["POST"])
@@ -2911,7 +2913,6 @@ def main() -> None:
     
     # Check if we're in multi-directory mode (directory contains subdirectories with images)
     multi_directory_tracker = None
-    is_multi_directory_mode = False
     
     # Look for subdirectories with PNG files
     subdirs_with_images = []
@@ -2921,7 +2922,6 @@ def main() -> None:
     
     # If we found subdirectories with images, enable multi-directory mode
     if len(subdirs_with_images) > 1:
-        is_multi_directory_mode = True
         multi_directory_tracker = MultiDirectoryProgressTracker(folder)
         
         # Get the current directory to process

@@ -14,10 +14,10 @@ Checks:
 
 import gzip
 import json
-from pathlib import Path
+from collections import Counter, defaultdict
 from datetime import datetime
-from collections import defaultdict, Counter
-from typing import Dict, List, Any, Tuple
+from pathlib import Path
+from typing import Any, Dict, List, Tuple
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT_DIR = PROJECT_ROOT / "snapshot"
@@ -261,14 +261,14 @@ def validate_session_integrity() -> Tuple[bool, List[str]]:
             with open(sessions_file) as f:
                 for line in f:
                     if line.strip():
-                        session = json.loads(line)
+                        json.loads(line)
                         # Derived sessions have their own IDs, can't cross-reference
                         pass
     
     # Note: This is a soft check because writers are independent
     print(f"  ℹ️  Event sessions referenced: {len(event_sessions)}")
     print(f"  ℹ️  Derived sessions created: {len(derived_session_ids)}")
-    print(f"  ℹ️  (Soft check: writers are independent, referential integrity not enforced)")
+    print("  ℹ️  (Soft check: writers are independent, referential integrity not enforced)")
     
     return True, []
 

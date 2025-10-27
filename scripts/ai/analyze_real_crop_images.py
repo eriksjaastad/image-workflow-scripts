@@ -5,11 +5,12 @@ Analyze ACTUAL crop images from crop directories to see real crop patterns.
 This bypasses the CSV and looks at actual before/after dimensions.
 """
 
+import statistics
 import sys
 from pathlib import Path
+
 from PIL import Image
-from collections import defaultdict
-import statistics
+
 
 def analyze_real_crops(crop_dir: Path, limit: int = 100):
     """
@@ -54,21 +55,21 @@ def analyze_real_crops(crop_dir: Path, limit: int = 100):
     
     print("📐 IMAGE DIMENSIONS")
     print("-" * 80)
-    print(f"Width:")
+    print("Width:")
     print(f"  Min:    {min(widths)}px")
     print(f"  Max:    {max(widths)}px")
     print(f"  Mean:   {statistics.mean(widths):.0f}px")
     print(f"  Median: {statistics.median(widths):.0f}px")
     print(f"  StdDev: {statistics.stdev(widths) if len(widths) > 1 else 0:.0f}px")
     print()
-    print(f"Height:")
+    print("Height:")
     print(f"  Min:    {min(heights)}px")
     print(f"  Max:    {max(heights)}px")
     print(f"  Mean:   {statistics.mean(heights):.0f}px")
     print(f"  Median: {statistics.median(heights):.0f}px")
     print(f"  StdDev: {statistics.stdev(heights) if len(heights) > 1 else 0:.0f}px")
     print()
-    print(f"Aspect Ratio (width/height):")
+    print("Aspect Ratio (width/height):")
     print(f"  Min:    {min(aspect_ratios):.3f}")
     print(f"  Max:    {max(aspect_ratios):.3f}")
     print(f"  Mean:   {statistics.mean(aspect_ratios):.3f}")
@@ -105,7 +106,6 @@ def analyze_real_crops(crop_dir: Path, limit: int = 100):
     print()
     
     # If originals are 2048x2048 or 3072x3072, estimate crop percentages
-    common_sizes = [1024, 2048, 3072, 4096]
     print("📊 ESTIMATED CROP PERCENTAGES (if originals were 2048×2048)")
     print("-" * 80)
     for i, (w, h) in enumerate(zip(widths[:10], heights[:10])):

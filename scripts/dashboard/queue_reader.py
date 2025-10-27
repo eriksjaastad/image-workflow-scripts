@@ -15,12 +15,12 @@ Provides:
 - Throughput trends over time
 """
 
-import json
 import csv
-from pathlib import Path
-from typing import Dict, List, Tuple
-from datetime import datetime, timedelta
+import json
 from collections import defaultdict
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Dict, List
 
 
 class QueueDataReader:
@@ -103,7 +103,7 @@ class QueueDataReader:
                             'avg_time_per_crop_ms': int(row['processing_time_ms']) / max(1, int(row['crops_in_batch']))
                         })
 
-                    except (ValueError, KeyError) as e:
+                    except (ValueError, KeyError):
                         continue
 
         except Exception as e:

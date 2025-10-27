@@ -27,7 +27,6 @@ FEATURES:
 """
 
 import argparse
-import re
 import shutil
 import sys
 from pathlib import Path
@@ -35,7 +34,7 @@ from typing import List, Tuple
 
 # Import standardized companion file utilities
 sys.path.append(str(Path(__file__).parent))
-from companion_file_utils import find_all_companion_files, move_file_with_all_companions, detect_stage
+from companion_file_utils import detect_stage, move_file_with_all_companions
 
 
 def scan_images_recursive(folder: Path) -> List[Path]:
@@ -92,10 +91,10 @@ def move_triplet_with_yamls(triplet: Tuple[Path, Path, Path], dest_dir: Path) ->
     # First check for conflicts
     conflicts = check_conflicts(triplet, dest_dir)
     if conflicts:
-        print(f"❌ CONFLICT DETECTED! Files would be overwritten:")
+        print("❌ CONFLICT DETECTED! Files would be overwritten:")
         for conflict in conflicts:
             print(f"  🚫 {conflict}")
-        print(f"❌ STOPPING - triplet move cancelled to prevent overwriting")
+        print("❌ STOPPING - triplet move cancelled to prevent overwriting")
         return False
     
     moved_files = []
@@ -115,7 +114,7 @@ def move_triplet_with_yamls(triplet: Tuple[Path, Path, Path], dest_dir: Path) ->
             try:
                 original_dir = triplet[0].parent  # Assume all from same dir
                 shutil.move(str(dest_dir / moved_file), str(original_dir / moved_file))
-            except:
+            except Exception:
                 pass
         return False
 
@@ -191,7 +190,7 @@ def main():
                 if not any(root.iterdir()):  # Directory is empty
                     root.rmdir()
                     print(f"🗑️ Removed empty directory: {root.name}")
-            except:
+            except Exception:
                 pass  # Directory not empty or permission error
 
 

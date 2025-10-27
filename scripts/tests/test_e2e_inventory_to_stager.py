@@ -1,7 +1,7 @@
 import json
+import unittest
 from pathlib import Path
 from zipfile import ZipFile
-import unittest
 
 
 class TestEndToEndInventoryToStager(unittest.TestCase):

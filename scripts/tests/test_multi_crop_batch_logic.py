@@ -11,11 +11,12 @@ Tests the improved batch processing logic implemented based on code review:
 These tests verify the core logic without launching the full UI.
 """
 
-import unittest
-from pathlib import Path
-import tempfile
 import shutil
 import sys
+import tempfile
+import unittest
+from pathlib import Path
+
 from PIL import Image
 
 # Add project root to path
@@ -70,7 +71,6 @@ class TestBatchProcessingLogic(unittest.TestCase):
     def test_unified_has_next_batch_logic(self):
         """Test unified has_next_batch logic works for both modes"""
         total_files = 7
-        batch_size = 3
         
         # Test at various points in processing
         test_cases = [

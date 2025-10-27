@@ -75,9 +75,7 @@ import sys
 import time
 from collections import Counter
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
-from pathlib import Path
-import sys
+from typing import Dict, List, Optional, Tuple
 
 try:
     import yaml
@@ -93,17 +91,18 @@ except Exception:
         # Fallback to absolute project-root based import
         project_root = Path(__file__).parent.parent.parent
         sys.path.insert(0, str(project_root))
-        from scripts.utils.activity_timer import ActivityTimer, FileTracker  # type: ignore
+        from scripts.utils.activity_timer import (  # type: ignore
+            ActivityTimer,
+            FileTracker,
+        )
     except Exception:
         ActivityTimer = None  # type: ignore
         FileTracker = None  # type: ignore
 
 try:
     from utils.companion_file_utils import (
-        find_all_companion_files,
-        move_file_with_all_companions,
         extract_timestamp_from_filename,
-        sort_image_files_by_timestamp_and_stage,
+        move_file_with_all_companions,
     )
 except Exception:
     try:
@@ -111,10 +110,8 @@ except Exception:
         project_root = Path(__file__).parent.parent.parent
         sys.path.insert(0, str(project_root))
         from scripts.utils.companion_file_utils import (  # type: ignore
-            find_all_companion_files,
-            move_file_with_all_companions,
             extract_timestamp_from_filename,
-            sort_image_files_by_timestamp_and_stage,
+            move_file_with_all_companions,
         )
     except Exception as e:
         print(f"[!] Failed to import companion utilities: {e}", file=sys.stderr)
@@ -400,7 +397,7 @@ def analyze_prompts_for_characters(character_mapping: Dict, min_threshold: int =
             prompt_preview = prompt[:50] + "..." if len(prompt) > 50 else prompt
             print(f"    • {filename}: '{prompt_preview}' → NO MATCH")
     
-    print(f"\n[*] Prompt character counts:")
+    print("\n[*] Prompt character counts:")
     for char, count in prompt_character_counts.items():
         print(f"    • {char}: {count} files")
     
@@ -681,7 +678,7 @@ def analyze_yaml(directory: str, output_file: Optional[str] = None, quiet: bool 
     
     # Print summary
     if not quiet:
-        print(f"\n📊 YAML ANALYSIS SUMMARY")
+        print("\n📊 YAML ANALYSIS SUMMARY")
         print(f"{'='*50}")
         print(f"Total YAML files: {processing_stats['total_files']}")
         print(f"Successfully processed: {processing_stats['processed']}")
@@ -694,7 +691,7 @@ def analyze_yaml(directory: str, output_file: Optional[str] = None, quiet: bool 
             count = processing_stats['character_counts'].get(char, 0)
             print(f"  • {char}: {count} images")
         
-        print(f"\n🎨 STAGES FOUND:")
+        print("\n🎨 STAGES FOUND:")
         for stage in processing_stats['stages_found']:
             print(f"  • {stage}")
         
@@ -800,9 +797,9 @@ def add_sequential_context(analysis_data: Dict, quiet: bool = False) -> Dict:
             no_character_files.append(filename)
     
     if not quiet:
-        print(f"🧠 Sequential Context Analysis")
+        print("🧠 Sequential Context Analysis")
         print(f"[*] Found {len(no_character_files)} files without character data")
-        print(f"[*] Analyzing sequential context...")
+        print("[*] Analyzing sequential context...")
     
     # Analyze each file
     inferences_made = 0
@@ -840,14 +837,14 @@ def add_sequential_context(analysis_data: Dict, quiet: bool = False) -> Dict:
     }
     
     if not quiet:
-        print(f"\n📊 SEQUENTIAL CONTEXT SUMMARY")
+        print("\n📊 SEQUENTIAL CONTEXT SUMMARY")
         print(f"{'='*50}")
         print(f"Files without character data: {len(no_character_files)}")
         print(f"Successful inferences: {inferences_made}")
         print(f"Failed inferences: {len(no_character_files) - inferences_made}")
         
         if inference_details:
-            print(f"\n🎯 INFERRED CHARACTERS:")
+            print("\n🎯 INFERRED CHARACTERS:")
             character_counts = Counter([detail['inferred_character'] for detail in inference_details])
             for char, count in character_counts.most_common():
                 print(f"  • {char}: {count} files")
@@ -917,12 +914,12 @@ def preview_grouping_plan(character_mapping: Dict, source_directory: str, group_
     print("="*70)
     
     if group_counts:
-        print(f"\n✅ Will create directories and move images:")
+        print("\n✅ Will create directories and move images:")
         for group_name, count in sorted(group_counts.items(), key=lambda x: -x[1]):
             print(f"   • {group_name}/ → {count} images")
         print(f"\n   Total images to move: {sum(group_counts.values())}")
     else:
-        print(f"\n⚠️  No images meet grouping criteria")
+        print("\n⚠️  No images meet grouping criteria")
     
     if files_staying_in_root > 0:
         print(f"\n📁 Will stay in {source_dir_name}/:")
@@ -1180,7 +1177,7 @@ def group_by_category(analysis_data: Dict, source_directory: str, dry_run: bool 
     if not quiet:
         action = "Would move" if dry_run else "Moved"
         
-        print(f"\n📊 CHARACTER GROUPING SUMMARY")
+        print("\n📊 CHARACTER GROUPING SUMMARY")
         print(f"{'='*50}")
         print(f"Total images processed: {stats['total_images']}")
         print(f"{action} successfully: {stats['moved_successfully']}")
@@ -1204,10 +1201,10 @@ def group_by_category(analysis_data: Dict, source_directory: str, dry_run: bool 
             print(f"\n⚡ Processing rate: {rate:.1f} images/second")
         
         if dry_run:
-            print(f"\n🧪 DRY RUN COMPLETE - No files were actually moved")
-            print(f"Run without --dry-run to perform the actual grouping")
+            print("\n🧪 DRY RUN COMPLETE - No files were actually moved")
+            print("Run without --dry-run to perform the actual grouping")
         else:
-            print(f"\n✅ CHARACTER GROUPING COMPLETE!")
+            print("\n✅ CHARACTER GROUPING COMPLETE!")
         
         print(f"\n🎯 Successfully organized {stats['moved_successfully']} images by {group_by}!")
     
@@ -1232,10 +1229,10 @@ def process_directory(directory: str, dry_run: bool = False, save_analysis: bool
         Dictionary with complete processing results
     """
     if not quiet:
-        print(f"🚀 Starting complete character processing pipeline...")
+        print("🚀 Starting complete character processing pipeline...")
         print(f"📁 Directory: {directory}")
         print(f"🧪 Mode: {'DRY RUN' if dry_run else 'LIVE'}")
-        print(f"=" * 60)
+        print("=" * 60)
     
     # Stage 1: YAML Analysis
     analysis_file = None
@@ -1391,7 +1388,7 @@ def process_directory(directory: str, dry_run: bool = False, save_analysis: bool
     }
     
     if not quiet:
-        print(f"\n🎉 PIPELINE COMPLETE!")
+        print("\n🎉 PIPELINE COMPLETE!")
         print(f"📊 Success Rate: {results['pipeline_summary']['success_rate']:.1f}%")
         print(f"🎭 Characters: {results['pipeline_summary']['characters_found']}")
         print(f"📁 Files Organized: {results['pipeline_summary']['files_organized']}")
@@ -1502,7 +1499,7 @@ Examples:
                         try:
                             with open(caption_file, 'r', encoding='utf-8') as cf:
                                 prompt = cf.read().strip()
-                        except:
+                        except Exception:
                             pass
                 
                 if not prompt:
@@ -1679,7 +1676,7 @@ Examples:
         sys.exit(0)
     
     try:
-        results = process_directory(
+        process_directory(
             directory=args.directory,
             dry_run=args.dry_run,
             save_analysis=args.save_analysis,

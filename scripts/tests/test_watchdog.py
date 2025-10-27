@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-import time
 import sys
+import time
 from pathlib import Path
 
 # Ensure project root on sys.path for "scripts.*" imports when run directly

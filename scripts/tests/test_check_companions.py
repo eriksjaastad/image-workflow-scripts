@@ -12,12 +12,11 @@ with a unified, more robust solution. Testing thoroughly ensures:
 These tests use temporary directories to avoid touching real data.
 """
 
-import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -26,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Note: check_companions.py is a utility script, not a module
 # We'll import the main function directly
 import importlib.util
+
 spec = importlib.util.spec_from_file_location(
     "check_companions",
     Path(__file__).parent.parent / "utils" / "check_companions.py"
@@ -161,7 +161,7 @@ class TestFindMismatchedFilesRecursive(unittest.TestCase):
             results = check_companions.find_mismatched_files_recursive(self.temp_path)
         
         orphaned_pngs = results['orphaned_pngs']
-        orphaned_metadata = results['orphaned_metadata']
+        results['orphaned_metadata']
         
         self.assertEqual(len(orphaned_pngs), 2)
         self.assertIn(orphan1, orphaned_pngs)
@@ -183,8 +183,8 @@ class TestFindMismatchedFilesRecursive(unittest.TestCase):
         with patch('builtins.print'):
             results = check_companions.find_mismatched_files_recursive(self.temp_path)
         
-        orphaned_pngs = results['orphaned_pngs']
-        orphaned_metadata = results['orphaned_metadata']
+        results['orphaned_pngs']
+        results['orphaned_metadata']
         
         # Check results structure
         self.assertIn('total_pairs', results)
@@ -209,7 +209,7 @@ class TestFindMismatchedFilesRecursive(unittest.TestCase):
             results = check_companions.find_mismatched_files_recursive(self.temp_path)
         
         orphaned_pngs = results['orphaned_pngs']
-        orphaned_metadata = results['orphaned_metadata']
+        results['orphaned_metadata']
         
         # Should find 0 orphans (skipped directories)
         self.assertEqual(len(orphaned_pngs), 0)

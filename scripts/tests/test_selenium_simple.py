@@ -10,15 +10,12 @@ These tests create minimal Flask apps to verify that:
 This provides a foundation for more complex integration tests.
 """
 
-import sys
 import time
 import unittest
-from pathlib import Path
 
 from flask import Flask
-from selenium.webdriver.common.by import By
-
 from scripts.tests.test_base_selenium import BaseSeleniumTest
+from selenium.webdriver.common.by import By
 
 
 class TestSeleniumInfrastructure(BaseSeleniumTest):

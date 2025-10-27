@@ -4,20 +4,20 @@ Comprehensive Tests for Web Image Selector
 Tests all recent enhancements: unselect, batch size, state override, navigation, safety features
 """
 
+import subprocess
 import sys
 import time
-import subprocess
-import tempfile
-import shutil
 from pathlib import Path
+
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.chrome.service import Service
+
 
 class WebImageSelectorTest:
     def __init__(self):
@@ -87,7 +87,7 @@ class WebImageSelectorTest:
     def test_keyboard_shortcuts(self):
         """Test keyboard shortcuts 1,2,3,Q,W,E work correctly"""
         # Find first group
-        first_group = self.driver.find_element(By.CSS_SELECTOR, "section.group")
+        self.driver.find_element(By.CSS_SELECTOR, "section.group")
         
         # Test number keys
         self.driver.find_element(By.TAG_NAME, "body").send_keys("1")

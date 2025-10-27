@@ -11,13 +11,12 @@ Usage:
     python scripts/data_pipeline/migrate_legacy_summaries_to_snapshots.py [--dry-run]
 """
 
-import json
 import argparse
-from pathlib import Path
-from datetime import datetime, timezone
+import json
 from collections import defaultdict
-from typing import Dict, Any, List
-
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 LEGACY_DIR = PROJECT_ROOT / "data" / "daily_summaries"
@@ -70,7 +69,7 @@ def convert_to_snapshot_format(legacy_parsed: Dict[str, Any]) -> Dict[str, Any]:
     }
     """
     legacy = legacy_parsed["legacy_data"]
-    day = legacy_parsed["day"]
+    legacy_parsed["day"]
     
     # Initialize snapshot structure
     by_script = defaultdict(lambda: {
@@ -246,10 +245,10 @@ def main():
         print("🔍 DRY RUN: No files were written. Run without --dry-run to perform migration.")
     else:
         print("✅ Migration complete! All legacy daily summaries converted to snapshot format.")
-        print(f"\nNext steps:")
-        print(f"  1. Verify dashboard loads all data correctly")
-        print(f"  2. Run tests to ensure data integrity")
-        print(f"  3. Once verified, legacy data/daily_summaries/ can be archived/deleted")
+        print("\nNext steps:")
+        print("  1. Verify dashboard loads all data correctly")
+        print("  2. Run tests to ensure data integrity")
+        print("  3. Once verified, legacy data/daily_summaries/ can be archived/deleted")
 
 
 if __name__ == "__main__":

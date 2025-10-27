@@ -7,7 +7,6 @@ Tests the actual grouping behavior to catch bugs like same-stage grouping
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -17,7 +16,12 @@ def test_all_consecutive_combinations():
     print("\n🧪 Testing All Consecutive Stage Combinations...")
     
     try:
-        from scripts.utils.companion_file_utils import find_consecutive_stage_groups, get_stage_number, detect_stage, sort_image_files_by_timestamp_and_stage
+        from scripts.utils.companion_file_utils import (
+            detect_stage,
+            find_consecutive_stage_groups,
+            get_stage_number,
+            sort_image_files_by_timestamp_and_stage,
+        )
         
         # Test all valid consecutive combinations
         test_cases = [
@@ -87,7 +91,10 @@ def test_same_stage_not_grouped():
     print("\n🧪 Testing Same Stage NOT Grouped...")
     
     try:
-        from scripts.utils.companion_file_utils import find_consecutive_stage_groups, sort_image_files_by_timestamp_and_stage
+        from scripts.utils.companion_file_utils import (
+            find_consecutive_stage_groups,
+            sort_image_files_by_timestamp_and_stage,
+        )
         
         # Create test files with ONLY same stages
         test_files = [
@@ -131,7 +138,10 @@ def test_stage_progression_order():
     print("\n🧪 Testing Stage Progression Order...")
     
     try:
-        from scripts.utils.companion_file_utils import find_consecutive_stage_groups, sort_image_files_by_timestamp_and_stage
+        from scripts.utils.companion_file_utils import (
+            find_consecutive_stage_groups,
+            sort_image_files_by_timestamp_and_stage,
+        )
         
         # Create test files with correct progression
         test_files = [
@@ -165,7 +175,10 @@ def test_stage_progression_order():
             assert len(groups[0]) == 4, f"Expected 4 files in group, got {len(groups[0])}"
             
             # Verify stage progression
-            from scripts.utils.companion_file_utils import get_stage_number, detect_stage
+            from scripts.utils.companion_file_utils import (
+                detect_stage,
+                get_stage_number,
+            )
             stages = [get_stage_number(detect_stage(f.name)) for f in groups[0]]
             print(f"  Stages: {stages}")
             
@@ -184,7 +197,12 @@ def test_backwards_stage_breaks_group():
     print("\n🧪 Testing Backwards Stage Breaks Group...")
     
     try:
-        from scripts.utils.companion_file_utils import find_consecutive_stage_groups, sort_image_files_by_timestamp_and_stage, get_stage_number, detect_stage
+        from scripts.utils.companion_file_utils import (
+            detect_stage,
+            find_consecutive_stage_groups,
+            get_stage_number,
+            sort_image_files_by_timestamp_and_stage,
+        )
         
         # Create test files with backwards progression
         test_files = [
@@ -236,7 +254,12 @@ def test_nearest_up_behavior_with_lookahead():
     print("\n🧪 Testing Nearest-Up Behavior with Lookahead...")
     
     try:
-        from scripts.utils.companion_file_utils import find_consecutive_stage_groups, sort_image_files_by_timestamp_and_stage, get_stage_number, detect_stage
+        from scripts.utils.companion_file_utils import (
+            detect_stage,
+            find_consecutive_stage_groups,
+            get_stage_number,
+            sort_image_files_by_timestamp_and_stage,
+        )
         
         test_files = [
             "20250705_000000_stage1_generated.png",
@@ -271,7 +294,10 @@ def test_time_gap_breaks_group():
     print("\n🧪 Testing Time Gap Breaks Group...")
     
     try:
-        from scripts.utils.companion_file_utils import find_consecutive_stage_groups, sort_image_files_by_timestamp_and_stage
+        from scripts.utils.companion_file_utils import (
+            find_consecutive_stage_groups,
+            sort_image_files_by_timestamp_and_stage,
+        )
         
         test_files = [
             "20250705_000000_stage1_generated.png",
@@ -306,7 +332,12 @@ def test_duplicate_stage_ends_run():
     print("\n🧪 Testing Duplicate Stage Ends Run...")
     
     try:
-        from scripts.utils.companion_file_utils import find_consecutive_stage_groups, sort_image_files_by_timestamp_and_stage, get_stage_number, detect_stage
+        from scripts.utils.companion_file_utils import (
+            detect_stage,
+            find_consecutive_stage_groups,
+            get_stage_number,
+            sort_image_files_by_timestamp_and_stage,
+        )
         
         test_files = [
             "20250705_000000_stage1_generated.png",
@@ -344,7 +375,11 @@ def test_mojo1_expected_pair_grouped():
     print("\n🧪 Testing Mojo1 Expected Pair Grouped (integration)...")
     
     try:
-        from scripts.utils.companion_file_utils import find_all_image_files, sort_image_files_by_timestamp_and_stage, find_consecutive_stage_groups
+        from scripts.utils.companion_file_utils import (
+            find_all_image_files,
+            find_consecutive_stage_groups,
+            sort_image_files_by_timestamp_and_stage,
+        )
         
         project_root = Path(__file__).parent.parent.parent
         mojo_dir = project_root / "mojo1"

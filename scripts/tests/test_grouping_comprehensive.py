@@ -13,11 +13,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.companion_file_utils import (
-    find_consecutive_stage_groups, 
-    sort_image_files_by_timestamp_and_stage, 
-    get_stage_number, 
-    detect_stage, 
-    extract_timestamp_from_filename
+    detect_stage,
+    find_consecutive_stage_groups,
+    get_stage_number,
 )
 
 

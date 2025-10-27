@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 import argparse
 import os
-import tarfile
-import time
 import shutil
+import tarfile
 from pathlib import Path
-
 
 EXCLUDE_DIRS = {"metrics", "reports", "runs", "logs"}
 
@@ -98,10 +96,7 @@ if __name__ == "__main__":
     main()
 
 #!/usr/bin/env python3
-import argparse
-import os
 import sys
-import tarfile
 from pathlib import Path
 
 

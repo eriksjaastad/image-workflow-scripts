@@ -22,7 +22,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-
 # Paths
 PROJECT_ROOT = Path("/Users/eriksjaastad/projects/Eros Mate")
 SELECTION_LOG = PROJECT_ROOT / "data/training/selection_only_log.csv"
@@ -244,7 +243,7 @@ def main():
         v2_normal = evaluate_model(model_v2, normal_val, "Ranker v2 - Normal cases")
         v2_anomaly = evaluate_model(model_v2, anomaly_val, "Ranker v2 - Anomaly cases")
         
-        print(f"\n✅ Ranker v2 Results:")
+        print("\n✅ Ranker v2 Results:")
         print(f"   Normal:  {v2_normal['correct']:,}/{v2_normal['total_pairs']:,} = {v2_normal['accuracy']:.1%}")
         print(f"   Anomaly: {v2_anomaly['correct']:,}/{v2_anomaly['total_pairs']:,} = {v2_anomaly['accuracy']:.1%} ⭐")
         
@@ -272,7 +271,7 @@ def main():
         v3_normal = evaluate_model(model_v3, normal_val, "Ranker v3 - Normal cases")
         v3_anomaly = evaluate_model(model_v3, anomaly_val, "Ranker v3 - Anomaly cases")
         
-        print(f"\n✅ Ranker v3 Results:")
+        print("\n✅ Ranker v3 Results:")
         print(f"   Normal:  {v3_normal['correct']:,}/{v3_normal['total_pairs']:,} = {v3_normal['accuracy']:.1%}")
         print(f"   Anomaly: {v3_anomaly['correct']:,}/{v3_anomaly['total_pairs']:,} = {v3_anomaly['accuracy']:.1%} ⭐")
         
@@ -297,19 +296,19 @@ def main():
         v3_anom = results['ranker_v3']['anomaly']['accuracy']
         improvement = (v3_anom - v2_anom) * 100
         
-        print(f"\n📊 Anomaly Accuracy:")
+        print("\n📊 Anomaly Accuracy:")
         print(f"   v2: {v2_anom:.1%}")
         print(f"   v3: {v3_anom:.1%}")
         print(f"   Improvement: {improvement:+.1f} percentage points")
         
-        print(f"\n📊 Overall Accuracy:")
+        print("\n📊 Overall Accuracy:")
         print(f"   v2: {results['ranker_v2']['overall']['accuracy']:.1%}")
         print(f"   v3: {results['ranker_v3']['overall']['accuracy']:.1%}")
         
         if v3_anom > v2_anom:
-            print(f"\n🎉 Ranker v3 is BETTER at quality judgment!")
+            print("\n🎉 Ranker v3 is BETTER at quality judgment!")
         else:
-            print(f"\n⚠️  Ranker v2 performed better on anomalies")
+            print("\n⚠️  Ranker v2 performed better on anomalies")
     
     # Save results
     LOG_DIR.mkdir(parents=True, exist_ok=True)

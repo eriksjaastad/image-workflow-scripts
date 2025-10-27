@@ -3,8 +3,8 @@
 AI Crop Utilities - Helper functions for AI crop coordinate handling.
 """
 
-from typing import Dict, List, Optional, Tuple
 from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 try:
     from PIL import Image

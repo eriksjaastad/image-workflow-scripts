@@ -11,9 +11,10 @@ If --csv is omitted, the script will default to the repository path:
 
 import argparse
 import csv
+import statistics
 from datetime import datetime
 from pathlib import Path
-import statistics
+
 
 def parse_timestamp(ts_str):
     """Parse ISO 8601 timestamp."""
@@ -37,7 +38,7 @@ def analyze_crop_timing(csv_path):
     crops.sort(key=lambda x: x['timestamp'])
 
     print(f"\n{'='*80}")
-    print(f"CROP TIMING ANALYSIS")
+    print("CROP TIMING ANALYSIS")
     print(f"{'='*80}")
     print(f"\nTotal crops: {len(crops)}")
     print(f"Date range: {crops[0]['timestamp'].date()} to {crops[-1]['timestamp'].date()}")
@@ -65,7 +66,7 @@ def analyze_crop_timing(csv_path):
     sessions.append(current_session)  # Add last session
 
     print(f"\n{'='*80}")
-    print(f"SESSION ANALYSIS")
+    print("SESSION ANALYSIS")
     print(f"{'='*80}")
     print(f"\nTotal sessions: {len(sessions)}")
 
@@ -89,19 +90,19 @@ def analyze_crop_timing(csv_path):
             session_speeds.append(crops_per_hour)
 
     if session_lengths:
-        print(f"\nSession lengths (minutes):")
+        print("\nSession lengths (minutes):")
         print(f"  Min: {min(session_lengths):.1f}")
         print(f"  Max: {max(session_lengths):.1f}")
         print(f"  Average: {statistics.mean(session_lengths):.1f}")
         print(f"  Median: {statistics.median(session_lengths):.1f}")
 
-        print(f"\nCrops per session:")
+        print("\nCrops per session:")
         print(f"  Min: {min(session_crop_counts)}")
         print(f"  Max: {max(session_crop_counts)}")
         print(f"  Average: {statistics.mean(session_crop_counts):.1f}")
         print(f"  Median: {statistics.median(session_crop_counts):.1f}")
 
-        print(f"\nCrops per hour:")
+        print("\nCrops per hour:")
         print(f"  Min: {min(session_speeds):.1f}")
         print(f"  Max: {max(session_speeds):.1f}")
         print(f"  Average: {statistics.mean(session_speeds):.1f}")
@@ -117,9 +118,9 @@ def analyze_crop_timing(csv_path):
 
     if within_session_diffs:
         print(f"\n{'='*80}")
-        print(f"TIME BETWEEN CROPS (within sessions, < 60s)")
+        print("TIME BETWEEN CROPS (within sessions, < 60s)")
         print(f"{'='*80}")
-        print(f"\nSeconds between crops:")
+        print("\nSeconds between crops:")
         print(f"  Min: {min(within_session_diffs):.2f}")
         print(f"  Max: {max(within_session_diffs):.2f}")
         print(f"  Average: {statistics.mean(within_session_diffs):.2f}")
@@ -136,9 +137,9 @@ def analyze_crop_timing(csv_path):
             break_times.append(break_duration)
 
         print(f"\n{'='*80}")
-        print(f"BREAK ANALYSIS")
+        print("BREAK ANALYSIS")
         print(f"{'='*80}")
-        print(f"\nBreak durations (minutes):")
+        print("\nBreak durations (minutes):")
         print(f"  Min: {min(break_times):.1f}")
         print(f"  Max: {max(break_times):.1f}")
         print(f"  Average: {statistics.mean(break_times):.1f}")
@@ -149,14 +150,14 @@ def analyze_crop_timing(csv_path):
         medium_breaks = [b for b in break_times if 30 <= b < 120]
         long_breaks = [b for b in break_times if b >= 120]
 
-        print(f"\nBreak categories:")
+        print("\nBreak categories:")
         print(f"  Short (< 30 min): {len(short_breaks)}")
         print(f"  Medium (30-120 min): {len(medium_breaks)}")
         print(f"  Long (> 120 min): {len(long_breaks)}")
 
     # Show top 10 longest sessions
     print(f"\n{'='*80}")
-    print(f"TOP 10 LONGEST SESSIONS")
+    print("TOP 10 LONGEST SESSIONS")
     print(f"{'='*80}\n")
 
     session_details = []

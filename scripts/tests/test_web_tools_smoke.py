@@ -14,8 +14,8 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
-from PIL import Image
 
+from PIL import Image
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.chrome.service import Service as ChromeService
@@ -91,7 +91,7 @@ class WebToolSmokeTest(unittest.TestCase):
                 if result == 0:
                     time.sleep(0.5)  # Extra time to initialize
                     return True
-            except:
+            except Exception:
                 pass
             time.sleep(0.2)
         return False

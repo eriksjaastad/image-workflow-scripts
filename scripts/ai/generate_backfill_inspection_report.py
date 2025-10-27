@@ -31,7 +31,7 @@ def get_project_from_timestamp(timestamp_str):
             return "mojo2", ts.strftime('%Y-%m-%d %H:%M:%S')
         else:
             return "unknown", ts.strftime('%Y-%m-%d %H:%M:%S')
-    except:
+    except Exception:
         return "unknown", str(timestamp_str or "")
 
 def main():
@@ -56,7 +56,7 @@ def main():
                 try:
                     datetime.fromisoformat(timestamp.replace('Z', ''))
                     has_valid_timestamp = True
-                except:
+                except Exception:
                     pass
             
             # Check dimensions
@@ -114,7 +114,7 @@ def main():
         mojo2_rows = [r for r in rows_to_report if r['project'] == 'mojo2']
         unknown_rows = [r for r in rows_to_report if r['project'] == 'unknown']
         
-        f.write(f"BREAKDOWN:\n")
+        f.write("BREAKDOWN:\n")
         f.write(f"  Mojo1 (Oct 8-11):  {len(mojo1_rows)} rows\n")
         f.write(f"  Mojo2 (Oct 16-19): {len(mojo2_rows)} rows\n")
         f.write(f"  Unknown:           {len(unknown_rows)} rows\n")
@@ -129,7 +129,7 @@ def main():
             f.write(f"  Timestamp: {r['timestamp']}\n")
             f.write(f"  Project:   {r['project']}\n")
             f.write(f"  Crop box:  x1={r['crop_x1']}, y1={r['crop_y1']}, x2={r['crop_x2']}, y2={r['crop_y2']}\n")
-            f.write(f"  Dimensions (showing Python repr()):\n")
+            f.write("  Dimensions (showing Python repr()):\n")
             f.write(f"    width_0  = {r['width_0']:>8} → valid={r['w0_valid']}\n")
             f.write(f"    height_0 = {r['height_0']:>8} → valid={r['h0_valid']}\n")
             f.write(f"    width_1  = {r['width_1']:>8} → valid={r['w1_valid']}\n")
@@ -147,7 +147,7 @@ def main():
             f.write(f"  Timestamp: {r['timestamp']}\n")
             f.write(f"  Project:   {r['project']}\n")
             f.write(f"  Crop box:  x1={r['crop_x1']}, y1={r['crop_y1']}, x2={r['crop_x2']}, y2={r['crop_y2']}\n")
-            f.write(f"  Dimensions (showing Python repr()):\n")
+            f.write("  Dimensions (showing Python repr()):\n")
             f.write(f"    width_0  = {r['width_0']:>8} → valid={r['w0_valid']}\n")
             f.write(f"    height_0 = {r['height_0']:>8} → valid={r['h0_valid']}\n")
             f.write(f"    width_1  = {r['width_1']:>8} → valid={r['w1_valid']}\n")
@@ -170,14 +170,14 @@ def main():
             fname_short = fname[:55] + '...' if len(fname) > 58 else fname
             f.write(f"{r['row']:<6} {r['project']:<8} {ts_short:<12} {fname_short:<60} {w0_display:<8} {h0_display:<8}\n")
     
-    print(f"\n✅ Report written successfully!")
+    print("\n✅ Report written successfully!")
     print(f"   Total rows: {len(rows_to_report)}")
     print(f"   - Mojo1: {len(mojo1_rows)}")
     print(f"   - Mojo2: {len(mojo2_rows)}")
-    print(f"\nThe report shows:")
-    print(f"  1. First 50 mojo1 rows in DETAIL (showing exact Python repr() values)")
-    print(f"  2. First 50 mojo2 rows in DETAIL (showing exact Python repr() values)")
-    print(f"  3. Complete list of all 7,193 rows in summary table")
+    print("\nThe report shows:")
+    print("  1. First 50 mojo1 rows in DETAIL (showing exact Python repr() values)")
+    print("  2. First 50 mojo2 rows in DETAIL (showing exact Python repr() values)")
+    print("  3. Complete list of all 7,193 rows in summary table")
     print(f"\n📄 Open the file to review: {REPORT_PATH}")
 
 if __name__ == '__main__':

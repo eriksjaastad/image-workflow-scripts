@@ -12,8 +12,7 @@ import re
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
-
+from typing import Dict, Optional
 
 RAW_DIR = Path("/Users/eriksjaastad/projects/Eros Mate/training data/mojo1")
 FINAL_DIR = Path("/Users/eriksjaastad/projects/Eros Mate/training data/mojo1_final")
@@ -134,7 +133,7 @@ def main():
             print(f"   Raw mtime:   {case['raw_mtime']}")
             print(f"   Final mtime: {case['final_mtime']}")
             print(f"   Diff: {case['days_diff']:.1f} days ({case['time_diff']/3600:.1f} hours)")
-            print(f"   ✂️  File was modified = cropped and saved")
+            print("   ✂️  File was modified = cropped and saved")
             print()
     
     # Analyze crop timing distribution

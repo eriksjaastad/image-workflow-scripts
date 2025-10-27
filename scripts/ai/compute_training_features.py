@@ -14,13 +14,14 @@ Usage:
     python scripts/ai/compute_training_features.py [--max-images N]
 """
 
-import sys
-import json
 import hashlib
+import json
+import sys
 import time
-from pathlib import Path
-from typing import Dict, Optional, List, Tuple
 from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional
+
 import numpy as np
 from PIL import Image
 
@@ -30,8 +31,8 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 # Try to import AI dependencies
 try:
-    import torch
     import open_clip
+    import torch
     HAS_AI_DEPS = True
 except ImportError:
     HAS_AI_DEPS = False
@@ -45,7 +46,7 @@ if not torch.backends.mps.is_available():
     DEVICE = "cpu"
 else:
     DEVICE = "mps"
-    print(f"✅ Using Apple GPU (MPS) for acceleration")
+    print("✅ Using Apple GPU (MPS) for acceleration")
 
 
 class FeatureExtractor:
@@ -209,7 +210,7 @@ class FeatureExtractor:
                                 img_path = project_root / path_str
                                 if img_path.exists():
                                     unique_images.add(img_path)
-                        except:
+                        except Exception:
                             pass
         
         return sorted(list(unique_images))
@@ -236,7 +237,7 @@ def main():
     
     if not training_images:
         print(f"❌ No training images found in {args.training_dir}")
-        print(f"   Expected: select_crop_log.csv and selection_only_log.csv")
+        print("   Expected: select_crop_log.csv and selection_only_log.csv")
         return
     
     # Limit if requested

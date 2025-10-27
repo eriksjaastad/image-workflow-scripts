@@ -93,7 +93,7 @@ class TestFileSafetyAudit(unittest.TestCase):
             print("\n" + "="*70)
             print("❌ File safety test FAILED!")
             print(f"   Found {len(dangerous_issues)} files with dangerous patterns")
-            print(f"   Review these files to ensure they don't modify production files")
+            print("   Review these files to ensure they don't modify production files")
             print("\nSafe zones:")
             for safe_dir in audit_file_safety.SAFE_DIRECTORIES:
                 print(f"   • {safe_dir}")
@@ -101,10 +101,10 @@ class TestFileSafetyAudit(unittest.TestCase):
             self.fail(f"Found {len(dangerous_issues)} files with potentially dangerous file modifications")
         
         # Test passes - print success message
-        print(f"\n✅ File safety audit PASSED!")
+        print("\n✅ File safety audit PASSED!")
         print(f"   • Scanned all scripts in {scripts_dir}")
-        print(f"   • All file operations appear safe")
-        print(f"   • No dangerous patterns found outside safe zones")
+        print("   • All file operations appear safe")
+        print("   • No dangerous patterns found outside safe zones")
 
 
 def main():

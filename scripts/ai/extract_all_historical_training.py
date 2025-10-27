@@ -28,7 +28,7 @@ import re
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional, Tuple
 
 # Base directory
 BASE_DIR = Path("/Users/eriksjaastad/projects/Eros Mate")

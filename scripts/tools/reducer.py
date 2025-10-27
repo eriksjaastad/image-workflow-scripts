@@ -5,21 +5,26 @@ import os
 import random
 import sys
 import time
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # Ensure project root on sys.path when invoked directly
 _ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from scripts.utils.watchdog import Heartbeat, Watchdog, print_progress
-from scripts.tools.prof import Profiler
 import concurrent.futures
 from functools import lru_cache
-from typing import Tuple, Optional
-from scripts.utils.companion_file_utils import move_file_with_all_companions, sort_image_files_by_timestamp_and_stage, find_consecutive_stage_groups, detect_stage
-import re
+from typing import Tuple
+
+from scripts.tools.prof import Profiler
+from scripts.utils.companion_file_utils import (
+    detect_stage,
+    find_consecutive_stage_groups,
+    move_file_with_all_companions,
+    sort_image_files_by_timestamp_and_stage,
+)
+from scripts.utils.watchdog import Heartbeat, Watchdog, print_progress
 
 # Minimal scaffold; actual logic will live in sibling modules
 
@@ -220,7 +225,8 @@ def cmd_run(args):
             # Selection-and-move using centralized grouping utilities
             exclude_dirs = {"metrics", "reports", "runs", "logs", "selected", "delete", "crop"}
             # scan stage
-            if profiler: profiler.start_stage("scan")
+            if profiler:
+                profiler.start_stage("scan")
             image_files = [p for p in root.rglob("*.png") if not any(part in exclude_dirs for part in p.parts)]
             image_files = sort_image_files_by_timestamp_and_stage(image_files)
             if profiler:
@@ -229,7 +235,8 @@ def cmd_run(args):
             hb.update(files_scanned=len(image_files), notes="scan")
 
             # group stage
-            if profiler: profiler.start_stage("group")
+            if profiler:
+                profiler.start_stage("group")
             groups = find_consecutive_stage_groups(image_files)
             if profiler:
                 profiler.set_counter("n_groups_total", len(groups))
@@ -290,15 +297,16 @@ def cmd_run(args):
             if use_async_moves:
                 executor = concurrent.futures.ThreadPoolExecutor(max_workers=max(1, int(getattr(args, "move_workers", 4))))
 
-            if profiler: profiler.start_stage("select")
+            if profiler:
+                profiler.start_stage("select")
 
             # ------------------------------ quality metrics helpers ------------------------------
             @lru_cache(maxsize=4096)
             def _qa_metrics_cached(path_str: str, mtime_ns: int, thumb_size: int) -> Tuple[float, float]:
                 """Return (sharpness_score, clip_fraction). Pure-Python/Numpy on thumbnail; fail-open to zeros."""
                 try:
-                    from PIL import Image
                     import numpy as _np
+                    from PIL import Image
                 except Exception:
                     return 0.0, 0.0
                 try:
@@ -427,7 +435,8 @@ def cmd_run(args):
                         hb.update(items_processed=len(group_iter), notes="moves_flush")
                 finally:
                     executor.shutdown(wait=True)
-            if profiler: profiler.end_stage("select")
+            if profiler:
+                profiler.end_stage("select")
             hb.update(items_processed=len(group_iter), notes="select_done")
 
         if abort_reason["reason"] is not None:

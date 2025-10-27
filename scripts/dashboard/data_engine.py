@@ -14,21 +14,21 @@ Features:
 """
 
 import json
-import glob
 import re
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
-import sys
+from typing import Any, Dict, List, Optional
 
 # Add the project root to Python path for imports
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from scripts.utils.companion_file_utils import calculate_work_time_from_file_operations, get_file_operation_metrics
 from collections import defaultdict
+
 from scripts.dashboard.project_metrics_aggregator import ProjectMetricsAggregator
 from scripts.dashboard.snapshot_loader import SnapshotLoader
+
 
 class DashboardDataEngine:
     def __init__(self, data_dir: str = ".."):
@@ -280,7 +280,7 @@ class DashboardDataEngine:
                         'source': 'derived_from_operation_events_v1'
                     }
                     records.append(record)
-                except Exception as e:
+                except Exception:
                     # Skip malformed sessions silently
                     continue
             return records
@@ -467,7 +467,7 @@ class DashboardDataEngine:
         all_records = []
         
         if use_archives:
-            print(f"[SMART LOAD] Using archive bins for finished projects")
+            print("[SMART LOAD] Using archive bins for finished projects")
             
             # Load projects to determine which are finished
             projects = self.load_projects()
@@ -603,7 +603,7 @@ class DashboardDataEngine:
                 try:
                     date_obj = datetime.strptime(day_str, '%Y%m%d').date()
                     date_formatted = date_obj.isoformat()  # YYYY-MM-DD
-                except:
+                except Exception:
                     date_formatted = day_str
                 
                 for script_id, script_data in agg.get('by_script', {}).items():
@@ -616,7 +616,7 @@ class DashboardDataEngine:
                         'source': 'snapshot_aggregate_v1'
                     }
                     records.append(record)
-            except Exception as e:
+            except Exception:
                 continue
         
         return records
@@ -668,7 +668,7 @@ class DashboardDataEngine:
                                     ts = ts.replace(tzinfo=None)
                                 record['timestamp'] = ts
                                 record['date'] = ts.date()
-                            except:
+                            except Exception:
                                 record['timestamp'] = None
                                 record['date'] = None
                             
@@ -732,7 +732,7 @@ class DashboardDataEngine:
                                                 ts = ts.replace(tzinfo=None)
                                             record['timestamp'] = ts
                                             record['date'] = ts.date()
-                                        except:
+                                        except Exception:
                                             record['timestamp'] = None
                                             record['date'] = None
                                         
@@ -767,7 +767,7 @@ class DashboardDataEngine:
                                                 ts = ts.replace(tzinfo=None)
                                             record['timestamp'] = ts
                                             record['date'] = ts.date()
-                                        except:
+                                        except Exception:
                                             record['timestamp'] = None
                                             record['date'] = None
                                         
@@ -970,7 +970,7 @@ class DashboardDataEngine:
         if isinstance(timestamp, str):
             try:
                 timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-            except:
+            except Exception:
                 # If can't parse, and it's daily slice, try using date field directly
                 if time_slice == 'D' and 'date' in record:
                     return str(record['date'])
@@ -988,7 +988,7 @@ class DashboardDataEngine:
                         timestamp = datetime.fromisoformat(date_val)
                     else:
                         timestamp = datetime.combine(date_val, datetime.min.time())
-                except:
+                except Exception:
                     return None
             else:
                 return None
@@ -1091,7 +1091,7 @@ class DashboardDataEngine:
                 # Monthly: pattern by month
                 dt = datetime.fromisoformat(time_slice_key)
                 return str(dt.month)
-        except:
+        except Exception:
             return 'unknown'
     
     def load_script_updates(self) -> List[Dict]:
@@ -1143,7 +1143,7 @@ class DashboardDataEngine:
         import time as time_module
         overall_start = time_module.time()
         print(f"\n{'='*70}")
-        print(f"[DATA_ENGINE TIMING] Starting generate_dashboard_data")
+        print("[DATA_ENGINE TIMING] Starting generate_dashboard_data")
         print(f"  time_slice: {time_slice}, lookback_days: {lookback_days}")
         print(f"{'='*70}")
         

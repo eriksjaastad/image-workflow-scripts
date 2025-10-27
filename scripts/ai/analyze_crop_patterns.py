@@ -10,10 +10,9 @@ This script will:
 """
 
 import csv
+import statistics
 import sys
 from pathlib import Path
-from collections import defaultdict
-import statistics
 
 # Add scripts directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -110,21 +109,21 @@ def analyze_crop_data():
     
     print("📊 CROP SIZE DISTRIBUTION")
     print("-" * 80)
-    print(f"Crop Width (% of original):")
+    print("Crop Width (% of original):")
     print(f"  Min:    {min(crop_widths):.1f}%")
     print(f"  Max:    {max(crop_widths):.1f}%")
     print(f"  Mean:   {statistics.mean(crop_widths):.1f}%")
     print(f"  Median: {statistics.median(crop_widths):.1f}%")
     print(f"  StdDev: {statistics.stdev(crop_widths):.1f}%")
     print()
-    print(f"Crop Height (% of original):")
+    print("Crop Height (% of original):")
     print(f"  Min:    {min(crop_heights):.1f}%")
     print(f"  Max:    {max(crop_heights):.1f}%")
     print(f"  Mean:   {statistics.mean(crop_heights):.1f}%")
     print(f"  Median: {statistics.median(crop_heights):.1f}%")
     print(f"  StdDev: {statistics.stdev(crop_heights):.1f}%")
     print()
-    print(f"Crop Area (% of original):")
+    print("Crop Area (% of original):")
     print(f"  Min:    {min(crop_areas):.1f}%")
     print(f"  Max:    {max(crop_areas):.1f}%")
     print(f"  Mean:   {statistics.mean(crop_areas):.1f}%")
@@ -134,28 +133,28 @@ def analyze_crop_data():
     
     print("📍 CROP POSITION DISTRIBUTION")
     print("-" * 80)
-    print(f"Top-Left X Position (normalized [0,1]):")
+    print("Top-Left X Position (normalized [0,1]):")
     print(f"  Min:    {min(x1_positions):.3f}")
     print(f"  Max:    {max(x1_positions):.3f}")
     print(f"  Mean:   {statistics.mean(x1_positions):.3f}")
     print(f"  Median: {statistics.median(x1_positions):.3f}")
     print(f"  StdDev: {statistics.stdev(x1_positions):.3f}")
     print()
-    print(f"Top-Left Y Position (normalized [0,1]):")
+    print("Top-Left Y Position (normalized [0,1]):")
     print(f"  Min:    {min(y1_positions):.3f}")
     print(f"  Max:    {max(y1_positions):.3f}")
     print(f"  Mean:   {statistics.mean(y1_positions):.3f}")
     print(f"  Median: {statistics.median(y1_positions):.3f}")
     print(f"  StdDev: {statistics.stdev(y1_positions):.3f}")
     print()
-    print(f"Crop Center X (normalized [0,1]):")
+    print("Crop Center X (normalized [0,1]):")
     print(f"  Min:    {min(crop_x_centers):.3f}")
     print(f"  Max:    {max(crop_x_centers):.3f}")
     print(f"  Mean:   {statistics.mean(crop_x_centers):.3f}")
     print(f"  Median: {statistics.median(crop_x_centers):.3f}")
     print(f"  StdDev: {statistics.stdev(crop_x_centers):.3f}")
     print()
-    print(f"Crop Center Y (normalized [0,1]):")
+    print("Crop Center Y (normalized [0,1]):")
     print(f"  Min:    {min(crop_y_centers):.3f}")
     print(f"  Max:    {max(crop_y_centers):.3f}")
     print(f"  Mean:   {statistics.mean(crop_y_centers):.3f}")

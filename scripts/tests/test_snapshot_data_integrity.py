@@ -8,10 +8,10 @@ and that dashboard loads correctly from snapshots alone.
 Run: python scripts/tests/test_snapshot_data_integrity.py
 """
 
-import sys
 import json
-from pathlib import Path
+import sys
 from collections import Counter
+from pathlib import Path
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -55,7 +55,7 @@ def test_snapshot_coverage():
         print(f"  ❌ FAIL: Days missing: {sorted(missing_days)}")
         return False
     else:
-        print(f"  ✅ PASS: All legacy days covered by snapshots")
+        print("  ✅ PASS: All legacy days covered by snapshots")
         return True
 
 
@@ -73,7 +73,7 @@ def test_dashboard_loads_snapshots():
         sources = Counter(o.get('source', 'unknown') for o in ops)
         
         print(f"  Total operations loaded: {len(ops)}")
-        print(f"  By source:")
+        print("  By source:")
         for src, count in sources.most_common():
             print(f"    - {src}: {count}")
         
@@ -81,13 +81,13 @@ def test_dashboard_loads_snapshots():
         snapshot_count = sources.get('snapshot_aggregate_v1', 0)
         
         if snapshot_count == 0:
-            print(f"  ❌ FAIL: No snapshot data loaded")
+            print("  ❌ FAIL: No snapshot data loaded")
             return False
         elif snapshot_count < 50:
             print(f"  ⚠️  WARNING: Only {snapshot_count} snapshot operations (expected more)")
             return True
         else:
-            print(f"  ✅ PASS: Snapshots loading correctly")
+            print("  ✅ PASS: Snapshots loading correctly")
             return True
             
     except Exception as e:
@@ -133,7 +133,7 @@ def test_data_consistency():
         if duplicates:
             print(f"  ⚠️  INFO: Days with multiple scripts: {len(duplicates)}")
         
-        print(f"  ✅ PASS: Data structure is consistent")
+        print("  ✅ PASS: Data structure is consistent")
         return True
         
     except Exception as e:
@@ -166,10 +166,10 @@ def test_snapshot_files_exist():
             all_exist = False
     
     if all_exist:
-        print(f"  ✅ PASS: All snapshot directories exist")
+        print("  ✅ PASS: All snapshot directories exist")
         return True
     else:
-        print(f"  ❌ FAIL: Missing snapshot directories")
+        print("  ❌ FAIL: Missing snapshot directories")
         return False
 
 
@@ -190,10 +190,10 @@ def test_raw_logs_preserved():
     print(f"  Total: {len(log_files) + len(archive_files)}")
     
     if len(log_files) + len(archive_files) > 0:
-        print(f"  ✅ PASS: Raw logs preserved")
+        print("  ✅ PASS: Raw logs preserved")
         return True
     else:
-        print(f"  ❌ FAIL: No raw logs found")
+        print("  ❌ FAIL: No raw logs found")
         return False
 
 

@@ -14,10 +14,10 @@ Run this to verify the system is working correctly.
 """
 
 import json
-import sys
-from pathlib import Path
-from datetime import datetime, timedelta
 import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
 
 # Add project root to path
 project_root = Path(__file__).resolve().parents[2]
@@ -46,7 +46,7 @@ def run_command(cmd: list, description: str) -> tuple[bool, str]:
         output = result.stdout + result.stderr
         
         if result.returncode == 0:
-            print(f"  ✓ Success")
+            print("  ✓ Success")
             return True, output
         else:
             print(f"  ✗ Failed (exit code {result.returncode})")
@@ -133,7 +133,7 @@ def check_raw_logs(data_dir: Path) -> tuple[int, str, str]:
             try:
                 date = datetime.strptime(date_str, '%Y%m%d')
                 dates.append(date)
-            except:
+            except Exception:
                 continue
     
     if dates:
@@ -204,7 +204,6 @@ def main():
     # Calculate compression ratio
     bins_dir = data_dir / 'aggregates' / 'daily'
     if bins_dir.exists():
-        import os
         bins_size = sum(
             f.stat().st_size for f in bins_dir.rglob('agg_15m.jsonl')
             if f.is_file()
@@ -228,7 +227,7 @@ def main():
             print("  Unable to calculate compression ratio")
     
     print(f"  Bins per day: {bin_count / 7:.0f} average")
-    print(f"  Estimated dashboard speedup: 10-50x")
+    print("  Estimated dashboard speedup: 10-50x")
     
     # Step 5: Next steps
     print_section("Next Steps")

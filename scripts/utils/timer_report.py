@@ -40,15 +40,16 @@ FEATURES:
 
 import argparse
 import json
+import sys
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-import sys
 
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent))
 
 from activity_timer import TimerReporter, cleanup_old_data
+
 
 class AdvancedTimerReporter(TimerReporter):
     """Extended reporter with additional analytics"""
@@ -70,14 +71,14 @@ class AdvancedTimerReporter(TimerReporter):
             files_per_hour = totals['total_files_processed'] / total_hours
             operations_per_hour = totals['total_operations'] / total_hours
             
-            print(f"Overall Performance:")
+            print("Overall Performance:")
             print(f"  Total Active Hours: {total_hours:.1f}h")
             print(f"  Files per Hour: {files_per_hour:.1f}")
             print(f"  Operations per Hour: {operations_per_hour:.1f}")
             print(f"  Average Efficiency: {totals['total_active_time']/totals['total_session_time']*100:.1f}%")
         
         # Script-specific metrics
-        print(f"\n📋 Script Performance Ranking:")
+        print("\n📋 Script Performance Ranking:")
         script_metrics = []
         
         for script, stats in totals['script_totals'].items():
@@ -130,13 +131,13 @@ class AdvancedTimerReporter(TimerReporter):
         avg_efficiency = sum(d['efficiency'] for d in daily_data) / len(daily_data)
         avg_files = sum(d['files_processed'] for d in daily_data) / len(daily_data)
         
-        print(f"Daily Averages:")
+        print("Daily Averages:")
         print(f"  Active Time: {avg_active:.1f}h")
         print(f"  Efficiency: {avg_efficiency:.1f}%")
         print(f"  Files Processed: {avg_files:.0f}")
         
         # Show recent days
-        print(f"\nRecent Activity:")
+        print("\nRecent Activity:")
         for data in daily_data[:7]:  # Last 7 days
             date_formatted = datetime.strptime(data['date'], '%Y%m%d').strftime('%m/%d')
             active_hours = data['active_time'] / 3600

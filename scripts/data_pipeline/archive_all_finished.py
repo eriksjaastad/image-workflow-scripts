@@ -9,9 +9,9 @@ dramatically speeding up dashboard load times.
 """
 
 import json
+import subprocess
 import sys
 from pathlib import Path
-import subprocess
 
 # Add project root to path
 project_root = Path(__file__).resolve().parents[2]
@@ -48,7 +48,7 @@ def main():
     )
     
     if result.returncode != 0:
-        print(f"✗ Failed to generate bins:")
+        print("✗ Failed to generate bins:")
         print(result.stdout)
         print(result.stderr)
         sys.exit(1)
@@ -81,7 +81,7 @@ def main():
             print(f"✗ Error reading {manifest_path}: {e}")
             continue
     
-    print(f"Found:")
+    print("Found:")
     print(f"  • {len(finished_projects)} finished projects")
     print(f"  • {len(active_projects)} active projects")
     print()
@@ -110,7 +110,7 @@ def main():
         
         if result.returncode == 0:
             archived_count += 1
-            print(f"  ✓ Success")
+            print("  ✓ Success")
             # Show key stats from output
             if 'bins' in result.stdout:
                 for line in result.stdout.split('\n'):
@@ -118,7 +118,7 @@ def main():
                         print(f"    {line.strip()}")
         else:
             failed.append(project_id)
-            print(f"  ✗ Failed")
+            print("  ✗ Failed")
             if result.stderr:
                 print(f"    Error: {result.stderr[:200]}")
         

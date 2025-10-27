@@ -12,8 +12,8 @@ Run:
   python scripts/tests/test_ai_assisted_reviewer_batch.py
 """
 
-import sys
 import json
+import sys
 import tempfile
 from pathlib import Path
 
@@ -22,11 +22,11 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
-from file_tracker import FileTracker
 import importlib.util
-import types
+
+from file_tracker import FileTracker
+
 try:
-    import flask  # type: ignore
     FLASK_AVAILABLE = True
 except Exception:
     FLASK_AVAILABLE = False

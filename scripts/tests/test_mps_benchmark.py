@@ -7,10 +7,9 @@ This is a standalone benchmark script, not a pytest test.
 Run directly: python scripts/tests/test_mps_benchmark.py
 """
 
+import platform
 import sys
 import time
-import platform
-from pathlib import Path
 
 # Not a pytest test - skip collection
 __test__ = False

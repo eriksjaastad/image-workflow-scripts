@@ -30,12 +30,14 @@ FEATURES:
 • Comprehensive audit trail and statistics
 """
 
+import argparse
 import os
 import sys
-import argparse
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
+
 from send2trash import send2trash
+
 
 def find_mismatched_files_recursive(root_directory):
     """Recursively find PNG files without matching metadata files and vice versa."""
@@ -126,7 +128,7 @@ def cleanup_and_verify(directory, recursive=False):
         return
     
     # Generate detailed report
-    print(f"\n📋 ORPHANED FILES REPORT:")
+    print("\n📋 ORPHANED FILES REPORT:")
     print(f"{'='*60}")
     print(f"  • Total paired files: {results['total_pairs']}")
     print(f"  • Orphaned PNG files: {len(results['orphaned_pngs'])}")
@@ -200,7 +202,7 @@ def perform_cleanup(results):
             except Exception as e:
                 print(f"  ❌ Error moving {f.name} to trash: {e}")
     
-    print(f"\n✅ Cleanup complete! All orphaned files have been moved to trash.")
+    print("\n✅ Cleanup complete! All orphaned files have been moved to trash.")
 
 def main():
     parser = argparse.ArgumentParser(

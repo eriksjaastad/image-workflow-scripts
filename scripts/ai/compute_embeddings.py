@@ -10,16 +10,18 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
-from typing import Set, List
-import torch
+from typing import List, Set
+
+import numpy as np
 import open_clip
+import torch
 from PIL import Image
 from tqdm import tqdm
-import hashlib
-import numpy as np
+
 
 def get_image_hash(image_path: Path) -> str:
     """Generate a hash for the image path to use as filename."""
@@ -51,7 +53,7 @@ def load_training_image_paths(data_dir: Path) -> Set[Path]:
                         for path in neg_paths:
                             if path and Path(path).exists():
                                 image_paths.add(Path(path))
-                    except:
+                    except Exception:
                         pass
     
     # Load from crop log

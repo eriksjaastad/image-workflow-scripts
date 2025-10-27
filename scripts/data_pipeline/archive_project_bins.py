@@ -29,12 +29,12 @@ Features:
 
 import json
 import shutil
-import tempfile
-from pathlib import Path
-from datetime import datetime, timezone
-from typing import Dict, List, Any, Set, Optional
-from collections import defaultdict
 import sys
+import tempfile
+from collections import defaultdict
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set
 
 # Add project root to path
 project_root = Path(__file__).resolve().parents[2]
@@ -369,12 +369,12 @@ class ProjectArchiver:
             return False
         
         if not finished_at:
-            print(f"✗ Error: Project has no finishedAt timestamp")
+            print("✗ Error: Project has no finishedAt timestamp")
             return False
         
         started_at = manifest.get('startedAt')
         if not started_at:
-            print(f"✗ Error: Project has no startedAt timestamp")
+            print("✗ Error: Project has no startedAt timestamp")
             return False
         
         print(f"  Status: {status}")
@@ -382,16 +382,16 @@ class ProjectArchiver:
         print(f"  Finished: {finished_at}")
         
         # Collect project bins
-        print(f"\n  Collecting bins...")
+        print("\n  Collecting bins...")
         bins = self.collect_project_bins(project_id, started_at, finished_at)
         
         if not bins:
-            print(f"  ⚠️  Warning: No bins found for project")
-            print(f"  This may indicate:")
-            print(f"    - Bins not yet generated (run aggregate_to_15m.py first)")
-            print(f"    - Project has no file operations")
+            print("  ⚠️  Warning: No bins found for project")
+            print("  This may indicate:")
+            print("    - Bins not yet generated (run aggregate_to_15m.py first)")
+            print("    - Project has no file operations")
             if not dry_run:
-                print(f"\n  Skipping archive (no data to archive)")
+                print("\n  Skipping archive (no data to archive)")
                 return False
         else:
             print(f"  ✓ Found {len(bins)} bins")
@@ -400,16 +400,16 @@ class ProjectArchiver:
         summary = self.create_project_summary(project_id, manifest, bins)
         
         # Write archive
-        print(f"\n  Writing archive...")
+        print("\n  Writing archive...")
         self.write_project_archive(project_id, bins, summary, dry_run=dry_run)
         
         # Merge into overall (unless skipped)
         if not skip_merge and bins:
-            print(f"\n  Merging into overall aggregate...")
+            print("\n  Merging into overall aggregate...")
             self.merge_into_overall(project_id, bins, dry_run=dry_run)
         
         print(f"\n{'='*70}")
-        print(f"✅ Archive complete")
+        print("✅ Archive complete")
         print(f"{'='*70}\n")
         
         return True
@@ -481,10 +481,10 @@ class ProjectArchiver:
         
         print(f"\n  ✓ Removed {project_bins_found} bins from overall")
         print(f"  Note: Archive directory still exists at: {self.archives_dir / project_id}")
-        print(f"        (Delete manually if needed)")
+        print("        (Delete manually if needed)")
         
         print(f"\n{'='*70}")
-        print(f"✅ Rollback complete")
+        print("✅ Rollback complete")
         print(f"{'='*70}\n")
         
         return True

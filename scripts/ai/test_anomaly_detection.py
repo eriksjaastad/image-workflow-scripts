@@ -8,16 +8,17 @@ Did the AI also pick the lower stage in those cases?
 
 import csv
 import json
-import torch
-import numpy as np
 from pathlib import Path
-from collections import Counter
+
+import numpy as np
+import torch
 
 # Load model
 model_path = Path("data/ai_data/models/ranker_v1.pt")
 checkpoint = torch.load(model_path, map_location='cpu')
 
 from train_ranker import RankingModel
+
 model = RankingModel()
 model.load_state_dict(checkpoint['model_state_dict'])
 model.eval()
@@ -53,7 +54,7 @@ with open(log_file, 'r') as f:
         
         try:
             neg_paths = json.loads(neg_paths_str.replace('""', '"'))
-        except:
+        except Exception:
             continue
         
         # Extract stages
@@ -148,7 +149,7 @@ else:
     print(f"AI failed to detect anomaly:   {ai_wrong}/{len(anomaly_cases)} ({ai_wrong/len(anomaly_cases)*100:.1f}%)")
     
     if ai_correct / len(anomaly_cases) > 0.5:
-        print(f"\n✅ AI learned anomaly detection! Not just picking highest stage.")
+        print("\n✅ AI learned anomaly detection! Not just picking highest stage.")
     else:
-        print(f"\n⚠️  AI might be overfitting to stage numbers.")
+        print("\n⚠️  AI might be overfitting to stage numbers.")
 

@@ -55,17 +55,23 @@ FEATURES:
 - Perfect for quick clustering assessment and cleanup
 """
 
-import os
-import sys
 import argparse
-from pathlib import Path
-from flask import Flask, render_template_string, request, jsonify
-import webbrowser
-from utils.companion_file_utils import launch_browser, generate_thumbnail, logger, get_error_display_html, get_training_dir, _append_csv_row, safe_delete_image_and_yaml
-from datetime import datetime
+import sys
 import threading
-import time
-import shutil
+from datetime import datetime
+from pathlib import Path
+
+from flask import Flask, jsonify, render_template_string, request
+
+from utils.companion_file_utils import (
+    _append_csv_row,
+    generate_thumbnail,
+    get_error_display_html,
+    get_training_dir,
+    launch_browser,
+    logger,
+    safe_delete_image_and_yaml,
+)
 
 # Configuration
 THUMBNAIL_MAX_DIM = 200
@@ -76,7 +82,6 @@ from scripts.file_tracker import FileTracker
 
 _SEND2TRASH_AVAILABLE = False
 try:
-    from send2trash import send2trash
     _SEND2TRASH_AVAILABLE = True
 except Exception:
     _SEND2TRASH_AVAILABLE = False
@@ -784,7 +789,7 @@ def main():
         print(f"❌ Error: No PNG images found in right directory '{args.right_dir}'")
         sys.exit(1)
     
-    print(f"🚀 Starting Web Duplicate Finder...")
+    print("🚀 Starting Web Duplicate Finder...")
     print(f"📂 Left directory: {args.left_dir} ({len(left_images)} images)")
     print(f"📂 Right directory: {args.right_dir} ({len(right_images)} images)")
     
