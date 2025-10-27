@@ -93,10 +93,11 @@ except Exception:
 
 # ---- optional companion file utilities ----
 try:
-    from utils.companion_file_utils import move_file_with_all_companions
+    from utils.companion_file_utils import move_file_with_all_companions, safe_move_path
 except Exception:
     print("⚠️  companion_file_utils not found. Using basic file moves.")
     move_file_with_all_companions = None
+    safe_move_path = None
 
 
 # ------------------------------ utils ------------------------------
@@ -432,8 +433,8 @@ def move_image_metadata_pairs(out_dir: Path, paths: List[Path], labels: np.ndarr
                 continue
             try:
                 # Move image and ALL companion files to destination directory
-                if move_file_with_all_companions:
-                    moved = move_file_with_all_companions(image_path, group_dir, dry_run=False)
+                if safe_move_path:
+                    moved = safe_move_path(image_path, group_dir, dry_run=False)
                     moved_files.extend(moved)
                 else:
                     shutil.move(str(image_path), str(group_dir / image_path.name))
