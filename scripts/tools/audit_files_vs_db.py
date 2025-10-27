@@ -226,6 +226,7 @@ def write_reports(
         "summary": asdict(summary),
         "found": {k: asdict(v) for k, v in found.items()},
         "problems": problems,
+        "artifact_candidates": []
     }
     json_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
@@ -251,6 +252,10 @@ def write_reports(
         if len(problems) > 50:
             lines.append(f"- ... and {len(problems)-50} more")
         lines.append("")
+    # Placeholder section for artifact candidates (decision-level when DB flagging is available)
+    lines.append("## Artifact Candidates (scaffolding)")
+    lines.append("- Detected via multi-directory and mismatched-stem heuristics (to be expanded)")
+    lines.append("")
     md_path.write_text("\n".join(lines), encoding="utf-8")
 
     return json_path, md_path
