@@ -179,13 +179,20 @@ def find_all_companion_files(image_path: Path) -> List[Path]:
 
     companions = []
     base_name = image_path.stem
+    # Group-level stem (before '_stage') to catch sidecars like 20250705_215218.decision
+    group_stem = base_name.split('_stage')[0] if '_stage' in base_name else base_name
     parent_dir = image_path.parent
     try:
         # Find ALL files in the same directory with the same base name
         for file_path in parent_dir.iterdir():
-            if (file_path.is_file() and 
-                file_path.stem == base_name and 
-                file_path != image_path):  # Don't include the image file itself
+            if not file_path.is_file():
+                continue
+            # Same-stem companions (yaml, caption, etc.)
+            if file_path.stem == base_name and file_path != image_path:
+                companions.append(file_path)
+                continue
+            # Group-level sidecars (e.g., .decision) named by group/timestamp stem
+            if file_path.suffix.lower() == '.decision' and file_path.stem == group_stem:
                 companions.append(file_path)
     except Exception:
         # best-effort; return what we gathered
