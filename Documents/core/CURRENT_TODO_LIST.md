@@ -172,6 +172,16 @@
 
 ## ✅ Recently Completed
 
+**Artifact Groups & Two-Action Crop Flow (Oct 26, 2025)**
+- [x] Artifact detection + warning flow in reviewer
+- [x] Audit tool artifact candidate scaffolding
+- [x] Snapshot extraction artifact field marking
+- [x] Dashboard artifact panel (UI + backend)
+- [x] aiCropAccepted two-action routing
+- [x] Sidecar schema with `ai_route` field
+- [x] AI Reviewer batch summary delete count bug fix
+- [x] JSONL batch summary logger
+
 **SQLite v3 Training System (Oct 22, 2025 - Night/Morning)**
 - [x] **Design and implement SQLite-based training data system** ⭐ **GAME CHANGER!**
 - [x] Create database schema with decision tracking + crop matching
