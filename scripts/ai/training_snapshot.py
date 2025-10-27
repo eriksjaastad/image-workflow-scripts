@@ -135,7 +135,7 @@ def get_snapshot_count() -> int:
     """Get count of captured snapshots (for progress tracking)"""
     try:
         return len([d for d in SNAPSHOT_DIR.iterdir() if d.is_dir()])
-    except:
+    except Exception:
         return 0
 
 
@@ -157,7 +157,7 @@ def cleanup_snapshots_older_than_days(days: int = 30) -> int:
                     if mtime < cutoff_time:
                         shutil.rmtree(snapshot_dir)
                         deleted += 1
-    except:
+    except Exception:
         pass
     
     return deleted

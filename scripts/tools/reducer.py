@@ -225,7 +225,8 @@ def cmd_run(args):
             # Selection-and-move using centralized grouping utilities
             exclude_dirs = {"metrics", "reports", "runs", "logs", "selected", "delete", "crop"}
             # scan stage
-            if profiler: profiler.start_stage("scan")
+            if profiler:
+                profiler.start_stage("scan")
             image_files = [p for p in root.rglob("*.png") if not any(part in exclude_dirs for part in p.parts)]
             image_files = sort_image_files_by_timestamp_and_stage(image_files)
             if profiler:
@@ -234,7 +235,8 @@ def cmd_run(args):
             hb.update(files_scanned=len(image_files), notes="scan")
 
             # group stage
-            if profiler: profiler.start_stage("group")
+            if profiler:
+                profiler.start_stage("group")
             groups = find_consecutive_stage_groups(image_files)
             if profiler:
                 profiler.set_counter("n_groups_total", len(groups))
@@ -295,7 +297,8 @@ def cmd_run(args):
             if use_async_moves:
                 executor = concurrent.futures.ThreadPoolExecutor(max_workers=max(1, int(getattr(args, "move_workers", 4))))
 
-            if profiler: profiler.start_stage("select")
+            if profiler:
+                profiler.start_stage("select")
 
             # ------------------------------ quality metrics helpers ------------------------------
             @lru_cache(maxsize=4096)
@@ -432,7 +435,8 @@ def cmd_run(args):
                         hb.update(items_processed=len(group_iter), notes="moves_flush")
                 finally:
                     executor.shutdown(wait=True)
-            if profiler: profiler.end_stage("select")
+            if profiler:
+                profiler.end_stage("select")
             hb.update(items_processed=len(group_iter), notes="select_done")
 
         if abort_reason["reason"] is not None:

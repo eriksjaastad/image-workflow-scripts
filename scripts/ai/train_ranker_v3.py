@@ -180,7 +180,7 @@ def load_training_data(embeddings_cache: Dict, anomaly_set: set) -> Tuple[List[D
             # Parse negative paths
             try:
                 neg_paths = json.loads(neg_paths_str.replace('""', '"'))
-            except:
+            except Exception:
                 skipped += 1
                 continue
             

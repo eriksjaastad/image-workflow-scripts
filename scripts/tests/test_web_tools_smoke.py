@@ -91,7 +91,7 @@ class WebToolSmokeTest(unittest.TestCase):
                 if result == 0:
                     time.sleep(0.5)  # Extra time to initialize
                     return True
-            except:
+            except Exception:
                 pass
             time.sleep(0.2)
         return False

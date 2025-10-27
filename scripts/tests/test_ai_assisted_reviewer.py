@@ -24,14 +24,14 @@ try:
     import torch
     import torch.nn as nn
     TORCH_AVAILABLE = True
-except:
+except Exception:
     TORCH_AVAILABLE = False
     print("[!] PyTorch not available - some tests will be skipped")
 
 try:
     import clip
     CLIP_AVAILABLE = True
-except:
+except Exception:
     CLIP_AVAILABLE = False
     print("[!] CLIP not available - some tests will be skipped")
 

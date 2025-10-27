@@ -1,8 +1,14 @@
 [tool.ruff]
 target-version = "py311"
 src = ["scripts"]
-extend-exclude = ["*.md", "*.txt", "*.json", "*.csv", "*.html", "*.css", "*.js"]
+extend-exclude = [
+    "*.md", "*.txt", "*.json", "*.csv", "*.html", "*.css", "*.js",
+    "scripts/archive/*"  # Exclude archived/deprecated code
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
-ignore = ["E501"]  # Don't enforce line length
+ignore = [
+    "E501",  # Don't enforce line length
+    "E402",  # Allow imports not at top (needed for sys.path manipulation)
+]

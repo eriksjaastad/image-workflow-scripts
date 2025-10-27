@@ -257,7 +257,7 @@ class DashboardTest:
                         print("  ✓ Invalid time slice handled correctly (empty response)")
                     else:
                         print(f"  ⚠️ Invalid time slice returned data: {response.status_code}")
-                except:
+                except Exception:
                     print("  ✓ Invalid time slice handled correctly (invalid JSON)")
             else:
                 print(f"  ❌ Invalid time slice not handled: {response.status_code}")

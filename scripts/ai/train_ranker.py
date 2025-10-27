@@ -141,11 +141,11 @@ def load_training_data(log_file: Path, embeddings: Dict[str, np.ndarray]) -> Lis
             # Parse negative paths (JSON array)
             try:
                 neg_paths = json.loads(neg_paths_str)
-            except:
+            except Exception:
                 # Fallback: might be stored with escaped quotes
                 try:
                     neg_paths = json.loads(neg_paths_str.replace('""', '"'))
-                except:
+                except Exception:
                     skipped += 1
                     skipped_reasons['parse_error'] += 1
                     continue

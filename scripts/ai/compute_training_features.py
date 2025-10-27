@@ -210,7 +210,7 @@ class FeatureExtractor:
                                 img_path = project_root / path_str
                                 if img_path.exists():
                                     unique_images.add(img_path)
-                        except:
+                        except Exception:
                             pass
         
         return sorted(list(unique_images))

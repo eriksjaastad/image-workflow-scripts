@@ -177,7 +177,7 @@ def extract_training_data(
                             match = re.search(r'stage([\d.]+)', stage_str)
                             if match:
                                 stage = float(match.group(1))
-                        except:
+                        except Exception:
                             pass
                     
                     crops.append({

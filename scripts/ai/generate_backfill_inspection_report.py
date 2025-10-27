@@ -31,7 +31,7 @@ def get_project_from_timestamp(timestamp_str):
             return "mojo2", ts.strftime('%Y-%m-%d %H:%M:%S')
         else:
             return "unknown", ts.strftime('%Y-%m-%d %H:%M:%S')
-    except:
+    except Exception:
         return "unknown", str(timestamp_str or "")
 
 def main():
@@ -56,7 +56,7 @@ def main():
                 try:
                     datetime.fromisoformat(timestamp.replace('Z', ''))
                     has_valid_timestamp = True
-                except:
+                except Exception:
                     pass
             
             # Check dimensions

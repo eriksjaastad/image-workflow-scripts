@@ -222,7 +222,7 @@ class FileTracker:
                 "session_id": self.session_id,
                 "timestamp": datetime.now().isoformat()
             })
-        except:
+        except Exception:
             pass
 
 

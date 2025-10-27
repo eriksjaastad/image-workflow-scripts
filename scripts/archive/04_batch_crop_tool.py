@@ -139,7 +139,7 @@ class BatchCropTool:
                 return width / height
             else:
                 return float(ratio_str)
-        except:
+        except Exception:
             print(f"⚠️  Invalid aspect ratio: {ratio_str}. Using original image ratio.")
             return None
         
@@ -182,7 +182,7 @@ class BatchCropTool:
             # Set matplotlib to not show toolbar globally
             import matplotlib
             matplotlib.rcParams['toolbar'] = 'None'
-        except:
+        except Exception:
             pass
         
         # Minimize spacing between subplots to maximize image space - tighter layout
@@ -202,7 +202,7 @@ class BatchCropTool:
             for key in conflicting_keys:
                 if key in plt.rcParams:
                     plt.rcParams[key] = []
-        except:
+        except Exception:
             pass  # Ignore if rcParams keys don't exist
         
         # Connect keyboard events
@@ -705,7 +705,7 @@ def parse_aspect_ratio(ratio_str):
     try:
         w, h = map(float, ratio_str.split(':'))
         return w / h
-    except:
+    except Exception:
         raise ValueError(f"Invalid aspect ratio format: {ratio_str}")
 
 def main():

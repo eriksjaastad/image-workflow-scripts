@@ -566,7 +566,7 @@ class ProductivityDashboard:
                 
                 # Add the date (not datetime) to the set
                 unique_dates.add(op_dt.date().isoformat())
-            except:
+            except Exception:
                 continue
         
         return len(unique_dates)

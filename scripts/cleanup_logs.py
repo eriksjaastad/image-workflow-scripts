@@ -177,7 +177,7 @@ def consolidate_daily_data(target_date: str, dry_run: bool = False):
                 work_time_seconds = (end - start).total_seconds()
                 summary['work_time_seconds'] = work_time_seconds
                 summary['work_time_minutes'] = work_time_seconds / 60.0
-            except:
+            except Exception:
                 summary['work_time_seconds'] = 0
                 summary['work_time_minutes'] = 0
         

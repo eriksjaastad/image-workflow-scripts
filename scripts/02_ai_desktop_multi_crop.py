@@ -286,11 +286,8 @@ class AIMultiCropTool(MultiCropTool):
                     crop_entry['index_in_batch'] = idx
 
                 # Get session/project info
-                try:
-                    session_id = getattr(self, 'session_id', f"crop_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
-                except Exception:
-                    from datetime import datetime
-                    session_id = f"crop_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                from datetime import datetime
+                session_id = getattr(self, 'session_id', f"crop_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
 
                 project_id = getattr(self, 'project_id', 'unknown')
 

@@ -529,10 +529,14 @@ def create_app() -> Flask:
                 rev = sel + int(move_dest.get("__crop", 0)) + int(move_dest.get("__crop_auto", 0)) + int(move_dest.get("crop", 0)) + int(move_dest.get("crop_auto", 0))
                 cr = int(by_type.get("crop", 0))
                 so = sum(v for k, v in move_dest.items() if str(k).startswith("character_group"))
-                sel_rates.append((sel / work_hours) * weight); sel_w.append(weight)
-                rev_rates.append((rev / work_hours) * weight); rev_w.append(weight)
-                crop_rates.append((cr / work_hours) * weight); crop_w.append(weight)
-                sort_rates.append((so / work_hours) * weight); sort_w.append(weight)
+                sel_rates.append((sel / work_hours) * weight)
+                sel_w.append(weight)
+                rev_rates.append((rev / work_hours) * weight)
+                rev_w.append(weight)
+                crop_rates.append((cr / work_hours) * weight)
+                crop_w.append(weight)
+                sort_rates.append((so / work_hours) * weight)
+                sort_w.append(weight)
             def wavg(vals: List[float], weights: List[float]) -> float:
                 s = sum(vals)
                 w = sum(weights) if weights else 0.0

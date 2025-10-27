@@ -138,7 +138,7 @@ class BaseDesktopImageTool:
             self.fig.canvas.toolbar_visible = False
             if hasattr(self.fig.canvas, 'toolbar'):
                 self.fig.canvas.toolbar = None
-        except:
+        except Exception:
             pass
         
         # Center images with minimal margins and good spacing

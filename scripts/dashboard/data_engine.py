@@ -603,7 +603,7 @@ class DashboardDataEngine:
                 try:
                     date_obj = datetime.strptime(day_str, '%Y%m%d').date()
                     date_formatted = date_obj.isoformat()  # YYYY-MM-DD
-                except:
+                except Exception:
                     date_formatted = day_str
                 
                 for script_id, script_data in agg.get('by_script', {}).items():
@@ -668,7 +668,7 @@ class DashboardDataEngine:
                                     ts = ts.replace(tzinfo=None)
                                 record['timestamp'] = ts
                                 record['date'] = ts.date()
-                            except:
+                            except Exception:
                                 record['timestamp'] = None
                                 record['date'] = None
                             
@@ -732,7 +732,7 @@ class DashboardDataEngine:
                                                 ts = ts.replace(tzinfo=None)
                                             record['timestamp'] = ts
                                             record['date'] = ts.date()
-                                        except:
+                                        except Exception:
                                             record['timestamp'] = None
                                             record['date'] = None
                                         
@@ -767,7 +767,7 @@ class DashboardDataEngine:
                                                 ts = ts.replace(tzinfo=None)
                                             record['timestamp'] = ts
                                             record['date'] = ts.date()
-                                        except:
+                                        except Exception:
                                             record['timestamp'] = None
                                             record['date'] = None
                                         
@@ -970,7 +970,7 @@ class DashboardDataEngine:
         if isinstance(timestamp, str):
             try:
                 timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-            except:
+            except Exception:
                 # If can't parse, and it's daily slice, try using date field directly
                 if time_slice == 'D' and 'date' in record:
                     return str(record['date'])
@@ -988,7 +988,7 @@ class DashboardDataEngine:
                         timestamp = datetime.fromisoformat(date_val)
                     else:
                         timestamp = datetime.combine(date_val, datetime.min.time())
-                except:
+                except Exception:
                     return None
             else:
                 return None
@@ -1091,7 +1091,7 @@ class DashboardDataEngine:
                 # Monthly: pattern by month
                 dt = datetime.fromisoformat(time_slice_key)
                 return str(dt.month)
-        except:
+        except Exception:
             return 'unknown'
     
     def load_script_updates(self) -> List[Dict]:

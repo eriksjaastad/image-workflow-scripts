@@ -86,7 +86,7 @@ def backfill_dimensions(dry_run=True):
             
             if w0 == 0 or h0 == 0 or w1 == 0 or h1 == 0:
                 zero_dim_rows.append(i)
-        except:
+        except Exception:
             pass
     
     print(f"   Rows with zero dimensions: {len(zero_dim_rows):,}")

@@ -53,7 +53,7 @@ def load_training_image_paths(data_dir: Path) -> Set[Path]:
                         for path in neg_paths:
                             if path and Path(path).exists():
                                 image_paths.add(Path(path))
-                    except:
+                    except Exception:
                         pass
     
     # Load from crop log

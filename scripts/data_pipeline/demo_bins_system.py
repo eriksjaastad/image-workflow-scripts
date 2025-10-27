@@ -133,7 +133,7 @@ def check_raw_logs(data_dir: Path) -> tuple[int, str, str]:
             try:
                 date = datetime.strptime(date_str, '%Y%m%d')
                 dates.append(date)
-            except:
+            except Exception:
                 continue
     
     if dates:

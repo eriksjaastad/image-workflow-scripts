@@ -1829,7 +1829,7 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
                             from PIL import Image
                             with Image.open(selected_image) as img:
                                 image_width, image_height = img.size
-                        except:
+                        except Exception:
                             image_width, image_height = 2048, 2048  # Fallback
                         
                         log_ai_decision(

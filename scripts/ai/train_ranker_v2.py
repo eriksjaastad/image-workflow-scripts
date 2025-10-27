@@ -180,7 +180,7 @@ def load_training_data(embeddings_cache: Dict) -> Tuple[List[Dict], List[Dict]]:
             # Parse negative paths
             try:
                 neg_paths = json.loads(neg_paths_str)
-            except:
+            except Exception:
                 skipped += 1
                 continue
             
@@ -209,7 +209,7 @@ def load_training_data(embeddings_cache: Dict) -> Tuple[List[Dict], List[Dict]]:
                 neg_paths_norm = [normalize_path(p) for p in neg_paths]
                 neg_stages = [extract_stage(p) for p in neg_paths]
                 neg_stages = [s for s in neg_stages if s is not None]
-            except:
+            except Exception:
                 skipped += 1
                 continue
             

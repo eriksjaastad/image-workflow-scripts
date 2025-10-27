@@ -254,10 +254,8 @@ class ImageSelectorUITest:
 
 def main():
     """Run UI tests"""
-    try:
-        # Check if Chrome/selenium is available
-        from selenium import webdriver
-    except ImportError:
+    import importlib.util
+    if importlib.util.find_spec("selenium") is None:
         print("❌ Selenium not available. Install with: pip install selenium")
         print("❌ Also need ChromeDriver: https://chromedriver.chromium.org/")
         return False

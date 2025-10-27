@@ -1499,7 +1499,7 @@ Examples:
                         try:
                             with open(caption_file, 'r', encoding='utf-8') as cf:
                                 prompt = cf.read().strip()
-                        except:
+                        except Exception:
                             pass
                 
                 if not prompt:

@@ -54,7 +54,7 @@ with open(log_file, 'r') as f:
         
         try:
             neg_paths = json.loads(neg_paths_str.replace('""', '"'))
-        except:
+        except Exception:
             continue
         
         # Extract stages

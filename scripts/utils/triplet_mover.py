@@ -114,7 +114,7 @@ def move_triplet_with_yamls(triplet: Tuple[Path, Path, Path], dest_dir: Path) ->
             try:
                 original_dir = triplet[0].parent  # Assume all from same dir
                 shutil.move(str(dest_dir / moved_file), str(original_dir / moved_file))
-            except:
+            except Exception:
                 pass
         return False
 
@@ -190,7 +190,7 @@ def main():
                 if not any(root.iterdir()):  # Directory is empty
                     root.rmdir()
                     print(f"🗑️ Removed empty directory: {root.name}")
-            except:
+            except Exception:
                 pass  # Directory not empty or permission error
 
 

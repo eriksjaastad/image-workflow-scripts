@@ -641,7 +641,7 @@ class DashboardAnalytics:
                     # Parse ISO date and return for sorting (newest first = descending)
                     dt = datetime.fromisoformat(started.replace('Z', ''))
                     return (0, -dt.timestamp())  # negative for descending order
-                except:
+                except Exception:
                     pass
             # Projects without date go to end
             return (1, proj.get("title", ""))
@@ -907,7 +907,7 @@ class DashboardAnalytics:
                 
                 # Add the date (not datetime) to the set
                 unique_dates.add(op_dt.date().isoformat())
-            except:
+            except Exception:
                 continue
         
         return len(unique_dates)
@@ -1154,7 +1154,7 @@ class DashboardAnalytics:
                         # Check if within project date range
                         if op_dt >= start_dt and op_dt <= end_dt:
                             proj_ops.append((op_dt.date().isoformat(), op))
-                    except:
+                    except Exception:
                         continue
                 
                 print(f"  Found {len(proj_ops)} operations in date range")
@@ -1218,7 +1218,7 @@ class DashboardAnalytics:
                             from datetime import datetime
                             dt = datetime.fromisoformat(date_key)
                             timesheet_date_key = dt.strftime('%-m/%-d/%Y')  # macOS/Linux format (no leading zeros)
-                        except:
+                        except Exception:
                             timesheet_date_key = None
                         
                         billed_hours_for_day = daily_billed_hours.get(timesheet_date_key, 0)

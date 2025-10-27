@@ -74,7 +74,8 @@ def _score_group_fast(group: List[Path], thumb_size: int = 128) -> float:
                 def conv2(x, k):
                     w = sliding_window_view(x, k.shape)
                     return (w * k).sum(axis=(-1,-2))
-                gx = conv2(a, kx); gy = conv2(a, ky)
+                gx = conv2(a, kx)
+                gy = conv2(a, ky)
                 ten = (gx*gx + gy*gy).mean()
                 v = a.reshape(-1)
                 clip = ((v <= 1).sum() + (v >= 254).sum()) / float(v.size if v.size else 1)

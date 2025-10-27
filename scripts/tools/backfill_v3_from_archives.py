@@ -539,7 +539,7 @@ class HistoricalBackfillProcessor:
                         img_path = self.originals_dir / decision['images'][decision['user_selected_index']]
                         with Image.open(img_path) as img:
                             width, height = img.size
-                    except:
+                    except Exception:
                         width, height = 3072, 3072  # Default
                 
                 # Prepare crop coords (remove width/height if they were stored there)

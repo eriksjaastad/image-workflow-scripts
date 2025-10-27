@@ -73,13 +73,11 @@ THUMBNAIL_MAX_DIM = 200
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+import importlib.util
+
 from scripts.file_tracker import FileTracker
 
-try:
-    import send2trash
-    _SEND2TRASH_AVAILABLE = True
-except ImportError:
-    _SEND2TRASH_AVAILABLE = False
+_SEND2TRASH_AVAILABLE = importlib.util.find_spec("send2trash") is not None
 
 def find_image_directories(output_dir):
     """Find all subdirectories containing images, or treat as single directory if images are directly in it."""

@@ -496,11 +496,6 @@ def move_with_metadata(src_path: Path, dest_dir: Path, tracker: FileTracker, gro
     
     return moved_files
 
-def launch_browser(host: str, port: int):
-    """Launch browser after a short delay."""
-    from utils.companion_file_utils import launch_browser as shared_launch_browser
-    shared_launch_browser(host, port, delay=1.5)
-
 def detect_face_groups_context(folder: Path) -> dict:
     """Detect context when working in face_groups structure."""
     face_groups_root = folder.parent

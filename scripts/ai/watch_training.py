@@ -35,7 +35,7 @@ try:
                     print(f"⏱️  {mins:02d}:{secs:02d} | Epoch {epoch:2d}/30 | "
                           f"Val Acc: {val_acc:6.2%} | Val Loss: {val_loss:.4f}")
                     last_epoch = epoch
-            except:
+            except Exception:
                 pass
         else:
             if elapsed % 10 == 0:  # Print every 10 seconds if no model yet

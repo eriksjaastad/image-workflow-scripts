@@ -148,7 +148,7 @@ def backfill_dimensions(dry_run: bool = True, test_mode: bool = False, test_coun
             try:
                 datetime.fromisoformat(timestamp.replace('Z', ''))
                 has_valid_timestamp = True
-            except:
+            except Exception:
                 pass
         
         # Check if dimensions are missing or zero
