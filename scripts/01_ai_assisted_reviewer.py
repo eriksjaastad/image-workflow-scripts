@@ -104,7 +104,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 
 # SQLite v3 Training Data (NEW!)
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -596,14 +596,20 @@ def delete_group_images(group: ImageGroup, delete_staging_dir: Path, tracker: Fi
 def perform_file_operations(group: ImageGroup, action: str, selected_index: Optional[int],
                             crop_coords: Optional[Tuple[float, float, float, float]],
                             tracker: FileTracker, selected_dir: Path, crop_dir: Path, 
-                            delete_staging_dir: Path, project_id: str = "unknown") -> str:
+                            delete_staging_dir: Path, project_id: str = "unknown") -> Dict[str, any]:
     """
     Execute file operations based on user decision.
     
     Args:
         project_id: Project identifier (e.g., 'mojo1', 'mojo3') for training data
     
-    Returns: Summary message of what was done
+    Returns: Structured result dict with counts and summary message
+        {
+          "moved_selected": int,  # 1 if selected image moved to selected/
+          "moved_crop": int,      # 1 if selected image moved to crop/
+          "deleted_images": int,  # number of images moved to delete staging
+          "message": str
+        }
     """
     if action == "reject":
         # Delete all images in group - move to delete_staging
@@ -623,12 +629,22 @@ def perform_file_operations(group: ImageGroup, action: str, selected_index: Opti
             f"Rejected group {group.group_id}",
             [img.name for img in group.images[:5]]
         )
-        return f"Rejected: {moved_count} images moved to delete staging"
+        return {
+            "moved_selected": 0,
+            "moved_crop": 0,
+            "deleted_images": moved_count,
+            "message": f"Rejected: {moved_count} images moved to delete staging"
+        }
     
     if action == "reject_single":
         # Delete just one image - move to delete_staging
         if selected_index is None:
-            return "Error: No image selected for rejection"
+            return {
+                "moved_selected": 0,
+                "moved_crop": 0,
+                "deleted_images": 0,
+                "message": "Error: No image selected for rejection"
+            }
         
         selected_image = group.images[selected_index]
         try:
@@ -641,12 +657,27 @@ def perform_file_operations(group: ImageGroup, action: str, selected_index: Opti
                 f"Rejected single image from group {group.group_id}",
                 [selected_image.name]
             )
-            return f"Rejected: {selected_image.name} moved to delete staging"
+            return {
+                "moved_selected": 0,
+                "moved_crop": 0,
+                "deleted_images": 1,
+                "message": f"Rejected: {selected_image.name} moved to delete staging"
+            }
         except Exception as e:
-            return f"Error: {e}"
+            return {
+                "moved_selected": 0,
+                "moved_crop": 0,
+                "deleted_images": 0,
+                "message": f"Error: {e}"
+            }
     
     if selected_index is None:
-        return "Error: No image selected"
+        return {
+            "moved_selected": 0,
+            "moved_crop": 0,
+            "deleted_images": 0,
+            "message": "Error: No image selected"
+        }
     
     selected_image = group.images[selected_index]
     other_images = [img for i, img in enumerate(group.images) if i != selected_index]
@@ -725,11 +756,42 @@ def perform_file_operations(group: ImageGroup, action: str, selected_index: Opti
             f"Selected image from group {group.group_id}",
             [selected_image.name]
         )
-        
-        return f"Moved {selected_image.name} to {dest_label}, {len(other_images)} to delete staging"
+        result = {
+            "moved_selected": 1 if dest_dir == selected_dir else 0,
+            "moved_crop": 1 if dest_dir == crop_dir else 0,
+            "deleted_images": len(other_images),
+            "message": f"Moved {selected_image.name} to {dest_label}, {len(other_images)} to delete staging"
+        }
+        return result
         
     except Exception as e:
-        return f"Error during file operations: {e}"
+        return {
+            "moved_selected": 0,
+            "moved_crop": 0,
+            "deleted_images": 0,
+            "message": f"Error during file operations: {e}"
+        }
+
+
+def detect_artifact(group: ImageGroup) -> Tuple[bool, List[str]]:
+    """Detect artifact conditions for a group.
+    Rules:
+      - Multi-directory: images span multiple parent directories
+      - Mismatched stems: base stem before '_stage' differs across images
+    Returns (is_artifact, reasons)
+    """
+    reasons: List[str] = []
+    parents = {str(p.parent) for p in group.images}
+    if len(parents) > 1:
+        reasons.append("multi_directory")
+    # Extract base stems by splitting before '_stage'
+    def base_stem(name: str) -> str:
+        parts = name.split('_stage')
+        return parts[0] if parts else Path(name).stem
+    stems = {base_stem(p.name) for p in group.images}
+    if len(stems) > 1:
+        reasons.append("mismatched_stems")
+    return (len(reasons) > 0, reasons)
 
 
 def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker, 
@@ -768,6 +830,14 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
     app.config["CROP_DIR"] = crop_dir
     app.config["DELETE_STAGING_DIR"] = delete_staging_dir
     app.config["PROJECT_ID"] = get_current_project_id()  # Read from project manifest!
+    # Configure log archives directory for batch JSON logger
+    try:
+        project_root = find_project_root(base_dir)
+    except Exception:
+        project_root = Path(__file__).parent.parent
+    log_archives_dir = project_root / "data" / "log_archives"
+    log_archives_dir.mkdir(parents=True, exist_ok=True)
+    app.config["LOG_ARCHIVES_DIR"] = log_archives_dir
     
     # Initialize SQLite database for training data (NEW v3!)
     project_id = app.config["PROJECT_ID"]
@@ -1155,7 +1225,7 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
         const statusBox = document.getElementById('status');
         
         // Queue decisions in memory (don't execute immediately!)
-        let groupStates = {}; // { groupId: { selectedImage: idx, crop: bool } }
+        let groupStates = {}; // { groupId: { selectedImage: idx, crop: bool, aiCropAccepted: bool } }
         
         function setStatus(message, type = '') {
           if (statusBox) {
@@ -1257,6 +1327,10 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             button.classList.remove('img-btn-approve');
             button.classList.add('img-btn-crop');
             console.log('[toggleAICrop] Crop ENABLED');
+            // Mark AI crop accepted and set selection to this image (suggestion path)
+            groupStates[groupId] = { selectedImage: imageIndex, crop: false, aiCropAccepted: true };
+            updateVisualState();
+            updateSummary();
           } else {
             // Hide crop overlay (REMOVE CROP)
             overlay.style.display = 'none';
@@ -1264,6 +1338,13 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             button.classList.remove('img-btn-crop');
             button.classList.add('img-btn-approve');
             console.log('[toggleAICrop] Crop DISABLED');
+            // Disable AI crop acceptance (keep selection if any)
+            const state = groupStates[groupId];
+            if (state) {
+              groupStates[groupId] = { selectedImage: state.selectedImage, crop: false, aiCropAccepted: false };
+              updateVisualState();
+              updateSummary();
+            }
           }
         }
         
@@ -1345,7 +1426,7 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             // NO auto-advance on deselect
           } else {
             // Update state - select image (no crop)
-            groupStates[groupId] = { selectedImage: imageIndex, crop: false };
+            groupStates[groupId] = { selectedImage: imageIndex, crop: false, aiCropAccepted: false };
             console.log('[selectImage] set', groupStates[groupId]);
             updateVisualState();
             updateSummary();
@@ -1374,7 +1455,7 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             // NO auto-advance on deselect
           } else {
             // Update state - select image WITH crop
-            groupStates[groupId] = { selectedImage: imageIndex, crop: true };
+            groupStates[groupId] = { selectedImage: imageIndex, crop: true, aiCropAccepted: false };
             console.log('[selectImageWithCrop] set', groupStates[groupId]);
             updateVisualState();
             updateSummary();
@@ -1423,13 +1504,13 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
           
           if (!currentState || currentState.selectedImage === undefined) {
             // First click on any image: select it (no crop)
-            groupStates[groupId] = { selectedImage: imageIndex, crop: false };
+            groupStates[groupId] = { selectedImage: imageIndex, crop: false, aiCropAccepted: false };
           } else if (currentState.selectedImage === imageIndex) {
             // UNSELECT: Clicking selected image deselects it (back to delete)
             delete groupStates[groupId];
           } else {
             // Clicking different image: switch selection to that image
-            groupStates[groupId] = { selectedImage: imageIndex, crop: false };
+            groupStates[groupId] = { selectedImage: imageIndex, crop: false, aiCropAccepted: false };
           }
           
           updateVisualState();
@@ -1549,7 +1630,8 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
           const selections = Object.keys(groupStates).map(groupId => ({
             groupId: groupId,
             selectedImage: groupStates[groupId].selectedImage,
-            crop: groupStates[groupId].crop || false
+            crop: groupStates[groupId].crop || false,
+            aiCropAccepted: groupStates[groupId].aiCropAccepted || false
           }));
           
           try {
@@ -1693,11 +1775,13 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             kept_count = 0
             crop_count = 0
             deleted_count = 0
+            per_group_results: Dict[str, Dict[str, Any]] = {}
             
             for idx, selection in enumerate(selections):
                 group_id = selection.get("groupId")
                 selected_idx = selection.get("selectedImage")
                 crop = selection.get("crop", False)
+                ai_crop_accepted = selection.get("aiCropAccepted", False)
                 
                 # Find group
                 group = next((g for g in groups if g.group_id == group_id), None)
@@ -1729,7 +1813,8 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
                     except Exception as e:
                         print(f"Warning: Could not get AI recommendation for {group_id}: {e}")
                 
-                # Determine user action
+                # Determine user action (Phase 3: Two-Action Crop Flow - suggestion path only)
+                # If user accepts AI crop but does not request manual crop, we will route to crop_auto later via sidecar flag
                 user_action = "crop" if crop else "approve"
                 
                 # Generate unique group ID for database
@@ -1765,12 +1850,18 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
                         )
                         
                         # Create .decision sidecar file for Desktop Multi-Crop
-                        if crop:  # Only for images going to crop/
-                            decision_file = crop_dir / f"{selected_image.stem}.decision"
+                        # Create .decision sidecar for crop destinations
+                        if crop or ai_crop_accepted:
+                            # manual crop → crop/ ; AI crop suggestion → crop_auto/
+                            target_dir = crop_dir if crop else (app.config.get("CROP_AUTO_DIR") or (app.config["BASE_DIR"] / "__crop_auto"))
+                            Path(target_dir).mkdir(parents=True, exist_ok=True)
+                            decision_file = Path(target_dir) / f"{selected_image.stem}.decision"
                             decision_data = {
                                 "group_id": db_group_id,
                                 "project_id": project_id,
-                                "needs_crop": True
+                                "needs_crop": True,
+                                "ai_route": "suggestion" if ai_crop_accepted and ai_crop_coords else "manual",
+                                "ai_crop_coords": ai_crop_coords if (ai_crop_accepted and ai_crop_coords) else None
                             }
                             with open(decision_file, 'w') as f:
                                 json.dump(decision_data, f, indent=2)
@@ -1779,21 +1870,23 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
                 
                 # Perform file operations
                 try:
-                    perform_file_operations(
+                    # Artifact detection prior to file ops
+                    is_artifact, reasons = detect_artifact(group)
+                    if is_artifact:
+                        print(f"[ARTIFACT] Group {group_id}: {', '.join(reasons)}")
+                    # Include artifact flags in tracker notes via log_operation extra? We attach in JSONL below; avoid altering FileTracker schema.
+                    ops_result = perform_file_operations(
                         group, "manual_crop" if crop else "approve", selected_idx, None,
                         tracker, selected_dir, crop_dir, delete_staging_dir, project_id
                     )
-                    kept_count += 1
-                    if crop:
-                        crop_count += 1
+                    # Accumulate exact counts
+                    kept_count += int(ops_result.get("moved_selected", 0)) + int(ops_result.get("moved_crop", 0))
+                    crop_count += int(ops_result.get("moved_crop", 0))
+                    deleted_count += int(ops_result.get("deleted_images", 0))
+                    per_group_results[group_id] = ops_result
                 except Exception as e:
                     print(f"Error processing group {group_id}: {e}")
                     continue
-            
-            # Calculate deleted (rough estimate: groups not in selections)
-            total_images = sum(len(g.images) for g in groups)
-            selected_images = kept_count
-            deleted_count = total_images - selected_images
             
             # Handle unselected groups (ALL images go to delete_staging)
             selected_group_ids = [s.get("groupId") for s in selections]
@@ -1816,6 +1909,33 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             # Update batch info
             batch_info = app.config.get("BATCH_INFO", {})
             batch_info["current_batch_size"] = len(remaining_groups)
+            
+            # Lightweight JSON line logger to data/log_archives/
+            try:
+                logs_dir: Path = app.config.get("LOG_ARCHIVES_DIR")
+                if logs_dir:
+                    log_path = logs_dir / "reviewer_batch_summaries.jsonl"
+                    summary_record = {
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "project_id": project_id,
+                        "batch_number": batch_number,
+                        "kept": kept_count,
+                        "crop": crop_count,
+                        "deleted": deleted_count,
+                        "selected_group_ids": selected_group_ids,
+                        "unselected_group_ids": [g.group_id for g in unselected_groups],
+                        # Include artifact candidates seen during this batch for quick visibility
+                        "artifact_candidates": [
+                            {
+                                "group_id": g.group_id,
+                                "reasons": detect_artifact(g)[1]
+                            } for g in groups if any(detect_artifact(g))
+                        ]
+                    }
+                    with open(log_path, 'a') as f:
+                        f.write(json.dumps(summary_record) + "\n")
+            except Exception as e:
+                print(f"[!] Failed to write batch summary log: {e}")
             
             message = f"Batch processed — kept {kept_count}, sent {crop_count} to crop/, deleted {deleted_count}."
             return jsonify({
@@ -1877,24 +1997,24 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             delete_staging_dir = app.config["DELETE_STAGING_DIR"]
             project_id = app.config.get("PROJECT_ID", "unknown")
             
-            file_ops_msg = perform_file_operations(
+            file_ops_result = perform_file_operations(
                 group, action, selected_index, None,  # crop_coords=None for now
                 tracker, selected_dir, crop_dir, delete_staging_dir, project_id
             )
             
             # Build response message
             if action == "approve":
-                msg = f"✓ Approved: {group.images[selected_index].name}\n{file_ops_msg}"
+                msg = f"✓ Approved: {group.images[selected_index].name}\n{file_ops_result.get('message', '')}"
             elif action == "override":
-                msg = f"⚡ Override: Selected {group.images[selected_index].name}\n{file_ops_msg}"
+                msg = f"⚡ Override: Selected {group.images[selected_index].name}\n{file_ops_result.get('message', '')}"
             elif action == "manual_crop":
-                msg = f"✂️ Manual crop: {group.images[selected_index].name}\n{file_ops_msg}"
+                msg = f"✂️ Manual crop: {group.images[selected_index].name}\n{file_ops_result.get('message', '')}"
             elif action == "reject":
-                msg = f"✗ Rejected all images\n{file_ops_msg}"
+                msg = f"✗ Rejected all images\n{file_ops_result.get('message', '')}"
             elif action == "reject_single":
-                msg = f"✗ Rejected: {group.images[selected_index].name}\n{file_ops_msg}"
+                msg = f"✗ Rejected: {group.images[selected_index].name}\n{file_ops_result.get('message', '')}"
             else:
-                msg = f"Decision recorded\n{file_ops_msg}"
+                msg = f"Decision recorded\n{file_ops_result.get('message', '')}"
             
             return jsonify({"status": "ok", "message": msg})
             

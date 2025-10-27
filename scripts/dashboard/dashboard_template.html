@@ -337,6 +337,22 @@
             </div>
         </div>
         
+        <!-- Artifact Panel -->
+        <div class="panel" id="artifact-panel" style="margin-top: 1rem;">
+            <div class="panel-header">
+                <h2>⚠️ Artifact Candidates</h2>
+            </div>
+            <div class="panel-content">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="artifact-events">-</div>
+                        <div class="stat-label">Artifact Events</div>
+                    </div>
+                </div>
+                <div class="panel-note">Artifacts are excluded by default from primary KPIs.</div>
+            </div>
+        </div>
+        
         <!-- Productivity Overview Table (Summary) -->
         <div class="chart-container" style="margin-top: 2rem;">
             <div class="chart-header">
@@ -949,6 +965,12 @@
                 updateCharts(data);
                 renderTimesheetChart(data);
                 renderBilledVsActualChart(data);
+                
+                // Update artifact panel
+                try {
+                    const a = (data && data.artifact_stats) || {};
+                    document.getElementById('artifact-events').textContent = (a.artifact_events || 0).toString();
+                } catch(e) { /* noop */ }
                 
             } catch (error) {
                 console.error('Error loading dashboard data:', error);

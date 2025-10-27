@@ -11,27 +11,9 @@
 ## 🎯 Active Tasks
 
 ### TOP PRIORITY: Artifact Groups (cross-group/misaligned images)
-- [ ] Document and mitigate "artifact" groups observed in the reviewer (images from different groups shown together or odd stems/no group)
-  - **What’s happening:** Occasionally, a decision’s `images` set spans multiple parent directories or contains filenames with mismatched stems (outliers), causing cross-group horizontal layout and odd group composition.
-  - **Impact:**
-    - DB integrity is safe (decisions are recorded), but analytics/training can be skewed (group diversity, duplicate filenames) and audits may show `kept_missing` when an expected winner isn’t in scanned dirs.
-    - Crop automation: preflight may skip these safely, but visibility is needed.
-  - **Safeguards:**
-    - Reviewer (submit): warn on multi-dir or mismatched stems; allow continue or auto-split; log an `artifact` flag in `.decision` (and DB if available).
-    - Snapshots/analytics: label and exclude `artifact` decisions from default stats; include separate counts.
-    - Audit: extend audit to emit an "artifact candidates" section (multi-dir group, odd stems, duplicates) without blocking.
-  - **Tasks:**
-    - [ ] Add artifact detection + warning flow to reviewer submit (optional auto-split into clean groups)
-    - [ ] Extend `scripts/tools/audit_files_vs_db.py` to detect and report artifact candidates
-    - [ ] Update snapshot extraction to mark artifact decisions for filtering
-    - [ ] Dashboard: expose artifact counts and filters; add a small panel
+✅ Moved to Recently Completed (Oct 26, 2025)
 
 ### Phase 3: Two-Action Crop Flow (Reviewer)
-- [ ] Implement aiCropAccepted two-action routing semantics
-  - Current: 1–4 with overlay ON → route to crop_auto (approve_ai_suggestion intent in sidecar)
-  - Current: 1–4 with overlay OFF → selected (approve)
-  - Future: Shift+1–4 → approve_ai_crop (auto-crop safe path)
-- [ ] Update sidecar schema for crop_auto items: add `ai_route: 'suggestion'`
 - [ ] Add analytics view for “perfect crop” (final ≈ AI crop within 5%) in SQLite v3
 - [ ] Optional migration: extend user_action enum to include approve_ai_suggestion and approve_ai_crop (Phase 3B)
 
@@ -41,13 +23,13 @@
 #### Ready to Use Today!
 - [ ] **Test AI-Assisted Reviewer on New Project** [PRIORITY: HIGH]
   - **Status:** Tool exists at `scripts/01_ai_assisted_reviewer.py`
-  - **Purpose:** REPLACES AI-Assisted Reviewer - looks at ALL images, selects best from each group, proposes crops
+  - **Purpose:** Replaces Web Image Selector; integrated with Desktop Multi-Crop — looks at ALL images, selects best from each group, proposes crops
   - **Currently:** Rule-based (picks highest stage, no crop proposals)
   - **Future:** Will integrate Ranker v3 + Crop Proposer models
   - **Usage:** `python scripts/01_ai_assisted_reviewer.py <new-project-directory>/`
   - **Test Plan:**
     1. Start new project with raw images
-    2. Run AI-Assisted Reviewer instead of AI-Assisted Reviewer
+    2. Run AI-Assisted Reviewer instead of Web Image Selector
     3. Review AI recommendations (A to approve, 1-4 to override)
     4. Check .decision sidecar files are created
     5. Evaluate if this workflow is better than manual selection
@@ -62,16 +44,7 @@
   - **Add:** Crop suggestions to reviewer UI
 
 ### AI Reviewer: Batch Summary Delete Count (Bug)
-- [ ] Fix "deleted" double-count in batch summary [PRIORITY: HIGH]
-  - **Cause:** In `scripts/01_ai_assisted_reviewer.py` `process_batch()`, `deleted_count` is first estimated as `total_images - selected_images`, then the code also deletes unselected groups and adds their deleted counts again. This mixes a heuristic (per-batch images) with actual per-group deletions and can double-count. See around the section where it sets `deleted_count = total_images - selected_images` and then loops calling `delete_group_images(...)` and incrementing `deleted_count` again.
-  - **Fix:**
-    1. Make `perform_file_operations(...)` return a structured result (e.g., `{"moved_selected": n, "moved_crop": n, "moved_crop_auto": n, "deleted_images": n}`) for each processed group.
-    2. In `process_batch()`, accumulate exact counts from those return values for selected groups; for unselected groups, use only the integer returned by `delete_group_images(...)`. Remove the heuristic `total_images - selected_images` entirely.
-    3. Update the batch summary message to use these precise totals so UI/debug output matches the audit log.
-  - **Cleanup:**
-    - No historical correction needed (only the transient summary text was inaccurate); the file-operation audit log already reflects truth.
-    - Add an optional lightweight batch-summary JSON line logger in `data/log_archives/` (one line per batch) to aid quick reviews without retaining verbose server stdout.
-    - Add/extend unit test in `scripts/tests/test_ai_assisted_reviewer_batch.py` to assert accurate kept/crop/deleted counts for mixed scenarios (approve, crop, explicit delete-all, and unselected groups).
+✅ Moved to Recently Completed (Oct 26, 2025)
 
 ### Test Follow-ups (Dashboard + Utils)
 - [ ] Migrate tests off legacy desktop selector shim and remove file
@@ -82,17 +55,7 @@
 - [ ] Satisfy file safety audit (scripts/tests/test_file_safety_audit.py)
 - [ ] Crop overlay rounding to integers (scripts/tests/test_ai_assisted_reviewer_batch.py)
 - [ ] Full pytest rerun and address any remaining stragglers
- - [ ] Investigate dashboard API timeouts in test runner (local)
-   - Reference test: `scripts/tests/test_dashboard.py` (server subprocess + API checks)
-   - Symptom: HTTP read timeouts on 15min endpoint (and others) despite local data
-   - Likely cause: Flask subprocess started with stdout/stderr PIPEs; pipe buffer fills → server blocks on write → requests hang
-     - Evidence: server launched via `subprocess.Popen(..., stdout=PIPE, stderr=PIPE)` then not drained
-   - Possible fixes:
-     - Start server with `stdout=subprocess.DEVNULL`, `stderr=subprocess.DEVNULL`
-     - Or drain PIPEs in background threads; or log to a temp file and close handles
-     - Bump request timeout in test to 20s to account for heavy 15min slice
-     - Optionally reduce lookback/labels in this test case
-   - Status: Deferred — Erik chose not to address today; proceed with other dashboard tests (DataEngine/transform) which are passing
+
 
 ---
 
@@ -209,6 +172,16 @@
 
 ## ✅ Recently Completed
 
+**Artifact Groups & Two-Action Crop Flow (Oct 26, 2025)**
+- [x] Artifact detection + warning flow in reviewer
+- [x] Audit tool artifact candidate scaffolding
+- [x] Snapshot extraction artifact field marking
+- [x] Dashboard artifact panel (UI + backend)
+- [x] aiCropAccepted two-action routing
+- [x] Sidecar schema with `ai_route` field
+- [x] AI Reviewer batch summary delete count bug fix
+- [x] JSONL batch summary logger
+
 **SQLite v3 Training System (Oct 22, 2025 - Night/Morning)**
 - [x] **Design and implement SQLite-based training data system** ⭐ **GAME CHANGER!**
 - [x] Create database schema with decision tracking + crop matching
@@ -272,15 +245,16 @@
 
 
 ### AI Automation (Imported 2025-10-26)
-- [in_progress] Add configurable safe-zone allowlist (read from `configs/` and used in validation)
-- [pending] Add retry with backoff for per-crop failures and partial progress resume
-- [pending] Queue manager maintenance CLI: `clear_completed` + timing/log rotation helpers
-- [pending] Pre-commit installer script for root-file policy hook in `scripts/tools/`
-- [pending] Makefile shortcuts: `make timing`, `make queue-test`, `make process-fast`
-- [pending] CLI to delete/restore a batch to `__delete_staging` using companion utils
-- [pending] Processor: enforce decisions DB linkage in preflight (fail with clear error when missing)
-- [pending] Docs: Queue quickstart + analyzer usage (place in `Documents/guides/`)
-- [pending] Docs: Commit communication standard snippet in `Documents/README.md`
-- [pending] Dashboard: queue stats panel (pending/processing/completed/failed)
-- [pending] Dashboard: processing time trends and batches-per-session charts
-- [pending] Tool: audit of queue vs filesystem and DB (orphan/consistency report)
+- Backlog triage needed; items below are placeholders—convert to scoped tasks when prioritized:
+  - Add configurable safe-zone allowlist (read from `configs/` and used in validation)
+  - Add retry with backoff for per-crop failures and partial progress resume
+  - Queue manager maintenance CLI: `clear_completed` + timing/log rotation helpers
+  - Pre-commit installer script for root-file policy hook in `scripts/tools/`
+  - Makefile shortcuts: `make timing`, `make queue-test`, `make process-fast`
+  - CLI to delete/restore a batch to `__delete_staging` using companion utils
+  - Processor: enforce decisions DB linkage in preflight (fail with clear error when missing)
+  - Docs: Queue quickstart + analyzer usage (place in `Documents/guides/`)
+  - Docs: Commit communication standard snippet in `Documents/README.md`
+  - Dashboard: queue stats panel (pending/processing/completed/failed)
+  - Dashboard: processing time trends and batches-per-session charts
+  - Tool: audit of queue vs filesystem and DB (orphan/consistency report)

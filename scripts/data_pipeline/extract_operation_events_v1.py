@@ -137,8 +137,8 @@ def normalize_event(raw_event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         if files:
             normalized["files_sample"] = files[:50] if len(files) > 50 else files
         
-        # Capture extra fields
-        extra_fields = ["batch_id", "metric_mode", "details", "directory", "files_sample"]
+        # Capture extra fields (include artifact signals when present)
+        extra_fields = ["batch_id", "metric_mode", "details", "directory", "files_sample", "artifact", "artifact_reasons"]
         for field in extra_fields:
             if field in raw_event and field not in ["files", "files_sample"]:
                 normalized["extra"][field] = raw_event[field]

@@ -46,6 +46,25 @@ class FoundFile:
     paths: List[str]
 
 
+def detect_artifact_candidates(images: List[str], paths: List[str]) -> List[str]:
+    """Heuristics to flag artifact candidates for a decision row.
+    - duplicates across directories
+    - mismatched base stems
+    Returns list of reason strings
+    """
+    reasons: List[str] = []
+    dirs = {str(Path(p).parent) for p in paths}
+    if len(dirs) > 1:
+        reasons.append("multi_directory")
+    def base_stem(name: str) -> str:
+        parts = name.split('_stage')
+        return parts[0] if parts else Path(name).stem
+    stems = {base_stem(Path(n).name) for n in images if n}
+    if len(stems) > 1:
+        reasons.append("mismatched_stems")
+    return reasons
+
+
 @dataclass
 class AuditSummary:
     project_id: str
@@ -148,6 +167,7 @@ def compute_audit(
 
     found_details: Dict[str, FoundFile] = {}
     problems: List[str] = []
+    artifact_candidates: List[str] = []
 
     # Evaluate kept expectations
     for e in expected_kept:
@@ -157,6 +177,7 @@ def compute_audit(
             if len(paths) > 1:
                 duplicates += 1
             found_details[e.filename] = FoundFile(filename=e.filename, paths=paths)
+            # Artifact heuristics at the filename-level are weak; defer to decision-level in future.
         else:
             kept_missing += 1
             problems.append(f"Missing kept file: {e.filename}")
@@ -205,6 +226,7 @@ def write_reports(
         "summary": asdict(summary),
         "found": {k: asdict(v) for k, v in found.items()},
         "problems": problems,
+        "artifact_candidates": []
     }
     json_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
@@ -230,6 +252,10 @@ def write_reports(
         if len(problems) > 50:
             lines.append(f"- ... and {len(problems)-50} more")
         lines.append("")
+    # Placeholder section for artifact candidates (decision-level when DB flagging is available)
+    lines.append("## Artifact Candidates (scaffolding)")
+    lines.append("- Detected via multi-directory and mismatched-stem heuristics (to be expanded)")
+    lines.append("")
     md_path.write_text("\n".join(lines), encoding="utf-8")
 
     return json_path, md_path
