@@ -91,6 +91,13 @@ except Exception:
     print("⚠️  FileTracker not found. Continuing without logging.")
     FileTracker = None
 
+# ---- optional companion file utilities ----
+try:
+    from utils.companion_file_utils import move_file_with_all_companions
+except Exception:
+    print("⚠️  companion_file_utils not found. Using basic file moves.")
+    move_file_with_all_companions = None
+
 
 # ------------------------------ utils ------------------------------
 def exif_fix(img: Image.Image) -> Image.Image:
@@ -425,11 +432,6 @@ def move_image_metadata_pairs(out_dir: Path, paths: List[Path], labels: np.ndarr
                 continue
             try:
                 # Move image and ALL companion files to destination directory
-                try:
-                    sys.path.insert(0, str(Path(__file__).parent.parent))
-                    from utils.companion_file_utils import move_file_with_all_companions
-                except Exception:
-                    move_file_with_all_companions = None  # type: ignore
                 if move_file_with_all_companions:
                     moved = move_file_with_all_companions(image_path, group_dir, dry_run=False)
                     moved_files.extend(moved)
