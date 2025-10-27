@@ -62,7 +62,10 @@ Feed edges.csv into Gephi/Graphistry/NetworkX to compute degrees of separation o
 Write a small script to move “nearest 5 to X” anywhere you like using edges.csv.
 """
 
-import os, sys, json, argparse, shutil
+import sys
+import json
+import argparse
+import shutil
 from pathlib import Path
 from typing import List, Tuple, Dict, Optional
 
@@ -116,8 +119,10 @@ def set_seed(seed: int = 42):
 def top_center_crop(img: Image.Image, frac_w=0.9, frac_h=0.65) -> Image.Image:
     w, h = img.size
     cw, ch = int(w * frac_w), int(h * frac_h)
-    x1 = max(0, (w - cw) // 2); y1 = 0
-    x2 = min(w, x1 + cw);       y2 = min(h, y1 + ch)
+    x1 = max(0, (w - cw) // 2)
+    y1 = 0
+    x2 = min(w, x1 + cw)
+    y2 = min(h, y1 + ch)
     return img.crop((x1, y1, x2, y2))
 
 
@@ -240,7 +245,8 @@ def _calculate_distance_band(X: np.ndarray) -> tuple[float, float]:
     """Calculate a reasonable cosine distance band from k-NN distances."""
     nn = NearestNeighbors(n_neighbors=6, metric="cosine").fit(X)
     dists, _ = nn.kneighbors(X, return_distance=True)
-    nn3 = dists[:, 3]; nn4 = dists[:, 4]
+    nn3 = dists[:, 3]
+    nn4 = dists[:, 4]
     q10, q25, q50 = np.quantile(np.concatenate([nn3, nn4]), [0.10, 0.25, 0.50])
     return max(0.04, q10), min(0.60, q50)
 
@@ -289,7 +295,7 @@ def merge_close_clusters(X: np.ndarray, labels: np.ndarray, dist_thresh: float =
         n = float(np.linalg.norm(c)) or 1.0
         cents[lab] = c / n
     labs = sorted(cents.keys())
-    parent = {l: l for l in labs}
+    parent = {lab: lab for lab in labs}
     def find(a):
         while parent[a] != a:
             parent[a] = parent[parent[a]]
@@ -309,10 +315,12 @@ def merge_close_clusters(X: np.ndarray, labels: np.ndarray, dist_thresh: float =
     root2new, next_id = {}, 1
     new_labels = labels.copy()
     for i, lab in enumerate(labels):
-        if lab == -1: continue
+        if lab == -1:
+            continue
         r = find(int(lab))
         if r not in root2new:
-            root2new[r] = next_id; next_id += 1
+            root2new[r] = next_id
+            next_id += 1
         new_labels[i] = root2new[r]
     return new_labels
 
@@ -328,7 +336,7 @@ def assign_unknowns(X: np.ndarray, labels: np.ndarray, assign_threshold: float =
         n = float(np.linalg.norm(c)) or 1.0
         cents[lab] = c / n
     labs = sorted(cents.keys())
-    C = np.stack([cents[l] for l in labs], axis=0)  # (K, D)
+    C = np.stack([cents[lab] for lab in labs], axis=0)  # (K, D)
 
     new_labels = labels.copy()
     assigned = 0
@@ -380,7 +388,8 @@ def discover_image_metadata_pairs(root: Path) -> Tuple[List[Path], List[str]]:
     images = {p.stem: p for p in all_files if p.suffix.lower() in image_exts}
     metadata  = {p.stem: p for p in all_files if p.suffix.lower() in [".yaml", ".caption"]}
 
-    image_stems = set(images.keys()); metadata_stems = set(metadata.keys())
+    image_stems = set(images.keys())
+    metadata_stems = set(metadata.keys())
     orphaned_images = image_stems - metadata_stems
     orphaned_metadata  = metadata_stems - image_stems
     valid_pairs     = image_stems & metadata_stems
@@ -428,8 +437,10 @@ def move_image_metadata_pairs(out_dir: Path, paths: List[Path], labels: np.ndarr
                 yaml_path = image_path.with_suffix(".caption")
             if not yaml_path.exists():
                 msg = f"🚨 MISSING METADATA: {yaml_path} (for image {image_path})"
-                print(msg); manifest["errors"].append(msg)
-                if tracker: tracker.log_operation("error", notes=msg)
+                print(msg)
+                manifest["errors"].append(msg)
+                if tracker:
+                    tracker.log_operation("error", notes=msg)
                 continue
             try:
                 # Move image and ALL companion files to destination directory
@@ -447,8 +458,11 @@ def move_image_metadata_pairs(out_dir: Path, paths: List[Path], labels: np.ndarr
                                           notes=f"Moved pair: {image_path.name}, {yaml_path.name}")
             except Exception as e:
                 msg = f"🚨 MOVE FAILED: {image_path.name} - {e}"
-                print(msg); group_errors.append(msg); manifest["errors"].append(msg)
-                if tracker: tracker.log_operation("error", notes=msg)
+                print(msg)
+                group_errors.append(msg)
+                manifest["errors"].append(msg)
+                if tracker:
+                    tracker.log_operation("error", notes=msg)
 
         manifest["groups"].append({
             "label": int(lab), "dir": group_dir.name,
@@ -483,7 +497,8 @@ def write_similarity_map(out_dir: Path, kept_paths: List[Path], labels: np.ndarr
     # nodes.csv
     with (out_dir / "nodes.csv").open("w", newline="") as f:
         import csv
-        w = csv.writer(f); w.writerow(["index","label","filename"])
+        w = csv.writer(f)
+        w.writerow(["index","label","filename"])
         for i,(lab,name) in enumerate(zip(labs, names)):
             w.writerow([i, lab, name])
 
@@ -618,8 +633,10 @@ def main():
     for p in tqdm(paths):
         vec = embedder.embed(p)
         if vec is None:
-            failed += 1; used_none += 1
-            if FileTracker: tracker and tracker.log_operation("error", notes=f"Failed to embed: {p}")
+            failed += 1
+            used_none += 1
+            if FileTracker:
+                tracker and tracker.log_operation("error", notes=f"Failed to embed: {p}")
             continue
         # quick attribution
         img = embedder._prep_image(p)
@@ -627,11 +644,13 @@ def main():
             used_face += 1
         else:
             used_reid += 1
-        embs.append(vec); kept_paths.append(p)
+        embs.append(vec)
+        kept_paths.append(p)
 
     print(f"\nℹ️  Embed summary: face={used_face}, reid={used_reid}, none={used_none}")
     if not embs:
-        print("❌ No embeddings produced."); sys.exit(1)
+        print("❌ No embeddings produced.")
+        sys.exit(1)
 
     X = np.vstack(embs).astype(np.float32)  # L2-normalized
 
@@ -650,13 +669,14 @@ def main():
         from csv import writer
         out_dir.mkdir(parents=True, exist_ok=True)
         with open(out_dir / "preview.csv", "w", newline="") as f:
-            w = writer(f); w.writerow(["label","filename"])
+            w = writer(f)
+            w.writerow(["label","filename"])
             for p, lab in zip(kept_paths, labels):
                 w.writerow([int(lab), p.name])
         print(f"📝 wrote preview: {out_dir/'preview.csv'}")
 
         if not args.dry_run:
-            print(f"\n📁 Moving image/metadata pairs to groups…")
+            print("\n📁 Moving image/metadata pairs to groups…")
             manifest = move_image_metadata_pairs(out_dir, kept_paths, labels,
                                             min_cluster_size=1, tracker=tracker)  # no filtering
             print("\n✅ COMPLETE!")
@@ -664,7 +684,8 @@ def main():
             print(f"   • Named groups: {manifest['total_groups']}")
             print(f"   • Moved pairs: {manifest['moved_pairs']}")
             print(f"   • Output: {out_dir}")
-            if FileTracker and tracker: tracker.log_batch_end()
+            if FileTracker and tracker:
+                tracker.log_batch_end()
         else:
             print("\n🔎 dry-run: not moving files")
         return  # skip the agglomerative path below
@@ -694,13 +715,14 @@ def main():
     # Preview CSV
     from csv import writer
     with open(out_dir / "preview.csv", "w", newline="") as f:
-        w = writer(f); w.writerow(["label","filename"])
+        w = writer(f)
+        w.writerow(["label","filename"])
         for p, lab in zip(kept_paths, labels):
             w.writerow([int(lab), p.name])
     print(f"📝 wrote preview: {out_dir/'preview.csv'}")
 
     if not args.dry_run:
-        print(f"\n📁 Moving image/metadata pairs to groups…")
+        print("\n📁 Moving image/metadata pairs to groups…")
         manifest = move_image_metadata_pairs(out_dir, kept_paths, labels,
                                          min_cluster_size=args.min_cluster_size, tracker=tracker)
         
@@ -712,7 +734,7 @@ def main():
         print(f"   • Output: {out_dir}")
         
         # Display image counts per face group
-        print(f"\n📊 Face Group Image Counts:")
+        print("\n📊 Face Group Image Counts:")
         total_images = 0
         group_dirs = sorted([d for d in out_dir.iterdir() if d.is_dir()])
         for group_dir in group_dirs:
