@@ -218,6 +218,19 @@ def move_file_with_all_companions(src_path: Path, dst_dir: Path, dry_run: bool =
     if not dry_run:
         dst_dir.mkdir(parents=True, exist_ok=True)
     
+    # Determine companions BEFORE moving to enforce policy
+    companions = find_all_companion_files(src_path)
+    if len(companions) == 0:
+        # Visible error when attempting to move a single image without companions
+        msg = (
+            f"COMPANION POLICY VIOLATION: Attempted to move image without companions — {src_path.name}. "
+            f"All moves must include same-name/group-stem sidecars."
+        )
+        logger.error(msg)
+        # Allow opt-out via env if absolutely necessary
+        if os.getenv("COMPANION_ALLOW_SINGLE_FILE", "0") != "1":
+            raise RuntimeError(msg)
+    
     # Move the main image file
     dst_path = dst_dir / src_path.name
     if not dry_run and not dst_path.exists():
@@ -229,8 +242,7 @@ def move_file_with_all_companions(src_path: Path, dst_dir: Path, dry_run: bool =
         moved_files.append(src_path.name)
         _say(f"[DRY RUN] Would move: {src_path.name}")
     
-    # Move companion files
-    companions = find_all_companion_files(src_path)
+    # Move companion files (if any)
     for companion in companions:
         companion_dst = dst_dir / companion.name
         if not dry_run and not companion_dst.exists():
@@ -243,6 +255,31 @@ def move_file_with_all_companions(src_path: Path, dst_dir: Path, dry_run: bool =
             _say(f"[DRY RUN] Would move companion: {companion.name}")
     
     return moved_files
+
+
+def safe_move_path(src_path: Path, dst_dir: Path, dry_run: bool = False) -> List[str]:
+    """
+    Safely move a path:
+      - If it's an image, move it WITH all same-name/group-stem companions
+      - Otherwise, move the single file
+    Always creates destination and returns list of moved filenames.
+    """
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    suffix = src_path.suffix.lower()
+    if suffix in {'.png', '.jpg', '.jpeg'}:
+        return move_file_with_all_companions(src_path, dst_dir, dry_run=dry_run)
+    # Non-image: single file move
+    moved: List[str] = []
+    dst_path = dst_dir / src_path.name
+    if not dry_run and not dst_path.exists():
+        import shutil
+        shutil.move(str(src_path), str(dst_path))
+        moved.append(src_path.name)
+        _say(f"Moved: {src_path.name}")
+    elif dry_run:
+        moved.append(src_path.name)
+        _say(f"[DRY RUN] Would move: {src_path.name}")
+    return moved
 
 
 def scan_images(folder: Path, extensions: List[str] = None, recursive: bool = True) -> List[Path]:
