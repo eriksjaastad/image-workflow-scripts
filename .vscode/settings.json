@@ -5,5 +5,24 @@
       "source.organizeImports": "explicit"
     },
     "ruff.lint.enable": true,
-    "ruff.format.enable": true
+  "ruff.format.enable": true,
+  "files.exclude": {
+    "**/.git": true,
+    "**/.github": true,
+    "**/.vscode": true,
+    "**/.venv*": true,
+    "**/.cursor*": true,
+    "**/.pytest_cache": true,
+    "**/__pycache__": true
+  },
+  "search.exclude": {
+    "**/.git": true,
+    "**/.github": true,
+    "**/.vscode": true,
+    "**/.venv*": true,
+    "**/.cursor*": true,
+    "**/.pytest_cache": true,
+    "**/__pycache__": true
+  },
+  "explorer.excludeGitIgnore": false
   }
