@@ -14,6 +14,7 @@ sys.path.insert(0, str(project_root))
 
 from scripts.dashboard.analytics import DashboardAnalytics
 
+
 def main():
     print("=" * 70)
     print("DASHBOARD TIMING TEST")

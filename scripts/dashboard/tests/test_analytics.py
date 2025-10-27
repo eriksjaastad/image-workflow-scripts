@@ -7,10 +7,9 @@ Tests bucketing, alignment, edge cases, and contract compliance.
 Run with: pytest test_analytics.py -v
 """
 
-import pytest
-from datetime import datetime, timedelta
-from pathlib import Path
 import sys
+from datetime import datetime
+from pathlib import Path
 
 # Add project root to path
 project_root = Path(__file__).resolve().parents[2]
@@ -126,7 +125,6 @@ class TestAlignment:
     def test_align_single_record(self):
         """Test alignment with single record."""
         analytics = DashboardAnalytics(project_root)
-        engine = analytics.engine
         
         baseline = ["2025-10-01", "2025-10-02", "2025-10-03"]
         records = [
@@ -418,7 +416,6 @@ def test_toy_example_daily():
     This demonstrates the exact JSON structure for documentation.
     """
     analytics = DashboardAnalytics(project_root)
-    engine = analytics.engine
     
     # Mock baseline labels
     baseline = ["2025-10-13", "2025-10-14", "2025-10-15"]
@@ -441,7 +438,7 @@ def test_toy_example_daily():
     
     print("\n=== TOY EXAMPLE (Daily, 3 labels) ===")
     print(f"Baseline labels: {baseline}")
-    print(f"\nby_script chart data:")
+    print("\nby_script chart data:")
     for tool, data in result.items():
         print(f"  {tool}:")
         print(f"    dates: {data['dates']}")
@@ -482,7 +479,7 @@ def test_toy_example_hourly():
     
     print("\n=== TOY EXAMPLE (Hourly, 3 labels) ===")
     print(f"Baseline labels: {baseline}")
-    print(f"\nby_operation chart data:")
+    print("\nby_operation chart data:")
     for op, data in result.items():
         print(f"  {op}:")
         print(f"    dates: {data['dates']}")

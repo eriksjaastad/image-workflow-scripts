@@ -10,12 +10,13 @@ Where {slice} ∈ { "15min", "1H", "D", "W", "M" }
 Returns JSON matching the dashboard template contract exactly.
 """
 
-from fastapi import FastAPI, Query, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+import sys
 from pathlib import Path
 from typing import Optional
-import sys
+
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 # Add project root to path
 project_root = Path(__file__).resolve().parents[2]
@@ -90,9 +91,9 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    print(f"🚀 Starting Productivity Dashboard API...")
+    print("🚀 Starting Productivity Dashboard API...")
     print(f"📂 Data directory: {project_root}")
-    print(f"🌐 API docs: http://localhost:8000/docs")
+    print("🌐 API docs: http://localhost:8000/docs")
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
 
 

@@ -12,9 +12,10 @@ Usage:
     python scripts/tests/test.py --create-data      # Create test data first
 """
 
-import sys
 import subprocess
+import sys
 from pathlib import Path
+
 
 def main():
     # Change to project root directory (go up from scripts/tests/ to root)

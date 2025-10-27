@@ -28,11 +28,11 @@ FEATURES:
 """
 
 import argparse
-import sys
 import shutil
-from pathlib import Path
+import sys
 from collections import defaultdict
-from typing import Dict, List
+from pathlib import Path
+from typing import Dict
 
 
 def analyze_caption_duplicates(directory: str, show_content: bool = False) -> Dict:
@@ -83,7 +83,7 @@ def analyze_caption_duplicates(directory: str, show_content: bool = False) -> Di
     duplicate_groups = []
     total_duplicates = 0
     
-    print(f"\n📊 Analysis Results:")
+    print("\n📊 Analysis Results:")
     print(f"[*] Total files: {total_files}")
     print(f"[*] Unique contents: {unique_contents}")
     
@@ -102,7 +102,7 @@ def analyze_caption_duplicates(directory: str, show_content: bool = False) -> Di
         print(f"[*] Files with duplicates: {total_duplicates}")
         print(f"[*] Unique files: {total_files - total_duplicates}")
         
-        print(f"\n🔄 Duplicate Groups:")
+        print("\n🔄 Duplicate Groups:")
         print("=" * 60)
         
         # Sort by count (most duplicates first)
@@ -150,7 +150,7 @@ def move_duplicate_groups_to_subdirs(analysis_results: Dict, dry_run: bool = Fal
         print("[*] No duplicate groups to move")
         return {'groups_moved': 0, 'files_moved': 0, 'errors': []}
     
-    print(f"\n🚚 Moving duplicate groups to subdirectories...")
+    print("\n🚚 Moving duplicate groups to subdirectories...")
     print(f"[*] Target directory: {directory_path}")
     print(f"[*] Mode: {'DRY RUN' if dry_run else 'LIVE'}")
     
@@ -185,7 +185,9 @@ def move_duplicate_groups_to_subdirs(analysis_results: Dict, dry_run: bool = Fal
                 if png_file.exists():
                     # Use companion file utilities to move PNG and ALL companions
                     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-                    from scripts.utils.companion_file_utils import move_file_with_all_companions
+                    from scripts.utils.companion_file_utils import (
+                        move_file_with_all_companions,
+                    )
                     
                     if not dry_run:
                         moved_files = move_file_with_all_companions(png_file, group_dir_path, dry_run=False)
@@ -214,7 +216,7 @@ def move_duplicate_groups_to_subdirs(analysis_results: Dict, dry_run: bool = Fal
             groups_moved += 1
             files_moved += group_files_moved
     
-    print(f"\n📊 Move Summary:")
+    print("\n📊 Move Summary:")
     print(f"[*] Groups moved: {groups_moved}")
     print(f"[*] Files moved: {files_moved}")
     if errors:
@@ -262,10 +264,10 @@ Examples:
         # Move duplicate groups if requested
         if args.move_groups:
             if results['duplicate_groups']:
-                move_results = move_duplicate_groups_to_subdirs(results, args.dry_run)
-                print(f"\n✅ Move operation completed!")
+                move_duplicate_groups_to_subdirs(results, args.dry_run)
+                print("\n✅ Move operation completed!")
             else:
-                print(f"\n[*] No duplicate groups to move")
+                print("\n[*] No duplicate groups to move")
         
         # Exit with success
         sys.exit(0)

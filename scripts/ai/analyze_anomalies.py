@@ -14,9 +14,9 @@ Usage:
 import csv
 import json
 import re
-from pathlib import Path
 from collections import defaultdict
-from typing import Dict, List, Tuple, Optional
+from pathlib import Path
+from typing import Dict, Optional, Tuple
 
 
 def parse_stage(filename: str) -> Optional[int]:

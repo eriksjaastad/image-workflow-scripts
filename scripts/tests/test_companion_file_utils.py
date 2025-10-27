@@ -12,25 +12,24 @@ Coverage focus:
 - Edge cases: Missing files, malformed data, permission errors
 """
 
-import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.companion_file_utils import (
-    find_all_companion_files,
-    move_file_with_companions,
-    sort_image_files_by_timestamp_and_stage,
-    find_consecutive_stage_groups,
     detect_stage,
+    find_all_companion_files,
+    find_consecutive_stage_groups,
     get_stage_number,
+    move_file_with_companions,
+    safe_delete_image_and_yaml,
     safe_delete_paths,
-    safe_delete_image_and_yaml
+    sort_image_files_by_timestamp_and_stage,
 )
 
 
@@ -119,7 +118,7 @@ class TestMoveFileWithAllCompanions(unittest.TestCase):
         yaml.write_text("yaml data")
         
         # Mock tracker and activity_timer
-        mock_tracker = MagicMock()
+        MagicMock()
         
         moved = move_file_with_companions(img, self.dest_dir, dry_run=False)
         
@@ -141,7 +140,7 @@ class TestMoveFileWithAllCompanions(unittest.TestCase):
         yaml.write_text("yaml")
         caption.write_text("caption")
         
-        mock_tracker = MagicMock()
+        MagicMock()
         
         moved = move_file_with_companions(img, self.dest_dir, dry_run=False)
         

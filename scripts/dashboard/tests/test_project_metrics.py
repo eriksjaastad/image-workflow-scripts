@@ -1,11 +1,12 @@
 import json
-import os
 import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
 
 from scripts.dashboard.project_metrics_aggregator import ProjectMetricsAggregator
+
+
 def transform_for_charts_like(data):
     """Local minimal transform that builds project_comparisons without Flask import."""
     pm = data.get('project_metrics', {}) or {}

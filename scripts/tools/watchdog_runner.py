@@ -2,10 +2,8 @@
 import argparse
 import json
 import os
-import shlex
 import signal
 import subprocess
-import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -57,7 +55,7 @@ def run_with_watchdog(cmd: str, timeout_sec: float, heartbeat_file: Path, hb_thr
     )
 
     last_hb = tail_heartbeat(heartbeat_file) if heartbeat_file else 0.0
-    last_output_time = time.time()
+    time.time()
 
     # Stream output to temp files under the same directory as heartbeat
     out_dir = heartbeat_file.parent if heartbeat_file else Path.cwd()
@@ -72,7 +70,7 @@ def run_with_watchdog(cmd: str, timeout_sec: float, heartbeat_file: Path, hb_thr
                 if line:
                     f_out.write(line)
                     f_out.flush()
-                    last_output_time = time.time()
+                    time.time()
                 else:
                     # No more stdout; break if process ended
                     if p.poll() is not None:
@@ -82,7 +80,7 @@ def run_with_watchdog(cmd: str, timeout_sec: float, heartbeat_file: Path, hb_thr
                 if line_err:
                     f_err.write(line_err)
                     f_err.flush()
-                    last_output_time = time.time()
+                    time.time()
 
             # Check process completion
             if p.poll() is not None:

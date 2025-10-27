@@ -16,12 +16,12 @@ This processes data from 2 days ago, ensuring no conflicts with current work.
 """
 
 import argparse
-import os
 import json
+import os
 import sys
+from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from collections import defaultdict
 
 # Import DashboardDataEngine at module level for testability
 try:
@@ -148,11 +148,11 @@ def consolidate_daily_data(target_date: str, dry_run: bool = False):
         
         # Count PNG files only (not companion files like YAML, captions, etc.)
         files_list = op.get('files', [])
-        png_count = sum(1 for f in files_list if isinstance(f, str) and f.lower().endswith('.png'))
+        sum(1 for f in files_list if isinstance(f, str) and f.lower().endswith('.png'))
         
         # Fallback to file_count if no files list (shouldn't happen with proper logging)
         if not files_list and op.get('file_count'):
-            png_count = op.get('file_count', 0)
+            op.get('file_count', 0)
         
         operation_type = op.get('operation', 'unknown')
         timestamp = op.get('timestamp', '')

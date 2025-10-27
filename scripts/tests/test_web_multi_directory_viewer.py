@@ -4,20 +4,21 @@ Comprehensive Tests for Web Multi-Directory Viewer
 Tests crop/delete functionality, sticky header with live stats, and style guide compliance
 """
 
-import sys
-import time
-import subprocess
-import tempfile
 import shutil
+import subprocess
+import sys
+import tempfile
+import time
 from pathlib import Path
+
 from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+from webdriver_manager.chrome import ChromeDriverManager
+
 
 class WebMultiDirectoryViewerTest:
     def __init__(self):

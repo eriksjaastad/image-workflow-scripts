@@ -7,11 +7,10 @@ without interfering with the real data directory.
 """
 
 import json
+import sys
 import tempfile
 import unittest
-from datetime import datetime, date
 from pathlib import Path
-import sys
 
 # Add the dashboard directory to the path
 sys.path.insert(0, str(Path(__file__).parent.parent / "dashboard"))
@@ -129,7 +128,6 @@ class TestDashboardCoreFunctionality(unittest.TestCase):
 
     def test_dashboard_can_transform_charts(self):
         """Test that the dashboard can transform data for charts"""
-        from data_engine import DashboardDataEngine
         from productivity_dashboard import ProductivityDashboard
         
         # Use the real data directory
@@ -286,6 +284,7 @@ class TestDashboardDataIntegrity(unittest.TestCase):
     def test_dashboard_performance(self):
         """Test that the dashboard loads data quickly"""
         import time
+
         from data_engine import DashboardDataEngine
         
         engine = DashboardDataEngine(data_dir=str(Path(__file__).parent.parent.parent))
@@ -303,7 +302,6 @@ class TestDashboardDataIntegrity(unittest.TestCase):
 
     def test_chart_data_structure(self):
         """Test that chart data has the correct structure"""
-        from data_engine import DashboardDataEngine
         from productivity_dashboard import ProductivityDashboard
         
         dashboard = ProductivityDashboard(data_dir=str(Path(__file__).parent.parent.parent))

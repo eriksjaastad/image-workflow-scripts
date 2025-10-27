@@ -7,17 +7,17 @@ Tests AI model integration, crop overlay, and file operations.
 Run: python scripts/tests/test_ai_assisted_reviewer.py
 """
 
+import json
 import sys
 import tempfile
 from pathlib import Path
-import json
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
-from scripts.utils.companion_file_utils import extract_datetime_from_filename, detect_stage
+from scripts.utils.companion_file_utils import detect_stage
 
 # Import core functions only (avoid Flask dependencies for testing)
 try:
@@ -38,6 +38,7 @@ except:
 # Define what we need for testing
 from dataclasses import dataclass
 from typing import List
+
 
 @dataclass
 class ImageGroup:
@@ -194,7 +195,7 @@ def test_rule_based_recommendation():
         assert recommendation["selected_index"] == len(images) - 1, f"Should pick last image (highest stage), got {recommendation['selected_index']}"
         assert recommendation["selected_image"] == images[-1].name
         assert recommendation["confidence"] == 1.0
-        assert recommendation["crop_needed"] == False
+        assert not recommendation["crop_needed"]
         assert recommendation["crop_coords"] is None
         
         print(f"   ✅ Rule-based picked: {recommendation['selected_image']}")
@@ -229,7 +230,7 @@ def test_crop_coordinates_validation():
         if crop_area < 0.95:
             print(f"      → Meaningful crop (removes {100 - crop_area*100:.1f}% of image)")
         else:
-            print(f"      → Nearly full image (should not crop)")
+            print("      → Nearly full image (should not crop)")
     
     return True
 
@@ -306,7 +307,7 @@ def test_decision_file_creation():
             loaded = json.load(f)
         
         assert loaded["group_id"] == decision_data["group_id"]
-        assert loaded["ai_recommendation"]["crop_needed"] == True
+        assert loaded["ai_recommendation"]["crop_needed"]
         assert len(loaded["ai_recommendation"]["crop_coords"]) == 4
         
         # Verify crop coords are normalized
@@ -315,7 +316,7 @@ def test_decision_file_creation():
         assert 0 <= y1 < y2 <= 1
         
         print(f"   ✅ Decision file created at: {decision_path.name}")
-        print(f"   ✅ AI recommendation saved correctly")
+        print("   ✅ AI recommendation saved correctly")
         print(f"   ✅ Crop coords: ({x1:.2f}, {y1:.2f}, {x2:.2f}, {y2:.2f})")
         return True
 

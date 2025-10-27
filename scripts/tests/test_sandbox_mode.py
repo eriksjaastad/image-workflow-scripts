@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import tempfile
 from pathlib import Path
 
 from scripts.file_tracker import FileTracker

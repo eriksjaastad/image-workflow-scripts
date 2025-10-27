@@ -10,8 +10,8 @@ import argparse
 from pathlib import Path
 
 from PIL import Image
+from scripts.process_crop_queue import CropQueueProcessor
 from scripts.utils.crop_queue import CropQueueManager
-from scripts.process_crop_queue import CropQueueProcessor, HumanTimingSimulator
 
 
 def main() -> None:
@@ -31,7 +31,7 @@ def main() -> None:
         w, h = im.size
 
     cq = CropQueueManager()
-    batch_id = cq.enqueue_batch([
+    cq.enqueue_batch([
         {
             "source_path": str(img.resolve()),
             "crop_rect": [int(w * 0.1), int(h * 0.1), int(w * 0.9), int(h * 0.9)],
@@ -45,7 +45,7 @@ def main() -> None:
 
     # Process immediately (fast)
     processor = CropQueueProcessor(queue_manager=cq, timing_simulator=None, preview_mode=False)
-    processed = processor.run(limit=1, skip_confirmation=True)
+    processor.run(limit=1, skip_confirmation=True)
 
     # Verify output exists
     out_path = dest_dir / img.name

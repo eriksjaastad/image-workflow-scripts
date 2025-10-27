@@ -6,8 +6,8 @@ Runs all dashboard-related tests to ensure the system is working perfectly
 and locked in. This prevents regression issues like the historical data loss.
 """
 
-import unittest
 import sys
+import unittest
 from pathlib import Path
 
 # Add the scripts directory to the path
@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import all test modules
 from test_dashboard_data_engine import TestDashboardDataEngine, TestDashboardIntegration
-from test_data_consolidation import TestDataConsolidation, TestConsolidationIntegration
+from test_data_consolidation import TestConsolidationIntegration, TestDataConsolidation
 
 
 def run_all_tests():

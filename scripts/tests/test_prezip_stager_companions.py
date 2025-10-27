@@ -1,7 +1,6 @@
 import json
-from pathlib import Path
-from zipfile import ZipFile
 import unittest
+from pathlib import Path
 
 
 class TestPrezipCompanions(unittest.TestCase):

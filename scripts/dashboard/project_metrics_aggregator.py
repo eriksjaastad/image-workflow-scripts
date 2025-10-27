@@ -27,13 +27,13 @@ Notes:
 
 from __future__ import annotations
 
-import json
 import gzip
-import re
+import json
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
 from scripts.utils.companion_file_utils import get_file_operation_metrics
 
 

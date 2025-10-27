@@ -104,29 +104,28 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Any, Dict, List, Optional, Tuple
 
 # SQLite v3 Training Data (NEW!)
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from scripts.utils.ai_training_decisions_v3 import (
-    init_decision_db,
     generate_group_id,
+    init_decision_db,
     log_ai_decision,
 )
 
 # Reuse existing grouping logic - NO reinventing the wheel!
 sys.path.insert(0, str(Path(__file__).parent))
+from file_tracker import FileTracker
 from utils.companion_file_utils import (
+    detect_stage,
     extract_datetime_from_filename,
     find_consecutive_stage_groups,
-    get_stage_number,
-    detect_stage,
-    sort_image_files_by_timestamp_and_stage,
-    move_file_with_all_companions,
-    log_selection_only_entry,
     log_crop_decision,  # NEW: Minimal schema crop logging
+    log_selection_only_entry,
+    move_file_with_all_companions,
+    sort_image_files_by_timestamp_and_stage,
 )
-from file_tracker import FileTracker
 
 try:
     from flask import Flask, Response, jsonify, render_template_string, request
@@ -374,7 +373,7 @@ def get_ai_recommendation(group: ImageGroup, ranker_model, crop_model, clip_info
                 if crop_area < 0.95:  # If cropping more than 5%
                     crop_needed = True
                     crop_coords = (float(x1), float(y1), float(x2), float(y2))
-                    print(f"[Crop Proposer] ✓ CROP RECOMMENDED")
+                    print("[Crop Proposer] ✓ CROP RECOMMENDED")
                 else:
                     print(f"[Crop Proposer] ✗ No crop needed (area too large: {crop_area*100:.1f}%)")
                 
@@ -1960,7 +1959,7 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             group_id = data.get("group_id")
             action = data.get("action")
             selected_index = data.get("selected_index")
-            ai_index = data.get("ai_index")
+            data.get("ai_index")
             
             # Find group
             groups = app.config["GROUPS"]
@@ -2173,9 +2172,9 @@ def main() -> None:
     # Use centralized standard paths (double-underscore directories)
     try:
         from utils.standard_paths import (
-            get_selected_dir,
             get_crop_dir,
             get_delete_staging_dir,
+            get_selected_dir,
         )
         selected_dir = get_selected_dir()
         crop_dir = get_crop_dir()
@@ -2213,7 +2212,7 @@ def main() -> None:
     images = scan_images(directory)
     print(f"[*] Found {len(images)} images")
     
-    print(f"[*] Grouping images...")
+    print("[*] Grouping images...")
     groups = group_images_by_timestamp(images)
     print(f"[*] Found {len(groups)} groups")
     
@@ -2227,7 +2226,7 @@ def main() -> None:
     
     # Pre-compute AI recommendations for first batch to show crop stats
     if ranker_model is not None and crop_model is not None and clip_info is not None:
-        print(f"\n[*] Computing AI recommendations for first batch...")
+        print("\n[*] Computing AI recommendations for first batch...")
         first_batch = groups[:args.batch_size]
         crop_needed_count = 0
         no_crop_count = 0
@@ -2243,7 +2242,7 @@ def main() -> None:
                 print(f"   Warning: Failed to get recommendation for {group.group_id}: {e}")
                 no_crop_count += 1
         
-        print(f"[✓] First batch stats:")
+        print("[✓] First batch stats:")
         print(f"    • {crop_needed_count} images need cropping ({crop_needed_count*100//len(first_batch)}%)")
         print(f"    • {no_crop_count} images need no crop ({no_crop_count*100//len(first_batch)}%)")
     
@@ -2254,7 +2253,7 @@ def main() -> None:
     
     url = f"http://{args.host}:{args.port}"
     print(f"\n[*] Starting reviewer at {url}")
-    print(f"[*] Press Ctrl+C to stop\n")
+    print("[*] Press Ctrl+C to stop\n")
     
     # Auto-open browser after short delay (give server time to start)
     def open_browser():

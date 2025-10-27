@@ -4,13 +4,10 @@ Desktop Selector Behavior Tests
 Verifies Enter and Reset behaviors without user interaction.
 """
 
-import sys
-import tempfile
-from pathlib import Path
-from types import SimpleNamespace
-
-from importlib.machinery import SourceFileLoader
 import importlib.util
+import tempfile
+from importlib.machinery import SourceFileLoader
+from pathlib import Path
 
 
 def _load_desktop_tool(project_root: Path):

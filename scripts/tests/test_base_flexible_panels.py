@@ -7,7 +7,6 @@ the base tool can render exactly 1 panel when requested, and that the
 hide_unused_subplots logic respects the configured min/max bounds.
 """
 
-from pathlib import Path
 
 import matplotlib
 

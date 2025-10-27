@@ -14,8 +14,8 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
-from PIL import Image
 
+from PIL import Image
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.chrome.service import Service as ChromeService

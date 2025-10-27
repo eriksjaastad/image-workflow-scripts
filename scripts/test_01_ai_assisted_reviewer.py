@@ -12,9 +12,9 @@ for the tests:
   - DEFAULT_BATCH_SIZE
 """
 
-from pathlib import Path
 import importlib.util
 import sys
+from pathlib import Path
 
 _scripts_dir = Path(__file__).parent
 _target = _scripts_dir / "01_ai_assisted_reviewer.py"

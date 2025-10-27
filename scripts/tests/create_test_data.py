@@ -11,10 +11,9 @@ Usage:
 """
 
 import argparse
-import json
 import shutil
 from pathlib import Path
-import tempfile
+
 
 def create_triplet_test_data(output_dir, num_triplets=120):
     """Create test data with proper triplet structure"""
@@ -182,7 +181,7 @@ def create_subdirectory_test_data(output_dir):
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     
-    print(f"🔧 Creating subdirectory test data with complex structure")
+    print("🔧 Creating subdirectory test data with complex structure")
     
     files_created = []
     
@@ -355,7 +354,7 @@ if __name__ == "__main__":
         else:
             files = create_triplet_test_data(args.output, args.triplets)
         
-        print(f"\n🎉 Test data created successfully!")
+        print("\n🎉 Test data created successfully!")
         print(f"📁 Location: {Path(args.output).resolve()}")
         print(f"📊 Files: {len(files)}")
         

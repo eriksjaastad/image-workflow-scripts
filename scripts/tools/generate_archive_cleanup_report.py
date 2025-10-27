@@ -29,8 +29,7 @@ import argparse
 import datetime as dt
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple, Set
-
+from typing import Dict, List, Set
 
 RE_LAST_UPDATED = re.compile(r"^(?:\*\*Last Updated:\*\*|Last Updated:)\s*(\d{4}-\d{2}-\d{2})", re.IGNORECASE)
 MD_LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")

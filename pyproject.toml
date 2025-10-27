@@ -1,6 +1,7 @@
 [tool.ruff]
 target-version = "py311"
 src = ["scripts"]
+extend-exclude = ["*.md", "*.txt", "*.json", "*.csv", "*.html", "*.css", "*.js"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]

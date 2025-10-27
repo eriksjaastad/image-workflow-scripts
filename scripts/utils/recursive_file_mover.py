@@ -31,14 +31,17 @@ FEATURES:
 import argparse
 import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import List
 
 # Add the project root to Python path for imports
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from scripts.file_tracker import FileTracker
-from scripts.utils.companion_file_utils import find_all_companion_files, move_file_with_all_companions, move_multiple_files_with_companions
+from scripts.utils.companion_file_utils import (
+    move_multiple_files_with_companions,
+)
+
 
 def find_all_image_files(source_dir: Path) -> List[Path]:
     """Find all image files in source directory recursively."""
@@ -86,7 +89,7 @@ def move_files(source_dir: Path, dest_dir: Path, dry_run: bool = False) -> None:
         print("   • DRY RUN - No files were actually moved")
     else:
         print(f"   • Files moved to: {dest_dir}")
-        print(f"   • Operations logged by FileTracker")
+        print("   • Operations logged by FileTracker")
 
 def main():
     parser = argparse.ArgumentParser(
@@ -124,7 +127,7 @@ Examples:
     
     # Check if source and destination are the same
     if source_dir == dest_dir:
-        print(f"❌ ERROR: Source and destination are the same directory")
+        print("❌ ERROR: Source and destination are the same directory")
         sys.exit(1)
     
     # Validate destination directory
@@ -139,7 +142,7 @@ Examples:
     # Check if destination is inside source (would cause issues)
     try:
         dest_dir.relative_to(source_dir)
-        print(f"❌ ERROR: Destination directory is inside source directory")
+        print("❌ ERROR: Destination directory is inside source directory")
         sys.exit(1)
     except ValueError:
         pass  # Good - destination is not inside source

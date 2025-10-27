@@ -15,10 +15,10 @@ Note: This is for archival/comparison. Primary session source is derived_session
 """
 
 import json
-from pathlib import Path
-from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional
 from collections import defaultdict
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 # Load config
 CONFIG_PATH = Path(__file__).resolve().parents[2] / "configs" / "metrics_config.json"
@@ -104,7 +104,7 @@ def normalize_session(raw_session: Dict[str, Any], source_file: str) -> Optional
         
         return normalized
         
-    except Exception as e:
+    except Exception:
         return None
 
 
@@ -147,13 +147,13 @@ def extract_from_session_file(session_path: Path) -> Optional[Dict[str, Any]]:
         
         return normalize_session(raw_session, session_path.name)
     
-    except Exception as e:
+    except Exception:
         return None
 
 
 def main():
     """Main entry point."""
-    print(f"Extracting legacy timer sessions...")
+    print("Extracting legacy timer sessions...")
     
     if not TIMER_DIR.exists():
         print(f"Timer data directory not found: {TIMER_DIR}")

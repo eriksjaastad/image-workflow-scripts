@@ -17,11 +17,11 @@ Usage in any script:
     tracker.log_batch_end()
 """
 
-import os
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any, Dict
+
 
 class FileTracker:
     def __init__(self, script_name: str, log_file: str = "file_operations.log", sandbox: bool = False):
@@ -305,7 +305,7 @@ def print_recent_activity(hours: int = 24):
             elif entry["type"] == "session_start":
                 print(f"{time_str} [{entry['script']}] SESSION START")
                 
-        except Exception as e:
+        except Exception:
             continue
     
     print("=" * 50)

@@ -29,9 +29,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 from PIL import Image
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
-
 
 # Paths
 PROJECT_ROOT = Path("/Users/eriksjaastad/projects/Eros Mate")
@@ -201,12 +200,12 @@ def load_crop_data(cache: Dict, filename_cache: Dict):
                     'height': height
                 }
                 crops.append(crop)
-            except (KeyError, ValueError) as e:
+            except (KeyError, ValueError):
                 skipped += 1
                 continue
     
     print(f"   ✅ Loaded: {len(crops):,} crop examples")
-    print(f"   📊 Dimensions:")
+    print("   📊 Dimensions:")
     print(f"      • From CSV: {loaded_dims_from_csv:,}")
     print(f"      • From disk: {loaded_dims_from_disk:,}")
     print(f"   ⏭️  Skipped: {skipped:,} total")
@@ -388,7 +387,7 @@ def main():
     args = parser.parse_args()
     
     print("=" * 70)
-    print(f"CROP PROPOSER V2 TRAINING")
+    print("CROP PROPOSER V2 TRAINING")
     print("=" * 70)
     print(f"Device: {device}")
     print(f"Epochs: {args.epochs}")
@@ -403,7 +402,7 @@ def main():
     train_crops = crops[val_size:]
     val_crops = crops[:val_size]
     
-    print(f"\n📊 Train/Val split:")
+    print("\n📊 Train/Val split:")
     print(f"   Train: {len(train_crops):,} crops")
     print(f"   Val:   {len(val_crops):,} crops")
     
@@ -421,7 +420,7 @@ def main():
     criterion = nn.SmoothL1Loss()  # Less sensitive to outliers than MSE
     
     # Training loop
-    print(f"\n🚀 Starting training...")
+    print("\n🚀 Starting training...")
     print()
     
     best_iou = 0
@@ -478,7 +477,7 @@ def main():
     print(f"Best epoch: {best_epoch}")
     print(f"Best IoU: {best_iou:.4f}")
     print()
-    print(f"📁 Model saved:")
+    print("📁 Model saved:")
     print(f"   {MODEL_DIR / 'crop_proposer_v2.pt'}")
     print(f"   {MODEL_DIR / 'crop_proposer_v2_metadata.json'}")
     print("=" * 70)

@@ -53,16 +53,20 @@ FEATURES:
 - Perfect for quick clustering assessment and cleanup
 """
 
-import os
-import sys
 import argparse
-from pathlib import Path
-from flask import Flask, render_template_string, request, jsonify
-import webbrowser
-from utils.companion_file_utils import launch_browser, generate_thumbnail, get_error_display_html, format_image_display_name, move_file_with_all_companions, find_all_companion_files, safe_delete_image_and_yaml
+import sys
 import threading
-import time
-import shutil
+from pathlib import Path
+
+from flask import Flask, jsonify, render_template_string, request
+
+from utils.companion_file_utils import (
+    generate_thumbnail,
+    get_error_display_html,
+    launch_browser,
+    move_file_with_all_companions,
+    safe_delete_image_and_yaml,
+)
 
 # Configuration
 THUMBNAIL_MAX_DIM = 200
@@ -664,7 +668,7 @@ def create_app(output_dir):
                         counter += 1
                     
                     # Use companion file utilities to move image and ALL companions
-                    moved_files = move_file_with_all_companions(source_path, crop_dir, dry_run=False)
+                    move_file_with_all_companions(source_path, crop_dir, dry_run=False)
                     
                     tracker.log_move(source_path, dest_path, "crop_action")
                     
@@ -716,7 +720,7 @@ def main():
         print(f"❌ Error: Directory '{args.output_dir}' not found")
         sys.exit(1)
     
-    print(f"🚀 Starting Multi-Directory Image Viewer...")
+    print("🚀 Starting Multi-Directory Image Viewer...")
     print(f"📂 Scanning: {args.output_dir}")
     
     app = create_app(args.output_dir)

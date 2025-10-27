@@ -27,12 +27,12 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 try:
+    import pandas as pd
     import pyarrow as pa
     import pyarrow.parquet as pq
-    import pandas as pd
 except ImportError:
     print("❌ PyArrow/Pandas not installed. Install with: pip install pyarrow pandas")
     sys.exit(1)
@@ -149,7 +149,7 @@ def convert_dataset(
             continue
     
     if not all_records:
-        print(f"  ⚠️  No records found")
+        print("  ⚠️  No records found")
         return False
     
     print(f"  Loaded {len(all_records)} records")
@@ -199,7 +199,7 @@ def convert_dataset(
         
         compression_ratio = jsonl_size / parquet_size if parquet_size > 0 else 0
         
-        print(f"  📊 Size comparison:")
+        print("  📊 Size comparison:")
         print(f"     JSONL:   {jsonl_size / 1024 / 1024:.2f} MB")
         print(f"     Parquet: {parquet_size / 1024 / 1024:.2f} MB ({compression_ratio:.1f}x compression)")
         

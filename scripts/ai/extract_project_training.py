@@ -27,10 +27,10 @@ from typing import Dict, List, Optional
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.companion_file_utils import (
-    sort_image_files_by_timestamp_and_stage,
-    find_consecutive_stage_groups,
+    detect_stage,
     extract_datetime_from_filename,
-    detect_stage
+    find_consecutive_stage_groups,
+    sort_image_files_by_timestamp_and_stage,
 )
 
 
@@ -193,7 +193,7 @@ def extract_training_data(
                     })
                     crops_count += 1
     
-    print(f"\n📊 Extraction results:")
+    print("\n📊 Extraction results:")
     print(f"   Selections: {selections_count:,}")
     print(f"   Crops: {crops_count:,} ({crops_count/selections_count*100 if selections_count else 0:.1f}%)")
     
@@ -293,7 +293,7 @@ def main():
     write_to_csv(selections, crops, project_root)
     
     print(f"\n🎯 Next step: Compute embeddings for {project_id} images")
-    print(f"   python scripts/ai/compute_embeddings.py")
+    print("   python scripts/ai/compute_embeddings.py")
     
     return 0
 

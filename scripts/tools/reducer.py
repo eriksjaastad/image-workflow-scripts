@@ -5,21 +5,26 @@ import os
 import random
 import sys
 import time
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # Ensure project root on sys.path when invoked directly
 _ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from scripts.utils.watchdog import Heartbeat, Watchdog, print_progress
-from scripts.tools.prof import Profiler
 import concurrent.futures
 from functools import lru_cache
-from typing import Tuple, Optional
-from scripts.utils.companion_file_utils import move_file_with_all_companions, sort_image_files_by_timestamp_and_stage, find_consecutive_stage_groups, detect_stage
-import re
+from typing import Tuple
+
+from scripts.tools.prof import Profiler
+from scripts.utils.companion_file_utils import (
+    detect_stage,
+    find_consecutive_stage_groups,
+    move_file_with_all_companions,
+    sort_image_files_by_timestamp_and_stage,
+)
+from scripts.utils.watchdog import Heartbeat, Watchdog, print_progress
 
 # Minimal scaffold; actual logic will live in sibling modules
 
@@ -297,8 +302,8 @@ def cmd_run(args):
             def _qa_metrics_cached(path_str: str, mtime_ns: int, thumb_size: int) -> Tuple[float, float]:
                 """Return (sharpness_score, clip_fraction). Pure-Python/Numpy on thumbnail; fail-open to zeros."""
                 try:
-                    from PIL import Image
                     import numpy as _np
+                    from PIL import Image
                 except Exception:
                     return 0.0, 0.0
                 try:

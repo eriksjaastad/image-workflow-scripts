@@ -12,9 +12,9 @@ Outputs to:
 """
 
 import json
-from pathlib import Path
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PROJECTS_DIR = PROJECT_ROOT / "data" / "projects"
@@ -109,7 +109,7 @@ def normalize_project(raw_project: Dict[str, Any], source_file: str) -> Optional
 
 def main():
     """Main entry point."""
-    print(f"Extracting projects...")
+    print("Extracting projects...")
     
     if not PROJECTS_DIR.exists():
         print(f"Projects directory not found: {PROJECTS_DIR}")

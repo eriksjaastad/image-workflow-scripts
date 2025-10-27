@@ -6,9 +6,9 @@ Loads pre-aggregated snapshot data for dashboard performance mode.
 """
 
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Dict, List, Any, Optional
-from datetime import datetime, timezone, timedelta
+from typing import Any, Dict, List
 
 
 class SnapshotLoader:

@@ -37,15 +37,15 @@ Features:
 - Correction support: bin_version allows reprocessing
 """
 
-import json
 import gzip
-from pathlib import Path
-from datetime import datetime, timezone
-from typing import Dict, List, Any, Optional
-from collections import defaultdict
+import json
+import shutil
 import sys
 import tempfile
-import shutil
+from collections import defaultdict
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 # Add project root to path
 project_root = Path(__file__).resolve().parents[2]
@@ -348,7 +348,7 @@ def aggregate_day(data_dir: Path, day_str: str, bin_version: int = 1, dry_run: b
         print(f"  [DRY RUN] Would write to: data/aggregates/daily/day={day_str}/agg_15m.jsonl")
         # Show sample
         if bins:
-            print(f"\n  Sample bin:")
+            print("\n  Sample bin:")
             print(f"    {json.dumps(bins[0], indent=4)}")
         return len(bins)
     
@@ -433,7 +433,7 @@ def main():
             traceback.print_exc()
     
     print(f"\n{'[DRY RUN] ' if args.dry_run else ''}Total bins created: {total_bins}")
-    print(f"✓ Aggregation complete")
+    print("✓ Aggregation complete")
 
 
 if __name__ == '__main__':

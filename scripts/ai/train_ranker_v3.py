@@ -29,9 +29,8 @@ from typing import Dict, List, Tuple
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
-
 
 # Paths
 PROJECT_ROOT = Path("/Users/eriksjaastad/projects/Eros Mate")
@@ -279,7 +278,7 @@ class RankingDataset(Dataset):
         # Shuffle
         random.shuffle(self.pairs)
         
-        print(f"\n📊 Dataset created:")
+        print("\n📊 Dataset created:")
         print(f"   Normal pairs: {len(normal_pairs):,}")
         print(f"   Anomaly pairs: {len(anomaly_pairs):,} × {anomaly_oversample_factor} = {len(anomaly_pairs)*anomaly_oversample_factor:,}")
         print(f"   Total: {len(self.pairs):,} pairs")
@@ -442,7 +441,7 @@ def main():
     args = parser.parse_args()
     
     print("=" * 70)
-    print(f"RANKING MODEL V3 TRAINING - FULL DATASET")
+    print("RANKING MODEL V3 TRAINING - FULL DATASET")
     print("=" * 70)
     print(f"Device: {device}")
     print(f"Anomaly weight: {args.anomaly_weight}x")
@@ -468,7 +467,7 @@ def main():
     anomaly_train = anomaly_pairs[anomaly_val_size:]
     anomaly_val = anomaly_pairs[:anomaly_val_size]
     
-    print(f"\n📊 Train/Val split:")
+    print("\n📊 Train/Val split:")
     print(f"   Train: {len(normal_train):,} normal + {len(anomaly_train):,} anomalies")
     print(f"   Val:   {len(normal_val):,} normal + {len(anomaly_val):,} anomalies")
     
@@ -488,7 +487,7 @@ def main():
     criterion = WeightedMarginRankingLoss(margin=0.5, anomaly_weight=args.anomaly_weight)
     
     # Training loop
-    print(f"\n🚀 Starting training...")
+    print("\n🚀 Starting training...")
     print()
     
     best_anomaly_acc = 0
@@ -552,7 +551,7 @@ def main():
     print(f"Best anomaly accuracy: {best_anomaly_acc:.4f}")
     print()
     model_name = f"ranker_v3_w{int(args.anomaly_weight)}"
-    print(f"📁 Model saved:")
+    print("📁 Model saved:")
     print(f"   {MODEL_DIR / model_name}.pt")
     print(f"   {MODEL_DIR / model_name}_metadata.json")
     print("=" * 70)

@@ -21,7 +21,7 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Set, List
+from typing import Dict, List, Set
 
 
 def is_hidden(p: Path) -> bool:

@@ -19,10 +19,9 @@ Exit codes:
 import argparse
 import csv
 import json
-from collections import Counter, defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict
 
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -222,7 +221,7 @@ def validate_crop_data(report: ValidationReport, selection_filenames: Dict[str, 
             for line, fname, w, h in invalid_dimensions:
                 report.error(f"   Line {line}: {fname} → {w}x{h}")
         else:
-            report.error(f"   Showing first 5:")
+            report.error("   Showing first 5:")
             for line, fname, w, h in invalid_dimensions[:5]:
                 report.error(f"   Line {line}: {fname} → {w}x{h}")
     
@@ -234,7 +233,7 @@ def validate_crop_data(report: ValidationReport, selection_filenames: Dict[str, 
             for line, fname, coords in invalid_coords:
                 report.error(f"   Line {line}: {fname} → {coords}")
         else:
-            report.error(f"   Showing first 5:")
+            report.error("   Showing first 5:")
             for line, fname, coords in invalid_coords[:5]:
                 report.error(f"   Line {line}: {fname} → {coords}")
     
@@ -289,10 +288,10 @@ def validate_embeddings(report: ValidationReport, selection_files: Dict[str, str
             for path in missing_files:
                 report.error(f"   Missing: {path}")
         else:
-            report.error(f"   Showing first 10:")
+            report.error("   Showing first 10:")
             for path in missing_files[:10]:
                 report.error(f"   Missing: {path}")
-        report.error(f"   → Run: python scripts/ai/compute_embeddings.py")
+        report.error("   → Run: python scripts/ai/compute_embeddings.py")
     
     # Check selection coverage
     all_training_files = set(selection_files.keys()) | set(crop_files.keys())
@@ -305,10 +304,10 @@ def validate_embeddings(report: ValidationReport, selection_files: Dict[str, str
             for fname in sorted(missing_embeddings):
                 report.warning(f"   No embedding: {fname}")
         else:
-            report.warning(f"   Showing first 10:")
+            report.warning("   Showing first 10:")
             for fname in sorted(list(missing_embeddings)[:10]):
                 report.warning(f"   No embedding: {fname}")
-        report.warning(f"   → Run: python scripts/ai/compute_embeddings.py")
+        report.warning("   → Run: python scripts/ai/compute_embeddings.py")
     
     # Report coverage
     if all_training_files:

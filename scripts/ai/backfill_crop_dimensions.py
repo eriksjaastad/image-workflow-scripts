@@ -15,8 +15,8 @@ import argparse
 import csv
 import shutil
 from pathlib import Path
+
 from PIL import Image
-from datetime import datetime
 
 PROJECT_ROOT = Path("PROJECT_ROOT")
 CROP_LOG = PROJECT_ROOT / "data/training/select_crop_log.csv"
@@ -100,7 +100,7 @@ def backfill_dimensions(dry_run=True):
     not_found = 0
     updated_rows = []
     
-    print(f"\n🔍 Searching for original images...")
+    print("\n🔍 Searching for original images...")
     
     for i in zero_dim_rows:
         row = rows[i]
@@ -137,35 +137,35 @@ def backfill_dimensions(dry_run=True):
         else:
             not_found += 1
     
-    print(f"\n📊 Results:")
+    print("\n📊 Results:")
     print(f"   ✅ Found and updated: {found:,} images")
     print(f"   ❌ Not found: {not_found:,} images")
     print(f"   📈 Success rate: {found*100/(found+not_found):.1f}%")
     
     if dry_run:
-        print(f"\n⚠️  DRY RUN - No changes made")
-        print(f"   Sample updates (first 10):")
+        print("\n⚠️  DRY RUN - No changes made")
+        print("   Sample updates (first 10):")
         for i, path, w, h in updated_rows[:10]:
             print(f"      Row {i}: {Path(path).name} → {w}x{h}")
-        print(f"\n   Run without --dry-run to actually update the CSV")
+        print("\n   Run without --dry-run to actually update the CSV")
     else:
         # Backup original file
-        print(f"\n💾 Backing up original CSV to:")
+        print("\n💾 Backing up original CSV to:")
         print(f"   {BACKUP_LOG}")
         shutil.copy(CROP_LOG, BACKUP_LOG)
         
         # Write updated CSV
-        print(f"\n✍️  Writing updated CSV...")
+        print("\n✍️  Writing updated CSV...")
         with CROP_LOG.open('w', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(rows)
         
         print(f"✅ DONE! Updated {found:,} rows")
-        print(f"\n📋 Next steps:")
-        print(f"   1. Verify the updated data looks correct")
-        print(f"   2. Retrain Crop Proposer v3 with the expanded dataset")
-        print(f"   3. Test the new model")
+        print("\n📋 Next steps:")
+        print("   1. Verify the updated data looks correct")
+        print("   2. Retrain Crop Proposer v3 with the expanded dataset")
+        print("   3. Test the new model")
 
 
 def main():

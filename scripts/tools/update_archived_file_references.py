@@ -11,7 +11,6 @@ Replacements:
 This updates all documentation and test files to point to the new AI-powered versions.
 """
 
-import re
 from pathlib import Path
 
 # Define replacements

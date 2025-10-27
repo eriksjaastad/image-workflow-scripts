@@ -20,9 +20,10 @@ Checks:
 import argparse
 import json
 import sqlite3
-from pathlib import Path
 from datetime import datetime
-from typing import List, Dict, Tuple, Set
+from pathlib import Path
+from typing import Dict, List, Set, Tuple
+
 
 def load_queue_entries(queue_file: Path) -> List[Dict]:
     """Load all entries from queue file."""
@@ -85,7 +86,7 @@ def audit_queue(queue_file: Path, crop_queued_dir: Path, report_file: Path = Non
     Perform comprehensive audit of queue consistency.
     """
     print(f"\n{'='*80}")
-    print(f"CROP QUEUE AUDIT")
+    print("CROP QUEUE AUDIT")
     print(f"{'='*80}\n")
     print(f"Queue file: {queue_file}")
     print(f"Crop queued directory: {crop_queued_dir}")
@@ -206,7 +207,7 @@ def audit_queue(queue_file: Path, crop_queued_dir: Path, report_file: Path = Non
                                 'project_id': project_id,
                                 'db_path': db_info
                             })
-                except Exception as e:
+                except Exception:
                     pass  # Already caught in missing decision files check
 
     if issues['missing_db_records']:
@@ -291,13 +292,13 @@ def audit_queue(queue_file: Path, crop_queued_dir: Path, report_file: Path = Non
     if report_file:
         print(f"Writing detailed report to {report_file}...")
         with open(report_file, 'w') as f:
-            f.write(f"Crop Queue Audit Report\n")
+            f.write("Crop Queue Audit Report\n")
             f.write(f"{'='*80}\n\n")
             f.write(f"Generated: {datetime.now().isoformat()}\n")
             f.write(f"Queue file: {queue_file}\n")
             f.write(f"Crop queued directory: {crop_queued_dir}\n\n")
 
-            f.write(f"Summary:\n")
+            f.write("Summary:\n")
             f.write(f"  Queue entries: {len(queue_entries)}\n")
             f.write(f"  Filesystem files: {len(filesystem_files)}\n")
             f.write(f"  Total issues: {total_issues}\n\n")

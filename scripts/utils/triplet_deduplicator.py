@@ -13,13 +13,15 @@ Example:
     python scripts/utils/triplet_deduplicator.py "Raw_Images_New"
 """
 
-import os
-import shutil
 import argparse
 from pathlib import Path
-import re
 
-from utils.companion_file_utils import extract_base_timestamp, find_all_companion_files, safe_delete_paths
+from utils.companion_file_utils import (
+    extract_base_timestamp,
+    find_all_companion_files,
+    safe_delete_paths,
+)
+
 
 def build_completed_database(completed_dir):
     """Build a set of all base timestamps from completed work."""
@@ -103,7 +105,7 @@ def main():
         print(f"❌ New images directory not found: {args.new_images_dir}")
         return
     
-    print(f"🔍 Scanning for duplicates...")
+    print("🔍 Scanning for duplicates...")
     print(f"   📂 New images: {args.new_images_dir}")
     print(f"   📂 Completed work: {args.completed_dir}")
     
@@ -115,7 +117,7 @@ def main():
         return
     
     # Find triplets in new images
-    print(f"\n🔍 Analyzing triplets in new images...")
+    print("\n🔍 Analyzing triplets in new images...")
     new_triplets = find_triplets_in_directory(args.new_images_dir)
     
     if not new_triplets:
@@ -160,7 +162,7 @@ def main():
         print(f"\n💡 DRY RUN: Would remove {len(duplicates_found)} duplicate triplets")
     else:
         print(f"\n✅ Removed {len(duplicates_found)} duplicate triplets ({total_removed} files)")
-        print(f"🎯 New images directory is now deduplicated against completed work!")
+        print("🎯 New images directory is now deduplicated against completed work!")
 
 if __name__ == "__main__":
     main()

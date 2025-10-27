@@ -26,18 +26,15 @@ import csv
 import json
 import random
 import re
-from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
-
 
 # Paths
 SELECTION_LOG = Path("/Users/eriksjaastad/projects/Eros Mate/data/training/selection_only_log.csv")
@@ -260,13 +257,13 @@ def load_training_data(embeddings_cache: Dict) -> Tuple[List[Dict], List[Dict]]:
     
     # Report training examples per project
     if project_counts:
-        print(f"\n📊 Training examples per project:")
+        print("\n📊 Training examples per project:")
         for project_id in sorted(project_counts.keys()):
             count = project_counts[project_id]
             print(f"     {project_id}: {count:,} examples")
     
     if missing_embeddings and skipped > 0:
-        print(f"\n⚠️  Sample missing paths (first 5):")
+        print("\n⚠️  Sample missing paths (first 5):")
         for path in missing_embeddings[:5]:
             print(f"     {path}")
     
@@ -311,7 +308,7 @@ class RankingDataset(Dataset):
                         'is_anomaly': True
                     })
         
-        print(f"\n📊 Dataset created:")
+        print("\n📊 Dataset created:")
         print(f"   Normal pairs: {sum(1 for p in self.pairs if not p['is_anomaly'])}")
         print(f"   Anomaly pairs (oversampled {anomaly_oversample_factor}x): {sum(1 for p in self.pairs if p['is_anomaly'])}")
         print(f"   Total pairs: {len(self.pairs)}")
@@ -488,7 +485,7 @@ def main():
     normal_train = normal_cases[normal_val_size:]
     normal_val = normal_cases[:normal_val_size]
     
-    print(f"\n📊 Train/Val split:")
+    print("\n📊 Train/Val split:")
     print(f"   Train: {len(normal_train)} normal + {len(anomaly_train)} anomalies")
     print(f"   Val: {len(normal_val)} normal + {len(anomaly_val)} anomalies")
     
@@ -506,7 +503,7 @@ def main():
     criterion = WeightedMarginRankingLoss(margin=0.5, anomaly_weight=10.0)
     
     # Training loop
-    print(f"\n🚀 Starting training...")
+    print("\n🚀 Starting training...")
     print()
     
     best_anomaly_acc = 0
@@ -567,7 +564,7 @@ def main():
     print(f"Best epoch: {best_epoch}")
     print(f"Best anomaly accuracy: {best_anomaly_acc:.4f}")
     print()
-    print(f"📁 Model saved:")
+    print("📁 Model saved:")
     print(f"   {MODEL_DIR / 'ranker_v2.pt'}")
     print(f"   {MODEL_DIR / 'ranker_v2_metadata.json'}")
     print()

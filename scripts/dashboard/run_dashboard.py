@@ -16,14 +16,15 @@ python run_dashboard.py --port 8080 --host 0.0.0.0
 Note: Flask should already be installed in your .venv311 environment.
 """
 
-import sys
 import argparse
+import sys
 from pathlib import Path
 
 # Add current directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
 from productivity_dashboard import ProductivityDashboard
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -94,7 +95,7 @@ The dashboard shows:
         print("   (Dashboard will use existing snapshots)")
     
     print(f"🌐 URL: http://{args.host}:{args.port}")
-    print(f"🎨 Theme: Dark mode with Erik's style guide")
+    print("🎨 Theme: Dark mode with Erik's style guide")
     print()
     print("📈 Tracking your 3 production scripts:")
     print("   • 01_web_image_selector")

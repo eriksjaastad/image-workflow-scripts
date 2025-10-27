@@ -12,13 +12,11 @@ artifacts strictly under the sandbox. No global trackers/logs are used here.
 """
 
 import json
-import os
 import threading
 import time
-import traceback
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Optional, Dict, Any, Callable
+from typing import Any, Callable, Dict, Optional
 
 
 @dataclass

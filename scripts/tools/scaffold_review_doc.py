@@ -19,7 +19,6 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
-
 TEMPLATE = """## Review – {topic} ({date})
 
 Branch: {branch}

@@ -10,11 +10,11 @@ MEDIAN_BREAK_MIN = 20.5
 
 # Calculations
 print(f"\n{'='*80}")
-print(f"MOJO3 PROJECT TIMELINE ESTIMATE")
+print("MOJO3 PROJECT TIMELINE ESTIMATE")
 print(f"{'='*80}\n")
 
 print(f"Total images to crop: {TOTAL_IMAGES:,}")
-print(f"\nBased on your historical patterns:")
+print("\nBased on your historical patterns:")
 print(f"  Median speed: {MEDIAN_CROPS_PER_HOUR:.1f} crops/hour")
 print(f"  Average session: {AVG_SESSION_LENGTH_MIN:.1f} minutes, {AVG_CROPS_PER_SESSION:.1f} crops")
 print(f"  Median break: {MEDIAN_BREAK_MIN:.1f} minutes")
@@ -22,7 +22,7 @@ print(f"  Median break: {MEDIAN_BREAK_MIN:.1f} minutes")
 # Method 1: Simple calculation
 pure_crop_hours = TOTAL_IMAGES / MEDIAN_CROPS_PER_HOUR
 print(f"\n{'='*80}")
-print(f"METHOD 1: Pure cropping time")
+print("METHOD 1: Pure cropping time")
 print(f"{'='*80}")
 print(f"  Time needed: {pure_crop_hours:.1f} hours ({pure_crop_hours/24:.1f} days of 24/7 work)")
 
@@ -31,7 +31,7 @@ sessions_needed = TOTAL_IMAGES / AVG_CROPS_PER_SESSION
 total_session_time_min = sessions_needed * AVG_SESSION_LENGTH_MIN
 total_session_time_hr = total_session_time_min / 60
 print(f"\n{'='*80}")
-print(f"METHOD 2: Session-based estimate (more realistic)")
+print("METHOD 2: Session-based estimate (more realistic)")
 print(f"{'='*80}")
 print(f"  Sessions needed: {sessions_needed:.1f}")
 print(f"  Active cropping time: {total_session_time_hr:.1f} hours")
@@ -47,7 +47,7 @@ print(f"  TOTAL time: {total_time_with_breaks:.1f} hours")
 
 # Realistic daily work estimates
 print(f"\n{'='*80}")
-print(f"REALISTIC TIMELINE (with breaks)")
+print("REALISTIC TIMELINE (with breaks)")
 print(f"{'='*80}")
 
 for hours_per_day in [4, 6, 8]:
@@ -56,10 +56,10 @@ for hours_per_day in [4, 6, 8]:
 
 # Speed improvement scenarios
 print(f"\n{'='*80}")
-print(f"QUEUE MODE SPEED BOOST")
+print("QUEUE MODE SPEED BOOST")
 print(f"{'='*80}")
-print(f"\nCurrent median time between crops: 0.31 seconds (batch submit time)")
-print(f"If you eliminate processing wait time, you could potentially:")
+print("\nCurrent median time between crops: 0.31 seconds (batch submit time)")
+print("If you eliminate processing wait time, you could potentially:")
 
 for boost_pct in [25, 50, 100]:
     boosted_rate = MEDIAN_CROPS_PER_HOUR * (1 + boost_pct/100)

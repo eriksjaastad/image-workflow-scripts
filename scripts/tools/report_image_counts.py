@@ -29,11 +29,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
-
+from typing import Dict, List, Optional
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 

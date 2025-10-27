@@ -39,11 +39,11 @@ Usage:
     errors = validate_decision_db(db_path)
 """
 
-import sqlite3
 import json
+import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple, Dict, Any
+from typing import Any, Dict, List, Optional
 
 
 def init_decision_db(project_id: str) -> Path:

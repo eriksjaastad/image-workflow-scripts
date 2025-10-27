@@ -4,14 +4,15 @@ Compute CLIP embeddings for Mojo 1 images.
 This is a simplified version that directly processes a directory.
 """
 
-import json
-import torch
-import open_clip
-from PIL import Image
-from pathlib import Path
-from tqdm import tqdm
 import hashlib
+import json
+from pathlib import Path
+
 import numpy as np
+import open_clip
+import torch
+from PIL import Image
+from tqdm import tqdm
 
 # Paths
 MOJO1_DIR = Path("/Users/eriksjaastad/projects/Eros Mate/training data/mojo1")

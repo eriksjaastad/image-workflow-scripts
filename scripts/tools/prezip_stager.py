@@ -184,7 +184,7 @@ def prezip_stage(cfg: StagerConfig) -> Dict:
                 acc.update(ext_set)
         for name in filenames:
             p = Path(dirpath) / name
-            rel = relpath_under(cfg.content_dir, p)
+            relpath_under(cfg.content_dir, p)
             if is_hidden(name):
                 excluded['hidden'] += 1
                 excluded_unique_names['hidden'].add(Path(name).name)

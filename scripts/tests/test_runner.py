@@ -15,11 +15,10 @@ Usage:
 import argparse
 import subprocess
 import sys
-import time
 import tempfile
-import shutil
+import time
 from pathlib import Path
-import json
+
 
 class TestRunner:  # not a pytest test class (has __init__)
     def __init__(self, verbose=False):
@@ -47,7 +46,7 @@ class TestRunner:  # not a pytest test class (has __init__)
                 self.test_results.append({"name": name, "status": "FAILED", "duration": duration, "critical": critical})
                 
                 if critical:
-                    print(f"🚨 CRITICAL TEST FAILED - STOPPING")
+                    print("🚨 CRITICAL TEST FAILED - STOPPING")
                     return False
                     
         except Exception as e:
@@ -57,7 +56,7 @@ class TestRunner:  # not a pytest test class (has __init__)
             self.test_results.append({"name": name, "status": "ERROR", "duration": duration, "critical": critical, "error": str(e)})
             
             if critical:
-                print(f"🚨 CRITICAL TEST ERROR - STOPPING")
+                print("🚨 CRITICAL TEST ERROR - STOPPING")
                 return False
                 
         return True
@@ -419,7 +418,7 @@ class TestRunner:  # not a pytest test class (has __init__)
                 print("✓ Desktop image selector crop tool tests passed")
                 return True
             else:
-                print(f"✗ Desktop image selector crop tool tests failed")
+                print("✗ Desktop image selector crop tool tests failed")
                 if self.verbose:
                     print(f"Error output: {result.stderr}")
                 return False
@@ -443,7 +442,7 @@ class TestRunner:  # not a pytest test class (has __init__)
                 print("✓ Dashboard tests passed with real data")
                 return True
             else:
-                print(f"✗ Dashboard tests failed")
+                print("✗ Dashboard tests failed")
                 if self.verbose:
                     print(f"Error output: {result.stderr}")
                 return False
@@ -461,7 +460,7 @@ class TestRunner:  # not a pytest test class (has __init__)
         critical_failed = len([r for r in self.test_results if r.get("critical") and r["status"] != "PASSED"])
         
         print(f"\n{'='*60}")
-        print(f"📊 TEST SUMMARY")
+        print("📊 TEST SUMMARY")
         print(f"{'='*60}")
         print(f"Total tests: {total}")
         print(f"✅ Passed: {self.passed}")
@@ -469,13 +468,13 @@ class TestRunner:  # not a pytest test class (has __init__)
         print(f"🚨 Critical failures: {critical_failed}")
         
         if critical_failed > 0:
-            print(f"\n🚨 CRITICAL FAILURES DETECTED - DO NOT USE SCRIPTS")
+            print("\n🚨 CRITICAL FAILURES DETECTED - DO NOT USE SCRIPTS")
             return False
         elif self.failed > 0:
-            print(f"\n⚠️  Some tests failed - review before deployment")
+            print("\n⚠️  Some tests failed - review before deployment")
             return False
         else:
-            print(f"\n🎉 ALL TESTS PASSED - Scripts are safe to use")
+            print("\n🎉 ALL TESTS PASSED - Scripts are safe to use")
             return True
 
 def main():

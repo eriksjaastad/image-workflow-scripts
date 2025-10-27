@@ -8,10 +8,10 @@ Used by data_engine when performance_mode is enabled.
 """
 
 import json
-from pathlib import Path
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
 from collections import defaultdict
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 
 class BinsReader:
@@ -258,8 +258,8 @@ class BinsReader:
 
 def main():
     """Test bins reader."""
-    from pathlib import Path
     import sys
+    from pathlib import Path
     
     project_root = Path(__file__).resolve().parents[2]
     data_dir = project_root / 'data'
@@ -288,11 +288,11 @@ def main():
     print(f"Loaded {len(bins)} bins")
     
     if bins:
-        print(f"\nSample bin:")
+        print("\nSample bin:")
         print(json.dumps(bins[0], indent=2))
         
         # Test aggregation
-        print(f"\nAggregating by script (daily)...")
+        print("\nAggregating by script (daily)...")
         by_script = reader.load_by_script(start_date, end_date, 'D')
         print(f"Result: {len(by_script)} records")
         if by_script:

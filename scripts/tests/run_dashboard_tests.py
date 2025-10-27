@@ -6,10 +6,10 @@ Runs all critical dashboard tests to verify the system is locked in and working 
 This prevents regression issues like the historical data loss we just fixed.
 """
 
-import unittest
 import sys
-from pathlib import Path
 import time
+import unittest
+from pathlib import Path
 
 # Add the scripts directory to the path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -21,7 +21,10 @@ def run_core_functionality_tests():
     print("=" * 50)
     
     # Import and run core functionality tests
-    from test_dashboard_core_functionality import TestDashboardCoreFunctionality, TestDashboardDataIntegrity
+    from test_dashboard_core_functionality import (
+        TestDashboardCoreFunctionality,
+        TestDashboardDataIntegrity,
+    )
     
     test_suite = unittest.TestSuite()
     
@@ -44,7 +47,7 @@ def run_cron_job_tests():
     print("=" * 50)
     
     # Import and run cron job tests
-    from test_cron_job_system import TestCronJobSystem, TestCronJobIntegration
+    from test_cron_job_system import TestCronJobIntegration, TestCronJobSystem
     
     test_suite = unittest.TestSuite()
     

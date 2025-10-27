@@ -21,10 +21,10 @@ Features:
 import gzip
 import hashlib
 import json
-from pathlib import Path
-from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional
 from collections import defaultdict
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 # Load config
 CONFIG_PATH = Path(__file__).resolve().parents[2] / "configs" / "metrics_config.json"
@@ -148,7 +148,7 @@ def normalize_event(raw_event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         
         return normalized
         
-    except Exception as e:
+    except Exception:
         # Skip malformed events
         return None
 
@@ -188,7 +188,7 @@ def extract_from_log_file(log_path: Path) -> List[Dict[str, Any]]:
 
 def main():
     """Main entry point."""
-    print(f"Extracting operation events...")
+    print("Extracting operation events...")
     print(f"Lookback: {LOOKBACK_DAYS} days")
     
     # Collect all log files

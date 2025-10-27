@@ -36,19 +36,17 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import cv2
-import numpy as np
 from PIL import Image
 
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
+from scripts.file_tracker import FileTracker
 from scripts.utils.companion_file_utils import (
+    extract_timestamp_from_filename,
     find_consecutive_stage_groups,
     sort_image_files_by_timestamp_and_stage,
-    detect_stage,
-    extract_timestamp_from_filename
 )
-from scripts.file_tracker import FileTracker
 
 
 class HistoricalBackfillProcessor:
@@ -124,7 +122,7 @@ class HistoricalBackfillProcessor:
             print("[!] Could not load project metadata from timesheet")
             return False
         
-        print(f"[*] Project metadata loaded:")
+        print("[*] Project metadata loaded:")
         print(f"    Start date: {project_metadata['start_date']}")
         print(f"    End date: {project_metadata['end_date']}")
         print(f"    Starting images: {project_metadata['starting_images']}")
@@ -198,7 +196,7 @@ class HistoricalBackfillProcessor:
             if success:
                 print(f"    ✓ Written {len(decisions)} decision records")
             else:
-                print(f"    ✗ Database write failed")
+                print("    ✗ Database write failed")
                 return False
         
         print()

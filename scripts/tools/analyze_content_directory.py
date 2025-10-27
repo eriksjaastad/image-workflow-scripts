@@ -12,11 +12,11 @@ USAGE:
 """
 
 import argparse
-import sys
-from pathlib import Path
-from collections import defaultdict, Counter
-from typing import Dict, List, Set, Tuple
 import re
+import sys
+from collections import Counter, defaultdict
+from pathlib import Path
+from typing import Dict
 
 # Add the scripts/ directory to Python path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -282,7 +282,7 @@ Examples:
     if triplets['quads'] > 0:
         print(f"  ⚠️  Found {triplets['quads']} quad sequences - consider updating tools to handle 4-image sequences")
     if companions['orphaned_yaml'] > 0 or companions['orphaned_caption'] > 0:
-        print(f"  ⚠️  Found orphaned metadata files - run cleanup script")
+        print("  ⚠️  Found orphaned metadata files - run cleanup script")
     if triplets['incomplete_triplets'] > 0:
         print(f"  ⚠️  Found {triplets['incomplete_triplets']} incomplete triplets - may need manual review")
     if prompts['total_prompt_files'] > 0:

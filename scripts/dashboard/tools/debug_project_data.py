@@ -15,13 +15,14 @@ Usage:
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
+from collections import defaultdict
+
 from scripts.dashboard.analytics import DashboardAnalytics
-from scripts.dashboard.project_metrics_aggregator import ProjectMetricsAggregator
 from scripts.dashboard.data_engine import DashboardDataEngine
-from collections import Counter, defaultdict
-import json
+from scripts.dashboard.project_metrics_aggregator import ProjectMetricsAggregator
 
 
 def debug_project(project_id=None):
@@ -81,7 +82,7 @@ def debug_project(project_id=None):
             print(f"{project_id} found in project metrics!")
             print(f"  Started: {pm.get('startedAt', 'N/A')}")
             print(f"  Status: {pm.get('status', 'N/A')}")
-            print(f"\n  Tools section:")
+            print("\n  Tools section:")
             for tool_key, tool_data in pm.get('tools', {}).items():
                 print(f"    {tool_key}:")
                 print(f"      images_processed: {tool_data.get('images_processed')}")
@@ -106,7 +107,7 @@ def debug_project(project_id=None):
         
         if proj_overview:
             print(f"{project_id} in productivity_overview:")
-            print(f"  tool_metrics:")
+            print("  tool_metrics:")
             for tool, iph in proj_overview.get('tool_metrics', {}).items():
                 print(f"    {tool}: {iph} img/h")
             print(f"  overall_img_h: {proj_overview.get('overall_img_h')}")
@@ -120,7 +121,7 @@ def debug_project(project_id=None):
         if proj_table:
             print(f"\n{project_id} in project_productivity_table:")
             print(f"  Started: {proj_table.get('startedAt')}")
-            print(f"  Tools:")
+            print("  Tools:")
             for tool_name, tool_data in proj_table.get('tools', {}).items():
                 if 'images' in tool_data:
                     print(f"    {tool_name}: {tool_data['images']} images in {tool_data.get('hours', 0)}h ({tool_data.get('days', 0)}d)")

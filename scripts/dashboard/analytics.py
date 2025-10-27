@@ -13,11 +13,11 @@ Key responsibilities:
 - Ensure deterministic label ordering (chronological)
 """
 
-from pathlib import Path
-from typing import Dict, List, Any, Optional
-from datetime import datetime
-from collections import defaultdict
 import sys
+from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 # Add project root to path
 project_root = Path(__file__).resolve().parents[2]
@@ -25,9 +25,8 @@ sys.path.insert(0, str(project_root))
 
 from scripts.dashboard.data_engine import DashboardDataEngine
 from scripts.dashboard.project_metrics_aggregator import ProjectMetricsAggregator
-from scripts.dashboard.timesheet_parser import TimesheetParser
 from scripts.dashboard.queue_reader import QueueDataReader
-
+from scripts.dashboard.timesheet_parser import TimesheetParser
 
 # Centralized tool order - used across ALL charts, tables, and toggles
 # This ensures consistent ordering everywhere in the dashboard
@@ -82,7 +81,7 @@ class DashboardAnalytics:
         import time
         overall_start = time.time()
         print(f"\n{'='*70}")
-        print(f"[TIMING] Dashboard Response Generation Started")
+        print("[TIMING] Dashboard Response Generation Started")
         print(f"  time_slice: {time_slice}, lookback_days: {lookback_days}, project_id: {project_id}")
         print(f"{'='*70}")
         
@@ -595,8 +594,8 @@ class DashboardAnalytics:
             ]
         """
         projects = raw_data.get("projects", [])
-        file_ops_records = raw_data.get("file_operations_data", {})
-        timing_data = raw_data.get("timing_data", {})
+        raw_data.get("file_operations_data", {})
+        raw_data.get("timing_data", {})
         
         table_data = []
         
@@ -1046,8 +1045,8 @@ class DashboardAnalytics:
                 }
             }
         """
-        from datetime import datetime
         from collections import defaultdict
+        from datetime import datetime
         
         print("\n[BILLED_VS_ACTUAL_TS DEBUG] Building daily time-series...")
         
@@ -1118,7 +1117,7 @@ class DashboardAnalytics:
                 project_end = project_manifest.get('finishedAt')
                 
                 if not project_start:
-                    print(f"  ⚠️  No startedAt in manifest, skipping daily breakdown")
+                    print("  ⚠️  No startedAt in manifest, skipping daily breakdown")
                     continue
                 
                 # Parse project dates
@@ -1169,14 +1168,16 @@ class DashboardAnalytics:
                 print(f"  Operations span {len(ops_by_day)} days")
                 
                 # Calculate work hours per day using the SAME method as project_metrics
-                from scripts.utils.companion_file_utils import get_file_operation_metrics
+                from scripts.utils.companion_file_utils import (
+                    get_file_operation_metrics,
+                )
                 
                 dates = []
                 billed_by_day = []
                 actual_by_day = []
                 
                 # NO MORE AVERAGING! Use actual daily billed hours from timesheet
-                print(f"  Using ACTUAL daily billed hours from timesheet (no averaging)")
+                print("  Using ACTUAL daily billed hours from timesheet (no averaging)")
                 
                 daily_work_hours = {}
                 for date_key in sorted(ops_by_day.keys()):
@@ -1295,7 +1296,7 @@ class DashboardAnalytics:
             # Check if timesheet was modified - invalidate caches if so
             current_mtime = int(self.timesheet_parser.csv_path.stat().st_mtime)
             if self._timesheet_mtime is not None and self._timesheet_mtime != current_mtime:
-                print(f"[TIMESHEET CACHE] Timesheet modified - invalidating caches")
+                print("[TIMESHEET CACHE] Timesheet modified - invalidating caches")
                 # Clear file ops cache
                 self._cached_file_ops = None
                 self._cached_file_ops_for_daily = None

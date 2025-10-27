@@ -62,29 +62,26 @@ Feed edges.csv into Gephi/Graphistry/NetworkX to compute degrees of separation o
 Write a small script to move “nearest 5 to X” anywhere you like using edges.csv.
 """
 
-import sys
-import json
 import argparse
+import json
 import shutil
+import sys
 from pathlib import Path
-from typing import List, Tuple, Dict, Optional
-
-import numpy as np
-from PIL import Image, ImageOps
-from tqdm import tqdm
+from typing import Dict, List, Optional, Tuple
 
 # Deps (install in your 3.11 venv):
 # pip install onnxruntime insightface torch torchvision torchreid scikit-learn hdbscan opencv-python-headless
-
 import cv2
-import torch
-from sklearn.preprocessing import normalize
-from sklearn.cluster import AgglomerativeClustering
-from sklearn.neighbors import NearestNeighbors
-from sklearn.cluster import KMeans
-from insightface.app import FaceAnalysis
-from torchreid.utils import FeatureExtractor
+import numpy as np
 import onnxruntime as ort  # provider check for Apple Silicon
+import torch
+from insightface.app import FaceAnalysis
+from PIL import Image, ImageOps
+from sklearn.cluster import AgglomerativeClustering, KMeans
+from sklearn.neighbors import NearestNeighbors
+from sklearn.preprocessing import normalize
+from torchreid.utils import FeatureExtractor
+from tqdm import tqdm
 
 # ---- optional FileTracker ----
 try:

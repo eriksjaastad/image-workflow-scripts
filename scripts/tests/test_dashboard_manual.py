@@ -14,8 +14,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.dashboard.data_engine import DashboardDataEngine
 from scripts.dashboard.analytics import DashboardAnalytics
+from scripts.dashboard.data_engine import DashboardDataEngine
 
 
 def main():
@@ -39,7 +39,7 @@ def main():
             lookback_days=30,
             project_id=None
         )
-        print(f"   ✅ Generated dashboard response")
+        print("   ✅ Generated dashboard response")
         print(f"   Metadata: {response.get('metadata', {}).get('session_source', 'unknown')}")
         
         # Check data sources

@@ -4,13 +4,13 @@
 Keeps dashboard data efficient and prevents storage explosion
 """
 
+import gzip
 import json
-import csv
+import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Any
-import gzip
-import shutil
+from typing import Any, Dict, List
+
 
 class DataRetentionManager:
     def __init__(self, data_dir: str = ".."):
@@ -232,12 +232,12 @@ def main():
     print(f"  Archives:   {stats['archives']['size_mb']:.2f} MB ({stats['archives']['files']} files)")
     print(f"  Total:      {stats['total_size_mb']:.2f} MB")
     
-    print(f"\n🔄 Retention Policy:")
+    print("\n🔄 Retention Policy:")
     print(f"  Detailed data: {manager.DETAILED_RETENTION} days")
     print(f"  Daily summaries: {manager.SUMMARY_RETENTION} days") 
     print(f"  Compressed archives: {manager.ARCHIVE_RETENTION} days")
     
-    print(f"\n💡 This prevents storage explosion while keeping useful data!")
+    print("\n💡 This prevents storage explosion while keeping useful data!")
 
 if __name__ == "__main__":
     main()

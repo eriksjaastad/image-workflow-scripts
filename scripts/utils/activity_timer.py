@@ -45,13 +45,13 @@ REPORTING:
 """
 
 import json
-import time
 import threading
+import time
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
-import os
+from typing import Any, Dict, List, Optional
+
 
 @dataclass
 class ActivitySession:
@@ -390,7 +390,7 @@ class TimerReporter:
         print(f"Total Operations: {summary['total_operations']}")
         print(f"Sessions: {summary['session_count']}")
         
-        print(f"\n📋 Script Breakdown:")
+        print("\n📋 Script Breakdown:")
         for script, stats in summary['script_breakdown'].items():
             efficiency = (stats['active_time'] / stats['total_time'] * 100) if stats['total_time'] > 0 else 0
             print(f"  {script}:")
@@ -453,7 +453,7 @@ class TimerReporter:
         print(f"Total Files Processed: {totals['total_files_processed']}")
         print(f"Total Operations: {totals['total_operations']}")
         
-        print(f"\n📊 Script Performance:")
+        print("\n📊 Script Performance:")
         for script, stats in totals['script_totals'].items():
             efficiency = (stats['active_time'] / stats['total_time'] * 100) if stats['total_time'] > 0 else 0
             files_per_hour = (stats['files_processed'] / (stats['active_time'] / 3600)) if stats['active_time'] > 0 else 0

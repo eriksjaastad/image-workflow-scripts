@@ -4,10 +4,11 @@ Live training monitor - shows progress every 5 seconds.
 Press Ctrl+C to stop.
 """
 
+import json
 import time
 from pathlib import Path
+
 import torch
-import json
 
 model_path = Path("data/ai_data/models/ranker_v1.pt")
 metadata_path = Path("data/ai_data/models/ranker_v1_metadata.json")
@@ -49,18 +50,18 @@ try:
             with open(metadata_path, 'r') as f:
                 meta = json.load(f)
             
-            print(f"\n📊 Final Results:")
+            print("\n📊 Final Results:")
             print(f"   Best Epoch: {meta['best_epoch']}")
             print(f"   Best Val Accuracy: {meta['best_val_accuracy']:.2%}")
             print(f"   Training Examples: {meta['training_examples']}")
             print(f"   Validation Examples: {meta['validation_examples']}")
             
             if meta['best_val_accuracy'] >= 0.70:
-                print(f"\n🎉 SUCCESS! Exceeded 70% target!")
+                print("\n🎉 SUCCESS! Exceeded 70% target!")
             else:
-                print(f"\n⚠️  Below 70% target - may need more data")
+                print("\n⚠️  Below 70% target - may need more data")
             
-            print(f"\n💾 Model saved to: data/ai_data/models/ranker_v1.pt")
+            print("\n💾 Model saved to: data/ai_data/models/ranker_v1.pt")
             break
         
         time.sleep(5)

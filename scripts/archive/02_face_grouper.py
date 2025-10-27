@@ -62,26 +62,26 @@ Feed edges.csv into Gephi/Graphistry/NetworkX to compute degrees of separation o
 Write a small script to move “nearest 5 to X” anywhere you like using edges.csv.
 """
 
-import os, sys, json, argparse, shutil
+import argparse
+import json
+import shutil
+import sys
 from pathlib import Path
-from typing import List, Tuple, Dict, Optional
-
-import numpy as np
-from PIL import Image, ImageOps
-from tqdm import tqdm
+from typing import Dict, List, Optional, Tuple
 
 # Deps (install in your 3.11 venv):
 # pip install onnxruntime insightface torch torchvision torchreid scikit-learn hdbscan opencv-python-headless
-
 import cv2
-import torch
-from sklearn.preprocessing import normalize
-from sklearn.cluster import AgglomerativeClustering
-from sklearn.neighbors import NearestNeighbors
-from sklearn.cluster import KMeans
-from insightface.app import FaceAnalysis
-from torchreid.utils import FeatureExtractor
+import numpy as np
 import onnxruntime as ort  # provider check for Apple Silicon
+import torch
+from insightface.app import FaceAnalysis
+from PIL import Image, ImageOps
+from sklearn.cluster import AgglomerativeClustering, KMeans
+from sklearn.neighbors import NearestNeighbors
+from sklearn.preprocessing import normalize
+from torchreid.utils import FeatureExtractor
+from tqdm import tqdm
 
 # ---- optional FileTracker ----
 try:
@@ -640,7 +640,7 @@ def main():
         print(f"📝 wrote preview: {out_dir/'preview.csv'}")
 
         if not args.dry_run:
-            print(f"\n📁 Moving image/YAML pairs to groups…")
+            print("\n📁 Moving image/YAML pairs to groups…")
             manifest = move_image_yaml_pairs(out_dir, kept_paths, labels,
                                             min_cluster_size=1, tracker=tracker)  # no filtering
             print("\n✅ COMPLETE!")
@@ -684,7 +684,7 @@ def main():
     print(f"📝 wrote preview: {out_dir/'preview.csv'}")
 
     if not args.dry_run:
-        print(f"\n📁 Moving image/YAML pairs to groups…")
+        print("\n📁 Moving image/YAML pairs to groups…")
         manifest = move_image_yaml_pairs(out_dir, kept_paths, labels,
                                          min_cluster_size=args.min_cluster_size, tracker=tracker)
         
@@ -696,7 +696,7 @@ def main():
         print(f"   • Output: {out_dir}")
         
         # Display image counts per face group
-        print(f"\n📊 Face Group Image Counts:")
+        print("\n📊 Face Group Image Counts:")
         total_images = 0
         group_dirs = sorted([d for d in out_dir.iterdir() if d.is_dir()])
         for group_dir in group_dirs:

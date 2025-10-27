@@ -1,10 +1,7 @@
 # minimal integration test for web selector FileTracker
-import json
 import shutil
 import tempfile
 from pathlib import Path
-
-import pytest
 
 from scripts.file_tracker import read_log
 

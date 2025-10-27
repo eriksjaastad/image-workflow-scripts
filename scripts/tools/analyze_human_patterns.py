@@ -11,11 +11,12 @@ If omitted, defaults are resolved relative to the repo root.
 
 import argparse
 import csv
-from datetime import datetime
-from collections import defaultdict
-from pathlib import Path
-import statistics
 import json
+import statistics
+from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
+
 
 def parse_timestamp(ts_str):
     """Parse ISO 8601 timestamp."""
@@ -56,7 +57,7 @@ def analyze_human_patterns(csv_path):
     sessions.append(current_session)
 
     print(f"\n{'='*80}")
-    print(f"HUMAN CROPPING PATTERN ANALYSIS")
+    print("HUMAN CROPPING PATTERN ANALYSIS")
     print(f"{'='*80}\n")
 
     # Analyze time between crops within sessions
@@ -189,12 +190,12 @@ def analyze_human_patterns(csv_path):
         p25 = within_session_times[int(len(within_session_times) * 0.25)]
         p75 = within_session_times[int(len(within_session_times) * 0.75)]
 
-        print(f"\nBase timing (seconds between batches):")
+        print("\nBase timing (seconds between batches):")
         print(f"  Fast (25th percentile): {p25:.2f}s")
         print(f"  Normal (median): {p50:.2f}s")
         print(f"  Slow (75th percentile): {p75:.2f}s")
 
-        print(f"\nSession parameters:")
+        print("\nSession parameters:")
         avg_session_min = statistics.mean([
             (s[-1]['timestamp'] - s[0]['timestamp']).total_seconds() / 60
             for s in sessions if len(s) > 1
@@ -204,7 +205,7 @@ def analyze_human_patterns(csv_path):
         print(f"  Average crops per session: {avg_session_crops:.1f}")
         print(f"  Sessions per day (6hr workday): {(6*60) / (avg_session_min + 20.5):.1f}")
 
-        print(f"\nVariability parameters:")
+        print("\nVariability parameters:")
         print(f"  Std dev: {statistics.stdev(within_session_times):.2f}s (use for random variation)")
         print(f"  Add random jitter: ±{statistics.stdev(within_session_times)/2:.2f}s")
 

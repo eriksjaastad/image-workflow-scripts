@@ -24,8 +24,8 @@ import argparse
 import csv
 import shutil
 from pathlib import Path
+
 from PIL import Image
-from datetime import datetime
 
 PROJECT_ROOT = Path("PROJECT_ROOT")
 CROP_LOG = PROJECT_ROOT / "data/training/mojo1_crop_log.csv"
@@ -70,13 +70,13 @@ def backfill_mojo1_dimensions(dry_run=True, test_mode=False):
     """
     
     print(f"\n{'='*70}")
-    print(f"🔧 BACKFILL MOJO1 DIMENSIONS")
+    print("🔧 BACKFILL MOJO1 DIMENSIONS")
     print(f"{'='*70}")
     
     if not MOJO1_DIR.exists():
-        print(f"\n❌ ERROR: Mojo1 directory not found!")
+        print("\n❌ ERROR: Mojo1 directory not found!")
         print(f"   Expected: {MOJO1_DIR}")
-        print(f"   Please make sure mojo1 images are in 'training data/mojo1/'")
+        print("   Please make sure mojo1 images are in 'training data/mojo1/'")
         return
     
     # Count images in mojo1 directory
@@ -113,7 +113,7 @@ def backfill_mojo1_dimensions(dry_run=True, test_mode=False):
     
     # Test mode: limit to first 20
     if test_mode:
-        print(f"\n⚠️  TEST MODE: Processing only first 20 rows")
+        print("\n⚠️  TEST MODE: Processing only first 20 rows")
         missing_dim_rows = missing_dim_rows[:20]
     
     # Process each row
@@ -121,7 +121,7 @@ def backfill_mojo1_dimensions(dry_run=True, test_mode=False):
     not_found = 0
     updated_rows = []
     
-    print(f"\n🔍 Searching for images and reading dimensions...")
+    print("\n🔍 Searching for images and reading dimensions...")
     print(f"   Processing {len(missing_dim_rows):,} rows...")
     
     for idx, i in enumerate(missing_dim_rows):
@@ -166,7 +166,7 @@ def backfill_mojo1_dimensions(dry_run=True, test_mode=False):
                 print(f"   ⚠️  Not found: {filename}")
     
     print(f"\n{'='*70}")
-    print(f"📊 RESULTS")
+    print("📊 RESULTS")
     print(f"{'='*70}")
     print(f"   ✅ Found and updated: {found:,} images")
     print(f"   ❌ Not found: {not_found:,} images")
@@ -176,18 +176,18 @@ def backfill_mojo1_dimensions(dry_run=True, test_mode=False):
     
     if dry_run:
         print(f"\n⚠️  DRY RUN - No changes made to {CROP_LOG.name}")
-        print(f"\n   Sample updates (first 10):")
+        print("\n   Sample updates (first 10):")
         for i, filename, w, h in updated_rows[:10]:
             print(f"      Row {i}: {filename[:50]:<50} → {w}x{h}")
-        print(f"\n   ✅ Run without --dry-run to actually update the CSV")
+        print("\n   ✅ Run without --dry-run to actually update the CSV")
     else:
         # Backup original file
-        print(f"\n💾 Creating backup:")
+        print("\n💾 Creating backup:")
         print(f"   {BACKUP_LOG.name}")
         shutil.copy(CROP_LOG, BACKUP_LOG)
         
         # Write updated CSV
-        print(f"\n✍️  Writing updated CSV...")
+        print("\n✍️  Writing updated CSV...")
         with CROP_LOG.open('w', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
@@ -198,7 +198,7 @@ def backfill_mojo1_dimensions(dry_run=True, test_mode=False):
         print(f"{'='*70}")
         
         if test_mode:
-            print(f"\n⚠️  This was a TEST RUN (20 rows)")
+            print("\n⚠️  This was a TEST RUN (20 rows)")
             print(f"   Run without --test to process all {len(missing_dim_rows):,} rows")
 
 

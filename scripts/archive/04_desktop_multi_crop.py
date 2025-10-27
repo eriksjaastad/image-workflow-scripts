@@ -89,21 +89,16 @@ from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button
-from PIL import Image
-import numpy as np
 
 # Add the project root to the path for importing
 sys.path.append(str(Path(__file__).parent.parent))
 from utils.base_desktop_image_tool import BaseDesktopImageTool
 from utils.companion_file_utils import (
-    format_image_display_name, 
-    sort_image_files_by_timestamp_and_stage,
-    log_select_crop_entry,
-    detect_stage,
+    extract_timestamp_from_filename,
+    format_image_display_name,
     move_file_with_all_companions,
-    extract_timestamp_from_filename
+    sort_image_files_by_timestamp_and_stage,
 )
-from utils.ai_crop_utils import normalize_and_clamp_rect  # type: ignore
 
 # AI Training (optional, non-blocking)
 try:
@@ -551,7 +546,7 @@ class MultiCropTool(BaseDesktopImageTool):
             print(f"[DEBUG] Found {len(all_png_files)} PNG files before sorting")
             
             if all_png_files:
-                print(f"[DEBUG] Files found:")
+                print("[DEBUG] Files found:")
                 for f in all_png_files:
                     print(f"  - {f.name} (size: {f.stat().st_size} bytes)")
             
@@ -559,7 +554,7 @@ class MultiCropTool(BaseDesktopImageTool):
             print(f"[DEBUG] After sorting: {len(self.png_files)} files")
             
             if self.png_files:
-                print(f"[DEBUG] Sorted files:")
+                print("[DEBUG] Sorted files:")
                 for f in self.png_files:
                     print(f"  - {f.name}")
             
@@ -618,7 +613,7 @@ class MultiCropTool(BaseDesktopImageTool):
         print(f"[DEBUG] Found {len(png_files)} PNG files directly in directory")
         
         if png_files:
-            print(f"[DEBUG] → Single directory mode (PNG files present)")
+            print("[DEBUG] → Single directory mode (PNG files present)")
             print(f"[DEBUG] Files: {[f.name for f in png_files[:10]]}")  # Show first 10
             return True
         
@@ -633,9 +628,9 @@ class MultiCropTool(BaseDesktopImageTool):
         print(f"[DEBUG] Found {len(subdirs_with_images)} subdirectories with PNG files")
         if subdirs_with_images:
             print(f"[DEBUG] Subdirectories: {subdirs_with_images[:5]}")  # Show first 5
-            print(f"[DEBUG] → Multi-directory mode")
+            print("[DEBUG] → Multi-directory mode")
         else:
-            print(f"[DEBUG] → Single directory mode (no subdirectories with images)")
+            print("[DEBUG] → Single directory mode (no subdirectories with images)")
         
         return len(subdirs_with_images) == 0
     
@@ -710,12 +705,12 @@ class MultiCropTool(BaseDesktopImageTool):
             # Single directory mode - simple format
             images_done = self.progress_tracker.current_file_index
             total_images = len(self.png_files)
-            aspect_info = f" • [🔒 LOCKED] Aspect Ratio" if self.aspect_ratio else ""
+            aspect_info = " • [🔒 LOCKED] Aspect Ratio" if self.aspect_ratio else ""
             title = f"{images_done}/{total_images} images • [1,2,3] Delete • [Enter] Submit • [Q] Quit{aspect_info}"
         else:
             # Multi-directory mode - simple format
             progress = self.progress_tracker.get_progress_info()
-            aspect_info = f" • [🔒 LOCKED] Aspect" if self.aspect_ratio else ""
+            aspect_info = " • [🔒 LOCKED] Aspect" if self.aspect_ratio else ""
             
             images_done = self.progress_tracker.current_file_index
             total_images = len(self.png_files)
@@ -1119,7 +1114,7 @@ class MultiCropTool(BaseDesktopImageTool):
                         else:
                             print(f"[!] Database not found: {db_path}")
                     else:
-                        print(f"[!] Invalid .decision file (missing group_id or project_id)")
+                        print("[!] Invalid .decision file (missing group_id or project_id)")
                 else:
                     # No .decision file - acceptable if manual/legacy crop
                     pass

@@ -13,18 +13,18 @@ Tests the utils/activity_timer.py module for:
 """
 
 import json
-import time
-import tempfile
 import shutil
-from pathlib import Path
 import sys
+import tempfile
+import time
 import unittest
-from unittest.mock import patch, MagicMock
+from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
 
-from utils.activity_timer import ActivityTimer, TimerReporter, ActivitySession
+from utils.activity_timer import ActivityTimer, TimerReporter
+
 
 class TestActivityTimer(unittest.TestCase):
     """Test the ActivityTimer class"""

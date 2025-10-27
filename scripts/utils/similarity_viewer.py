@@ -37,17 +37,16 @@ Step 3: Character Sorting → scripts/03_web_character_sorter.py (uses similarit
 - Interactive similarity exploration
 """
 
-import os
-import sys
-import json
-import csv
 import argparse
-from pathlib import Path
-from flask import Flask, render_template_string, jsonify
-import webbrowser
-from companion_file_utils import launch_browser
+import csv
+import json
+import sys
 import threading
-import time
+from pathlib import Path
+
+from companion_file_utils import launch_browser
+from flask import Flask, jsonify, render_template_string
+
 
 def load_similarity_data(output_dir):
     """Load nodes, edges, and neighbors data from similarity map files."""
@@ -583,7 +582,7 @@ def create_app(output_dir):
     directories = find_image_directories(output_dir)
     
     # Sort images within each directory by similarity
-    print(f"🔄 Applying similarity-based spatial layout...")
+    print("🔄 Applying similarity-based spatial layout...")
     for directory in directories:
         original_order = directory['images'].copy()
         directory['images'] = similarity_sort_images(directory['images'], neighbors)
@@ -658,10 +657,10 @@ def main():
     
     if missing_files:
         print(f"❌ Missing similarity map files: {missing_files}")
-        print(f"   Run hybrid_grouper.py with --emit-map to generate these files")
+        print("   Run hybrid_grouper.py with --emit-map to generate these files")
         sys.exit(1)
     
-    print(f"🚀 Starting Similarity-Enhanced Image Viewer...")
+    print("🚀 Starting Similarity-Enhanced Image Viewer...")
     print(f"📂 Analyzing: {args.output_dir}")
     
     app = create_app(args.output_dir)

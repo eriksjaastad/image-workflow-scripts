@@ -12,14 +12,15 @@ Features:
 - Dark theme matching existing tools
 """
 
-import json
 import argparse
-from datetime import datetime, timedelta
-from pathlib import Path
 from collections import OrderedDict
-from flask import Flask, render_template, jsonify, request
-from data_engine import DashboardDataEngine
+from datetime import datetime
+from pathlib import Path
+
 from analytics import DashboardAnalytics
+from data_engine import DashboardDataEngine
+from flask import Flask, jsonify, render_template, request
+
 
 class ProductivityDashboard:
     def __init__(self, data_dir: str = "../.."):
@@ -323,8 +324,8 @@ class ProductivityDashboard:
             if 'T' in lbl:
                 lbl = lbl.split('T')[0]
             return lbl.replace('-', '')
-        start_date = _to_yyyymmdd(start_lbl)
-        end_date = _to_yyyymmdd(end_lbl)
+        _to_yyyymmdd(start_lbl)
+        _to_yyyymmdd(end_lbl)
 
         # Load ALL file operations for lifetime computations
         try:
@@ -572,9 +573,9 @@ class ProductivityDashboard:
     
     def run(self, host="127.0.0.1", port=5001, debug=False):
         """Run the dashboard server"""
-        import webbrowser
         import threading
         import time
+        import webbrowser
         
         url = f"http://{host}:{port}"
         print(f"🚀 Productivity Dashboard starting at {url}")

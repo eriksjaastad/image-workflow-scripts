@@ -31,9 +31,9 @@ FEATURES:
 
 import argparse
 import sys
-from pathlib import Path
 from collections import defaultdict
-from typing import Dict, List, Set
+from pathlib import Path
+from typing import Dict, List
 
 
 def find_all_files(root_dir: Path, extensions: List[str] = None) -> Dict[str, List[Path]]:
@@ -79,7 +79,7 @@ def analyze_directories(root_dir: Path, extensions: List[str]) -> None:
     total_files = sum(len(paths) for paths in file_map.values())
     unique_filenames = len(file_map)
     
-    print(f"📊 SUMMARY:")
+    print("📊 SUMMARY:")
     print(f"   • Total files found: {total_files}")
     print(f"   • Unique filenames: {unique_filenames}")
     print()

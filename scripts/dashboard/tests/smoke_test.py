@@ -14,10 +14,10 @@ Tests:
 Run with: python3 smoke_test.py
 """
 
-import sys
 import json
-from pathlib import Path
+import sys
 from datetime import datetime
+from pathlib import Path
 
 # Add project root to path
 project_root = Path(__file__).resolve().parents[2]
@@ -71,9 +71,9 @@ def test_label_generation():
         # Check sorted order
         timestamps = [datetime.fromisoformat(label) for label in labels]
         if timestamps == sorted(timestamps):
-            print(f"     ✓ Chronologically sorted")
+            print("     ✓ Chronologically sorted")
         else:
-            print(f"     ✗ NOT sorted")
+            print("     ✗ NOT sorted")
             failed += 1
     
     print(f"\n  Summary: {colored(f'{passed} passed', 'green')}, {colored(f'{failed} failed', 'red')}")
@@ -108,10 +108,10 @@ def test_alignment():
     
     # Check alignment
     if "crop" in result:
-        print(f"  ✅ Operation found in result")
+        print("  ✅ Operation found in result")
         passed += 1
     else:
-        print(f"  ❌ Operation not found in result")
+        print("  ❌ Operation not found in result")
         failed += 1
         return False
     
@@ -126,10 +126,10 @@ def test_alignment():
     
     # Check no nulls
     if None not in result["crop"]["counts"]:
-        print(f"  ✅ No null values (gaps filled with zeros)")
+        print("  ✅ No null values (gaps filled with zeros)")
         passed += 1
     else:
-        print(f"  ❌ Found null values in counts")
+        print("  ❌ Found null values in counts")
         failed += 1
     
     # Check length
@@ -181,16 +181,16 @@ def test_contract_compliance():
         baseline = response["metadata"]["baseline_labels"]
         all_slices_present = all(s in baseline for s in ["15min", "1H", "D", "W", "M"])
         if all_slices_present:
-            print(f"  ✅ Metadata has all time slice baseline labels")
+            print("  ✅ Metadata has all time slice baseline labels")
             passed += 1
         else:
-            print(f"  ❌ Missing some time slice baseline labels")
+            print("  ❌ Missing some time slice baseline labels")
             failed += 1
     
     # Check charts structure
     charts = response.get("charts", {})
     if "by_script" in charts and "by_operation" in charts:
-        print(f"  ✅ Charts has by_script and by_operation")
+        print("  ✅ Charts has by_script and by_operation")
         passed += 1
         
         # Validate each tool has dates and counts
@@ -204,13 +204,13 @@ def test_contract_compliance():
                 break
         
         if all_valid:
-            print(f"  ✅ All tools have dates/counts with matching lengths")
+            print("  ✅ All tools have dates/counts with matching lengths")
             passed += 1
         else:
-            print(f"  ❌ Some tools have mismatched dates/counts")
+            print("  ❌ Some tools have mismatched dates/counts")
             failed += 1
     else:
-        print(f"  ❌ Charts missing by_script or by_operation")
+        print("  ❌ Charts missing by_script or by_operation")
         failed += 1
     
     # Check timing_data structure
@@ -221,10 +221,10 @@ def test_contract_compliance():
             for stats in timing.values()
         )
         if all_valid:
-            print(f"  ✅ Timing data has correct structure")
+            print("  ✅ Timing data has correct structure")
             passed += 1
         else:
-            print(f"  ❌ Some timing data missing required fields")
+            print("  ❌ Some timing data missing required fields")
             failed += 1
     
     print(f"\n  Summary: {colored(f'{passed} passed', 'green')}, {colored(f'{failed} failed', 'red')}")
@@ -254,7 +254,7 @@ def test_toy_examples():
         value_field="file_count"
     )
     
-    print(f"\n  📊 Daily Example (D slice):")
+    print("\n  📊 Daily Example (D slice):")
     print(f"     Baseline: {baseline_d}")
     for tool, data in result_d.items():
         print(f"     {tool}:")
@@ -276,14 +276,14 @@ def test_toy_examples():
         value_field="file_count"
     )
     
-    print(f"\n  📊 Hourly Example (1H slice):")
+    print("\n  📊 Hourly Example (1H slice):")
     print(f"     Baseline: {baseline_h}")
     for op, data in result_h.items():
         print(f"     {op}:")
         print(f"       dates:  {data['dates']}")
         print(f"       counts: {data['counts']}")
     
-    print(f"\n  ✅ Toy examples generated successfully")
+    print("\n  ✅ Toy examples generated successfully")
     return True
 
 
@@ -316,9 +316,9 @@ def test_performance():
         
         # Warn if too slow
         if elapsed > 5.0:
-            print(f"     ⚠️  Warning: Slow response time")
+            print("     ⚠️  Warning: Slow response time")
     
-    print(f"\n  ✅ Performance test complete")
+    print("\n  ✅ Performance test complete")
     return True
 
 
@@ -355,14 +355,14 @@ def main():
     
     if failed == 0:
         print(f"\n{colored('🎉 ALL TESTS PASSED!', 'green')}")
-        print(f"\nNext steps:")
-        print(f"  1. Start the API server: python3 scripts/dashboard/api.py")
-        print(f"  2. Open dashboard: scripts/dashboard/dashboard_template.html")
-        print(f"  3. Test endpoints: curl http://localhost:8000/api/data/D")
+        print("\nNext steps:")
+        print("  1. Start the API server: python3 scripts/dashboard/api.py")
+        print("  2. Open dashboard: scripts/dashboard/dashboard_template.html")
+        print("  3. Test endpoints: curl http://localhost:8000/api/data/D")
         return 0
     else:
         print(f"\n{colored('⚠️  SOME TESTS FAILED', 'red')}")
-        print(f"\nPlease review the failures above and fix issues.")
+        print("\nPlease review the failures above and fix issues.")
         return 1
 
 

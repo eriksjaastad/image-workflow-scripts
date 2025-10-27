@@ -30,14 +30,13 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
-from tqdm import tqdm
+from torch.utils.data import DataLoader, Dataset
 
 
 class ImageRankingDataset(Dataset):
@@ -268,7 +267,7 @@ def main():
         device = torch.device(args.device)
     
     print(f"\n{'='*60}")
-    print(f"🤖 Training Image Ranking Model")
+    print("🤖 Training Image Ranking Model")
     print(f"{'='*60}\n")
     print(f"Device: {device}")
     print(f"Epochs: {args.epochs}")
@@ -321,7 +320,7 @@ def main():
     best_epoch = 0
     
     print(f"{'='*60}")
-    print(f"Starting training...")
+    print("Starting training...")
     print(f"{'='*60}\n")
     
     for epoch in range(args.epochs):
@@ -352,7 +351,7 @@ def main():
             print(f"  ✓ Saved best model (acc: {val_acc:.2%})")
     
     print(f"\n{'='*60}")
-    print(f"✅ Training Complete!")
+    print("✅ Training Complete!")
     print(f"{'='*60}\n")
     print(f"Best validation accuracy: {best_val_acc:.2%} (epoch {best_epoch})")
     print(f"Model saved to: {model_dir / 'ranker_v1.pt'}")

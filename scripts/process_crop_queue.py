@@ -34,20 +34,20 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-import sys
 
 # Ensure project root is importable
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.utils.crop_queue import CropQueueManager
-from scripts.utils.ai_crop_utils import headless_crop
 from scripts.file_tracker import FileTracker
+from scripts.utils.ai_crop_utils import headless_crop
+from scripts.utils.crop_queue import CropQueueManager
 
 
 class HumanTimingSimulator:
@@ -228,7 +228,7 @@ class CropQueueProcessor:
         warnings = []
 
         print(f"\n{'='*80}")
-        print(f"PREFLIGHT VALIDATION")
+        print("PREFLIGHT VALIDATION")
         print(f"{'='*80}\n")
 
         # Define allowed safe zones (strict whitelist)
@@ -370,8 +370,9 @@ class CropQueueProcessor:
                     project_id = batch.get('project_id', decision_data.get('project_id'))
                     if project_id:
                         try:
-                            from utils.ai_training_decisions_v3 import init_decision_db
                             import sqlite3
+
+                            from utils.ai_training_decisions_v3 import init_decision_db
 
                             db_path = init_decision_db(project_id)
                             conn = sqlite3.connect(db_path)
@@ -447,7 +448,7 @@ class CropQueueProcessor:
             return
 
         print(f"\n{'='*80}")
-        print(f"CROP QUEUE PROCESSOR")
+        print("CROP QUEUE PROCESSOR")
         print(f"{'='*80}\n")
         print(f"Pending batches: {pending_count}")
         if limit:

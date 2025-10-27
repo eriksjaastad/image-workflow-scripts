@@ -105,19 +105,26 @@ from __future__ import annotations
 import argparse
 import csv
 import re
-import shutil
 import sys
 import threading
-import time
-import webbrowser
 from dataclasses import dataclass
 from functools import lru_cache
-from io import BytesIO
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
 from file_tracker import FileTracker
-from utils.companion_file_utils import find_all_companion_files, move_file_with_all_companions, launch_browser, generate_thumbnail, format_image_display_name, get_error_display_html, extract_timestamp_from_filename, timestamp_to_minutes, get_date_from_timestamp, detect_stage, get_stage_number, sort_image_files_by_timestamp_and_stage, find_consecutive_stage_groups, safe_delete_image_and_yaml, log_selection_only_entry
+from utils.companion_file_utils import (
+    detect_stage,
+    find_consecutive_stage_groups,
+    format_image_display_name,
+    generate_thumbnail,
+    get_error_display_html,
+    launch_browser,
+    log_selection_only_entry,
+    move_file_with_all_companions,
+    safe_delete_image_and_yaml,
+    sort_image_files_by_timestamp_and_stage,
+)
 
 try:
     from flask import Flask, Response, jsonify, render_template_string, request
@@ -126,7 +133,7 @@ except Exception:  # pragma: no cover - import guard for clearer error
     raise
 
 try:
-    from PIL import Image
+    pass
 except Exception:
     print("[!] Pillow is required. Install with: pip install pillow", file=sys.stderr)
     raise
@@ -141,7 +148,6 @@ except Exception:
 
 _SEND2TRASH_AVAILABLE = False
 try:
-    from send2trash import send2trash
 
     _SEND2TRASH_AVAILABLE = True
 except Exception:
@@ -1625,7 +1631,7 @@ def build_app(
         
         # Only batch mode is supported now (finalize mode removed for safety)
         current_groups = app.config["GROUPS"]
-        all_groups = app.config["ALL_GROUPS"]
+        app.config["ALL_GROUPS"]
         
         if not batch_mode:
             return jsonify({"status": "error", "message": "Only batch processing is supported."}), 400
@@ -1640,7 +1646,7 @@ def build_app(
             }), 400
 
         tracker: FileTracker = app.config["TRACKER"]
-        base_folder: Path = app.config["BASE_FOLDER"]
+        app.config["BASE_FOLDER"]
         log_path: Path = app.config["LOG_PATH"]
         hard_delete: bool = app.config["HARD_DELETE"]
 
@@ -1728,7 +1734,7 @@ def build_app(
 
                 # Training log (selection-only) — fail-open
                 try:
-                    import argparse as _argparse  # to access args in closure we rely on main scope
+                    pass  # to access args in closure we rely on main scope
                 except Exception:
                     pass
                 try:

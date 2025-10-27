@@ -6,15 +6,15 @@ Tests the consolidation script, cron job functionality, and data integrity
 to ensure the system we just built works correctly and prevents data loss.
 """
 
+import gzip
 import json
+import shutil
+import sys
 import tempfile
 import unittest
-from datetime import datetime, date
+from datetime import date
 from pathlib import Path
-from unittest.mock import patch, mock_open, MagicMock
-import sys
-import gzip
-import shutil
+from unittest.mock import MagicMock, patch
 
 # Add the scripts directory to the path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -73,8 +73,9 @@ class TestDataConsolidation(unittest.TestCase):
 
     def test_consolidate_daily_data_basic(self):
         """Test basic daily data consolidation"""
-        from cleanup_logs import consolidate_daily_data
         import os
+
+        from cleanup_logs import consolidate_daily_data
         
         # Create test log file
         log_file = self.file_ops_dir / "file_operations_20251003.log"
@@ -113,8 +114,9 @@ class TestDataConsolidation(unittest.TestCase):
 
     def test_consolidate_daily_data_with_timing(self):
         """Test consolidation includes work time calculation"""
-        from cleanup_logs import consolidate_daily_data
         import os
+
+        from cleanup_logs import consolidate_daily_data
         
         # Create test log file with timing data
         log_file = self.file_ops_dir / "file_operations_20251003.log"
@@ -141,8 +143,9 @@ class TestDataConsolidation(unittest.TestCase):
 
     def test_consolidate_daily_data_session_counting(self):
         """Test session counting in consolidation"""
-        from cleanup_logs import consolidate_daily_data
         import os
+
+        from cleanup_logs import consolidate_daily_data
         
         # Create test log with multiple sessions
         operations_with_sessions = self.sample_operations + [
@@ -178,8 +181,9 @@ class TestDataConsolidation(unittest.TestCase):
 
     def test_consolidate_daily_data_file_counting(self):
         """Test accurate file counting in consolidation"""
-        from cleanup_logs import consolidate_daily_data
         import os
+
+        from cleanup_logs import consolidate_daily_data
         
         # Create test log with various file counts
         operations = [
@@ -233,8 +237,9 @@ class TestDataConsolidation(unittest.TestCase):
 
     def test_consolidate_daily_data_handles_null_file_count(self):
         """Test consolidation handles null/None file_count gracefully"""
-        from cleanup_logs import consolidate_daily_data
         import os
+
+        from cleanup_logs import consolidate_daily_data
         
         # Create test log with null file_count
         operations_with_null = [
@@ -279,8 +284,9 @@ class TestDataConsolidation(unittest.TestCase):
 
     def test_consolidate_daily_data_archives_old_logs(self):
         """Test that old logs are archived after consolidation"""
-        from cleanup_logs import consolidate_daily_data
         import os
+
+        from cleanup_logs import consolidate_daily_data
         
         # Create old log file (3 days ago)
         old_date = "20250930"
@@ -314,8 +320,9 @@ class TestDataConsolidation(unittest.TestCase):
 
     def test_consolidate_daily_data_dry_run_mode(self):
         """Test that dry run mode doesn't modify files"""
-        from cleanup_logs import consolidate_daily_data
         import os
+
+        from cleanup_logs import consolidate_daily_data
         
         # Create test log file
         log_file = self.file_ops_dir / "file_operations_20251003.log"
@@ -348,8 +355,9 @@ class TestDataConsolidation(unittest.TestCase):
 
     def test_consolidate_daily_data_handles_missing_files(self):
         """Test consolidation handles missing log files gracefully"""
-        from cleanup_logs import consolidate_daily_data
         import os
+
+        from cleanup_logs import consolidate_daily_data
         
         # Set test environment variable
         os.environ['EM_TEST_DATA_ROOT'] = str(self.temp_dir / "data")
@@ -373,8 +381,9 @@ class TestDataConsolidation(unittest.TestCase):
 
     def test_consolidate_daily_data_handles_malformed_json(self):
         """Test consolidation handles malformed JSON gracefully"""
-        from cleanup_logs import consolidate_daily_data
         import os
+
+        from cleanup_logs import consolidate_daily_data
         
         # Create log file with malformed JSON with proper file operation format
         log_file = self.file_ops_dir / "file_operations_20251003.log"
@@ -398,8 +407,9 @@ class TestDataConsolidation(unittest.TestCase):
     @patch('cleanup_logs.DashboardDataEngine')
     def test_consolidate_daily_data_dashboard_verification(self, mock_dashboard_class):
         """Test dashboard verification in consolidation"""
-        from cleanup_logs import consolidate_daily_data
         import os
+
+        from cleanup_logs import consolidate_daily_data
         
         # Mock the dashboard data engine
         mock_engine = MagicMock()
@@ -431,8 +441,9 @@ class TestDataConsolidation(unittest.TestCase):
     @patch('cleanup_logs.DashboardDataEngine')
     def test_consolidate_daily_data_verification_failure(self, mock_dashboard_class):
         """Test that verification failure prevents consolidation"""
-        from cleanup_logs import consolidate_daily_data
         import os
+
+        from cleanup_logs import consolidate_daily_data
         
         # Mock the dashboard data engine to fail verification
         mock_engine = MagicMock()
@@ -482,8 +493,9 @@ class TestConsolidationIntegration(unittest.TestCase):
 
     def test_end_to_end_consolidation_workflow(self):
         """Test complete consolidation workflow from logs to dashboard"""
-        from cleanup_logs import consolidate_daily_data
         import os
+
+        from cleanup_logs import consolidate_daily_data
         
         # Create comprehensive test data
         operations = [
@@ -557,8 +569,9 @@ class TestConsolidationIntegration(unittest.TestCase):
 
     def test_multiple_days_consolidation(self):
         """Test consolidating multiple days of data"""
-        from cleanup_logs import consolidate_daily_data
         import os
+
+        from cleanup_logs import consolidate_daily_data
         
         # Create data for multiple days
         for day in ['20251001', '20251002', '20251003']:
@@ -596,8 +609,9 @@ class TestConsolidationIntegration(unittest.TestCase):
 
     def test_consolidation_with_archived_data(self):
         """Test consolidation with existing archived data"""
-        from cleanup_logs import consolidate_daily_data
         import os
+
+        from cleanup_logs import consolidate_daily_data
         
         # Create existing archived file
         archived_file = self.archives_dir / "file_operations_20250930.log.gz"

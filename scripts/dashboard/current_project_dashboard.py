@@ -11,11 +11,11 @@ Real-time dashboard for the ACTIVE project with predictive progress tracking.
 from __future__ import annotations
 
 import json
+import sys
+import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-import sys
 from typing import Any, Dict, List, Optional, Tuple
-import threading
 
 from flask import Flask, jsonify, render_template, send_from_directory
 
@@ -25,10 +25,9 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 # Reuse existing data engines and aggregators (absolute paths)
-from scripts.dashboard.project_metrics_aggregator import ProjectMetricsAggregator
 from scripts.dashboard.data_engine import DashboardDataEngine
+from scripts.dashboard.project_metrics_aggregator import ProjectMetricsAggregator
 from scripts.utils.companion_file_utils import launch_browser
-
 
 DATA_DIR = PROJECT_ROOT / "data"
 PROJECTS_DIR = DATA_DIR / "projects"
@@ -473,7 +472,7 @@ def create_app() -> Flask:
         projects = agg.aggregate()
         proj_metrics = projects.get(project_id) or {}
         totals = proj_metrics.get("totals", {}) or {}
-        processed_images_raw = int(totals.get("images_processed") or 0)
+        int(totals.get("images_processed") or 0)
         all_time_work_hours = float(totals.get("work_hours") or 0.0)
         ops_by_type: Dict[str, int] = totals.get("operations_by_type", {}) or {}
         ops_by_dest_all: Dict[str, Dict[str, int]] = totals.get("operations_by_dest", {}) or {}
@@ -623,7 +622,7 @@ def create_app() -> Flask:
             recommended_topbar = "reviewed"
 
         # Predictive metrics
-        remaining = max(0, total_images - processed_images)
+        max(0, total_images - processed_images)
         # Stage remaining
         sel_rem = max(0, total_images - selection_done)
         rev_rem = max(0, total_images - reviewed_done)
@@ -776,12 +775,10 @@ def create_app() -> Flask:
             _latest_mtime(delete_staging_dir),
         )
         inv_payload: Dict[str, Any]
-        cache_hit = False
         try:
             cache = INVENTORY_CACHE.get(project_id)
             if cache and cache.get('sig') == inv_sig and (datetime.utcnow().timestamp() - cache.get('ts', 0)) < 600:
                 inv_payload = cache.get('payload', {})
-                cache_hit = True
             else:
                 raise KeyError
         except Exception:

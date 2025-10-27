@@ -14,7 +14,10 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.utils.companion_file_utils import log_select_crop_entry, log_selection_only_entry
+from scripts.utils.companion_file_utils import (
+    log_select_crop_entry,
+    log_selection_only_entry,
+)
 
 
 def test_crop_validation_catches_zero_dimensions():

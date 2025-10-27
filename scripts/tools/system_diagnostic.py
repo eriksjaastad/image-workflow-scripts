@@ -4,11 +4,10 @@ System Diagnostic Script
 Checks the health of the repository, Python environment, and key components.
 """
 
-import os
-import sys
 import subprocess
+import sys
 from pathlib import Path
-import json
+
 
 def run_command(cmd, capture=True):
     """Run a shell command and return output."""
@@ -77,11 +76,11 @@ def check_git_status():
     code, status, _ = run_command("git status --short")
     if code == 0:
         if status:
-            print(f"⚠ Uncommitted Changes:")
+            print("⚠ Uncommitted Changes:")
             for line in status.split('\n')[:10]:
                 print(f"  {line}")
         else:
-            print(f"✓ No Uncommitted Changes")
+            print("✓ No Uncommitted Changes")
     
     # Branches
     code, branches, _ = run_command("git branch -a | wc -l")
@@ -100,7 +99,7 @@ def check_git_status():
                 for line in dirs.split('\n')[:5]:
                     print(f"    {line}")
         else:
-            print(f"✓ No Untracked Files")
+            print("✓ No Untracked Files")
     
     return True
 
@@ -237,19 +236,19 @@ def check_pre_commit_hook():
     
     hook_path = Path('.git/hooks/pre-commit')
     if hook_path.exists():
-        print(f"✓ Pre-commit hook exists")
+        print("✓ Pre-commit hook exists")
         with open(hook_path, 'r') as f:
             content = f.read()
             if 'forbidden' in content.lower() or 'banned' in content.lower():
-                print(f"  ⚠ Contains content filtering (this is expected)")
+                print("  ⚠ Contains content filtering (this is expected)")
                 # Extract forbidden patterns
                 if 'forbidden_patterns' in content:
-                    print(f"  Forbidden patterns configured:")
+                    print("  Forbidden patterns configured:")
                     for line in content.split('\n'):
                         if 'eros' in line.lower() or '"' in line:
                             print(f"    {line.strip()}")
     else:
-        print(f"✓ No pre-commit hook")
+        print("✓ No pre-commit hook")
     
     return True
 

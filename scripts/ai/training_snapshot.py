@@ -22,13 +22,13 @@ Usage:
     )
 """
 
-import shutil
-import json
 import hashlib
-from pathlib import Path
-from typing import Tuple, Optional, Dict, Any
-from datetime import datetime
+import json
+import shutil
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
 
 # Single thread pool for all async operations (reused across calls)
 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="ai_snapshot")
@@ -84,7 +84,7 @@ def _save_snapshot_async(
         with open(decision_file, 'w') as f:
             json.dump(decision_data, f, indent=2)
     
-    except Exception as e:
+    except Exception:
         # Silently fail - don't break the tool
         # Could log to separate error file if needed
         pass
