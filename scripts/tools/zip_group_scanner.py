@@ -23,7 +23,7 @@ import sys
 import zipfile
 from collections import Counter
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
 
 # Ensure project root
 _ROOT = Path(__file__).resolve().parents[2]
@@ -139,6 +139,7 @@ def scan_zip(zip_path: Path) -> Tuple[int, Dict[int, int], int, int, str]:
             for it in grp:
                 in_group.add(it.name)
 
+        filtered_images = len(entries)
         singles_count = filtered_images - len(in_group)
         if singles_count > 0:
             groups_count_by_size[1] += singles_count
