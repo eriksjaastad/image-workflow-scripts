@@ -161,6 +161,21 @@ class AIMultiCropTool(MultiCropTool):
         self.suppress_perf_logs = True
         super().__init__(*args, **kwargs)
 
+        # Snapshot initial totals for stable Batch X/Y display across the session
+        try:
+            initial_total_images = len(getattr(self, "png_files", [])) or len(
+                getattr(self, "current_images", [])
+            )
+            images_per_batch = max(1, getattr(self, "images_per_batch", 3))
+            total_batches = max(
+                1, (initial_total_images + images_per_batch - 1) // images_per_batch
+            )
+            self._initial_total_batches = int(total_batches)
+            self._batches_done = 0
+        except Exception:
+            self._initial_total_batches = None
+            self._batches_done = 0
+
         if self.queue_mode:
             from file_tracker import FileTracker
             from utils.crop_queue import CropQueueManager
@@ -469,6 +484,12 @@ class AIMultiCropTool(MultiCropTool):
                 self._queue_batch = []
 
         # Call parent submit_batch (which handles progress tracking and loading next batch)
+        try:
+            # Increment batches completed before parent potentially reloads state
+            if hasattr(self, "_batches_done"):
+                self._batches_done += 1
+        except Exception:
+            pass
         super().submit_batch()
 
     # ---- UI: Title/Progress (Batch X/Y) ----
@@ -477,21 +498,20 @@ class AIMultiCropTool(MultiCropTool):
         try:
             # Expect base class/progress tracker to expose these attributes
             # Fallbacks ensure no crash if running older base module
-            current_index = getattr(self.progress_tracker, "current_file_index", 0)
-            total_images = len(getattr(self, "png_files", [])) or len(
-                getattr(self, "current_images", [])
-            )
             images_per_batch = max(1, getattr(self, "images_per_batch", 3))
-
-            # Compute batches, clamp to at least 1
-            total_batches = max(
-                1, (total_images + images_per_batch - 1) // images_per_batch
-            )
-            current_batch = (
-                min(total_batches, (current_index // images_per_batch) + 1)
-                if total_images
-                else 1
-            )
+            # Stable denominator captured at init; fallback to live calc if missing
+            if getattr(self, "_initial_total_batches", None):
+                total_batches = int(self._initial_total_batches)
+            else:
+                total_images_live = len(getattr(self, "png_files", [])) or len(
+                    getattr(self, "current_images", [])
+                )
+                total_batches = max(
+                    1, (total_images_live + images_per_batch - 1) // images_per_batch
+                )
+            # Numerator based on batches completed in this session
+            batches_done = int(getattr(self, "_batches_done", 0))
+            current_batch = min(total_batches, batches_done + 1)
 
             # Directory context (multi-directory vs single)
             if getattr(self, "single_directory_mode", True):
