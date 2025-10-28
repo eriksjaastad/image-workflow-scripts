@@ -209,7 +209,7 @@ def build_overview(now_str: str) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate dataset overview markdown")
-    args = parser.parse_args()
+    parser.parse_args()
 
     now_str = datetime.utcnow().strftime("%Y-%m-%d")
     md = build_overview(now_str)

@@ -53,7 +53,6 @@ def _iter_project_paths(project_filter: Optional[Set[str]] = None) -> Iterable[P
         return []
     for mf in sorted(PROJECTS_DIR.glob("*.project.json")):
         if project_filter:
-            pid = mf.stem.replace(".project", "").strip()
             # safer: read manifest to get projectId
             pj = _read_json(mf) or {}
             if (pj.get("projectId") or "").strip() not in project_filter:
