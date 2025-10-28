@@ -1,40 +1,58 @@
 # Current TODO List
+
 **Status:** Active
 **Audience:** Developers
 **Policy:** This is the single authoritative TODO list. Do not create separate TODO docs; add sections here instead.
-
-
-**Last Updated:** 2025-10-26 (Afternoon)
 
 ---
 
 ## 🎯 Active Tasks
 
+### Data Integrity Backfill (High)
+
+- [ ] **Backfill missing crop data caused by dimension-logging bug** [PRIORITY: HIGH]
+
+  - **Scope:** Rows/images impacted when Desktop Multi-Crop logged dimensions as (0,0)
+  - **Action:** Identify affected items → recompute from source images/sidecars → validate → write to SQLite v3 → snapshot
+  - **Output:** Verified updates in `data/training/ai_training_decisions/*.db` and daily snapshot
+
+### TODO Hygiene
+
+- [ ] **Review and prune this TODO list** [PRIORITY: HIGH]
+  - **Action:** Archive stale items to `Documents/archives/`, consolidate duplicates, re-order by priority
+
+### Documentation Cleanup
+
+- [ ] **Remove "Last Updated" dates from all documents** [PRIORITY: LOW]
+  - **Issue:** Redundant with git history (already tracks file changes automatically)
+  - **Action:** Remove "Last Updated:" fields from all markdown docs in `Documents/`
+  - **Reason:** Manual maintenance overhead for info that git provides for free
+  - **Benefit:** Less cruft, one less thing to remember to update
+
 ### TOP PRIORITY: Artifact Groups (cross-group/misaligned images)
+
 ✅ Moved to Recently Completed (Oct 26, 2025)
 
 ### Phase 3: Two-Action Crop Flow (Reviewer)
+
 - [ ] Add analytics view for “perfect crop” (final ≈ AI crop within 5%) in SQLite v3
 - [ ] Optional migration: extend user_action enum to include approve_ai_suggestion and approve_ai_crop (Phase 3B)
 
-
 ### Phase 3: AI-Assisted Reviewer Testing
 
-#### Ready to Use Today!
-- [ ] **Test AI-Assisted Reviewer on New Project** [PRIORITY: HIGH]
-  - **Status:** Tool exists at `scripts/01_ai_assisted_reviewer.py`
-  - **Purpose:** Replaces Web Image Selector; integrated with Desktop Multi-Crop — looks at ALL images, selects best from each group, proposes crops
-  - **Currently:** Rule-based (picks highest stage, no crop proposals)
-  - **Future:** Will integrate Ranker v3 + Crop Proposer models
-  - **Usage:** `python scripts/01_ai_assisted_reviewer.py <new-project-directory>/`
-  - **Test Plan:**
-    1. Start new project with raw images
-    2. Run AI-Assisted Reviewer instead of Web Image Selector
-    3. Review AI recommendations (A to approve, 1-4 to override)
-    4. Check .decision sidecar files are created
-    5. Evaluate if this workflow is better than manual selection
+- [ ] **Write tests for AI Assisted Reviewer** [PRIORITY: MEDIUM]
+  - **Issue:** Hotkey routing logic is complex and needs automated tests
+  - **Coverage Needed:**
+    - 1234 keys: Accept with AI crop → `__crop_auto/`, without AI crop → `__selected/`
+    - ASDF keys: Always remove AI crop → `__selected/`
+    - QWER keys: Manual crop → `__crop/`
+  - **Reference:** Check `scripts/tests/` for existing test patterns
+  - **Benefit:** Prevent regression when making changes to reviewer logic
+
+<!-- Removed obsolete quick-start block; tool is already in active use -->
 
 #### Model Integration (Optional - Already Have Great Models)
+
 - [ ] Integrate Ranker v3 into AI-Assisted Reviewer
   - **Ranker v3 stats:** 94.4% anomaly accuracy, 98.1% overall
   - **Replace:** Rule-based logic with model predictions
@@ -44,9 +62,11 @@
   - **Add:** Crop suggestions to reviewer UI
 
 ### AI Reviewer: Batch Summary Delete Count (Bug)
+
 ✅ Moved to Recently Completed (Oct 26, 2025)
 
 ### Test Follow-ups (Dashboard + Utils)
+
 - [ ] Migrate tests off legacy desktop selector shim and remove file
   - File: `scripts/01_desktop_image_selector_crop.py` (now a compat shim)
   - Action: Update tests to import archived path `scripts/archive/01_desktop_image_selector_crop.py` or remove usages
@@ -56,15 +76,15 @@
 - [ ] Crop overlay rounding to integers (scripts/tests/test_ai_assisted_reviewer_batch.py)
 - [ ] Full pytest rerun and address any remaining stragglers
 
-
 ---
 
 ## 📅 Backlog
 
 ### Historical Crop Data Extraction (Experiment)
+
 - [ ] **Extract crop coordinates from historical projects using image matching** [PRIORITY: MEDIUM]
   - **Goal:** Recover thousands of crop training examples by comparing original vs cropped images
-  - **Method:** 
+  - **Method:**
     1. Use project manifests to identify date ranges
     2. Find cropped images (files within project date range in `_cropped/` or `_final/` directories)
     3. Find matching original images (same filename in original/raw directory)
@@ -95,13 +115,16 @@
   - **Status:** EXPERIMENT - Build proof of concept first, then scale if successful
 
 ### Documentation
+
 - [ ] Document training data structure rules in `AI_TRAINING_DATA_STRUCTURE.md`
 - [ ] Create troubleshooting guide for common training issues
 
 ### Dashboard Improvements
+
 - [ ] **Reimagine/Simplify Productivity Dashboard** [PRIORITY: MEDIUM]
+
   - **Issue:** Too many graphs that aren't actually useful
-  - **Keep:** 
+  - **Keep:**
     - Build vs Actual (helpful, locked in)
     - Billing Efficiency Tracker (fine)
     - Productivity Table (pretty good)
@@ -118,6 +141,7 @@
   - **Goal:** Less overwhelming, more focused on actionable insights
 
 - [ ] Composition Metrics (2-up vs 3-up) [PRIORITY: HIGH]
+
   - **Goal:** Establish baseline composition per project (group size distribution) and kept rates (approve/crop) from the decisions DB; inform predictions for future projects.
   - **Analyzer Script:** Create `scripts/tools/analyze_composition.py` to compute per-project:
     - groups_by_size (e.g., {2: N, 3: N})
@@ -153,10 +177,12 @@
     - Display prominently on dashboard (maybe top section?)
 
 ### Automation
+
 - [ ] Set up daily validation report (cron job or manual)
 - [ ] Add email/Slack alerts when validation fails
 
 ### Backups & Delivery Automation
+
 - [ ] Weekly full rollup to cloud (tar+upload with manifest) [PRIORITY: HIGH]
   - Source: `~/project-data-archives/image-workflow/`
   - Compress: one tar.zst per week + manifest (counts, sizes, sha256)
@@ -172,7 +198,17 @@
 
 ## ✅ Recently Completed
 
+**AI Desktop Multi-Crop UX (Oct 28, 2025)**
+
+- [x] Remove performance timer and visual focus timer from AI Desktop Multi-Crop
+- [x] Update progress title to show Batch X/Y with directory context
+
+**AI-Assisted Reviewer Adoption (Oct 28, 2025)**
+
+- [x] Validated on ~1,000 images across recent projects; `.decision` sidecars created and used downstream
+
 **Artifact Groups & Two-Action Crop Flow (Oct 26, 2025)**
+
 - [x] Artifact detection + warning flow in reviewer
 - [x] Audit tool artifact candidate scaffolding
 - [x] Snapshot extraction artifact field marking
@@ -183,6 +219,7 @@
 - [x] JSONL batch summary logger
 
 **SQLite v3 Training System (Oct 22, 2025 - Night/Morning)**
+
 - [x] **Design and implement SQLite-based training data system** ⭐ **GAME CHANGER!**
 - [x] Create database schema with decision tracking + crop matching
 - [x] Build utility functions (`scripts/utils/ai_training_decisions_v3.py`)
@@ -195,6 +232,7 @@
 - [x] Test full workflow (90 decisions logged successfully)
 
 **AI Reviewer UX Improvements (Oct 22, 2025 - Morning)**
+
 - [x] **Add "Remove Crop" toggle button to AI-selected images** ⭐ **TESTED AND WORKING!**
 - [x] Add regular crop button to AI-selected images (for manual cropping)
 - [x] Auto-launch browser when starting AI Reviewer
@@ -202,6 +240,7 @@
 - [x] Remove confusing "Approve" buttons from all images
 
 **Phase 2: AI Training (90% Complete)**
+
 - [x] Extract training data from 15 historical projects (21,250 selections, 12,679 crops)
 - [x] Compute embeddings for all training images (77,304 total)
 - [x] Train Ranker v2 with project boundary validation
@@ -213,6 +252,7 @@
 - [x] Document lessons learned (`Documents/archives/ai/AI_DATA_COLLECTION_LESSONS_LEARNED.md`)
 
 **Data Integrity (Just Completed - Oct 21, 2025 Morning)**
+
 - [x] **Integrate inline validation into all data collection tools** ⭐ **DONE!**
 - [x] Add dimension validation to `log_select_crop_entry()`
 - [x] Add path validation to `log_selection_only_entry()`
@@ -220,6 +260,7 @@
 - [x] Documentation (`Documents/archives/misc/INLINE_VALIDATION_GUIDE.md`)
 
 **Crop Training Data Schema Evolution (Oct 21, 2025 Afternoon)**
+
 - [x] **Design and implement NEW minimal crop training schema** ⭐ **8 columns instead of 19!**
 - [x] Create `log_crop_decision()` function with strict validation
 - [x] Update AI-Assisted Reviewer to use new schema
@@ -243,8 +284,8 @@
 - **Embeddings Issue:** Some embeddings exist in cache but files are missing from disk. Need verification step after embedding generation.
 - **Historical Data Limitation:** Only projects processed AFTER data collection system was built have usable crop data.
 
-
 ### AI Automation (Imported 2025-10-26)
+
 - Backlog triage needed; items below are placeholders—convert to scoped tasks when prioritized:
   - Add configurable safe-zone allowlist (read from `configs/` and used in validation)
   - Add retry with backoff for per-crop failures and partial progress resume

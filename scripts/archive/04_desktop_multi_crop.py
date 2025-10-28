@@ -122,6 +122,8 @@ FOCUS_TIMER_WORK_MIN to locate the configuration block quickly.
 """
 
 # Focus timer configuration (minutes)
+# Global kill-switch for visual timer across desktop multi-crop tools
+ENABLE_FOCUS_TIMER: bool = False
 FOCUS_TIMER_WORK_MIN: int = 15
 FOCUS_TIMER_REST_MIN: int = 5
 
@@ -522,9 +524,6 @@ class MultiCropTool(BaseDesktopImageTool):
     def __init__(self, directory, aspect_ratio=None, enable_ai_logging=True):
         """Initialize multi-directory crop tool."""
         super().__init__(directory, aspect_ratio, "multi_crop_tool")
-        # Focus timer instance will be initialized after first batch load when fig exists
-        self._focus_timer: Optional[_FocusTimer] = None
-        
         # Configure panel bounds for this tool: support 1–3 images per batch
         self.min_panels = 1
         self.max_panels = 3
@@ -690,13 +689,6 @@ class MultiCropTool(BaseDesktopImageTool):
         
         plt.tight_layout(rect=[0, 0.02, 1, 0.98])
 
-        # Initialize focus timer UI once (top-right strip)
-        if self._focus_timer is None:
-            try:
-                self._focus_timer = _FocusTimer(self.fig, FOCUS_TIMER_WORK_MIN, FOCUS_TIMER_REST_MIN)
-                self._focus_timer.init_ui()
-            except Exception as e:
-                print(f"[timer] init failed: {e}")
         plt.draw()
     
     def update_title(self):
@@ -1031,13 +1023,6 @@ class MultiCropTool(BaseDesktopImageTool):
     def show_completion(self):
         """Show completion message"""
         plt.clf()
-        # Stop focus timer if running
-        try:
-            if self._focus_timer:
-                self._focus_timer.stop()
-        except Exception:
-            pass
-        
         if not self.single_directory_mode:
             self.progress_tracker.cleanup_completed_session()
         
