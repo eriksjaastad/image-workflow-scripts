@@ -18,7 +18,7 @@ Provides:
 import csv
 import json
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List
 
@@ -28,8 +28,12 @@ class QueueDataReader:
 
     def __init__(self, data_dir: Path):
         self.data_dir = Path(data_dir)
-        self.queue_file = self.data_dir / "data" / "ai_data" / "crop_queue" / "crop_queue.jsonl"
-        self.timing_log = self.data_dir / "data" / "ai_data" / "crop_queue" / "timing_log.csv"
+        self.queue_file = (
+            self.data_dir / "data" / "ai_data" / "crop_queue" / "crop_queue.jsonl"
+        )
+        self.timing_log = (
+            self.data_dir / "data" / "ai_data" / "crop_queue" / "timing_log.csv"
+        )
 
     def get_queue_stats(self) -> Dict[str, int]:
         """
@@ -39,18 +43,18 @@ class QueueDataReader:
             Dict with keys: pending, processing, completed, failed, total_crops
         """
         stats = {
-            'pending': 0,
-            'processing': 0,
-            'completed': 0,
-            'failed': 0,
-            'total_crops': 0
+            "pending": 0,
+            "processing": 0,
+            "completed": 0,
+            "failed": 0,
+            "total_crops": 0,
         }
 
         if not self.queue_file.exists():
             return stats
 
         try:
-            with open(self.queue_file, 'r') as f:
+            with open(self.queue_file, "r") as f:
                 for line in f:
                     line = line.strip()
                     if not line:
@@ -58,12 +62,12 @@ class QueueDataReader:
 
                     try:
                         batch = json.loads(line)
-                        status = batch.get('status', 'pending')
-                        num_crops = len(batch.get('crops', []))
+                        status = batch.get("status", "pending")
+                        num_crops = len(batch.get("crops", []))
 
                         if status in stats:
                             stats[status] += 1
-                            stats['total_crops'] += num_crops
+                            stats["total_crops"] += num_crops
 
                     except json.JSONDecodeError:
                         continue
@@ -83,25 +87,36 @@ class QueueDataReader:
         if not self.timing_log.exists():
             return []
 
-        cutoff_date = datetime.now() - timedelta(days=lookback_days)
+        # Compare using naive UTC to avoid aware/naive mismatches
+        cutoff_date = datetime.utcnow() - timedelta(days=lookback_days)
         trends = []
 
         try:
-            with open(self.timing_log, 'r') as f:
+            with open(self.timing_log, "r") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     try:
-                        timestamp = datetime.fromisoformat(row['timestamp_started'])
+                        ts_raw = str(row.get("timestamp_started") or "").strip()
+                        # Normalize 'Z' to '+00:00' for fromisoformat
+                        ts_norm = ts_raw.replace("Z", "+00:00")
+                        dt = datetime.fromisoformat(ts_norm)
+                        # Convert aware → naive UTC for consistent comparisons
+                        if dt.tzinfo is not None:
+                            dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+                        timestamp = dt
                         if timestamp < cutoff_date:
                             continue
 
-                        trends.append({
-                            'timestamp': row['timestamp_started'],
-                            'batch_id': row['batch_id'],
-                            'crops_in_batch': int(row['crops_in_batch']),
-                            'processing_time_ms': int(row['processing_time_ms']),
-                            'avg_time_per_crop_ms': int(row['processing_time_ms']) / max(1, int(row['crops_in_batch']))
-                        })
+                        trends.append(
+                            {
+                                "timestamp": ts_raw or timestamp.isoformat(),
+                                "batch_id": row["batch_id"],
+                                "crops_in_batch": int(row["crops_in_batch"]),
+                                "processing_time_ms": int(row["processing_time_ms"]),
+                                "avg_time_per_crop_ms": int(row["processing_time_ms"])
+                                / max(1, int(row["crops_in_batch"])),
+                            }
+                        )
 
                     except (ValueError, KeyError):
                         continue
@@ -124,58 +139,72 @@ class QueueDataReader:
         if not trends:
             return []
 
-        # Sort by timestamp
-        trends.sort(key=lambda x: x['timestamp'])
+        # Sort by normalized naive UTC timestamp
+        def _parse_naive_utc(ts: str) -> datetime:
+            try:
+                t = str(ts or "").strip().replace("Z", "+00:00")
+                d = datetime.fromisoformat(t)
+                return (
+                    d.astimezone(timezone.utc).replace(tzinfo=None) if d.tzinfo else d
+                )
+            except Exception:
+                return datetime.min
+
+        trends.sort(key=lambda x: _parse_naive_utc(x["timestamp"]))
 
         sessions = []
         current_session = {
-            'session_start': trends[0]['timestamp'],
-            'batch_count': 0,
-            'total_crops': 0,
-            'batches': []
+            "session_start": trends[0]["timestamp"],
+            "batch_count": 0,
+            "total_crops": 0,
+            "batches": [],
         }
 
         session_gap_minutes = 5
 
         for i, batch in enumerate(trends):
             if i == 0:
-                current_session['batches'].append(batch)
-                current_session['batch_count'] += 1
-                current_session['total_crops'] += batch['crops_in_batch']
+                current_session["batches"].append(batch)
+                current_session["batch_count"] += 1
+                current_session["total_crops"] += batch["crops_in_batch"]
                 continue
 
             # Check gap from previous batch
-            prev_time = datetime.fromisoformat(trends[i-1]['timestamp'])
-            curr_time = datetime.fromisoformat(batch['timestamp'])
+            prev_time = _parse_naive_utc(trends[i - 1]["timestamp"])
+            curr_time = _parse_naive_utc(batch["timestamp"])
             gap = (curr_time - prev_time).total_seconds() / 60  # minutes
 
             if gap > session_gap_minutes:
                 # Start new session
-                sessions.append({
-                    'session_start': current_session['session_start'],
-                    'batch_count': current_session['batch_count'],
-                    'total_crops': current_session['total_crops']
-                })
+                sessions.append(
+                    {
+                        "session_start": current_session["session_start"],
+                        "batch_count": current_session["batch_count"],
+                        "total_crops": current_session["total_crops"],
+                    }
+                )
 
                 current_session = {
-                    'session_start': batch['timestamp'],
-                    'batch_count': 1,
-                    'total_crops': batch['crops_in_batch'],
-                    'batches': [batch]
+                    "session_start": batch["timestamp"],
+                    "batch_count": 1,
+                    "total_crops": batch["crops_in_batch"],
+                    "batches": [batch],
                 }
             else:
                 # Add to current session
-                current_session['batches'].append(batch)
-                current_session['batch_count'] += 1
-                current_session['total_crops'] += batch['crops_in_batch']
+                current_session["batches"].append(batch)
+                current_session["batch_count"] += 1
+                current_session["total_crops"] += batch["crops_in_batch"]
 
         # Don't forget last session
-        if current_session['batch_count'] > 0:
-            sessions.append({
-                'session_start': current_session['session_start'],
-                'batch_count': current_session['batch_count'],
-                'total_crops': current_session['total_crops']
-            })
+        if current_session["batch_count"] > 0:
+            sessions.append(
+                {
+                    "session_start": current_session["session_start"],
+                    "batch_count": current_session["batch_count"],
+                    "total_crops": current_session["total_crops"],
+                }
+            )
 
         return sessions
 
@@ -190,18 +219,20 @@ class QueueDataReader:
         if not trends:
             return {}
 
-        by_day = defaultdict(lambda: {'crops': 0, 'batches': 0, 'total_time_ms': 0})
+        by_day = defaultdict(lambda: {"crops": 0, "batches": 0, "total_time_ms": 0})
 
         for batch in trends:
-            date_str = batch['timestamp'][:10]  # YYYY-MM-DD
-            by_day[date_str]['crops'] += batch['crops_in_batch']
-            by_day[date_str]['batches'] += 1
-            by_day[date_str]['total_time_ms'] += batch['processing_time_ms']
+            date_str = batch["timestamp"][:10]  # YYYY-MM-DD
+            by_day[date_str]["crops"] += batch["crops_in_batch"]
+            by_day[date_str]["batches"] += 1
+            by_day[date_str]["total_time_ms"] += batch["processing_time_ms"]
 
         # Calculate averages
         for date_str in by_day:
             day_data = by_day[date_str]
-            day_data['avg_time_ms'] = day_data['total_time_ms'] / max(1, day_data['batches'])
+            day_data["avg_time_ms"] = day_data["total_time_ms"] / max(
+                1, day_data["batches"]
+            )
 
         return dict(by_day)
 
@@ -220,27 +251,35 @@ class QueueDataReader:
         avg_batches_per_session = 0
         avg_crops_per_session = 0
         if sessions:
-            avg_batches_per_session = sum(s['batch_count'] for s in sessions) / len(sessions)
-            avg_crops_per_session = sum(s['total_crops'] for s in sessions) / len(sessions)
+            avg_batches_per_session = sum(s["batch_count"] for s in sessions) / len(
+                sessions
+            )
+            avg_crops_per_session = sum(s["total_crops"] for s in sessions) / len(
+                sessions
+            )
 
         # Calculate daily averages
-        total_crops_processed = sum(d['crops'] for d in by_day.values())
-        total_batches_processed = sum(d['batches'] for d in by_day.values())
+        total_crops_processed = sum(d["crops"] for d in by_day.values())
+        total_batches_processed = sum(d["batches"] for d in by_day.values())
         days_with_activity = len(by_day)
 
         return {
-            'queue_status': queue_stats,
-            'session_stats': {
-                'total_sessions': len(sessions),
-                'avg_batches_per_session': round(avg_batches_per_session, 1),
-                'avg_crops_per_session': round(avg_crops_per_session, 1)
+            "queue_status": queue_stats,
+            "session_stats": {
+                "total_sessions": len(sessions),
+                "avg_batches_per_session": round(avg_batches_per_session, 1),
+                "avg_crops_per_session": round(avg_crops_per_session, 1),
             },
-            'throughput': {
-                'total_crops_processed': total_crops_processed,
-                'total_batches_processed': total_batches_processed,
-                'days_with_activity': days_with_activity,
-                'avg_crops_per_day': round(total_crops_processed / max(1, days_with_activity), 1),
-                'avg_batches_per_day': round(total_batches_processed / max(1, days_with_activity), 1)
+            "throughput": {
+                "total_crops_processed": total_crops_processed,
+                "total_batches_processed": total_batches_processed,
+                "days_with_activity": days_with_activity,
+                "avg_crops_per_day": round(
+                    total_crops_processed / max(1, days_with_activity), 1
+                ),
+                "avg_batches_per_day": round(
+                    total_batches_processed / max(1, days_with_activity), 1
+                ),
             },
-            'lookback_days': lookback_days
+            "lookback_days": lookback_days,
         }
