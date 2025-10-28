@@ -159,6 +159,56 @@ Quick visual of what's missing:
 ✗ Historical archive has no timestamps
 ```
 
+## Real-Time Progress via Static Directories
+
+**The Problem:** Current dashboard uses file operation timestamps which get messed up by batch processing. Need real-time "where am I?" visibility.
+
+**Solution:** Count files in the static directories that exist during workflow:
+- `__crop_auto/` - Images queued for AI-assisted cropping
+- `__crop/` - Images queued for manual cropping
+- `__cropped/` - Images that have been cropped (DONE)
+
+**Dashboard View:**
+```
+Progress Dashboard - Mojo3
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Phase 1: Selection
+  Groups to process:     0 (✓ Complete)
+
+Phase 2: Cropping
+  __crop_auto/:        400 groups (needs AI-assisted crop)
+  __crop/:              50 groups (needs manual crop)
+  __cropped/:        1,850 groups (✓ Done)
+  ─────────────────────────────────────
+  Total remaining:     450 groups
+  Progress:            80% complete (1,850/2,300)
+
+Pace Check:
+  Target:              300 groups/day
+  Actual (last 3d):    200 groups/day
+  Status:              🔴 33% behind pace
+  Days to complete:    2.25 days (at current pace)
+
+Billing Reality:
+  Active cropping:     3.0 hours (billable)
+  Total elapsed:       6.0 hours (includes breaks)
+  Efficiency:          50% (active/total)
+```
+
+**Why This Works:**
+- Files in directories = actual current state (no timestamp guessing)
+- Easy to count: `ls __cropped/*.png | wc -l`
+- Shows exactly what's left to do
+- Pace calculation based on recent velocity, not broken timestamps
+- Separates "active work time" from "elapsed time" for realistic billing
+
+**Implementation:**
+Simple script that scans directories and calculates:
+1. Current progress (done / total)
+2. Recent velocity (last 3 days of completions)
+3. Estimated completion (remaining / velocity)
+4. On-pace status (actual vs target rate)
+
 ---
 
 ## How to Use This Document
