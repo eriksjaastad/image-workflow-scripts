@@ -7,6 +7,7 @@ This document collects dashboard visualization ideas without immediately buildin
 **The Problem:** Traditional metrics like "10,000 images processed" are misleading when doing best-of-N selection.
 
 **Better Metrics:**
+
 ```
 📊 Project: mojo3
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -34,6 +35,7 @@ Training Data:
 ```
 
 **Why This Matters:**
+
 - Project A: 9,000 images (3,000 groups of 3) → 3,000 selected → 33% selection rate
 - Project B: 9,000 images (9,000 singles) → 9,000 selected → 100% selection rate
 - Same input count, wildly different workload and output!
@@ -56,6 +58,7 @@ Avg time per group:        26 seconds
 ```
 
 **Potential Insights:**
+
 - Are we getting faster over time?
 - Do certain projects have unusually high/low selection rates?
 - Which projects took way longer than expected?
@@ -66,12 +69,14 @@ Avg time per group:        26 seconds
 **Current Problem:** File timestamps don't reflect actual work time when batch processing hundreds of images at once.
 
 **Ideas to Explore:**
+
 1. Session-based timing (start/stop markers)
 2. Batch-level timing (time between batch submits)
 3. Idle detection (exclude gaps >5 minutes)
 4. Manual session tracking (CLI prompts)
 
 **Ideal Dashboard View:**
+
 ```
 Work Session Summary:
   Started:          09:00 AM
@@ -118,6 +123,7 @@ Total hours:        66h      45h      24h
 ```
 
 **Questions This Could Answer:**
+
 - Is mojo3's low selection rate normal or a problem?
 - Why is mojo3 faster per-group than mojo1?
 - Which project workflow was most efficient?
@@ -140,6 +146,7 @@ Total             42h       100%
 ```
 
 **Optimization Ideas:**
+
 - Can we reduce selection time with better preloading?
 - Is crop queue underutilized?
 - Could AI suggestions speed up manual cropping?
@@ -164,24 +171,30 @@ Quick visual of what's missing:
 **The Problem:** Current dashboard uses file operation timestamps which get messed up by batch processing. Need real-time "where am I?" visibility.
 
 **Solution:** Count files in the static directories that exist during workflow:
-- `__crop_auto/` - Images queued for AI-assisted cropping
+
+- `__selected/` - Images selected by AI reviewer (no cropping needed)
 - `__crop/` - Images queued for manual cropping
+- `__crop_auto/` - Images queued for AI-assisted cropping
 - `__cropped/` - Images that have been cropped (DONE)
 
 **Dashboard View:**
+
 ```
 Progress Dashboard - Mojo3
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Phase 1: Selection
-  Groups to process:     0 (✓ Complete)
+Phase 1: Selection (AI Reviewer)
+  Content dir:           3 images (almost complete!)
 
-Phase 2: Cropping
-  __crop_auto/:        400 groups (needs AI-assisted crop)
-  __crop/:              50 groups (needs manual crop)
-  __cropped/:        1,850 groups (✓ Done)
-  ─────────────────────────────────────
-  Total remaining:     450 groups
-  Progress:            80% complete (1,850/2,300)
+Completed:
+  __selected assets:     3,463 images (✓ Done - no crop needed)
+  __cropped/:          6,139 images (✓ Done - cropped)
+
+Phase 2: Cropping (Remaining)
+  __crop/:              5,908 images (needs manual crop)
+  __crop_auto/:         2,020 images (needs AI crop)
+  ────────────────────────────────────────
+  Total remaining:      7,928 images to crop
+  Progress:            43% cropped (6,139 done / 14,067 total)
 
 Pace Check:
   Target:              300 groups/day
@@ -196,6 +209,7 @@ Billing Reality:
 ```
 
 **Why This Works:**
+
 - Files in directories = actual current state (no timestamp guessing)
 - Easy to count: `ls __cropped/*.png | wc -l`
 - Shows exactly what's left to do
@@ -204,6 +218,7 @@ Billing Reality:
 
 **Implementation:**
 Simple script that scans directories and calculates:
+
 1. Current progress (done / total)
 2. Recent velocity (last 3 days of completions)
 3. Estimated completion (remaining / velocity)

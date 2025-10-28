@@ -198,6 +198,18 @@
 
 - [ ] Set up daily validation report (cron job or manual)
 - [ ] Add email/Slack alerts when validation fails
+- [ ] **Create git helper bash scripts** [PRIORITY: MEDIUM]
+  - **Goal:** Make git operations quick and foolproof to avoid wasting time on simple tasks
+  - **Scripts to Create:**
+    - `git-status-quick.sh` - Show current branch, what's changed, if behind/ahead
+    - `git-sync.sh` - Pull latest from origin, show what changed
+    - `git-cleanup-branches.sh` - List merged branches, offer to delete them
+    - `git-quick-checkout.sh` - Fast branch switching with auto-pull
+  - **Requirements:**
+    - Simple, clear output (no git jargon)
+    - Safe by default (ask before destructive operations)
+    - Work with existing quickpr function
+  - **Location:** `scripts/tools/git/`
 
 ### Backups & Delivery Automation
 
