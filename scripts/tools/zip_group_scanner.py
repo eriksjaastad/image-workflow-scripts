@@ -139,7 +139,7 @@ def scan_zip(zip_path: Path) -> Tuple[int, Dict[int, int], int, int, str]:
             for it in grp:
                 in_group.add(it.name)
 
-        singles_count = total_images - len(in_group)
+        singles_count = filtered_images - len(in_group)
         if singles_count > 0:
             groups_count_by_size[1] += singles_count
 
