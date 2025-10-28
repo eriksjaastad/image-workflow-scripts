@@ -21,6 +21,24 @@
 - [ ] **Review and prune this TODO list** [PRIORITY: HIGH]
   - **Action:** Archive stale items to `Documents/archives/`, consolidate duplicates, re-order by priority
 
+### Dashboard: Actual vs Billed Accuracy (High)
+
+- [ ] **Make “Actual vs Billed” hours reliable with batch-aware timing** [PRIORITY: HIGH]
+
+  - **Problem:** AI-Assisted Reviewer processes large batches (e.g., 700) with sparse log timestamps, so hour counting via activity gaps undercounts. Multi-crop (3-up) logs more steadily and counts better.
+  - **Current Implementation:** 15-minute bins counted when either (a) ≥7.5 min active with ≤5 min gaps, or (b) ≥30 files processed in-bin.
+  - **Debug Tool:** `python scripts/dashboard/tools/debug_project_hours.py mojo3`
+    - Recent sample (minutes, files) illustrates current behavior:
+      - 2025-10-23: 195.0 min (6323 files)
+      - 2025-10-22: 150.0 min (2525 files)
+      - 2025-10-25: 105.0 min (26379 files)
+      - 2025-10-24: 90.0 min (10963 files)
+      - 2025-10-27: 45.0 min (539 files)
+  - **Actions:**
+    1. Tune thresholds (gap and in-bin file-count) for batch sessions; validate with debug script.
+    2. Option: add lightweight activity timer to `01_ai_assisted_reviewer.py` (future) to log active minutes explicitly (no content changes), then unify dashboard aggregation.
+    3. Document rules in dashboard README and expose thresholds via config.
+
 ### Documentation Cleanup
 
 - [ ] **Remove "Last Updated" dates from all documents** [PRIORITY: LOW]
