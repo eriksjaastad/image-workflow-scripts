@@ -35,7 +35,9 @@ import numpy as np
 from matplotlib.widgets import RectangleSelector
 from PIL import Image
 
-from utils.companion_file_utils import safe_delete_image_and_yaml
+from utils.companion_file_utils import (
+    move_file_with_all_companions,
+)
 
 # Add the project root to the path for importing
 sys.path.append(str(Path(__file__).parent.parent.parent))
@@ -58,6 +60,8 @@ class BaseDesktopImageTool:
         self.aspect_ratio = aspect_ratio
         self.aspect_ratio_locked = True  # Always locked as per user preference
         self.tool_name = tool_name
+        # Allow subclasses to suppress verbose perf logs without changing behavior
+        self.suppress_perf_logs = getattr(self, "suppress_perf_logs", False)
 
         # Flexible panel bounds for tools that need 1–3 or up to 4 images
         # Subclasses may override these before calling setup_display if desired
@@ -250,11 +254,12 @@ class BaseDesktopImageTool:
         t5 = time.perf_counter()
 
         # Performance logging
-        print(
-            f"[PERF _set_selector_extents_safely] Total: {(t5 - t0) * 1000:.1f}ms | "
-            f"Disable: {(t2 - t1) * 1000:.1f}ms | Set extents: {(t3 - t2) * 1000:.1f}ms | "
-            f"Enable: {(t4 - t3) * 1000:.1f}ms | Draw: {(t5 - t4) * 1000:.1f}ms"
-        )
+        if not getattr(self, "suppress_perf_logs", False):
+            print(
+                f"[PERF _set_selector_extents_safely] Total: {(t5 - t0) * 1000:.1f}ms | "
+                f"Disable: {(t2 - t1) * 1000:.1f}ms | Set extents: {(t3 - t2) * 1000:.1f}ms | "
+                f"Enable: {(t4 - t3) * 1000:.1f}ms | Draw: {(t5 - t4) * 1000:.1f}ms"
+            )
 
     def on_crop_select(self, eclick, erelease, image_idx: int):
         """Handle crop rectangle selection for a specific image."""
@@ -442,11 +447,28 @@ class BaseDesktopImageTool:
             print(f"Cropped and saved in place: {png_path.name}")
 
     def safe_delete(self, png_path: Path, yaml_path: Path):
-        """Safely delete image and ALL companion files."""
-        _ = safe_delete_image_and_yaml(
-            png_path, hard_delete=False, tracker=self.tracker
+        """Move image and ALL companion files to __delete_staging/ for review."""
+        # Get delete staging directory
+        delete_staging = png_path.parent.parent / "__delete_staging"
+        delete_staging.mkdir(exist_ok=True)
+
+        # Move file with all companions to staging
+        moved_files = move_file_with_all_companions(
+            png_path, delete_staging, dry_run=False
         )
-        print(f"Deleted: {png_path.name}")
+
+        # Log the operation
+        if hasattr(self, "tracker") and self.tracker:
+            self.tracker.log_operation(
+                "move",
+                str(png_path.parent),
+                str(delete_staging),
+                len(moved_files),
+                "Moved to delete staging for review",
+                [f.name for f in moved_files],
+            )
+
+        print(f"Moved to delete staging: {png_path.name}")
 
     def move_to_cropped(self, png_path: Path, yaml_path: Path, reason: str):
         """Mark files as processed (skipped) but leave them in original directory."""

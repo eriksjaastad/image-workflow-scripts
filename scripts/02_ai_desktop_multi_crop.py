@@ -157,6 +157,8 @@ class AIMultiCropTool(MultiCropTool):
         self.queue_mode = queue_mode
         self.preload_ai = preload_ai
         self.queue_manager = None
+        # Hide verbose perf logs from base selector updates for this tool
+        self.suppress_perf_logs = True
         super().__init__(*args, **kwargs)
 
         if self.queue_mode:
@@ -271,9 +273,8 @@ class AIMultiCropTool(MultiCropTool):
                     # Initialize/get DB path
                     db_path = init_decision_db(project_id)
 
-                    # Normalize crop coordinates
-                    width = image_info["image"].width
-                    height = image_info["image"].height
+                    # Normalize crop coordinates (original_size is (width, height) tuple)
+                    width, height = image_info["original_size"]
                     normalized_coords = [
                         x1 / width,
                         y1 / height,
@@ -469,6 +470,59 @@ class AIMultiCropTool(MultiCropTool):
 
         # Call parent submit_batch (which handles progress tracking and loading next batch)
         super().submit_batch()
+
+    # ---- UI: Title/Progress (Batch X/Y) ----
+    def update_title(self):
+        """Show batch-based progress instead of per-image counts."""
+        try:
+            # Expect base class/progress tracker to expose these attributes
+            # Fallbacks ensure no crash if running older base module
+            current_index = getattr(self.progress_tracker, "current_file_index", 0)
+            total_images = len(getattr(self, "png_files", [])) or len(
+                getattr(self, "current_images", [])
+            )
+            images_per_batch = max(1, getattr(self, "images_per_batch", 3))
+
+            # Compute batches, clamp to at least 1
+            total_batches = max(
+                1, (total_images + images_per_batch - 1) // images_per_batch
+            )
+            current_batch = (
+                min(total_batches, (current_index // images_per_batch) + 1)
+                if total_images
+                else 1
+            )
+
+            # Directory context (multi-directory vs single)
+            if getattr(self, "single_directory_mode", True):
+                dirs_info = ""
+            else:
+                progress = (
+                    getattr(self.progress_tracker, "get_progress_info", lambda: {})()
+                    or {}
+                )
+                remaining = progress.get("directories_remaining")
+                current_dir = progress.get("current_directory")
+                if remaining is None:
+                    dirs_info = ""
+                else:
+                    suffix = " directories left" if remaining > 0 else "Last directory!"
+                    dirs_info = f" • 📁 {current_dir} • {remaining}{suffix}"
+
+            aspect_info = (
+                " • [🔒 LOCKED] Aspect Ratio"
+                if getattr(self, "aspect_ratio", None)
+                else ""
+            )
+            title = f"Batch {current_batch}/{total_batches}{dirs_info} • [Enter] Submit • [Q] Quit{aspect_info}"
+            self.fig.suptitle(title, fontsize=12, y=0.98)
+            self.fig.canvas.draw_idle()
+        except Exception:
+            # Safe fallback to base behavior if anything changes upstream
+            try:
+                super().update_title()
+            except Exception:
+                pass
 
 
 def main() -> None:

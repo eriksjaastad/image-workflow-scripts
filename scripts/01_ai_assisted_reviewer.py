@@ -19,7 +19,7 @@ VIRTUAL ENVIRONMENT:
 --------------------
 Activate virtual environment first:
   source .venv311/bin/activate
-  
+
 USAGE:
 ------
   python scripts/01_ai_assisted_reviewer.py <raw_images_directory>/
@@ -59,7 +59,7 @@ SIDECAR DECISION FILES:
 -----------------------
 For each image group, creates a .decision sidecar file:
   20250719_143022.decision  (JSON)
-  
+
 Content:
   {
     "group_id": "20250719_143022",
@@ -81,12 +81,15 @@ Content:
 
 KEYS:
 -----
-A - Approve AI recommendation
-C - Send selected to crop directory (manual crop)
-R - Reject (delete all images in group)
-1/2/3/4 - Override: select different image
-Enter/↓ - Next group
+1/2/3/4 - Accept image AS-IS:
+            • If AI crop showing → keeps crop → __crop_auto/
+            • If no AI crop → no crop → __selected/
+A/S/D/F - Remove AI crop and select → __selected/ (always no crop)
+Q/W/E/R - Select with manual crop → __crop/
+Enter/Space - Next group
 ↑ - Previous group
+
+All image selection keys auto-advance to next group for fast workflow!
 
 DIRECTORY STRUCTURE:
 --------------------
@@ -142,6 +145,7 @@ except Exception:
 try:
     import torch
     import torch.nn as nn
+
     TORCH_AVAILABLE = True
 except Exception:
     print("[!] PyTorch not available - will use rule-based recommendations only")
@@ -149,6 +153,7 @@ except Exception:
 
 try:
     import open_clip
+
     CLIP_AVAILABLE = True
 except Exception:
     print("[!] CLIP not available - will use rule-based recommendations only")
@@ -159,7 +164,7 @@ except Exception:
 # CONFIGURATION (Easy to find and modify!)
 # ==============================================================================
 DEFAULT_BATCH_SIZE = 100  # Number of groups to process per batch (match web selector)
-THUMBNAIL_MAX_DIM = 768   # Thumbnail size for web display
+THUMBNAIL_MAX_DIM = 768  # Thumbnail size for web display
 STAGE_NAMES = ("stage1_generated", "stage1.5_face_swapped", "stage2_upscaled")
 # ==============================================================================
 
@@ -167,6 +172,7 @@ STAGE_NAMES = ("stage1_generated", "stage1.5_face_swapped", "stage2_upscaled")
 @dataclass
 class ImageGroup:
     """Represents a group of images with same timestamp."""
+
     group_id: str  # timestamp identifier
     images: List[Path]  # sorted by stage
     directory: Path  # parent directory
@@ -176,8 +182,10 @@ class ImageGroup:
 # AI Model Architecture
 # ============================
 
+
 class RankerModel(nn.Module):
     """MLP ranking model - picks best image from group (matches train_ranker_v3.py)."""
+
     def __init__(self, input_dim=512):
         super().__init__()
         self.net = nn.Sequential(
@@ -186,15 +194,16 @@ class RankerModel(nn.Module):
             nn.Dropout(0.3),
             nn.Linear(256, 64),
             nn.ReLU(),
-            nn.Linear(64, 1)
+            nn.Linear(64, 1),
         )
-    
+
     def forward(self, x):
         return self.net(x).squeeze(-1)
 
 
 class CropProposerModel(nn.Module):
     """MLP crop proposer - predicts crop coordinates."""
+
     def __init__(self, input_dim=514):
         super().__init__()
         self.net = nn.Sequential(
@@ -207,31 +216,35 @@ class CropProposerModel(nn.Module):
             nn.Linear(256, 128),
             nn.ReLU(),
             nn.Linear(128, 4),
-            nn.Sigmoid()  # Output normalized [0, 1]
+            nn.Sigmoid(),  # Output normalized [0, 1]
         )
-    
+
     def forward(self, x):
         return self.net(x)
 
 
-def load_ai_models(models_dir: Path) -> Tuple[Optional[nn.Module], Optional[nn.Module], Optional[any]]:
+def load_ai_models(
+    models_dir: Path,
+) -> Tuple[Optional[nn.Module], Optional[nn.Module], Optional[any]]:
     """
     Load Ranker v3 and Crop Proposer v2 models.
-    
+
     Returns: (ranker_model, crop_model, clip_model) or (None, None, None) if unavailable
     """
     if not TORCH_AVAILABLE or not CLIP_AVAILABLE:
         print("[!] AI models not available (PyTorch or CLIP missing)")
         return None, None, None
-    
+
     try:
         # Load CLIP for embeddings
         device = "mps" if torch.backends.mps.is_available() else "cpu"
         print(f"[*] Loading CLIP model on {device}...")
-        clip_model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai')
+        clip_model, _, preprocess = open_clip.create_model_and_transforms(
+            "ViT-B-32", pretrained="openai"
+        )
         clip_model = clip_model.to(device)
         clip_model.eval()
-        
+
         # Load Ranker v3
         ranker_path = models_dir / "ranker_v3_w10.pt"
         if ranker_path.exists():
@@ -243,7 +256,7 @@ def load_ai_models(models_dir: Path) -> Tuple[Optional[nn.Module], Optional[nn.M
         else:
             print(f"[!] Ranker v3 not found at {ranker_path}")
             ranker = None
-        
+
         # Load Crop Proposer v2
         crop_path = models_dir / "crop_proposer_v2.pt"
         if crop_path.exists():
@@ -255,39 +268,44 @@ def load_ai_models(models_dir: Path) -> Tuple[Optional[nn.Module], Optional[nn.M
         else:
             print(f"[!] Crop Proposer v2 not found at {crop_path}")
             crop_proposer = None
-        
+
         return ranker, crop_proposer, (clip_model, preprocess, device)
-        
+
     except Exception as e:
         print(f"[!] Error loading AI models: {e}")
         import traceback
+
         traceback.print_exc()
         return None, None, None
 
 
-def get_image_embedding(image_path: Path, clip_model, preprocess, device) -> Optional[torch.Tensor]:
+def get_image_embedding(
+    image_path: Path, clip_model, preprocess, device
+) -> Optional[torch.Tensor]:
     """Get CLIP embedding for an image."""
     try:
         image = Image.open(image_path).convert("RGB")
         image_input = preprocess(image).unsqueeze(0).to(device)
-        
+
         with torch.no_grad():
             embedding = clip_model.encode_image(image_input)
             embedding = embedding.float()
             # Normalize
             embedding = embedding / embedding.norm(dim=-1, keepdim=True)
-        
+
         return embedding.squeeze(0)  # Remove batch dimension
-    
+
     except Exception as e:
         print(f"[!] Error getting embedding for {image_path.name}: {e}")
         return None
 
 
-def get_ai_recommendation(group: ImageGroup, ranker_model, crop_model, clip_info) -> Dict:
+def get_ai_recommendation(
+    group: ImageGroup, ranker_model, crop_model, clip_info
+) -> Dict:
     """
     Get AI recommendation using Ranker v3 and Crop Proposer v2.
-    
+
     Returns dict with:
         - selected_image: filename
         - selected_index: int
@@ -299,9 +317,9 @@ def get_ai_recommendation(group: ImageGroup, ranker_model, crop_model, clip_info
     if ranker_model is None or clip_info is None:
         # Fall back to rule-based
         return get_rule_based_recommendation(group)
-    
+
     clip_model, preprocess, device = clip_info
-    
+
     try:
         # Get embeddings for all images in group
         embeddings = []
@@ -311,89 +329,106 @@ def get_ai_recommendation(group: ImageGroup, ranker_model, crop_model, clip_info
                 # Fall back to rule-based if any embedding fails
                 return get_rule_based_recommendation(group)
             embeddings.append(emb)
-        
+
         # Stack embeddings and run through ranker
         embeddings_tensor = torch.stack(embeddings).to(device)
-        
+
         with torch.no_grad():
             scores = ranker_model(embeddings_tensor).squeeze(-1)  # Shape: (num_images,)
-        
+
         # Pick highest scoring image
         best_idx = scores.argmax().item()
         best_image = group.images[best_idx]
         best_score = scores[best_idx].item()
         confidence = torch.sigmoid(scores[best_idx]).item()  # Convert to probability
-        
+
         # Build detailed reason with all scores
         stage = detect_stage(best_image.name) or "unknown"
         score_details = []
         for idx, (img, score) in enumerate(zip(group.images, scores)):
-            img_stage = detect_stage(img.name) or f"img{idx+1}"
+            img_stage = detect_stage(img.name) or f"img{idx + 1}"
             marker = " ✓" if idx == best_idx else ""
             score_details.append(f"{img_stage}: {score.item():.2f}{marker}")
-        
-        reason = f"AI picked {stage} (score: {best_score:.2f}) | " + " • ".join(score_details)
-        
+
+        reason = f"AI picked {stage} (score: {best_score:.2f}) | " + " • ".join(
+            score_details
+        )
+
         # Get crop proposal if model available
         crop_coords = None
         crop_needed = False
-        
+
         if crop_model is not None:
             try:
                 # Get dimensions of best image
                 with Image.open(best_image) as img:
                     width, height = img.size
-                
+
                 # Prepare input: embedding + NORMALIZED dimensions (as in training)
                 best_embedding = embeddings[best_idx]
-                dims = torch.tensor([width / 2048.0, height / 2048.0], dtype=torch.float32).to(device)
-                crop_input = torch.cat([best_embedding, dims]).unsqueeze(0)  # Add batch dim
-                
+                dims = torch.tensor(
+                    [width / 2048.0, height / 2048.0], dtype=torch.float32
+                ).to(device)
+                crop_input = torch.cat([best_embedding, dims]).unsqueeze(
+                    0
+                )  # Add batch dim
+
                 # DEBUG: Log input to crop model
                 print(f"[Crop Proposer] Image: {best_image.name}")
-                print(f"[Crop Proposer] Dimensions: {width}x{height} (normalized: {width/2048.0:.4f}, {height/2048.0:.4f})")
-                
+                print(
+                    f"[Crop Proposer] Dimensions: {width}x{height} (normalized: {width / 2048.0:.4f}, {height / 2048.0:.4f})"
+                )
+
                 with torch.no_grad():
                     crop_output = crop_model(crop_input).squeeze(0)  # Remove batch dim
-                
+
                 # Extract normalized coordinates
                 x1, y1, x2, y2 = crop_output.cpu().numpy()
-                
+
                 # DEBUG: Log crop output
-                print(f"[Crop Proposer] Output (normalized): x1={x1:.4f}, y1={y1:.4f}, x2={x2:.4f}, y2={y2:.4f}")
-                print(f"[Crop Proposer] Output (pixels): x1={int(x1*width)}, y1={int(y1*height)}, x2={int(x2*width)}, y2={int(y2*height)}")
+                print(
+                    f"[Crop Proposer] Output (normalized): x1={x1:.4f}, y1={y1:.4f}, x2={x2:.4f}, y2={y2:.4f}"
+                )
+                print(
+                    f"[Crop Proposer] Output (pixels): x1={int(x1 * width)}, y1={int(y1 * height)}, x2={int(x2 * width)}, y2={int(y2 * height)}"
+                )
                 crop_width_pct = (x2 - x1) * 100
                 crop_height_pct = (y2 - y1) * 100
-                print(f"[Crop Proposer] Crop size: {crop_width_pct:.1f}% width, {crop_height_pct:.1f}% height")
-                
+                print(
+                    f"[Crop Proposer] Crop size: {crop_width_pct:.1f}% width, {crop_height_pct:.1f}% height"
+                )
+
                 # Check if crop is meaningful (not ~full image)
                 crop_area = (x2 - x1) * (y2 - y1)
-                print(f"[Crop Proposer] Crop area: {crop_area*100:.1f}% of original")
-                
+                print(f"[Crop Proposer] Crop area: {crop_area * 100:.1f}% of original")
+
                 if crop_area < 0.95:  # If cropping more than 5%
                     crop_needed = True
                     crop_coords = (float(x1), float(y1), float(x2), float(y2))
                     print("[Crop Proposer] ✓ CROP RECOMMENDED")
                 else:
-                    print(f"[Crop Proposer] ✗ No crop needed (area too large: {crop_area*100:.1f}%)")
-                
+                    print(
+                        f"[Crop Proposer] ✗ No crop needed (area too large: {crop_area * 100:.1f}%)"
+                    )
+
             except Exception as e:
                 print(f"[!] Error getting crop proposal: {e}")
                 crop_needed = False
                 crop_coords = None
-        
+
         return {
             "selected_image": best_image.name,
             "selected_index": best_idx,
             "reason": reason,
             "confidence": confidence,
             "crop_needed": crop_needed,
-            "crop_coords": crop_coords
+            "crop_coords": crop_coords,
         }
-        
+
     except Exception as e:
         print(f"[!] Error in AI recommendation: {e}")
         import traceback
+
         traceback.print_exc()
         # Fall back to rule-based
         return get_rule_based_recommendation(group)
@@ -413,16 +448,16 @@ def group_images_by_timestamp(images: List[Path]) -> List[ImageGroup]:
     """
     # Sort first (required by grouping logic)
     sorted_images = sort_image_files_by_timestamp_and_stage(images)
-    
+
     # Group by timestamp and stage progression
     grouped = find_consecutive_stage_groups(sorted_images, min_group_size=2)
-    
+
     # Convert to ImageGroup objects
     result = []
     for group_paths in grouped:
         if not group_paths:
             continue
-        
+
         # Use first image timestamp as group ID
         first_img = group_paths[0]
         dt = extract_datetime_from_filename(first_img.name)
@@ -430,60 +465,64 @@ def group_images_by_timestamp(images: List[Path]) -> List[ImageGroup]:
             group_id = dt.strftime("%Y%m%d_%H%M%S")
         else:
             # Fallback: use stem of first file
-            group_id = first_img.stem.split('_stage')[0]
-        
-        result.append(ImageGroup(
-            group_id=group_id,
-            images=group_paths,
-            directory=first_img.parent
-        ))
-    
+            group_id = first_img.stem.split("_stage")[0]
+
+        result.append(
+            ImageGroup(
+                group_id=group_id, images=group_paths, directory=first_img.parent
+            )
+        )
+
     return result
 
 
 def get_rule_based_recommendation(group: ImageGroup) -> Dict:
     """
     Rule-based recommendation (Phase 3 temporary, before AI training).
-    
+
     Rule: Pick highest stage image (stage3 > stage2 > stage1.5 > stage1)
     """
     best_image = group.images[-1]  # Last image = highest stage (already sorted)
     best_index = len(group.images) - 1
-    
+
     stage = detect_stage(best_image.name) or "unknown"
-    
+
     return {
         "selected_image": best_image.name,
         "selected_index": best_index,
         "reason": f"Highest stage: {stage} (rule-based)",
         "confidence": 1.0,
         "crop_needed": False,
-        "crop_coords": None
+        "crop_coords": None,
     }
 
 
-def load_or_create_decision_file(group: ImageGroup, ranker_model=None, crop_model=None, clip_info=None) -> Dict:
+def load_or_create_decision_file(
+    group: ImageGroup, ranker_model=None, crop_model=None, clip_info=None
+) -> Dict:
     """
     Load existing decision or create new one.
     Decision files are stored alongside images with .decision extension.
     """
     decision_path = group.directory / f"{group.group_id}.decision"
-    
+
     if decision_path.exists():
-        with open(decision_path, 'r') as f:
+        with open(decision_path, "r") as f:
             return json.load(f)
-    
+
     # Create new decision with AI recommendation (or rule-based fallback)
     if ranker_model is not None and clip_info is not None:
-        recommendation = get_ai_recommendation(group, ranker_model, crop_model, clip_info)
+        recommendation = get_ai_recommendation(
+            group, ranker_model, crop_model, clip_info
+        )
     else:
         recommendation = get_rule_based_recommendation(group)
-    
+
     return {
         "group_id": group.group_id,
         "images": [img.name for img in group.images],
         "ai_recommendation": recommendation,
-        "user_decision": None  # Not reviewed yet
+        "user_decision": None,  # Not reviewed yet
     }
 
 
@@ -493,8 +532,8 @@ def save_decision_file(group: ImageGroup, decision_data: Dict) -> None:
     This is the SINGLE SOURCE OF TRUTH for user decisions.
     """
     decision_path = group.directory / f"{group.group_id}.decision"
-    
-    with open(decision_path, 'w') as f:
+
+    with open(decision_path, "w") as f:
         json.dump(decision_data, f, indent=2)
 
 
@@ -504,17 +543,17 @@ def find_project_root(directory: Path) -> Path:
     Falls back to current directory if not found.
     """
     current = directory.resolve()
-    
+
     # Look for project markers (support legacy and new double-underscore dirs)
     markers = ["scripts", "data", "selected", "crop", "__selected", "__crop"]
-    
+
     for _ in range(5):  # Search up to 5 levels
         if any((current / marker).exists() for marker in markers):
             return current
         if current.parent == current:  # Reached filesystem root
             break
         current = current.parent
-    
+
     # Fallback: use directory itself
     return directory.resolve()
 
@@ -522,69 +561,75 @@ def find_project_root(directory: Path) -> Path:
 def get_current_project_id() -> str:
     """
     Get project ID from the CURRENT active project manifest.
-    
+
     Reads from data/projects/*.project.json files and returns the projectId
     from the project where finishedAt is null (the active project).
-    
+
     This is the CORRECT way to get project ID - reading from the project
     manifest system, not guessing from directory names!
-    
+
     Returns:
         Project ID string (e.g., 'mojo3') or 'unknown' if no active project found
     """
     import json
-    
+
     # Find the project manifest directory
     script_dir = Path(__file__).parent
     project_dir = script_dir.parent / "data" / "projects"
-    
+
     if not project_dir.exists():
         print(f"Warning: Project directory not found: {project_dir}")
         return "unknown"
-    
+
     # Look for active project (finishedAt is null)
     for project_file in project_dir.glob("*.project.json"):
         try:
-            with open(project_file, 'r') as f:
+            with open(project_file, "r") as f:
                 data = json.load(f)
-                
+
                 # Active project has no finish date
                 if data.get("finishedAt") is None:
                     project_id = data.get("projectId", "unknown")
-                    print(f"[*] Found active project: {project_id} (from {project_file.name})")
+                    print(
+                        f"[*] Found active project: {project_id} (from {project_file.name})"
+                    )
                     return project_id
         except Exception as e:
             print(f"Warning: Failed to read {project_file.name}: {e}")
             continue
-    
+
     print("Warning: No active project found (no project with finishedAt=null)")
     return "unknown"
 
 
-def delete_group_images(group: ImageGroup, delete_staging_dir: Path, tracker: FileTracker, reason: str = "") -> int:
+def delete_group_images(
+    group: ImageGroup, delete_staging_dir: Path, tracker: FileTracker, reason: str = ""
+) -> int:
     """
     Delete all images in a group by moving them to delete_staging.
-    
+
     Args:
         group: ImageGroup to delete
         delete_staging_dir: Destination directory for deleted files
         tracker: FileTracker for logging
         reason: Reason for deletion (for logging)
-    
+
     Returns:
         Number of images deleted
     """
     deleted_count = 0
     for img in group.images:
         try:
-            moved_files = move_file_with_all_companions(img, delete_staging_dir, dry_run=False)
+            moved_files = move_file_with_all_companions(
+                img, delete_staging_dir, dry_run=False
+            )
             tracker.log_operation(
                 "delete",
                 source_dir=str(img.parent),
                 dest_dir=delete_staging_dir.name,
                 file_count=len(moved_files),
                 files=moved_files,
-                notes=f"{reason} - group {group.group_id}"
+                notes=f"{reason} - group {group.group_id}",
             )
             deleted_count += 1
         except Exception as e:
@@ -592,16 +637,23 @@ def delete_group_images(group: ImageGroup, delete_staging_dir: Path, tracker: Fi
     return deleted_count
 
 
-def perform_file_operations(group: ImageGroup, action: str, selected_index: Optional[int],
-                            crop_coords: Optional[Tuple[float, float, float, float]],
-                            tracker: FileTracker, selected_dir: Path, crop_dir: Path, 
-                            delete_staging_dir: Path, project_id: str = "unknown") -> Dict[str, any]:
+def perform_file_operations(
+    group: ImageGroup,
+    action: str,
+    selected_index: Optional[int],
+    crop_coords: Optional[Tuple[float, float, float, float]],
+    tracker: FileTracker,
+    selected_dir: Path,
+    crop_dir: Path,
+    delete_staging_dir: Path,
+    project_id: str = "unknown",
+) -> Dict[str, any]:
     """
     Execute file operations based on user decision.
-    
+
     Args:
         project_id: Project identifier (e.g., 'mojo1', 'mojo3') for training data
-    
+
     Returns: Structured result dict with counts and summary message
         {
           "moved_selected": int,  # 1 if selected image moved to selected/
@@ -615,26 +667,28 @@ def perform_file_operations(group: ImageGroup, action: str, selected_index: Opti
         moved_count = 0
         for img_path in group.images:
             try:
-                move_file_with_all_companions(img_path, delete_staging_dir, dry_run=False)
+                move_file_with_all_companions(
+                    img_path, delete_staging_dir, dry_run=False
+                )
                 moved_count += 1
             except Exception as e:
                 print(f"Error moving {img_path.name} to delete staging: {e}")
-        
+
         tracker.log_operation(
             "stage_delete",
             str(group.directory),
             str(delete_staging_dir.name),
             moved_count,
             f"Rejected group {group.group_id}",
-            [img.name for img in group.images[:5]]
+            [img.name for img in group.images[:5]],
         )
         return {
             "moved_selected": 0,
             "moved_crop": 0,
             "deleted_images": moved_count,
-            "message": f"Rejected: {moved_count} images moved to delete staging"
+            "message": f"Rejected: {moved_count} images moved to delete staging",
         }
-    
+
     if action == "reject_single":
         # Delete just one image - move to delete_staging
         if selected_index is None:
@@ -642,45 +696,47 @@ def perform_file_operations(group: ImageGroup, action: str, selected_index: Opti
                 "moved_selected": 0,
                 "moved_crop": 0,
                 "deleted_images": 0,
-                "message": "Error: No image selected for rejection"
+                "message": "Error: No image selected for rejection",
             }
-        
+
         selected_image = group.images[selected_index]
         try:
-            move_file_with_all_companions(selected_image, delete_staging_dir, dry_run=False)
+            move_file_with_all_companions(
+                selected_image, delete_staging_dir, dry_run=False
+            )
             tracker.log_operation(
                 "stage_delete",
                 str(group.directory),
                 str(delete_staging_dir.name),
                 1,
                 f"Rejected single image from group {group.group_id}",
-                [selected_image.name]
+                [selected_image.name],
             )
             return {
                 "moved_selected": 0,
                 "moved_crop": 0,
                 "deleted_images": 1,
-                "message": f"Rejected: {selected_image.name} moved to delete staging"
+                "message": f"Rejected: {selected_image.name} moved to delete staging",
             }
         except Exception as e:
             return {
                 "moved_selected": 0,
                 "moved_crop": 0,
                 "deleted_images": 0,
-                "message": f"Error: {e}"
+                "message": f"Error: {e}",
             }
-    
+
     if selected_index is None:
         return {
             "moved_selected": 0,
             "moved_crop": 0,
             "deleted_images": 0,
-            "message": "Error: No image selected"
+            "message": "Error: No image selected",
         }
-    
+
     selected_image = group.images[selected_index]
     other_images = [img for i, img in enumerate(group.images) if i != selected_index]
-    
+
     # Determine destination based on action
     if action == "manual_crop":
         # User wants to crop manually later
@@ -690,18 +746,24 @@ def perform_file_operations(group: ImageGroup, action: str, selected_index: Opti
         # approve or override - goes to selected
         dest_dir = selected_dir
         dest_label = "selected directory"
-    
+
     try:
         # Move selected image
         move_file_with_all_companions(selected_image, dest_dir, dry_run=False)
-        
+
         # Move other images to delete_staging (consolidated deletion logic)
-        print(f"[DEBUG] Deleting {len(other_images)} deselected images from group {group.group_id}")
+        print(
+            f"[DEBUG] Deleting {len(other_images)} deselected images from group {group.group_id}"
+        )
         for img_path in other_images:
             try:
-                moved_files = move_file_with_all_companions(img_path, delete_staging_dir, dry_run=False)
-                print(f"[DEBUG] Deleted {img_path.name}: {len(moved_files)} files moved")
-                
+                moved_files = move_file_with_all_companions(
+                    img_path, delete_staging_dir, dry_run=False
+                )
+                print(
+                    f"[DEBUG] Deleted {img_path.name}: {len(moved_files)} files moved"
+                )
+
                 # Log each deletion
                 tracker.log_operation(
                     "delete",
@@ -709,13 +771,14 @@ def perform_file_operations(group: ImageGroup, action: str, selected_index: Opti
                     dest_dir=str(delete_staging_dir.name),
                     file_count=len(moved_files),
                     files=moved_files,  # List of filenames
-                    notes=f"Deselected image from group {group.group_id}"
+                    notes=f"Deselected image from group {group.group_id}",
                 )
             except Exception as e:
                 print(f"[ERROR] Failed to delete {img_path.name}: {e}")
                 import traceback
+
                 traceback.print_exc()
-        
+
         # Log training data
         negative_paths = other_images
         try:
@@ -724,51 +787,52 @@ def perform_file_operations(group: ImageGroup, action: str, selected_index: Opti
                 session_id=f"ai_reviewer_{datetime.utcnow().strftime('%Y%m%d')}",
                 set_id=group.group_id,
                 chosen_path=str(selected_image),
-                negative_paths=[str(p) for p in negative_paths]
+                negative_paths=[str(p) for p in negative_paths],
             )
-            
+
             # If we have crop coordinates, log them too (NEW SCHEMA!)
             if crop_coords is not None and action == "approve":
                 try:
                     from PIL import Image
+
                     img = Image.open(selected_image)
                     width, height = img.size
                     img.close()
-                    
+
                     log_crop_decision(
                         project_id=project_id,
                         filename=selected_image.name,
                         crop_coords=crop_coords,
                         width=width,
-                        height=height
+                        height=height,
                     )
                 except Exception as e:
                     print(f"Warning: Failed to log crop decision: {e}")
         except Exception as e:
             print(f"Warning: Failed to log training data: {e}")
-        
+
         tracker.log_operation(
             "move",
             str(group.directory),
             dest_dir.name,
             1,
             f"Selected image from group {group.group_id}",
-            [selected_image.name]
+            [selected_image.name],
         )
         result = {
             "moved_selected": 1 if dest_dir == selected_dir else 0,
             "moved_crop": 1 if dest_dir == crop_dir else 0,
             "deleted_images": len(other_images),
-            "message": f"Moved {selected_image.name} to {dest_label}, {len(other_images)} to delete staging"
+            "message": f"Moved {selected_image.name} to {dest_label}, {len(other_images)} to delete staging",
         }
         return result
-        
+
     except Exception as e:
         return {
             "moved_selected": 0,
             "moved_crop": 0,
             "deleted_images": 0,
-            "message": f"Error during file operations: {e}"
+            "message": f"Error during file operations: {e}",
         }
 
 
@@ -783,31 +847,42 @@ def detect_artifact(group: ImageGroup) -> Tuple[bool, List[str]]:
     parents = {str(p.parent) for p in group.images}
     if len(parents) > 1:
         reasons.append("multi_directory")
+
     # Extract base stems by splitting before '_stage'
     def base_stem(name: str) -> str:
-        parts = name.split('_stage')
+        parts = name.split("_stage")
         return parts[0] if parts else Path(name).stem
+
     stems = {base_stem(p.name) for p in group.images}
     if len(stems) > 1:
         reasons.append("mismatched_stems")
     return (len(reasons) > 0, reasons)
 
 
-def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker, 
-               selected_dir: Path, crop_dir: Path, delete_staging_dir: Path,
-               ranker_model=None, crop_model=None, clip_info=None, batch_size: int = 20) -> Flask:
+def build_app(
+    groups: List[ImageGroup],
+    base_dir: Path,
+    tracker: FileTracker,
+    selected_dir: Path,
+    crop_dir: Path,
+    delete_staging_dir: Path,
+    ranker_model=None,
+    crop_model=None,
+    clip_info=None,
+    batch_size: int = 20,
+) -> Flask:
     """Build Flask app for reviewing image groups."""
     app = Flask(__name__)
     app.config["ALL_GROUPS"] = groups  # Full list
     app.config["BATCH_SIZE"] = batch_size
     app.config["CURRENT_BATCH"] = 0
-    
+
     # Calculate batch (match web_image_selector.py structure)
     total_groups = len(groups)
     batch_start = 0
     batch_end = min(batch_start + batch_size, total_groups)
     current_batch_groups = groups[batch_start:batch_end]
-    
+
     # Batch info (match web selector structure)
     batch_info = {
         "current_batch": 1,  # 1-indexed
@@ -816,9 +891,9 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
         "batch_end": batch_end,
         "batch_size": batch_size,
         "total_groups": total_groups,
-        "current_batch_size": len(current_batch_groups)
+        "current_batch_size": len(current_batch_groups),
     }
-    
+
     app.config["GROUPS"] = current_batch_groups  # Current batch only
     app.config["BATCH_INFO"] = batch_info
     app.config["BASE_DIR"] = base_dir
@@ -837,7 +912,7 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
     log_archives_dir = project_root / "data" / "log_archives"
     log_archives_dir.mkdir(parents=True, exist_ok=True)
     app.config["LOG_ARCHIVES_DIR"] = log_archives_dir
-    
+
     # Initialize SQLite database for training data (NEW v3!)
     project_id = app.config["PROJECT_ID"]
     try:
@@ -850,7 +925,7 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
     app.config["RANKER_MODEL"] = ranker_model
     app.config["CROP_MODEL"] = crop_model
     app.config["CLIP_INFO"] = clip_info
-    
+
     # HTML template (full implementation with JavaScript)
     page_template = """
     <!DOCTYPE html>
@@ -1406,7 +1481,7 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
           });
         }
         
-        // Select image (no crop) - EXACT COPY from web_image_selector.py + AUTO-ADVANCE
+        // Select image - checks if AI crop overlay is visible and accepts it if so (1234 keys)
         function selectImage(imageIndex, groupId) {
           console.log('[selectImage]', imageIndex, groupId);
           const group = document.querySelector(`section.group[data-group-id="${groupId}"]`);
@@ -1414,6 +1489,10 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
           
           const imageCount = group.querySelectorAll('.image-card').length;
           if (imageIndex >= imageCount) return;
+          
+          // Check if AI crop overlay is visible for this image
+          const overlay = document.getElementById('crop-overlay-' + groupId + '-' + imageIndex);
+          const hasVisibleAICrop = overlay && overlay.style.display !== 'none';
           
           // BUTTON TOGGLE: If same image already selected, deselect it
           const currentState = groupStates[groupId];
@@ -1424,9 +1503,56 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             updateSummary();
             // NO auto-advance on deselect
           } else {
-            // Update state - select image (no crop)
+            // Update state - select image WITH or WITHOUT AI crop depending on visibility
+            groupStates[groupId] = { 
+              selectedImage: imageIndex, 
+              crop: false, 
+              aiCropAccepted: hasVisibleAICrop 
+            };
+            console.log('[selectImage] set', groupStates[groupId], 'aiCrop:', hasVisibleAICrop);
+            updateVisualState();
+            updateSummary();
+            
+            // AUTO-ADVANCE to next group after selection!
+            scrollToNextGroup(group);
+          }
+        }
+        
+        // Select image WITHOUT crop (ASDF keys) - explicitly removes AI crop if showing
+        function selectImageWithoutCrop(imageIndex, groupId) {
+          console.log('[selectImageWithoutCrop]', imageIndex, groupId);
+          const group = document.querySelector(`section.group[data-group-id="${groupId}"]`);
+          if (!group) return;
+          
+          const imageCount = group.querySelectorAll('.image-card').length;
+          if (imageIndex >= imageCount) return;
+          
+          // Hide AI crop overlay if it exists for this image
+          const overlay = document.getElementById('crop-overlay-' + groupId + '-' + imageIndex);
+          if (overlay) {
+            overlay.style.display = 'none';
+          }
+          
+          // Update toggle button if it exists
+          const toggleBtn = document.getElementById('toggle-crop-' + groupId + '-' + imageIndex);
+          if (toggleBtn) {
+            toggleBtn.textContent = '✅ Add Crop';
+            toggleBtn.classList.remove('img-btn-crop');
+            toggleBtn.classList.add('img-btn-approve');
+          }
+          
+          // BUTTON TOGGLE: If same image already selected without crop, deselect it
+          const currentState = groupStates[groupId];
+          if (currentState && currentState.selectedImage === imageIndex && !currentState.crop && !currentState.aiCropAccepted) {
+            delete groupStates[groupId]; // Deselect (back to delete)
+            console.log('[selectImageWithoutCrop] deselect', groupId, imageIndex);
+            updateVisualState();
+            updateSummary();
+            // NO auto-advance on deselect
+          } else {
+            // Update state - select image WITHOUT crop (explicitly no AI crop)
             groupStates[groupId] = { selectedImage: imageIndex, crop: false, aiCropAccepted: false };
-            console.log('[selectImage] set', groupStates[groupId]);
+            console.log('[selectImageWithoutCrop] set (no crop)', groupStates[groupId]);
             updateVisualState();
             updateSummary();
             
@@ -1555,6 +1681,22 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             case '4':
               e.preventDefault();
               selectImage(3, currentGroupId);
+              break;
+            case 'a':
+              e.preventDefault();
+              selectImageWithoutCrop(0, currentGroupId);
+              break;
+            case 's':
+              e.preventDefault();
+              selectImageWithoutCrop(1, currentGroupId);
+              break;
+            case 'd':
+              e.preventDefault();
+              selectImageWithoutCrop(2, currentGroupId);
+              break;
+            case 'f':
+              e.preventDefault();
+              selectImageWithoutCrop(3, currentGroupId);
               break;
             case 'q':
               e.preventDefault();
@@ -1693,13 +1835,13 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
     </body>
     </html>
     """
-    
+
     @app.route("/")
     def index():
         """Show all groups in current batch (batch processing mode)."""
         groups = app.config["GROUPS"]
         batch_info = app.config.get("BATCH_INFO", {})
-        
+
         if len(groups) == 0:
             return """
             <html>
@@ -1713,12 +1855,12 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             </body>
             </html>
             """
-        
+
         # Get AI recommendations for each group
         ranker = app.config.get("RANKER_MODEL")
         crop_model = app.config.get("CROP_MODEL")
         clip_info = app.config.get("CLIP_INFO")
-        
+
         # Build AI recommendations dict for template
         ai_recommendations = {}
         for group in groups:
@@ -1726,7 +1868,9 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
                 rec = get_ai_recommendation(group, ranker, crop_model, clip_info)
                 ai_recommendations[group.group_id] = rec
             except Exception as e:
-                print(f"Warning: Failed to get AI recommendation for {group.group_id}: {e}")
+                print(
+                    f"Warning: Failed to get AI recommendation for {group.group_id}: {e}"
+                )
                 # Fallback recommendation
                 ai_recommendations[group.group_id] = {
                     "selected_index": 0,
@@ -1734,28 +1878,28 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
                     "reason": "Error getting AI recommendation",
                     "confidence": 0.0,
                     "crop_needed": False,
-                    "crop_coords": None
+                    "crop_coords": None,
                 }
-        
+
         # Render ALL groups in batch with AI recommendations
         return render_template_string(
             page_template,
             groups=groups,
             batch_info=batch_info,
-            ai_recommendations=ai_recommendations
+            ai_recommendations=ai_recommendations,
         )
-    
+
     @app.route("/process-batch", methods=["POST"])
     def process_batch():
         """Process all queued selections (clone of web_image_selector.py logic)"""
         try:
             data = request.get_json()
             selections = data.get("selections", [])
-            
+
             # Allow empty selections - means delete all groups
             # if not selections:
             #     return jsonify({"status": "error", "message": "No selections to process"}), 400
-            
+
             tracker = app.config["TRACKER"]
             selected_dir = app.config["SELECTED_DIR"]
             crop_dir = app.config["CROP_DIR"]
@@ -1765,61 +1909,77 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             db_path = app.config.get("DB_PATH")
             batch_info = app.config.get("BATCH_INFO", {})
             batch_number = batch_info.get("current_batch", 1)
-            
+
             # Get AI models for recommendations
             ranker = app.config.get("RANKER_MODEL")
             crop_model = app.config.get("CROP_MODEL")
             clip_info = app.config.get("CLIP_INFO")
-            
+
             kept_count = 0
             crop_count = 0
             deleted_count = 0
             per_group_results: Dict[str, Dict[str, Any]] = {}
-            
+
             for idx, selection in enumerate(selections):
                 group_id = selection.get("groupId")
                 selected_idx = selection.get("selectedImage")
                 crop = selection.get("crop", False)
                 ai_crop_accepted = selection.get("aiCropAccepted", False)
-                
+
                 # Find group
                 group = next((g for g in groups if g.group_id == group_id), None)
                 if not group:
                     print(f"Warning: Group {group_id} not found, skipping")
                     continue
-                
+
                 # Handle explicit "delete all" (matches web_image_selector.py line 1669)
                 if selected_idx is None:
                     print(f"[*] Group {group_id}: User explicitly deleted all images")
-                    num_deleted = delete_group_images(group, delete_staging_dir, tracker, 
-                                                     reason="User explicitly deleted all")
+                    num_deleted = delete_group_images(
+                        group,
+                        delete_staging_dir,
+                        tracker,
+                        reason="User explicitly deleted all",
+                    )
                     deleted_count += num_deleted
                     continue  # Skip to next selection
-                
+
                 # Get AI recommendation for this group
                 ai_rec = None
                 ai_selected_idx = None
                 ai_crop_coords = None
                 ai_confidence = None
-                
+
                 if ranker is not None:
                     try:
-                        ai_rec = get_ai_recommendation(group, ranker, crop_model, clip_info)
+                        ai_rec = get_ai_recommendation(
+                            group, ranker, crop_model, clip_info
+                        )
                         ai_selected_idx = ai_rec.get("selected_index", 0)
                         ai_confidence = ai_rec.get("confidence", 0.0)
                         if ai_rec.get("crop_needed") and ai_rec.get("crop_coords"):
                             ai_crop_coords = ai_rec["crop_coords"]  # Already normalized
                     except Exception as e:
-                        print(f"Warning: Could not get AI recommendation for {group_id}: {e}")
-                
+                        print(
+                            f"Warning: Could not get AI recommendation for {group_id}: {e}"
+                        )
+
                 # Determine user action (Phase 3: Two-Action Crop Flow - suggestion path only)
                 # If user accepts AI crop but does not request manual crop, we will route to crop_auto later via sidecar flag
                 user_action = "crop" if crop else "approve"
-                
+
                 # Generate unique group ID for database
-                timestamp = datetime.utcnow().isoformat().replace("-", "").replace(":", "").replace(".", "")
-                db_group_id = generate_group_id(project_id, timestamp, batch_number, idx)
-                
+                timestamp = (
+                    datetime.utcnow()
+                    .isoformat()
+                    .replace("-", "")
+                    .replace(":", "")
+                    .replace(".", "")
+                )
+                db_group_id = generate_group_id(
+                    project_id, timestamp, batch_number, idx
+                )
+
                 # Log to SQLite (NEW v3!)
                 if db_path:
                     try:
@@ -1827,17 +1987,20 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
                         selected_image = group.images[selected_idx]
                         try:
                             from PIL import Image
+
                             with Image.open(selected_image) as img:
                                 image_width, image_height = img.size
                         except Exception:
                             image_width, image_height = 2048, 2048  # Fallback
-                        
+
                         log_ai_decision(
                             db_path=db_path,
                             group_id=db_group_id,
                             project_id=project_id,
                             images=[img.name for img in group.images],
-                            ai_selected_index=ai_selected_idx if ai_selected_idx is not None else 0,
+                            ai_selected_index=ai_selected_idx
+                            if ai_selected_idx is not None
+                            else 0,
                             user_selected_index=selected_idx,
                             user_action=user_action,
                             image_width=image_width,
@@ -1845,28 +2008,41 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
                             ai_crop_coords=ai_crop_coords,
                             ai_confidence=ai_confidence,
                             directory=str(group.images[0].parent),
-                            batch_number=batch_number
+                            batch_number=batch_number,
                         )
-                        
+
                         # Create .decision sidecar file for Desktop Multi-Crop
                         # Create .decision sidecar for crop destinations
                         if crop or ai_crop_accepted:
                             # manual crop → crop/ ; AI crop suggestion → crop_auto/
-                            target_dir = crop_dir if crop else (app.config.get("CROP_AUTO_DIR") or (app.config["BASE_DIR"] / "__crop_auto"))
+                            target_dir = (
+                                crop_dir
+                                if crop
+                                else (
+                                    app.config.get("CROP_AUTO_DIR")
+                                    or (app.config["BASE_DIR"] / "__crop_auto")
+                                )
+                            )
                             Path(target_dir).mkdir(parents=True, exist_ok=True)
-                            decision_file = Path(target_dir) / f"{selected_image.stem}.decision"
+                            decision_file = (
+                                Path(target_dir) / f"{selected_image.stem}.decision"
+                            )
                             decision_data = {
                                 "group_id": db_group_id,
                                 "project_id": project_id,
                                 "needs_crop": True,
-                                "ai_route": "suggestion" if ai_crop_accepted and ai_crop_coords else "manual",
-                                "ai_crop_coords": ai_crop_coords if (ai_crop_accepted and ai_crop_coords) else None
+                                "ai_route": "suggestion"
+                                if ai_crop_accepted and ai_crop_coords
+                                else "manual",
+                                "ai_crop_coords": ai_crop_coords
+                                if (ai_crop_accepted and ai_crop_coords)
+                                else None,
                             }
-                            with open(decision_file, 'w') as f:
+                            with open(decision_file, "w") as f:
                                 json.dump(decision_data, f, indent=2)
                     except Exception as e:
                         print(f"Warning: Could not log decision to database: {e}")
-                
+
                 # Perform file operations
                 try:
                     # Artifact detection prior to file ops
@@ -1875,40 +2051,58 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
                         print(f"[ARTIFACT] Group {group_id}: {', '.join(reasons)}")
                     # Include artifact flags in tracker notes via log_operation extra? We attach in JSONL below; avoid altering FileTracker schema.
                     ops_result = perform_file_operations(
-                        group, "manual_crop" if crop else "approve", selected_idx, None,
-                        tracker, selected_dir, crop_dir, delete_staging_dir, project_id
+                        group,
+                        "manual_crop" if crop else "approve",
+                        selected_idx,
+                        None,
+                        tracker,
+                        selected_dir,
+                        crop_dir,
+                        delete_staging_dir,
+                        project_id,
                     )
                     # Accumulate exact counts
-                    kept_count += int(ops_result.get("moved_selected", 0)) + int(ops_result.get("moved_crop", 0))
+                    kept_count += int(ops_result.get("moved_selected", 0)) + int(
+                        ops_result.get("moved_crop", 0)
+                    )
                     crop_count += int(ops_result.get("moved_crop", 0))
                     deleted_count += int(ops_result.get("deleted_images", 0))
                     per_group_results[group_id] = ops_result
                 except Exception as e:
                     print(f"Error processing group {group_id}: {e}")
                     continue
-            
+
             # Handle unselected groups (ALL images go to delete_staging)
             selected_group_ids = [s.get("groupId") for s in selections]
-            unselected_groups = [g for g in groups if g.group_id not in selected_group_ids]
-            
+            unselected_groups = [
+                g for g in groups if g.group_id not in selected_group_ids
+            ]
+
             for group in unselected_groups:
                 try:
-                    num_deleted = delete_group_images(group, delete_staging_dir, tracker,
-                                                     reason="No selection made")
+                    num_deleted = delete_group_images(
+                        group, delete_staging_dir, tracker, reason="No selection made"
+                    )
                     deleted_count += num_deleted
-                    print(f"[*] Group {group.group_id}: No selection - all {num_deleted} images deleted")
+                    print(
+                        f"[*] Group {group.group_id}: No selection - all {num_deleted} images deleted"
+                    )
                 except Exception as e:
                     print(f"[!] Error deleting unselected group {group.group_id}: {e}")
-            
+
             # Remove ALL processed groups (selected + unselected) from current batch
-            processed_group_ids = selected_group_ids + [g.group_id for g in unselected_groups]
-            remaining_groups = [g for g in groups if g.group_id not in processed_group_ids]
+            processed_group_ids = selected_group_ids + [
+                g.group_id for g in unselected_groups
+            ]
+            remaining_groups = [
+                g for g in groups if g.group_id not in processed_group_ids
+            ]
             app.config["GROUPS"] = remaining_groups
-            
+
             # Update batch info
             batch_info = app.config.get("BATCH_INFO", {})
             batch_info["current_batch_size"] = len(remaining_groups)
-            
+
             # Lightweight JSON line logger to data/log_archives/
             try:
                 logs_dir: Path = app.config.get("LOG_ARCHIVES_DIR")
@@ -1925,32 +2119,34 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
                         "unselected_group_ids": [g.group_id for g in unselected_groups],
                         # Include artifact candidates seen during this batch for quick visibility
                         "artifact_candidates": [
-                            {
-                                "group_id": g.group_id,
-                                "reasons": detect_artifact(g)[1]
-                            } for g in groups if any(detect_artifact(g))
-                        ]
+                            {"group_id": g.group_id, "reasons": detect_artifact(g)[1]}
+                            for g in groups
+                            if any(detect_artifact(g))
+                        ],
                     }
-                    with open(log_path, 'a') as f:
+                    with open(log_path, "a") as f:
                         f.write(json.dumps(summary_record) + "\n")
             except Exception as e:
                 print(f"[!] Failed to write batch summary log: {e}")
-            
+
             message = f"Batch processed — kept {kept_count}, sent {crop_count} to crop/, deleted {deleted_count}."
-            return jsonify({
-                "status": "ok",
-                "message": message,
-                "kept": kept_count,
-                "crop": crop_count,
-                "deleted": deleted_count,
-                "remaining": len(remaining_groups)
-            })
-            
+            return jsonify(
+                {
+                    "status": "ok",
+                    "message": message,
+                    "kept": kept_count,
+                    "crop": crop_count,
+                    "deleted": deleted_count,
+                    "remaining": len(remaining_groups),
+                }
+            )
+
         except Exception as e:
             import traceback
+
             traceback.print_exc()
             return jsonify({"status": "error", "message": str(e)}), 500
-    
+
     @app.route("/submit", methods=["POST"])
     def submit():
         """Handle decision submission and perform file operations."""
@@ -1960,47 +2156,58 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             action = data.get("action")
             selected_index = data.get("selected_index")
             data.get("ai_index")
-            
+
             # Find group
             groups = app.config["GROUPS"]
             group = next((g for g in groups if g.group_id == group_id), None)
-            
+
             if not group:
                 return jsonify({"status": "error", "message": "Group not found"}), 404
-            
+
             # Load decision file (get AI models from config)
             ranker = app.config.get("RANKER_MODEL")
             crop_model = app.config.get("CROP_MODEL")
             clip_info = app.config.get("CLIP_INFO")
-            
-            decision_data = load_or_create_decision_file(group, ranker, crop_model, clip_info)
-            
+
+            decision_data = load_or_create_decision_file(
+                group, ranker, crop_model, clip_info
+            )
+
             # Update with user decision
             decision_data["user_decision"] = {
                 "action": action,
-                "selected_image": group.images[selected_index].name if selected_index is not None else None,
+                "selected_image": group.images[selected_index].name
+                if selected_index is not None
+                else None,
                 "selected_index": selected_index,
-                "timestamp": datetime.utcnow().isoformat() + "Z"
+                "timestamp": datetime.utcnow().isoformat() + "Z",
             }
-            
+
             # Save decision file
             save_decision_file(group, decision_data)
-            
+
             # Track in session
             app.config["DECISIONS"][group_id] = decision_data
-            
+
             # Perform file operations based on action
             tracker = app.config["TRACKER"]
             selected_dir = app.config["SELECTED_DIR"]
             crop_dir = app.config["CROP_DIR"]
             delete_staging_dir = app.config["DELETE_STAGING_DIR"]
             project_id = app.config.get("PROJECT_ID", "unknown")
-            
+
             file_ops_result = perform_file_operations(
-                group, action, selected_index, None,  # crop_coords=None for now
-                tracker, selected_dir, crop_dir, delete_staging_dir, project_id
+                group,
+                action,
+                selected_index,
+                None,  # crop_coords=None for now
+                tracker,
+                selected_dir,
+                crop_dir,
+                delete_staging_dir,
+                project_id,
             )
-            
+
             # Build response message
             if action == "approve":
                 msg = f"✓ Approved: {group.images[selected_index].name}\n{file_ops_result.get('message', '')}"
@@ -2014,14 +2221,15 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
                 msg = f"✗ Rejected: {group.images[selected_index].name}\n{file_ops_result.get('message', '')}"
             else:
                 msg = f"Decision recorded\n{file_ops_result.get('message', '')}"
-            
+
             return jsonify({"status": "ok", "message": msg})
-            
+
         except Exception as e:
             import traceback
+
             traceback.print_exc()
             return jsonify({"status": "error", "message": str(e)}), 500
-    
+
     @app.route("/next")
     def next_group():
         """Navigate to next group."""
@@ -2029,54 +2237,67 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
         groups = app.config["GROUPS"]
         app.config["CURRENT_INDEX"] = min(current + 1, len(groups) - 1)
         return index()
-    
+
     @app.route("/prev")
     def prev_group():
         """Navigate to previous group."""
         current = app.config["CURRENT_INDEX"]
         app.config["CURRENT_INDEX"] = max(0, current - 1)
         return index()
-    
+
     @app.route("/image/<group_id>/<int:index>")
     def serve_image(group_id: str, index: int):
         """Serve image thumbnail."""
         groups = app.config["GROUPS"]
         group = next((g for g in groups if g.group_id == group_id), None)
-        
+
         if not group or index >= len(group.images):
             return "Not found", 404
-        
+
         img_path = group.images[index]
-        
+
         try:
             with Image.open(img_path) as img:
                 # Create thumbnail (max 600px to maintain quality)
                 img.thumbnail((600, 600), Image.Resampling.LANCZOS)
                 from io import BytesIO
+
                 buf = BytesIO()
-                img.save(buf, format='PNG', optimize=True)
+                img.save(buf, format="PNG", optimize=True)
                 buf.seek(0)
-                return Response(buf.read(), mimetype='image/png')
+                return Response(buf.read(), mimetype="image/png")
         except Exception as e:
             return f"Error loading image: {e}", 500
-    
+
     @app.route("/stats")
     def stats():
         """Show summary statistics."""
         decisions = app.config["DECISIONS"]
-        
-        approved = sum(1 for d in decisions.values() 
-                      if d.get("user_decision", {}).get("action") == "approve")
-        overridden = sum(1 for d in decisions.values() 
-                        if d.get("user_decision", {}).get("action") == "override")
-        rejected = sum(1 for d in decisions.values() 
-                      if d.get("user_decision", {}).get("action") == "reject")
-        skipped = sum(1 for d in decisions.values() 
-                     if d.get("user_decision", {}).get("action") == "skip")
-        
+
+        approved = sum(
+            1
+            for d in decisions.values()
+            if d.get("user_decision", {}).get("action") == "approve"
+        )
+        overridden = sum(
+            1
+            for d in decisions.values()
+            if d.get("user_decision", {}).get("action") == "override"
+        )
+        rejected = sum(
+            1
+            for d in decisions.values()
+            if d.get("user_decision", {}).get("action") == "reject"
+        )
+        skipped = sum(
+            1
+            for d in decisions.values()
+            if d.get("user_decision", {}).get("action") == "skip"
+        )
+
         total = len(app.config["GROUPS"])
         reviewed = len(decisions)
-        
+
         return f"""
         <html>
         <head><title>Review Statistics</title></head>
@@ -2085,32 +2306,32 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
           <h1>📊 Review Statistics</h1>
           <div style="background: #181821; padding: 2rem; border-radius: 12px; margin: 2rem 0;">
             <p><strong>Total Groups:</strong> {total}</p>
-            <p><strong>Reviewed:</strong> {reviewed} ({reviewed*100//total if total else 0}%)</p>
+            <p><strong>Reviewed:</strong> {reviewed} ({reviewed * 100 // total if total else 0}%)</p>
             <hr style="border-color: rgba(255,255,255,0.1);">
             <p><strong>✓ Approved:</strong> {approved}</p>
             <p><strong>⚡ Overridden:</strong> {overridden}</p>
             <p><strong>✗ Rejected:</strong> {rejected}</p>
             <p><strong>⊙ Skipped:</strong> {skipped}</p>
             <hr style="border-color: rgba(255,255,255,0.1);">
-            <p><strong>AI Agreement Rate:</strong> {approved*100//(approved+overridden) if (approved+overridden) else 0}%</p>
+            <p><strong>AI Agreement Rate:</strong> {approved * 100 // (approved + overridden) if (approved + overridden) else 0}%</p>
           </div>
           <p><a href="/" style="color: #4f9dff;">← Back to Review</a></p>
         </body>
         </html>
         """
-    
+
     @app.route("/next-batch")
     def next_batch():
         """Load next batch of groups."""
         all_groups = app.config.get("ALL_GROUPS", [])
         batch_size = app.config.get("BATCH_SIZE", 100)
         current_batch = app.config.get("CURRENT_BATCH", 0)
-        
+
         # Calculate next batch
         next_batch_num = current_batch + 1
         batch_start = next_batch_num * batch_size
         batch_end = min(batch_start + batch_size, len(all_groups))
-        
+
         if batch_start >= len(all_groups):
             # No more batches - show completion
             return """
@@ -2124,12 +2345,12 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             </body>
             </html>
             """
-        
+
         # Load next batch
         next_batch_groups = all_groups[batch_start:batch_end]
         app.config["GROUPS"] = next_batch_groups
         app.config["CURRENT_BATCH"] = next_batch_num
-        
+
         # Update batch info
         batch_info = {
             "current_batch": next_batch_num + 1,  # 1-indexed for display
@@ -2138,14 +2359,15 @@ def build_app(groups: List[ImageGroup], base_dir: Path, tracker: FileTracker,
             "batch_end": batch_end,
             "batch_size": batch_size,
             "total_groups": len(all_groups),
-            "current_batch_size": len(next_batch_groups)
+            "current_batch_size": len(next_batch_groups),
         }
         app.config["BATCH_INFO"] = batch_info
-        
+
         # Redirect to main page to show new batch
         from flask import redirect
+
         return redirect("/")
-    
+
     return app
 
 
@@ -2153,22 +2375,28 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Review image groups with AI assistance (Ranker v3 + Crop Proposer v2)"
     )
-    parser.add_argument("directory", type=str, help="Directory containing images to review")
+    parser.add_argument(
+        "directory", type=str, help="Directory containing images to review"
+    )
     parser.add_argument("--host", default="127.0.0.1", help="Host for web server")
     parser.add_argument("--port", type=int, default=8081, help="Port for web server")
-    parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE, 
-                       help=f"Number of groups per batch (default: {DEFAULT_BATCH_SIZE})")
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=DEFAULT_BATCH_SIZE,
+        help=f"Number of groups per batch (default: {DEFAULT_BATCH_SIZE})",
+    )
     args = parser.parse_args()
-    
+
     directory = Path(args.directory).expanduser().resolve()
     if not directory.exists():
         print(f"[!] Directory not found: {directory}", file=sys.stderr)
         sys.exit(1)
-    
+
     # Find project root and create necessary directories
     project_root = find_project_root(directory)
     print(f"[*] Project root: {project_root}")
-    
+
     # Use centralized standard paths (double-underscore directories)
     try:
         from utils.standard_paths import (
@@ -2176,6 +2404,7 @@ def main() -> None:
             get_delete_staging_dir,
             get_selected_dir,
         )
+
         selected_dir = get_selected_dir()
         crop_dir = get_crop_dir()
         delete_staging_dir = get_delete_staging_dir()
@@ -2185,52 +2414,57 @@ def main() -> None:
         crop_dir = project_root / "__crop"
         delete_staging_dir = project_root / "__delete_staging"
     models_dir = project_root / "data" / "ai_data" / "models"
-    
+
     # Ensure directories exist
     selected_dir.mkdir(exist_ok=True)
     crop_dir.mkdir(exist_ok=True)
     delete_staging_dir.mkdir(exist_ok=True)
-    
+
     print(f"[*] Selected directory: {selected_dir}")
     print(f"[*] Crop directory: {crop_dir}")
     print(f"[*] Delete staging directory: {delete_staging_dir}")
-    
+
     # Load AI models
     print(f"\n[*] Loading AI models from {models_dir}...")
     ranker_model, crop_model, clip_info = load_ai_models(models_dir)
-    
+
     if ranker_model is not None:
         print("[✓] AI models loaded - using Ranker v3 + Crop Proposer v2")
     else:
         print("[!] AI models not available - using rule-based fallback")
-    
+
     # Initialize FileTracker
     tracker = FileTracker("ai_assisted_reviewer")
-    
+
     # Scan and group images
     print(f"\n[*] Scanning {directory}...")
     images = scan_images(directory)
     print(f"[*] Found {len(images)} images")
-    
+
     print("[*] Grouping images...")
     groups = group_images_by_timestamp(images)
     print(f"[*] Found {len(groups)} groups")
-    
+
     if not groups:
-        print("[!] No image groups found. Check directory and file naming.", file=sys.stderr)
+        print(
+            "[!] No image groups found. Check directory and file naming.",
+            file=sys.stderr,
+        )
         sys.exit(1)
-    
+
     # Calculate batches
     total_batches = (len(groups) + args.batch_size - 1) // args.batch_size
-    print(f"[*] Processing in batches of {args.batch_size} ({total_batches} total batches)")
-    
+    print(
+        f"[*] Processing in batches of {args.batch_size} ({total_batches} total batches)"
+    )
+
     # Pre-compute AI recommendations for first batch to show crop stats
     if ranker_model is not None and crop_model is not None and clip_info is not None:
         print("\n[*] Computing AI recommendations for first batch...")
-        first_batch = groups[:args.batch_size]
+        first_batch = groups[: args.batch_size]
         crop_needed_count = 0
         no_crop_count = 0
-        
+
         for group in first_batch:
             try:
                 rec = get_ai_recommendation(group, ranker_model, crop_model, clip_info)
@@ -2239,41 +2473,58 @@ def main() -> None:
                 else:
                     no_crop_count += 1
             except Exception as e:
-                print(f"   Warning: Failed to get recommendation for {group.group_id}: {e}")
+                print(
+                    f"   Warning: Failed to get recommendation for {group.group_id}: {e}"
+                )
                 no_crop_count += 1
-        
+
         print("[✓] First batch stats:")
-        print(f"    • {crop_needed_count} images need cropping ({crop_needed_count*100//len(first_batch)}%)")
-        print(f"    • {no_crop_count} images need no crop ({no_crop_count*100//len(first_batch)}%)")
-    
-    
+        print(
+            f"    • {crop_needed_count} images need cropping ({crop_needed_count * 100 // len(first_batch)}%)"
+        )
+        print(
+            f"    • {no_crop_count} images need no crop ({no_crop_count * 100 // len(first_batch)}%)"
+        )
+
     # Build and run Flask app
-    app = build_app(groups, directory, tracker, selected_dir, crop_dir, delete_staging_dir,
-                   ranker_model, crop_model, clip_info, batch_size=args.batch_size)
-    
+    app = build_app(
+        groups,
+        directory,
+        tracker,
+        selected_dir,
+        crop_dir,
+        delete_staging_dir,
+        ranker_model,
+        crop_model,
+        clip_info,
+        batch_size=args.batch_size,
+    )
+
     url = f"http://{args.host}:{args.port}"
     print(f"\n[*] Starting reviewer at {url}")
     print("[*] Press Ctrl+C to stop\n")
-    
+
     # Auto-open browser after short delay (give server time to start)
     def open_browser():
         import time
+
         time.sleep(1.5)
         try:
             import webbrowser
+
             webbrowser.open(url)
             print(f"🌐 Opening browser to {url}")
         except Exception as e:
             print(f"Could not auto-open browser: {e}")
             print(f"   Please open manually: {url}")
-    
+
     # Launch browser in background thread
     import threading
+
     threading.Thread(target=open_browser, daemon=True).start()
-    
+
     app.run(host=args.host, port=args.port, debug=False)
 
 
 if __name__ == "__main__":
     main()
-

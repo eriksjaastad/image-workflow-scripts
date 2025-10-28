@@ -162,6 +162,8 @@ THUMBNAIL_MAX_DIM = 768
 FOCUS_TIMER_WORK_MIN: int = 15
 FOCUS_TIMER_REST_MIN: int = 5
 FOCUS_TIMER_INACTIVITY_MIN: int = 5  # pause timer after X minutes without activity
+# Global kill-switch for visual timer in archived web selector UI
+ENABLE_FOCUS_TIMER: bool = False
 
 
 def human_err(msg: str) -> None:
@@ -683,10 +685,12 @@ def build_app(
           <span>Skipped files: <strong id="summary-skipped">0</strong></span>
           <span>Delete files: <strong id="summary-delete">0</strong></span>
         </div>
+        {% if ENABLE_FOCUS_TIMER %}
         <div class="summary" style="gap:0.3rem; align-items:flex-end; flex-direction:column;">
           <span id="focus-timer" style="color:#a0a3b1; font-weight:600;">Work 00:00 • Session 00:00</span>
           <button id="focus-toggle" style="background: var(--surface-alt); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 2px 10px; border-radius: 6px; font-size: 12px; height: 22px;">Start</button>
         </div>
+        {% endif %}
         <button id="process-batch" class="process-batch">Process Current Batch</button>
         <div id="batch-info" class="batch-info">
               <span>Batch {{ batch_info.current_batch }}/{{ batch_info.total_batches }}: <strong id="batch-count">{{ batch_info.current_batch_size }}</strong> groups</span>
@@ -756,8 +760,8 @@ def build_app(
         const TIMER_WORK_MIN = {{ focus_work_min|default(15) }};
         const TIMER_REST_MIN = {{ focus_rest_min|default(5) }};
         const TIMER_INACTIVITY_MIN = {{ focus_inactive_min|default(5) }};
-        const focusTimerEl = document.getElementById('focus-timer');
-        const focusToggleBtn = document.getElementById('focus-toggle');
+        const focusTimerEl = ENABLE_FOCUS_TIMER ? document.getElementById('focus-timer') : null;
+        const focusToggleBtn = ENABLE_FOCUS_TIMER ? document.getElementById('focus-toggle') : null;
         let phase = 'work';            // 'work' | 'rest'
         let remaining = TIMER_WORK_MIN * 60; // seconds
         let lastTickMs = Date.now();
@@ -881,7 +885,7 @@ def build_app(
           const inactive = (now - lastActivityMs) > (TIMER_INACTIVITY_MIN * 60 * 1000);
           pausedForInactivity = inactive;
           const paused = userPaused || inactive;
-          if (!paused) {
+          if (ENABLE_FOCUS_TIMER && !paused) {
             // advance phase countdown
             remaining -= Math.round(dt / 1000);
             if (remaining <= 0) {
@@ -900,7 +904,7 @@ def build_app(
             // session time accrues only when not inactive
             activeSessionSeconds += Math.round(dt / 1000);
           }
-          updateFocusTimerUI();
+          if (ENABLE_FOCUS_TIMER) updateFocusTimerUI();
         }
         setInterval(timerTick, 1000);
 

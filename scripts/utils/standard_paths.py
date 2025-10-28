@@ -13,7 +13,7 @@ from typing import Dict, List
 
 def get_project_root() -> Path:
     """Return the project root (parent of scripts/)."""
-    return Path(__file__).parent.parent
+    return Path(__file__).parent.parent.parent
 
 
 def get_selected_dir() -> Path:
@@ -65,5 +65,3 @@ def ensure_standard_dirs_exist() -> Dict[str, Path]:
             # Directory creation is best-effort
             pass
     return dirs
-
-
