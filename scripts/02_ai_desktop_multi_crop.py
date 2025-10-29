@@ -507,30 +507,14 @@ class AIMultiCropTool(MultiCropTool):
                 )
             # Numerator based on batches completed in this session
             batches_done = int(getattr(self, "_batches_completed", 0))
-            current_batch = batches_done + 1
-
-            # Directory context (multi-directory vs single)
-            if getattr(self, "single_directory_mode", True):
-                dirs_info = ""
-            else:
-                progress = (
-                    getattr(self.progress_tracker, "get_progress_info", lambda: {})()
-                    or {}
-                )
-                remaining = progress.get("directories_remaining")
-                current_dir = progress.get("current_directory")
-                if remaining is None:
-                    dirs_info = ""
-                else:
-                    suffix = " directories left" if remaining > 0 else "Last directory!"
-                    dirs_info = f" • 📁 {current_dir} • {remaining}{suffix}"
+            remaining_batches = max(0, total_batches - batches_done)
 
             aspect_info = (
                 " • [🔒 LOCKED] Aspect Ratio"
                 if getattr(self, "aspect_ratio", None)
                 else ""
             )
-            title = f"Batch {current_batch}/{total_batches}{dirs_info} • [Enter] Submit • [Q] Quit{aspect_info}"
+            title = f"Batch {batches_done}/{remaining_batches} • [Enter] Submit • [Q] Quit{aspect_info}"
             self.fig.suptitle(title, fontsize=12, y=0.98)
             self.fig.canvas.draw_idle()
         except Exception:
