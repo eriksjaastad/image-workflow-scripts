@@ -51,8 +51,8 @@ Track patterns across all projects to understand efficiency and identify anomali
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Total groups processed:    47,250
 Avg group size:            2.8 images/group
-Selection efficiency:      38% (selected/source)
-Crop rate:                 42% (cropped/selected)
+Selection efficiency:      38% (__selected/source)
+Crop rate:                 42% (__cropped/__selected)
 Total work hours:          ~340 hours
 Avg time per group:        26 seconds
 ```

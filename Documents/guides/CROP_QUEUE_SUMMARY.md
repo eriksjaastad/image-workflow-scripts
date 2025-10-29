@@ -7,18 +7,21 @@ A **queue-based cropping system** that decouples the interactive UI from image p
 ## Key Components
 
 ### 1. Queue Manager (`scripts/utils/crop_queue.py`)
+
 - Thread-safe JSONL queue file operations
 - Batch tracking with status (pending/processing/completed/failed)
 - Timing log for analysis
 - Queue statistics and cleanup utilities
 
 ### 2. Modified Crop Tool (`scripts/02_ai_desktop_multi_crop.py`)
+
 - Added `--queue-mode` flag
 - Queues crop operations instead of processing immediately
 - Moves files to `__crop_queued/` directory
 - Maintains normal UI flow and progress tracking
 
 ### 3. Smart Processor (`scripts/process_crop_queue.py`)
+
 - Processes queued crops with realistic human timing
 - Simulates your actual work patterns:
   - Variable speed (0.31s median, with thinking pauses)
@@ -29,6 +32,7 @@ A **queue-based cropping system** that decouples the interactive UI from image p
 - Preview mode for testing
 
 ### 4. Analysis Tools
+
 - `analyze_human_patterns.py` - Extract timing patterns from historical data
 - `analyze_crop_timing.py` - Analyze session patterns and speed
 - Generates `timing_patterns.json` for processor
@@ -50,20 +54,22 @@ Session progression: Warm-up → Peak (124-130%) → Slight fatigue (115%)
 
 **Current Project (3,367 images):**
 
-| Metric | Normal Mode | Queue Mode | Savings |
-|--------|-------------|------------|---------|
-| Pure time | 13.0 hrs | 8.7 hrs | **4.3 hrs** |
-| With breaks | 17.3 hrs | ~11.5 hrs | **5.8 hrs** |
-| Days @ 6hr/day | 2.9 days | **~2 days** | **~1 day** |
+| Metric         | Normal Mode | Queue Mode  | Savings     |
+| -------------- | ----------- | ----------- | ----------- |
+| Pure time      | 13.0 hrs    | 8.7 hrs     | **4.3 hrs** |
+| With breaks    | 17.3 hrs    | ~11.5 hrs   | **5.8 hrs** |
+| Days @ 6hr/day | 2.9 days    | **~2 days** | **~1 day**  |
 
 ## Usage
 
 ### Interactive Cropping (Queue Mode)
+
 ```bash
-python scripts/02_ai_desktop_multi_crop.py crop_auto/ --queue-mode
+python scripts/02_ai_desktop_multi_crop.py __crop_auto/ --queue-mode
 ```
 
 ### Process Queue Later
+
 ```bash
 # Realistic human timing
 python scripts/process_crop_queue.py
@@ -107,12 +113,14 @@ Analysis scripts:
 ## How It Works
 
 1. **Queue Mode Cropping:**
+
    - You draw crop rectangles and hit Enter (instant!)
    - Coordinates written to JSONL queue file
    - Source files moved to `__crop_queued/`
    - No waiting for image processing
 
 2. **Background Processing:**
+
    - Reads queue file for pending batches
    - Loads images from `__crop_queued/`
    - Performs actual crop operations

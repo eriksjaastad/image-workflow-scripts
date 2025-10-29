@@ -13,7 +13,7 @@ Activate virtual environment first:
 USAGE:
 ------
 Move files between directories:
-  python scripts/utils/recursive_file_mover.py {content} XXX_CONTENT
+  python scripts/utils/recursive_file_mover.py __cropped __selected
   python scripts/utils/recursive_file_mover.py ~/Downloads/output 00_white
   python scripts/utils/recursive_file_mover.py source_dir dest_dir --dry-run
   python scripts/utils/recursive_file_mover.py source_dir dest_dir --yes       # AI/non-interactive

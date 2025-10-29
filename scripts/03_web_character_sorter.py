@@ -26,11 +26,11 @@ OPTIONAL FLAGS:
 USAGE:
 ------
 Multi-directory character sorting (RECOMMENDED):
-  python scripts/03_web_character_sorter.py selected
+  python scripts/03_web_character_sorter.py __selected
   # Automatically processes all subdirectories (emily/, mia/, etc.) with auto-advance
 
 Basic character sorting (single directory):
-  python scripts/03_web_character_sorter.py selected/emily
+  python scripts/03_web_character_sorter.py __selected/emily
   python scripts/03_web_character_sorter.py _sort_again
   python scripts/03_web_character_sorter.py face_groups/person_0001
 
@@ -127,6 +127,7 @@ except Exception:
 
 try:
     from pillow_heif import register_heif_opener  # type: ignore
+
     register_heif_opener()
     print("[*] HEIC/HEIF support enabled via pillow-heif.")
 except Exception:
@@ -143,107 +144,124 @@ THUMBNAIL_MAX_DIM = 800
 
 class MultiDirectoryProgressTracker:
     """Manages progress tracking across multiple directories with session persistence."""
-    
+
     def __init__(self, base_directory: Path):
         self.base_directory = base_directory
         self.progress_dir = Path("data/sorter_progress")
         self.progress_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Create progress file name based on base directory
-        safe_name = str(base_directory).replace('/', '_').replace(' ', '_').replace('(', '').replace(')', '')
+        safe_name = (
+            str(base_directory)
+            .replace("/", "_")
+            .replace(" ", "_")
+            .replace("(", "")
+            .replace(")", "")
+        )
         self.progress_file = self.progress_dir / f"{safe_name}_progress.json"
-        
+
         self.directories = []
         self.current_directory_index = 0
         self.session_data = {}
-        
+
         self.discover_directories()
         self.load_progress()
-    
+
     def discover_directories(self):
         """Discover all subdirectories containing PNG files, sorted alphabetically."""
         subdirs = []
-        
+
         for item in self.base_directory.iterdir():
             if item.is_dir():
                 # Check if directory contains PNG files
                 png_files = list(item.glob("*.png"))
                 if png_files:
-                    subdirs.append({
-                        'path': item,
-                        'name': item.name,
-                        'file_count': len(png_files)
-                    })
-        
+                    subdirs.append(
+                        {"path": item, "name": item.name, "file_count": len(png_files)}
+                    )
+
         # Sort alphabetically by directory name
-        subdirs.sort(key=lambda x: x['name'].lower())
+        subdirs.sort(key=lambda x: x["name"].lower())
         self.directories = subdirs
-        
+
         print(f"[*] Discovered {len(self.directories)} directories with images:")
         for i, dir_info in enumerate(self.directories):
-            print(f"    {i+1}. {dir_info['name']} ({dir_info['file_count']} images)")
-    
+            print(f"    {i + 1}. {dir_info['name']} ({dir_info['file_count']} images)")
+
     def load_progress(self):
         """Initialize fresh progress tracking session (always starts clean)."""
         # Always initialize fresh - no need to persist progress across restarts
         self.initialize_progress()
-    
+
     def initialize_progress(self):
         """Initialize new progress tracking session."""
         self.session_data = {
-            'base_directory': str(self.base_directory),
-            'session_start': time.strftime('%Y-%m-%d %H:%M:%S'),
-            'current_directory_index': 0,
-            'directories': {
-                dir_info['name']: {
-                    'status': 'pending',
-                    'total_files': dir_info['file_count']
-                } for dir_info in self.directories
-            }
+            "base_directory": str(self.base_directory),
+            "session_start": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "current_directory_index": 0,
+            "directories": {
+                dir_info["name"]: {
+                    "status": "pending",
+                    "total_files": dir_info["file_count"],
+                }
+                for dir_info in self.directories
+            },
         }
         self.save_progress()
-    
+
     def save_progress(self):
         """Save current progress to file."""
-        self.session_data['current_directory_index'] = self.current_directory_index
-        self.session_data['last_updated'] = time.strftime('%Y-%m-%d %H:%M:%S')
-        
+        self.session_data["current_directory_index"] = self.current_directory_index
+        self.session_data["last_updated"] = time.strftime("%Y-%m-%d %H:%M:%S")
+
         try:
-            with open(self.progress_file, 'w') as f:
+            with open(self.progress_file, "w") as f:
                 json.dump(self.session_data, f, indent=2)
         except Exception as e:
             print(f"[!] Error saving progress: {e}")
-    
+
     def get_current_directory(self) -> Optional[Dict]:
         """Get current directory info."""
         if self.current_directory_index < len(self.directories):
             return self.directories[self.current_directory_index]
         return None
-    
+
     def _find_next_directory_with_images(self, start_index: int) -> int:
         """Find the next directory that actually has images, starting from start_index."""
         for i in range(start_index, len(self.directories)):
-            dir_path = self.base_directory / self.directories[i]['name']
+            dir_path = self.base_directory / self.directories[i]["name"]
             if dir_path.exists() and dir_path.is_dir():
                 # Check if directory has images
-                image_files = list(dir_path.glob("*.png")) + list(dir_path.glob("*.jpg")) + list(dir_path.glob("*.jpeg"))
+                image_files = (
+                    list(dir_path.glob("*.png"))
+                    + list(dir_path.glob("*.jpg"))
+                    + list(dir_path.glob("*.jpeg"))
+                )
                 if image_files:
-                    print(f"[*] Found directory with images: {self.directories[i]['name']} ({len(image_files)} images)")
+                    print(
+                        f"[*] Found directory with images: {self.directories[i]['name']} ({len(image_files)} images)"
+                    )
                     return i
-        
+
         # If no directory with images found from start_index, search from beginning
         for i in range(0, start_index):
-            dir_path = self.base_directory / self.directories[i]['name']
+            dir_path = self.base_directory / self.directories[i]["name"]
             if dir_path.exists() and dir_path.is_dir():
-                image_files = list(dir_path.glob("*.png")) + list(dir_path.glob("*.jpg")) + list(dir_path.glob("*.jpeg"))
+                image_files = (
+                    list(dir_path.glob("*.png"))
+                    + list(dir_path.glob("*.jpg"))
+                    + list(dir_path.glob("*.jpeg"))
+                )
                 if image_files:
-                    print(f"[*] Found directory with images (wrapped): {self.directories[i]['name']} ({len(image_files)} images)")
+                    print(
+                        f"[*] Found directory with images (wrapped): {self.directories[i]['name']} ({len(image_files)} images)"
+                    )
                     return i
-        
+
         # Fallback to start_index if no images found anywhere
         print(f"[!] No directories with images found, using start index: {start_index}")
         return start_index
-    
+
     def advance_directory(self):
         """Move to next directory."""
         if self.current_directory_index < len(self.directories):
@@ -251,62 +269,68 @@ class MultiDirectoryProgressTracker:
             current_dir = self.get_current_directory()
             if current_dir:
                 # Ensure directory exists in session data (might have been added after session started)
-                if current_dir['name'] not in self.session_data['directories']:
-                    self.session_data['directories'][current_dir['name']] = {
-                        'status': 'pending',
-                        'total_files': current_dir['file_count']
+                if current_dir["name"] not in self.session_data["directories"]:
+                    self.session_data["directories"][current_dir["name"]] = {
+                        "status": "pending",
+                        "total_files": current_dir["file_count"],
                     }
-                self.session_data['directories'][current_dir['name']]['status'] = 'completed'
-        
+                self.session_data["directories"][current_dir["name"]]["status"] = (
+                    "completed"
+                )
+
         self.current_directory_index += 1
-        
+
         # Mark new directory as in progress
         current_dir = self.get_current_directory()
         if current_dir:
             # Ensure directory exists in session data (might have been added after session started)
-            if current_dir['name'] not in self.session_data['directories']:
-                self.session_data['directories'][current_dir['name']] = {
-                    'status': 'pending',
-                    'total_files': current_dir['file_count']
+            if current_dir["name"] not in self.session_data["directories"]:
+                self.session_data["directories"][current_dir["name"]] = {
+                    "status": "pending",
+                    "total_files": current_dir["file_count"],
                 }
-            self.session_data['directories'][current_dir['name']]['status'] = 'in_progress'
-        
+            self.session_data["directories"][current_dir["name"]]["status"] = (
+                "in_progress"
+            )
+
         self.save_progress()
-    
+
     def has_more_directories(self) -> bool:
         """Check if there are more directories to process."""
         return self.current_directory_index < len(self.directories)
-    
+
     def get_progress_info(self) -> Dict:
         """Get current progress information for display."""
         current_dir = self.get_current_directory()
         if not current_dir:
             return {
-                'current_directory': None,
-                'directories_remaining': 0,
-                'total_directories': len(self.directories),
-                'progress_text': "All directories completed"
+                "current_directory": None,
+                "directories_remaining": 0,
+                "total_directories": len(self.directories),
+                "progress_text": "All directories completed",
             }
-        
+
         directories_remaining = len(self.directories) - self.current_directory_index
-        
+
         return {
-            'current_directory': current_dir['name'],
-            'directories_remaining': directories_remaining,
-            'total_directories': len(self.directories),
-            'progress_text': f"{current_dir['name']} • {directories_remaining} directories left • {self.current_directory_index + 1}/{len(self.directories)}"
+            "current_directory": current_dir["name"],
+            "directories_remaining": directories_remaining,
+            "total_directories": len(self.directories),
+            "progress_text": f"{current_dir['name']} • {directories_remaining} directories left • {self.current_directory_index + 1}/{len(self.directories)}",
         }
-    
+
     def print_resume_info(self):
         """Print resume information to console."""
         current_dir = self.get_current_directory()
         if current_dir:
-            print(f"    Current directory: {current_dir['name']} ({self.current_directory_index + 1}/{len(self.directories)})")
+            print(
+                f"    Current directory: {current_dir['name']} ({self.current_directory_index + 1}/{len(self.directories)})"
+            )
             remaining = len(self.directories) - self.current_directory_index
             print(f"    Directories remaining: {remaining}")
         else:
             print("    All directories completed!")
-    
+
     def cleanup_completed_session(self):
         """Clean up progress file after completing all directories."""
         try:
@@ -320,8 +344,10 @@ class MultiDirectoryProgressTracker:
 def human_err(msg: str) -> None:
     print(f"[!] {msg}", file=sys.stderr)
 
+
 def info(msg: str) -> None:
     print(f"[*] {msg}")
+
 
 def scan_images(folder: Path) -> List[Path]:
     """Scan directory for PNG files."""
@@ -332,82 +358,98 @@ def scan_images(folder: Path) -> List[Path]:
             results.append(entry)
     return sort_image_files_by_timestamp_and_stage(results)
 
+
 def load_similarity_neighbors(similarity_map_dir: Path) -> Dict[str, Dict]:
     """Load similarity neighbor data from face_groups/neighbors.jsonl"""
     neighbors = {}
     neighbors_file = similarity_map_dir / "neighbors.jsonl"
-    
+
     if not neighbors_file.exists():
         info(f"No similarity map found at {neighbors_file}")
         return neighbors
-    
+
     try:
-        with open(neighbors_file, 'r') as f:
+        with open(neighbors_file, "r") as f:
             for line in f:
                 data = json.loads(line.strip())
-                neighbors[data['filename']] = data
+                neighbors[data["filename"]] = data
         info(f"Loaded similarity data for {len(neighbors)} images")
     except Exception as e:
         info(f"Failed to load similarity map: {e}")
-    
+
     return neighbors
 
-def similarity_sort_images(images: List[Path], neighbors_data: Dict[str, Dict]) -> List[Path]:
+
+def similarity_sort_images(
+    images: List[Path], neighbors_data: Dict[str, Dict]
+) -> List[Path]:
     """Sort images by similarity to create visual neighborhoods."""
     if len(images) <= 1 or not neighbors_data:
         return images
-    
+
     # Convert to filename-based lookup
     image_names = [img.name for img in images]
     image_set = set(image_names)
     name_to_path = {img.name: img for img in images}
-    
+
     # Build similarity graph for this set of images
     similarity_graph = {}
     for img_name in image_names:
         similarity_graph[img_name] = []
         if img_name in neighbors_data:
             # Only include neighbors that are also in this directory
-            for neighbor in neighbors_data[img_name]['neighbors']:
-                if neighbor['filename'] in image_set:
-                    similarity_graph[img_name].append({
-                        'filename': neighbor['filename'],
-                        'similarity': neighbor['sim']
-                    })
+            for neighbor in neighbors_data[img_name]["neighbors"]:
+                if neighbor["filename"] in image_set:
+                    similarity_graph[img_name].append(
+                        {
+                            "filename": neighbor["filename"],
+                            "similarity": neighbor["sim"],
+                        }
+                    )
             # Sort neighbors by similarity (highest first)
-            similarity_graph[img_name].sort(key=lambda x: x['similarity'], reverse=True)
-    
+            similarity_graph[img_name].sort(key=lambda x: x["similarity"], reverse=True)
+
     # Use a greedy approach to create spatial neighborhoods
     sorted_names = []
     used = set()
-    
+
     # Start with the image that has the most high-similarity connections
     if similarity_graph:
-        start_img = max(image_names, key=lambda img: len([n for n in similarity_graph[img] if n['similarity'] > 0.5]))
+        start_img = max(
+            image_names,
+            key=lambda img: len(
+                [n for n in similarity_graph[img] if n["similarity"] > 0.5]
+            ),
+        )
     else:
         start_img = image_names[0]
-    
+
     current = start_img
     sorted_names.append(current)
     used.add(current)
-    
+
     # Greedily add the most similar unused neighbor
     while len(sorted_names) < len(image_names):
         best_next = None
         best_similarity = -1
-        
+
         # Look for the best unused neighbor of the current image
         for neighbor in similarity_graph.get(current, []):
-            if neighbor['filename'] not in used and neighbor['similarity'] > best_similarity:
-                best_next = neighbor['filename']
-                best_similarity = neighbor['similarity']
-        
+            if (
+                neighbor["filename"] not in used
+                and neighbor["similarity"] > best_similarity
+            ):
+                best_next = neighbor["filename"]
+                best_similarity = neighbor["similarity"]
+
         # If no good neighbor found, jump to the unused image with most connections
         if best_next is None:
             remaining = [img for img in image_names if img not in used]
             if remaining:
-                best_next = max(remaining, key=lambda img: len(similarity_graph.get(img, [])))
-        
+                best_next = max(
+                    remaining, key=lambda img: len(similarity_graph.get(img, []))
+                )
+
         if best_next:
             sorted_names.append(best_next)
             used.add(best_next)
@@ -418,9 +460,10 @@ def similarity_sort_images(images: List[Path], neighbors_data: Dict[str, Dict]) 
             if remaining:
                 sorted_names.extend(remaining)
             break
-    
+
     # Convert back to Path objects
     return [name_to_path[name] for name in sorted_names]
+
 
 def get_review_notes() -> str:
     """Return HTML-formatted review notes for the classification panel."""
@@ -467,23 +510,32 @@ def get_review_notes() -> str:
     </div>
     """
 
+
 @lru_cache(maxsize=100)
 def _generate_thumbnail(image_path: str, mtime_ns: int, size: int) -> bytes:
     """Generate thumbnail using shared function."""
-    return generate_thumbnail(image_path, mtime_ns, size, max_dim=THUMBNAIL_MAX_DIM, quality=85)
+    return generate_thumbnail(
+        image_path, mtime_ns, size, max_dim=THUMBNAIL_MAX_DIM, quality=85
+    )
 
-def safe_delete(png_path: Path, hard_delete: bool = False, tracker: Optional[FileTracker] = None) -> None:
+
+def safe_delete(
+    png_path: Path, hard_delete: bool = False, tracker: Optional[FileTracker] = None
+) -> None:
     """Delete image and ALL companion sidecars (yaml, caption, etc.) via shared utility."""
     # Delegate to shared companion-aware delete to ensure nothing is stranded
     safe_delete_image_and_yaml(png_path, hard_delete=hard_delete, tracker=tracker)
 
-def move_with_metadata(src_path: Path, dest_dir: Path, tracker: FileTracker, group_name: str) -> List[str]:
+
+def move_with_metadata(
+    src_path: Path, dest_dir: Path, tracker: FileTracker, group_name: str
+) -> List[str]:
     """Move PNG and ALL corresponding companion files to destination directory."""
     dest_dir.mkdir(exist_ok=True)
-    
+
     # Use wildcard logic to move PNG and ALL companion files
     moved_files = move_file_with_all_companions(src_path, dest_dir, dry_run=False)
-    
+
     # Log the operation
     tracker.log_operation(
         operation="move",
@@ -491,19 +543,25 @@ def move_with_metadata(src_path: Path, dest_dir: Path, tracker: FileTracker, gro
         dest_dir=group_name,
         file_count=len(moved_files),
         files=moved_files,
-        notes=f"User selected {group_name}"
+        notes=f"User selected {group_name}",
     )
-    
+
     return moved_files
+
 
 def detect_face_groups_context(folder: Path) -> dict:
     """Detect context when working in face_groups structure."""
     face_groups_root = folder.parent
-    person_dirs = sorted([d for d in face_groups_root.iterdir() 
-                         if d.is_dir() and d.name.startswith("person_")])
-    
+    person_dirs = sorted(
+        [
+            d
+            for d in face_groups_root.iterdir()
+            if d.is_dir() and d.name.startswith("person_")
+        ]
+    )
+
     current_index = next((i for i, d in enumerate(person_dirs) if d == folder), 0)
-    
+
     return {
         "is_face_groups": True,
         "face_groups_root": face_groups_root,
@@ -511,120 +569,149 @@ def detect_face_groups_context(folder: Path) -> dict:
         "position": current_index + 1,
         "total": len(person_dirs),
         "person_dirs": person_dirs,
-        "current_index": current_index
+        "current_index": current_index,
     }
+
 
 def find_next_person_directory(face_groups_info: dict) -> Optional[Path]:
     """Find the next person directory with images."""
     person_dirs = face_groups_info["person_dirs"]
     current_index = face_groups_info["current_index"]
-    
+
     # Look for next directory with images
     for i in range(current_index + 1, len(person_dirs)):
         next_dir = person_dirs[i]
         if any(next_dir.glob("*.png")):  # Has images
             return next_dir
-    
+
     return None
+
 
 def clean_similarity_maps(folder: Path, similarity_map_dir: Path) -> bool:
     """Clean similarity maps by removing references to deleted files."""
     try:
         import json
-        
+
         # Get current images in directory
         current_images = {img.name for img in folder.glob("*.png")}
-        
+
         neighbors_file = similarity_map_dir / "neighbors.jsonl"
         if not neighbors_file.exists():
             return False
-        
+
         # Clean neighbors.jsonl
         cleaned_entries = []
-        with open(neighbors_file, 'r') as f:
+        with open(neighbors_file, "r") as f:
             for line in f:
                 entry = json.loads(line)
                 filename = entry.get("filename", "")
-                
+
                 # Keep entry if image still exists
                 if filename in current_images:
                     # Clean the neighbors list - remove references to deleted files
                     if "neighbors" in entry:
-                        entry["neighbors"] = [n for n in entry["neighbors"] 
-                                           if n.get("filename", "") in current_images]
+                        entry["neighbors"] = [
+                            n
+                            for n in entry["neighbors"]
+                            if n.get("filename", "") in current_images
+                        ]
                     cleaned_entries.append(entry)
-        
+
         # Write cleaned neighbors.jsonl
-        with open(neighbors_file, 'w') as f:
+        with open(neighbors_file, "w") as f:
             for entry in cleaned_entries:
-                f.write(json.dumps(entry) + '\n')
-        
+                f.write(json.dumps(entry) + "\n")
+
         info(f"Cleaned similarity maps - kept {len(cleaned_entries)} entries")
         return True
-        
+
     except Exception as e:
         info(f"Failed to clean similarity maps: {e}")
         return False
 
-def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Optional[Path] = None, multi_directory_tracker: Optional[MultiDirectoryProgressTracker] = None) -> Flask:
+
+def create_app(
+    folder: Path,
+    hard_delete: bool = False,
+    similarity_map_dir: Optional[Path] = None,
+    multi_directory_tracker: Optional[MultiDirectoryProgressTracker] = None,
+) -> Flask:
     """Create and configure the Flask app."""
     app = Flask(__name__)
-    
+
     # Detect if we're working in face_groups structure
-    is_face_groups_mode = "face_groups" in str(folder) and folder.parent.name == "face_groups"
+    is_face_groups_mode = (
+        "face_groups" in str(folder) and folder.parent.name == "face_groups"
+    )
     face_groups_info = None
-    
+
     if is_face_groups_mode:
         face_groups_info = detect_face_groups_context(folder)
-        info(f"Face Groups Mode: {face_groups_info['current_dir']} ({face_groups_info['position']}/{face_groups_info['total']})")
-    
+        info(
+            f"Face Groups Mode: {face_groups_info['current_dir']} ({face_groups_info['position']}/{face_groups_info['total']})"
+        )
+
     # Scan for images
     images = scan_images(folder)
     if not images:
         human_err(f"No images found in {folder}")
         sys.exit(1)
-    
+
     info(f"Found {len(images)} images in {folder}")
-    
+
     # Apply similarity-based sorting if available
     if similarity_map_dir:
         neighbors_data = load_similarity_neighbors(similarity_map_dir)
         if neighbors_data:
             original_count = len(images)
             images = similarity_sort_images(images, neighbors_data)
-            moved_count = sum(1 for i, img in enumerate(images) if i >= original_count or img != scan_images(folder)[i])
-            info(f"Applied similarity layout: {moved_count}/{original_count} images repositioned")
+            moved_count = sum(
+                1
+                for i, img in enumerate(images)
+                if i >= original_count or img != scan_images(folder)[i]
+            )
+            info(
+                f"Applied similarity layout: {moved_count}/{original_count} images repositioned"
+            )
         else:
             info("Similarity map not found, using alphabetical order")
-    
+
     # Group images into batches of 6 for grid display
     IMAGES_PER_BATCH = 6
     image_batches = []
     for i in range(0, len(images), IMAGES_PER_BATCH):
-        batch = images[i:i + IMAGES_PER_BATCH]
-        image_batches.append({
-            'id': i // IMAGES_PER_BATCH,
-            'images': [{'index': j, 'path': img, 'name': img.name} for j, img in enumerate(batch)],
-            'start_index': i
-        })
-    
+        batch = images[i : i + IMAGES_PER_BATCH]
+        image_batches.append(
+            {
+                "id": i // IMAGES_PER_BATCH,
+                "images": [
+                    {"index": j, "path": img, "name": img.name}
+                    for j, img in enumerate(batch)
+                ],
+                "start_index": i,
+            }
+        )
+
     # Initialize FileTracker
     tracker = FileTracker("character_sorter")
-    
+
     # Set up target directories using centralized standard paths
     try:
         from utils.standard_paths import get_character_group_dirs
-        character_group_1, character_group_2, character_group_3 = get_character_group_dirs()
+
+        character_group_1, character_group_2, character_group_3 = (
+            get_character_group_dirs()
+        )
     except Exception:
         project_root = Path(__file__).parent.parent  # fallback
         character_group_1 = project_root / "__character_group_1"
-        character_group_2 = project_root / "__character_group_2"  
+        character_group_2 = project_root / "__character_group_2"
         character_group_3 = project_root / "__character_group_3"
-    
+
     # Create directories if they don't exist
     for group_dir in [character_group_1, character_group_2, character_group_3]:
         group_dir.mkdir(exist_ok=True)
-    
+
     # App state
     app.config["IMAGES"] = images
     app.config["IMAGE_BATCHES"] = image_batches
@@ -637,7 +724,7 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
     app.config["FACE_GROUPS_INFO"] = face_groups_info
     app.config["MULTI_DIRECTORY_TRACKER"] = multi_directory_tracker
     app.config["IS_MULTI_DIRECTORY_MODE"] = multi_directory_tracker is not None
-    
+
     # Set up directory navigation for face groups mode
     if is_face_groups_mode and face_groups_info:
         app.config["ALL_PERSON_DIRS"] = face_groups_info["person_dirs"]
@@ -648,80 +735,95 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
     app.config["TARGET_DIRS"] = {
         "group1": character_group_1,
         "group2": character_group_2,
-        "group3": character_group_3
+        "group3": character_group_3,
     }
     app.config["HISTORY"] = []  # Track actions for undo/back functionality
     app.config["BATCH_DECISIONS"] = {}  # Track decisions for current batch
-    
+
     @app.route("/")
     def index():
         """Main page with viewport-based progressive image sorter interface."""
         images = app.config["IMAGES"]
-        
+
         if not images:
             # Check for auto-advance in multi-directory mode
-            if app.config["IS_MULTI_DIRECTORY_MODE"] and app.config["MULTI_DIRECTORY_TRACKER"]:
+            if (
+                app.config["IS_MULTI_DIRECTORY_MODE"]
+                and app.config["MULTI_DIRECTORY_TRACKER"]
+            ):
                 tracker = app.config["MULTI_DIRECTORY_TRACKER"]
                 if tracker.has_more_directories():
                     tracker.get_current_directory()
                     tracker.advance_directory()
                     next_dir_info = tracker.get_current_directory()
-                    
+
                     if next_dir_info:
-                        print(f"DEBUG: Multi-directory mode - advancing to {next_dir_info['name']}")
+                        print(
+                            f"DEBUG: Multi-directory mode - advancing to {next_dir_info['name']}"
+                        )
                         # Direct redirect to next directory instead of showing countdown page
-                        return redirect(f'/switch-directory/{next_dir_info["name"]}')
-            
+                        return redirect(f"/switch-directory/{next_dir_info['name']}")
+
             # Check for auto-advance in face groups mode
             elif app.config["IS_FACE_GROUPS_MODE"] and app.config["FACE_GROUPS_INFO"]:
-                print("DEBUG: Face groups mode detected, checking for next directory...")
+                print(
+                    "DEBUG: Face groups mode detected, checking for next directory..."
+                )
                 next_dir = find_next_person_directory(app.config["FACE_GROUPS_INFO"])
                 if next_dir:
                     print(f"DEBUG: Found next directory: {next_dir.name}")
                     # Direct redirect to next directory instead of showing countdown page
-                    return redirect(f'/switch-directory/{next_dir.name}')
+                    return redirect(f"/switch-directory/{next_dir.name}")
                 else:
                     print("DEBUG: No next directory found, showing completion")
             else:
                 print("DEBUG: Single directory mode")
-            
-            return render_template_string(COMPLETION_TEMPLATE, 
-                                        history=app.config["HISTORY"])
-        
+
+            return render_template_string(
+                COMPLETION_TEMPLATE, history=app.config["HISTORY"]
+            )
+
         # Group images into rows for display
         image_rows = []
         for i in range(0, len(images), IMAGES_PER_BATCH):
-            row_images = images[i:i + IMAGES_PER_BATCH]
+            row_images = images[i : i + IMAGES_PER_BATCH]
             row_list = []
             for j, img in enumerate(row_images):
-                cropped = img.with_suffix('.cropped').exists()
-                row_list.append({
-                    'index': j,
-                    'path': img,
-                    'name': img.name,
-                    'stage_name': format_image_display_name(img.name, context='web'),
-                    'global_index': i + j,
-                    'cropped': cropped
-                })
-            image_rows.append({
-                'id': i // IMAGES_PER_BATCH,
-                'images': row_list,
-                'start_index': i
-            })
-        
+                cropped = img.with_suffix(".cropped").exists()
+                row_list.append(
+                    {
+                        "index": j,
+                        "path": img,
+                        "name": img.name,
+                        "stage_name": format_image_display_name(
+                            img.name, context="web"
+                        ),
+                        "global_index": i + j,
+                        "cropped": cropped,
+                    }
+                )
+            image_rows.append(
+                {"id": i // IMAGES_PER_BATCH, "images": row_list, "start_index": i}
+            )
+
         # Calculate current directory index for previous button state
         current_dir_index = 0
         if app.config["IS_FACE_GROUPS_MODE"] and "ALL_PERSON_DIRS" in app.config:
             try:
-                current_dir_index = app.config["ALL_PERSON_DIRS"].index(app.config["CURRENT_DIR"])
+                current_dir_index = app.config["ALL_PERSON_DIRS"].index(
+                    app.config["CURRENT_DIR"]
+                )
             except (ValueError, KeyError):
                 current_dir_index = 0
-        
+
         # Get progress info for multi-directory mode
         progress_info = None
-        if app.config["IS_MULTI_DIRECTORY_MODE"] and app.config["MULTI_DIRECTORY_TRACKER"]:
+        if (
+            app.config["IS_MULTI_DIRECTORY_MODE"]
+            and app.config["MULTI_DIRECTORY_TRACKER"]
+        ):
             progress_info = app.config["MULTI_DIRECTORY_TRACKER"].get_progress_info()
-        
+
         return render_template_string(
             VIEWPORT_TEMPLATE,
             image_rows=image_rows,
@@ -734,164 +836,184 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
             progress_info=progress_info,
             has_similarity_maps=app.config["SIMILARITY_MAP_DIR"] is not None,
             current_dir_index=current_dir_index,
-            error_display_html=get_error_display_html()
+            error_display_html=get_error_display_html(),
         )
-    
+
     @app.route("/image/<int:global_index>")
     def serve_image(global_index: int):
         """Serve image thumbnail by global index."""
         images = app.config["IMAGES"]
-        
+
         if global_index >= len(images):
             return Response(status=404)
-        
+
         path = images[global_index]
         if not path.exists():
             return Response(status=404)
-        
+
         stat = path.stat()
         data = _generate_thumbnail(str(path), int(stat.st_mtime_ns), stat.st_size)
         return Response(data, mimetype="image/jpeg")
-    
+
     @app.route("/action", methods=["POST"])
     def handle_action():
         """Handle user actions (group1, group2, group3, delete, skip, back)."""
         data = request.get_json() or {}
         action = data.get("action")
-        
+
         current_idx = app.config["CURRENT_INDEX"]
         images = app.config["IMAGES"]
         tracker = app.config["TRACKER"]
         target_dirs = app.config["TARGET_DIRS"]
         history = app.config["HISTORY"]
-        
+
         if current_idx >= len(images):
             return jsonify({"status": "error", "message": "No more images"}), 400
-        
+
         current_image = images[current_idx]
-        
+
         if action == "back":
             if current_idx > 0:
                 app.config["CURRENT_INDEX"] = current_idx - 1
             return jsonify({"status": "ok", "action": "back"})
-        
+
         elif action == "skip":
             app.config["CURRENT_INDEX"] = current_idx + 1
             return jsonify({"status": "ok", "action": "skip"})
-        
+
         elif action in ["group1", "group2", "group3"]:
             target_dir = target_dirs[action]
             group_name = f"character_{action}"
-            
+
             try:
-                moved_files = move_with_metadata(current_image, target_dir, tracker, group_name)
+                moved_files = move_with_metadata(
+                    current_image, target_dir, tracker, group_name
+                )
                 history.append((current_image.name, group_name, moved_files))
-                
+
                 # Remove from images list
                 images.pop(current_idx)
                 if current_idx >= len(images) and images:
                     app.config["CURRENT_INDEX"] = len(images) - 1
-                
-                return jsonify({
-                    "status": "ok", 
-                    "action": action,
-                    "moved_files": moved_files,
-                    "remaining": len(images)
-                })
-                
+
+                return jsonify(
+                    {
+                        "status": "ok",
+                        "action": action,
+                        "moved_files": moved_files,
+                        "remaining": len(images),
+                    }
+                )
+
             except Exception as e:
                 return jsonify({"status": "error", "message": str(e)}), 500
-        
+
         elif action == "delete":
             try:
-                yaml_file = current_image.with_suffix('.yaml')
+                yaml_file = current_image.with_suffix(".yaml")
                 files_to_delete = [current_image.name]
                 if yaml_file.exists():
                     files_to_delete.append(yaml_file.name)
-                
+
                 safe_delete(current_image, app.config["HARD_DELETE"], tracker)
                 history.append((current_image.name, "DELETED", files_to_delete))
-                
+
                 # Remove from images list
                 images.pop(current_idx)
                 if current_idx >= len(images) and images:
                     app.config["CURRENT_INDEX"] = len(images) - 1
-                
-                return jsonify({
-                    "status": "ok",
-                    "action": "delete", 
-                    "deleted_files": files_to_delete,
-                    "remaining": len(images)
-                })
-                
+
+                return jsonify(
+                    {
+                        "status": "ok",
+                        "action": "delete",
+                        "deleted_files": files_to_delete,
+                        "remaining": len(images),
+                    }
+                )
+
             except Exception as e:
                 return jsonify({"status": "error", "message": str(e)}), 500
-        
+
         else:
             return jsonify({"status": "error", "message": "Unknown action"}), 400
-    
+
     def process_shutdown():
         """Graceful shutdown."""
         os.kill(os.getpid(), signal.SIGTERM)
-    
+
     @app.route("/complete", methods=["POST"])
     def complete_session():
         """Complete the sorting session and shutdown."""
         history = app.config["HISTORY"]
         remaining = len(app.config["IMAGES"])
-        
+
         # Generate summary
-        group1_count = sum(1 for _, action, _ in history if action == "character_group1")
-        group2_count = sum(1 for _, action, _ in history if action == "character_group2") 
-        group3_count = sum(1 for _, action, _ in history if action == "character_group3")
+        group1_count = sum(
+            1 for _, action, _ in history if action == "character_group1"
+        )
+        group2_count = sum(
+            1 for _, action, _ in history if action == "character_group2"
+        )
+        group3_count = sum(
+            1 for _, action, _ in history if action == "character_group3"
+        )
         deleted_count = sum(1 for _, action, _ in history if action == "DELETED")
-        
+
         message = (
             f"Character sorting complete! "
             f"Group 1: {group1_count}, Group 2: {group2_count}, Group 3: {group3_count}, "
             f"Deleted: {deleted_count}, Remaining: {remaining}"
         )
-        
+
         info(message)
-        
+
         # Shutdown server after response
         threading.Thread(target=process_shutdown, daemon=True).start()
-        
+
         return jsonify({"status": "ok", "message": message})
-    
+
     @app.route("/process-batch", methods=["POST"])
     def process_batch():
         """Process the current batch of reviewed images."""
         data = request.get_json() or {}
         reviewed_count = data.get("reviewed_count", 0)
-        
+
         if reviewed_count == 0:
             return jsonify({"status": "error", "message": "No images in batch"}), 400
-        
+
         history = app.config["HISTORY"]
         remaining = len(app.config["IMAGES"])
-        
+
         # Generate summary for the batch that was processed
         # (the actual processing was done incrementally as user made decisions)
-        group1_count = sum(1 for _, action, _ in history if action == "character_group1")
-        group2_count = sum(1 for _, action, _ in history if action == "character_group2") 
-        group3_count = sum(1 for _, action, _ in history if action == "character_group3")
+        group1_count = sum(
+            1 for _, action, _ in history if action == "character_group1"
+        )
+        group2_count = sum(
+            1 for _, action, _ in history if action == "character_group2"
+        )
+        group3_count = sum(
+            1 for _, action, _ in history if action == "character_group3"
+        )
         deleted_count = sum(1 for _, action, _ in history if action == "DELETED")
-        
+
         message = (
             f"Processed {reviewed_count} images - "
             f"Group 1: {group1_count}, Group 2: {group2_count}, Group 3: {group3_count}, "
             f"Deleted: {deleted_count}"
         )
-        
+
         info(f"Batch processed: {message}")
-        
-        return jsonify({
-            "status": "ok", 
-            "message": message,
-            "remaining": remaining,
-            "processed": reviewed_count
-        })
+
+        return jsonify(
+            {
+                "status": "ok",
+                "message": message,
+                "remaining": remaining,
+                "processed": reviewed_count,
+            }
+        )
 
     @app.route("/orphan-decisions/preview", methods=["GET"])
     def preview_orphan_decisions():
@@ -909,13 +1031,15 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
             if d.stem not in png_stems:
                 orphans.append(str(d.resolve()))
 
-        return jsonify({
-            "status": "ok",
-            "folder": str(folder),
-            "total_decisions": len(decisions),
-            "orphan_count": len(orphans),
-            "orphans": orphans[:200]  # cap list for payload
-        })
+        return jsonify(
+            {
+                "status": "ok",
+                "folder": str(folder),
+                "total_decisions": len(decisions),
+                "orphan_count": len(orphans),
+                "orphans": orphans[:200],  # cap list for payload
+            }
+        )
 
     @app.route("/orphan-decisions/stage", methods=["POST"])
     def stage_orphan_decisions():
@@ -937,10 +1061,13 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
                 try:
                     # Move using companion-aware mover to avoid orphaning sidecars
                     from utils.companion_file_utils import move_file_with_all_companions
+
                     move_file_with_all_companions(d, staging, dry_run=False)
                     moved.append(d.name)
                 except Exception as e:
-                    return jsonify({"status": "error", "message": f"Failed moving {d.name}: {e}"}), 500
+                    return jsonify(
+                        {"status": "error", "message": f"Failed moving {d.name}: {e}"}
+                    ), 500
 
         if moved:
             try:
@@ -950,199 +1077,250 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
                     dest_dir=str(staging.name),
                     file_count=len(moved),
                     files=moved[:10],
-                    notes=f"orphan .decision staged ({len(moved)} total)"
+                    notes=f"orphan .decision staged ({len(moved)} total)",
                 )
             except Exception:
                 pass  # best-effort logging
 
-        return jsonify({"status": "ok", "moved_count": len(moved), "staging": str(staging)})
-    
+        return jsonify(
+            {"status": "ok", "moved_count": len(moved), "staging": str(staging)}
+        )
+
     @app.route("/process-viewport-batch", methods=["POST"])
     def process_viewport_batch():
         """Process decisions for images in the current viewport batch."""
         data = request.get_json() or {}
         decisions = data.get("decisions", {})
-        
+
         if not decisions:
-            return jsonify({"status": "error", "message": "No decisions to process"}), 400
-        
+            return jsonify(
+                {"status": "error", "message": "No decisions to process"}
+            ), 400
+
         tracker = app.config["TRACKER"]
         target_dirs = app.config["TARGET_DIRS"]
         hard_delete = app.config["HARD_DELETE"]
         images = app.config["IMAGES"]
         history = app.config["HISTORY"]
-        
+
         processed_count = 0
         processed_indices = []
-        
+
         try:
             for image_index_str, action in decisions.items():
                 image_index = int(image_index_str)
-                
+
                 if image_index >= len(images):
                     continue
-                
+
                 image_path = images[image_index]
                 processed_indices.append(image_index)
-                
+
                 if action in ["group1", "group2", "group3"]:
                     target_dir = target_dirs[action]
                     group_name = f"character_{action}"
-                    moved_files = move_with_metadata(image_path, target_dir, tracker, group_name)
+                    moved_files = move_with_metadata(
+                        image_path, target_dir, tracker, group_name
+                    )
                     history.append((image_path.name, group_name, moved_files))
                     processed_count += 1
-                    
+
                 elif action == "delete":
                     files_to_delete = [image_path.name]
-                    yaml_file = image_path.with_suffix('.yaml')
+                    yaml_file = image_path.with_suffix(".yaml")
                     if yaml_file.exists():
                         files_to_delete.append(yaml_file.name)
-                    
+
                     safe_delete(image_path, hard_delete, tracker)
                     history.append((image_path.name, "DELETED", files_to_delete))
                     processed_count += 1
-                    
+
                 elif action == "crop":
                     # Move to central __crop directory for further processing
                     try:
                         from utils.standard_paths import get_crop_dir
+
                         crop_dir = get_crop_dir()
                         crop_dir.mkdir(exist_ok=True)
                     except Exception:
                         crop_dir = Path.cwd() / "__crop"
                         crop_dir.mkdir(exist_ok=True)
-                    moved_files = move_with_metadata(image_path, crop_dir, tracker, "crop_processing")
+                    moved_files = move_with_metadata(
+                        image_path, crop_dir, tracker, "crop_processing"
+                    )
                     history.append((image_path.name, "SENT_TO_CROP", moved_files))
                     processed_count += 1
-        
+
         except Exception as e:
             return jsonify({"status": "error", "message": str(e)}), 500
-        
+
         # Remove processed images from the list (in reverse order to maintain indices)
         for index in sorted(processed_indices, reverse=True):
             if index < len(images):
                 images.pop(index)
-        
+
         app.config["IMAGES"] = images
-        
+
         message = f"Processed {processed_count} images from viewport batch"
-        
+
         # If no images remain, trigger page refresh to check for auto-advance
         if len(images) == 0:
-            return jsonify({"status": "ok", "message": message, "remaining": 0, "refresh": True})
-        
+            return jsonify(
+                {"status": "ok", "message": message, "remaining": 0, "refresh": True}
+            )
+
         return jsonify({"status": "ok", "message": message, "remaining": len(images)})
-    
+
     @app.route("/complete")
     def completion_page():
         """Show completion page when all images are processed."""
-        return render_template_string(COMPLETION_TEMPLATE, history=app.config["HISTORY"])
-    
+        return render_template_string(
+            COMPLETION_TEMPLATE, history=app.config["HISTORY"]
+        )
+
     @app.route("/refresh-layout", methods=["POST"])
     def refresh_layout():
         """Clean similarity maps and refresh the layout."""
         if not app.config["SIMILARITY_MAP_DIR"]:
-            return jsonify({"status": "error", "message": "No similarity maps available"}), 400
-        
+            return jsonify(
+                {"status": "error", "message": "No similarity maps available"}
+            ), 400
+
         folder = app.config["FOLDER"]
         similarity_map_dir = app.config["SIMILARITY_MAP_DIR"]
-        
+
         success = clean_similarity_maps(folder, similarity_map_dir)
-        
+
         if success:
-            return jsonify({"status": "success", "message": "Layout refreshed successfully"})
+            return jsonify(
+                {"status": "success", "message": "Layout refreshed successfully"}
+            )
         else:
-            return jsonify({"status": "error", "message": "Failed to refresh layout"}), 500
-    
+            return jsonify(
+                {"status": "error", "message": "Failed to refresh layout"}
+            ), 500
+
     @app.route("/prev-directory", methods=["POST"])
     def prev_directory():
         """Get the previous person directory for manual navigation."""
         if not app.config["IS_FACE_GROUPS_MODE"]:
-            return jsonify({"status": "error", "message": "Not in face groups mode"}), 400
-        
+            return jsonify(
+                {"status": "error", "message": "Not in face groups mode"}
+            ), 400
+
         current_dir = app.config["CURRENT_DIR"]
         all_dirs = app.config["ALL_PERSON_DIRS"]
-        
+
         try:
             current_index = all_dirs.index(current_dir)
             if current_index == 0:
-                return jsonify({"status": "first_directory", "message": "Already at the first directory"})
-            
+                return jsonify(
+                    {
+                        "status": "first_directory",
+                        "message": "Already at the first directory",
+                    }
+                )
+
             prev_dir = all_dirs[current_index - 1]
-            
+
             # Build redirect URL for previous directory
-            base_url = request.url_root.rstrip('/')
+            base_url = request.url_root.rstrip("/")
             redirect_url = f"{base_url}/?dir={prev_dir.name}"
-            
-            return jsonify({
-                "status": "success",
-                "prev_directory": prev_dir.name,
-                "redirect_url": redirect_url,
-                "current_index": current_index - 1,
-                "total_directories": len(all_dirs)
-            })
-            
+
+            return jsonify(
+                {
+                    "status": "success",
+                    "prev_directory": prev_dir.name,
+                    "redirect_url": redirect_url,
+                    "current_index": current_index - 1,
+                    "total_directories": len(all_dirs),
+                }
+            )
+
         except ValueError:
-            return jsonify({"status": "error", "message": "Current directory not found in list"}), 500
-    
+            return jsonify(
+                {"status": "error", "message": "Current directory not found in list"}
+            ), 500
+
     @app.route("/next-directory", methods=["POST"])
     def next_directory():
         """Get the next person directory for manual advance."""
         if not app.config["IS_FACE_GROUPS_MODE"]:
-            return jsonify({"status": "error", "message": "Not in face groups mode"}), 400
-        
+            return jsonify(
+                {"status": "error", "message": "Not in face groups mode"}
+            ), 400
+
         face_groups_info = app.config["FACE_GROUPS_INFO"]
         next_dir = find_next_person_directory(face_groups_info)
-        
+
         if next_dir:
-            return jsonify({
-                "status": "success", 
-                "next_directory": next_dir.name,
-                "current_position": face_groups_info["position"],
-                "total": face_groups_info["total"]
-            })
+            return jsonify(
+                {
+                    "status": "success",
+                    "next_directory": next_dir.name,
+                    "current_position": face_groups_info["position"],
+                    "total": face_groups_info["total"],
+                }
+            )
         else:
-            return jsonify({"status": "complete", "message": "All directories processed"})
-    
+            return jsonify(
+                {"status": "complete", "message": "All directories processed"}
+            )
+
     @app.route("/switch-directory/<directory_name>")
     def switch_directory(directory_name):
         """Switch to a new directory without restarting the server."""
         # Handle multi-directory mode
         if app.config["IS_MULTI_DIRECTORY_MODE"]:
             tracker = app.config["MULTI_DIRECTORY_TRACKER"]
-            
+
             # Find the directory by name
             target_dir = None
             for dir_info in tracker.directories:
-                if dir_info['name'] == directory_name:
-                    target_dir = dir_info['path']
+                if dir_info["name"] == directory_name:
+                    target_dir = dir_info["path"]
                     break
-            
+
             if not target_dir:
-                return jsonify({"status": "error", "message": f"Directory {directory_name} not found"}), 404
-            
+                return jsonify(
+                    {
+                        "status": "error",
+                        "message": f"Directory {directory_name} not found",
+                    }
+                ), 404
+
             # Scan for images in new directory
             new_images = scan_images(target_dir)
             if not new_images:
-                return jsonify({"status": "error", "message": f"No images found in {directory_name}"}), 404
-            
+                return jsonify(
+                    {
+                        "status": "error",
+                        "message": f"No images found in {directory_name}",
+                    }
+                ), 404
+
             # Apply similarity sorting if available
             similarity_map_dir = app.config["SIMILARITY_MAP_DIR"]
             if similarity_map_dir:
                 neighbors_data = load_similarity_neighbors(similarity_map_dir)
                 if neighbors_data:
                     new_images = similarity_sort_images(new_images, neighbors_data)
-            
+
             # Group images into batches
             new_image_batches = []
             for i in range(0, len(new_images), IMAGES_PER_BATCH):
-                batch = new_images[i:i + IMAGES_PER_BATCH]
-                new_image_batches.append({
-                    'id': i // IMAGES_PER_BATCH,
-                    'images': [{'index': j, 'path': img, 'name': img.name} for j, img in enumerate(batch)],
-                    'start_index': i
-                })
-            
+                batch = new_images[i : i + IMAGES_PER_BATCH]
+                new_image_batches.append(
+                    {
+                        "id": i // IMAGES_PER_BATCH,
+                        "images": [
+                            {"index": j, "path": img, "name": img.name}
+                            for j, img in enumerate(batch)
+                        ],
+                        "start_index": i,
+                    }
+                )
+
             # Update app config
             app.config["IMAGES"] = new_images
             app.config["IMAGE_BATCHES"] = new_image_batches
@@ -1150,57 +1328,74 @@ def create_app(folder: Path, hard_delete: bool = False, similarity_map_dir: Opti
             app.config["FOLDER"] = target_dir
             app.config["HISTORY"] = []
             app.config["BATCH_DECISIONS"] = {}
-            
+
             # Redirect to main page to show the new directory
-            return redirect('/')
-        
+            return redirect("/")
+
         # Handle face groups mode
         elif app.config["IS_FACE_GROUPS_MODE"]:
             if not app.config["FACE_GROUPS_INFO"]:
-                return jsonify({"status": "error", "message": "Not in face groups mode"}), 400
-            
+                return jsonify(
+                    {"status": "error", "message": "Not in face groups mode"}
+                ), 400
+
             # Get the face groups root from current config
             face_groups_info = app.config["FACE_GROUPS_INFO"]
             face_groups_root = face_groups_info["face_groups_root"]
             new_directory = face_groups_root / directory_name
-            
+
             if not new_directory.exists():
-                return jsonify({"status": "error", "message": f"Directory {directory_name} not found"}), 404
-            
+                return jsonify(
+                    {
+                        "status": "error",
+                        "message": f"Directory {directory_name} not found",
+                    }
+                ), 404
+
             # Scan for images in new directory
             new_images = scan_images(new_directory)
             if not new_images:
-                return jsonify({"status": "error", "message": f"No images found in {directory_name}"}), 404
-            
+                return jsonify(
+                    {
+                        "status": "error",
+                        "message": f"No images found in {directory_name}",
+                    }
+                ), 404
+
             # Apply similarity sorting if available
             similarity_map_dir = app.config["SIMILARITY_MAP_DIR"]
             if similarity_map_dir:
                 neighbors_data = load_similarity_neighbors(similarity_map_dir)
                 if neighbors_data:
                     new_images = similarity_sort_images(new_images, neighbors_data)
-            
+
             # Update app config with new directory
             new_face_groups_info = detect_face_groups_context(new_directory)
             app.config["FOLDER"] = new_directory
             app.config["IMAGES"] = new_images
             app.config["FACE_GROUPS_INFO"] = new_face_groups_info
             app.config["HISTORY"] = []  # Reset history for new directory
-            
+
             # Update directory navigation config
             app.config["ALL_PERSON_DIRS"] = new_face_groups_info["person_dirs"]
             app.config["CURRENT_DIR"] = new_face_groups_info["current_dir"]
-            
-            return jsonify({
-                "status": "success",
-                "message": f"Switched to {directory_name}",
-                "image_count": len(new_images)
-            })
-        
+
+            return jsonify(
+                {
+                    "status": "success",
+                    "message": f"Switched to {directory_name}",
+                    "image_count": len(new_images),
+                }
+            )
+
         # If we get here, neither multi-directory nor face groups mode is active
         else:
-            return jsonify({"status": "error", "message": "No multi-directory mode active"}), 400
-    
+            return jsonify(
+                {"status": "error", "message": "No multi-directory mode active"}
+            ), 400
+
     return app
+
 
 # HTML Templates
 MAIN_TEMPLATE = """
@@ -2878,74 +3073,91 @@ COMPLETION_TEMPLATE = """
 </html>
 """
 
+
 def extract_stage_name(filename: str) -> str:
     """Extract stage name from filename after second underscore."""
-    parts = filename.split('_')
+    parts = filename.split("_")
     if len(parts) >= 3:
         # Join everything after the second underscore
-        stage_name = '_'.join(parts[2:])
+        stage_name = "_".join(parts[2:])
         # Remove file extension
-        stage_name = stage_name.rsplit('.', 1)[0]
+        stage_name = stage_name.rsplit(".", 1)[0]
         return stage_name
-    return filename.rsplit('.', 1)[0]  # Fallback to filename without extension
+    return filename.rsplit(".", 1)[0]  # Fallback to filename without extension
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Sort images into character groups using a modern web interface.",
     )
     parser.add_argument("directory", help="Directory containing images to sort")
-    
-    parser.add_argument("--hard-delete", action="store_true", 
-                       help="Permanently delete files instead of using trash")
-    parser.add_argument("--similarity-map", type=str, 
-                       help="Directory containing similarity map files (neighbors.jsonl, etc.)")
+
+    parser.add_argument(
+        "--hard-delete",
+        action="store_true",
+        help="Permanently delete files instead of using trash",
+    )
+    parser.add_argument(
+        "--similarity-map",
+        type=str,
+        help="Directory containing similarity map files (neighbors.jsonl, etc.)",
+    )
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
     parser.add_argument("--port", default=8080, type=int, help="Port to bind to")
-    parser.add_argument("--no-browser", action="store_true", 
-                       help="Don't automatically open browser")
-    
+    parser.add_argument(
+        "--no-browser", action="store_true", help="Don't automatically open browser"
+    )
+
     args = parser.parse_args()
-    
+
     folder = Path(args.directory).expanduser().resolve()
     if not folder.exists() or not folder.is_dir():
         human_err(f"{folder} is not a directory")
         sys.exit(1)
-    
+
     # Check if we're in multi-directory mode (directory contains subdirectories with images)
     multi_directory_tracker = None
-    
+
     # Look for subdirectories with PNG files
     subdirs_with_images = []
     for item in folder.iterdir():
         if item.is_dir() and list(item.glob("*.png")):
             subdirs_with_images.append(item)
-    
+
     # If we found subdirectories with images, enable multi-directory mode
     if len(subdirs_with_images) > 1:
         multi_directory_tracker = MultiDirectoryProgressTracker(folder)
-        
+
         # Get the current directory to process
         current_dir_info = multi_directory_tracker.get_current_directory()
         if not current_dir_info:
             info("All directories completed!")
             sys.exit(0)
-        
-        folder = current_dir_info['path']  # Process the current subdirectory
-        info(f"Multi-directory mode: Processing {current_dir_info['name']} ({multi_directory_tracker.current_directory_index + 1}/{len(multi_directory_tracker.directories)})")
-    
+
+        folder = current_dir_info["path"]  # Process the current subdirectory
+        info(
+            f"Multi-directory mode: Processing {current_dir_info['name']} ({multi_directory_tracker.current_directory_index + 1}/{len(multi_directory_tracker.directories)})"
+        )
+
     # Handle similarity map directory
     similarity_map_dir = None
     if args.similarity_map:
         similarity_map_dir = Path(args.similarity_map).expanduser().resolve()
         if not similarity_map_dir.exists() or not similarity_map_dir.is_dir():
-            info(f"Similarity map directory {similarity_map_dir} not found - using alphabetical order")
+            info(
+                f"Similarity map directory {similarity_map_dir} not found - using alphabetical order"
+            )
             similarity_map_dir = None
-    
-    app = create_app(folder, args.hard_delete, similarity_map_dir, multi_directory_tracker)
-    
+
+    app = create_app(
+        folder, args.hard_delete, similarity_map_dir, multi_directory_tracker
+    )
+
     if not args.no_browser:
-        threading.Thread(target=launch_browser, args=(args.host, args.port), daemon=True).start()
-    
+        threading.Thread(
+            target=launch_browser, args=(args.host, args.port), daemon=True
+        ).start()
+
     try:
         info(f"Character sorter running at http://{args.host}:{args.port}")
         app.run(host=args.host, port=args.port, debug=False, use_reloader=False)

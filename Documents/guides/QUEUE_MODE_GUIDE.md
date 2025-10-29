@@ -18,10 +18,11 @@ Queue Mode decouples the **interactive cropping** (setting coordinates) from the
 Use the crop tool in queue mode:
 
 ```bash
-python scripts/02_ai_desktop_multi_crop.py crop_auto/ --queue-mode
+python scripts/02_ai_desktop_multi_crop.py __crop_auto/ --queue-mode
 ```
 
 This will:
+
 - Let you set crop coordinates at full speed (no I/O delays!)
 - Write crop operations to `data/crop_queue/crop_queue.jsonl`
 - Move processed images to `__crop_queued/` directory
@@ -91,11 +92,13 @@ Break duration:      20.5 min median
 ## Project Timeline (3,367 images)
 
 ### Normal Mode
+
 - Pure cropping time: **13.0 hours**
 - With realistic breaks: **17.3 hours**
 - At 6 hrs/day: **2.9 days**
 
 ### Queue Mode (50% faster UI)
+
 - Pure cropping time: **8.7 hours** (save 4.3 hours!)
 - Interactive work: Can complete in **~2 days** at 6 hrs/day
 
@@ -149,11 +152,13 @@ __cropped/                       # Final cropped output (processed)
 ## Troubleshooting
 
 **Queue not processing:**
+
 - Check that images exist in `__crop_queued/` directory
 - Verify queue file at `data/crop_queue/crop_queue.jsonl`
 - Try preview mode first: `--preview`
 
 **Want to start over:**
+
 ```bash
 rm data/crop_queue/crop_queue.jsonl
 # Move files back from __crop_queued/ to original location if needed
@@ -166,11 +171,11 @@ You can edit `data/crop_queue/timing_patterns.json` to customize timing simulati
 ```json
 {
   "percentiles": {
-    "p50": 0.31,    // Median time between batches
-    "p75": 16.25    // 75th percentile (thinking pauses)
+    "p50": 0.31, // Median time between batches
+    "p75": 16.25 // 75th percentile (thinking pauses)
   },
   "mean": 7.86,
-  "stddev": 12.12,  // Variability
+  "stddev": 12.12, // Variability
   "session_avg_minutes": 44.0,
   "session_avg_crops": 199.8,
   "break_median_minutes": 20.5
