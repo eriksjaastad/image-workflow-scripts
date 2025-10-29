@@ -116,7 +116,7 @@ def main():
 
     print()
     print("=" * 60)
-    print(f"📈 Progress Summary:")
+    print("📈 Progress Summary:")
     print(f"   Remaining to crop:  {total_remaining:,} images")
     print(f"   Already cropped:    {total_done:,} images ✓")
 
