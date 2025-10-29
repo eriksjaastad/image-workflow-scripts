@@ -1204,6 +1204,8 @@ DASHBOARD_TEMPLATE = """
                     // Calculate crop-only progress during Phase 2
                     const totalCompleted = croppedCount + selectedOnly; // overall completed (info only)
                     const remainingToCrop = (ds.__crop || 0) + (ds.__crop_auto || 0);
+                    const imagesPerBatch = 3;
+                    const remainingBatches = Math.ceil(remainingToCrop / imagesPerBatch);
                     const cropTotal = croppedCount + remainingToCrop;
                     const cropProgress = cropTotal > 0 ? 
                         (100 * croppedCount / cropTotal).toFixed(1) : 0;
@@ -1239,7 +1241,7 @@ DASHBOARD_TEMPLATE = """
                                 <div style="color: var(--accent); font-weight: 600; margin-bottom: 10px;">Remaining:</div>
                                 <div class="metric-row">
                                     <span class="metric-label">__crop/ + __crop_auto/</span>
-                                    <span class="metric-value">${remainingToCrop.toLocaleString()}</span>
+                                    <span class="metric-value">${remainingToCrop.toLocaleString()} (${remainingBatches.toLocaleString()} batches)</span>
                                 </div>
                                 ${cropTotal > 0 ? `
                                 <div class="metric-row" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.05);">
