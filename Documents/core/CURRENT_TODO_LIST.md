@@ -98,6 +98,22 @@
 
 ## 📅 Backlog
 
+### Productivity Dashboard (run_dashboard.py)
+
+- [ ] Build vs Actual hours not working
+  - Verify data sources and aggregation; ensure FileTracker-derived bins or equivalent are wired
+- [ ] Project Productivity Table not populating
+  - Likely missing multi-tool tracking for web image selector (AI version vs others)
+  - Add source(s) to capture web selector actions and include in table
+- [ ] Multi-Crop tool stats suspect (shows 327 cropped)
+  - Audit metric definition and source; reconcile with crop logs and final counts
+- [ ] Input vs Output panel empty for Mojo3
+  - Confirm inputs (incoming images) and outputs (final images) queries; fix project filters
+- [ ] Files Processed by Project looks wrong (only shows yesterday)
+  - Check time window, grouping, and event source; validate daily aggregation for Mojo3
+- [ ] Queue system charts empty (expected: unused)
+  - Hide or collapse queue panels when no queue data present
+
 ### Dashboard Phase 3 & 4 Improvements
 
 Context

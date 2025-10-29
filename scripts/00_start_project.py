@@ -304,6 +304,70 @@ def create_project_manifest(
                 )
         except Exception:
             pass
+
+        # Ensure per-project allowlist exists (used by prezip_stager)
+        try:
+            allowlist_dir = Path("data/projects")
+            allowlist_dir.mkdir(parents=True, exist_ok=True)
+            allowlist_path = allowlist_dir / f"{project_id}_allowed_ext.json"
+            if not allowlist_path.exists():
+                # Build a dynamic allowlist from an inventory of current content extensions
+                ext_counts: dict[str, int] = {}
+                total_files = 0
+                for p in content_dir.rglob("*"):
+                    try:
+                        if not p.is_file():
+                            continue
+                        ext = p.suffix.lower().lstrip(".")
+                        if not ext:
+                            continue
+                        total_files += 1
+                        ext_counts[ext] = ext_counts.get(ext, 0) + 1
+                    except Exception:
+                        continue
+
+                # Write an inventory snapshot for operator visibility
+                try:
+                    inventory = {
+                        "projectId": project_id,
+                        "scannedAt": timestamp,
+                        "contentDir": str(content_dir),
+                        "totalFiles": total_files,
+                        "extCounts": dict(
+                            sorted(ext_counts.items(), key=lambda kv: (-kv[1], kv[0]))
+                        ),
+                    }
+                    (allowlist_dir / f"{project_id}_inventory.json").write_text(
+                        json.dumps(inventory, indent=2, ensure_ascii=False),
+                        encoding="utf-8",
+                    )
+                except Exception:
+                    pass
+
+                # Derive allowedExtensions from inventory (fallback to sensible defaults)
+                allowed_exts = (
+                    sorted(ext_counts.keys())
+                    if ext_counts
+                    else [
+                        "png",
+                        "yaml",
+                        "caption",
+                        "txt",
+                    ]
+                )
+
+                allow_doc = {
+                    "allowedExtensions": allowed_exts,
+                    "clientWhitelistOverrides": [],
+                }
+                allowlist_path.write_text(
+                    json.dumps(allow_doc, indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+                print(f"✅ Created allowlist: {allowlist_path}")
+        except Exception:
+            # Non-fatal; prezip_stager will complain if missing
+            pass
     except Exception as e:
         return {"status": "error", "message": f"Failed to write manifest: {e}"}
 
