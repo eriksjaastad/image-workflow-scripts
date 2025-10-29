@@ -1281,10 +1281,14 @@ DASHBOARD_TEMPLATE = """
                 if (data.historical_timeline) {
                     const labels = data.historical_timeline.map(p => p.name);
                     const rates = data.historical_timeline.map(p => p.rate);
-                    const baselineSel = (data.baseline && data.baseline.selection) ? data.baseline.selection.avg_rate : 0;
+                    // Use crop baseline (most relevant for productivity comparison)
+                    // Fall back to selection if crop unavailable
+                    const baseline = (data.baseline && data.baseline.crop && data.baseline.crop.avg_rate > 0)
+                        ? data.baseline.crop.avg_rate
+                        : (data.baseline && data.baseline.selection) ? data.baseline.selection.avg_rate : 0;
                     const colors = rates.map(r =>
-                        r > baselineSel * 1.1 ? '#51cf66' :
-                        r < baselineSel * 0.9 ? '#ff6b6b' : '#4f9dff'
+                        r > baseline * 1.1 ? '#51cf66' :
+                        r < baseline * 0.9 ? '#ff6b6b' : '#4f9dff'
                     );
                     if (window.Chart) {
                         new Chart(document.getElementById('historyChart'), {
@@ -1296,8 +1300,8 @@ DASHBOARD_TEMPLATE = """
                                     data: rates,
                                     backgroundColor: colors
                                 }, {
-                                    label: 'Baseline',
-                                    data: Array(labels.length).fill(baselineSel),
+                                    label: 'Baseline (Crop)',
+                                    data: Array(labels.length).fill(baseline),
                                     type: 'line',
                                     borderColor: '#ffd43b',
                                     borderDash: [5, 5],
