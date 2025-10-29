@@ -731,9 +731,9 @@ class MultiCropTool(BaseDesktopImageTool):
                 # Use centralized image name formatting
                 display_name = format_image_display_name(filename, max_length=25, context="desktop")
                 
-                # Check action field (matches base class pattern: None = crop, 'delete' = delete)
+                # Check action field (None = crop/keep by default). Display should default to DELETE.
                 action = self.image_states[i].get('action')
-                if action == 'delete':
+                if action == 'delete' or action is None:
                     control_text = f"{display_name}\n{timestamp} • [{i+1}] DELETE  [{reset_key}] Reset"
                 else:
                     control_text = f"{display_name}\n{timestamp} • [{i+1}] ✓ KEEP  [{reset_key}] Reset"
