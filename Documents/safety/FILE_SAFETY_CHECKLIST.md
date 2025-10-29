@@ -1,4 +1,5 @@
 # File Safety Reminder Checklist
+
 **Status:** Active
 **Audience:** Developers, Operators
 
@@ -11,6 +12,7 @@
 When starting a new AI session or code review, verify file safety:
 
 ### **Quick Checks:**
+
 ```bash
 # 1. Run safety audit (takes ~5 seconds)
 python scripts/tools/audit_file_safety.py
@@ -27,12 +29,14 @@ tail -20 data/file_operations_logs/file_operations.log
 ## 📋 **File Safety Checklist**
 
 ### **Before Writing Code:**
+
 - [ ] Reviewed `.cursorrules` file safety rules
 - [ ] Understand: Only crop tool modifies images
 - [ ] Know safe zones: `data/`, `sandbox/`
-- [ ] Know protected zones: `mojo1/`, `mojo2/`, `selected/`, `crop/`
+- [ ] Know protected zones: `mojo1/`, `mojo2/`, `__selected/`, `__crop/`
 
 ### **While Writing Code:**
+
 - [ ] All file writes go to safe zones
 - [ ] No overwrites of existing production files
 - [ ] Using `move_file_with_all_companions()` for moves
@@ -40,6 +44,7 @@ tail -20 data/file_operations_logs/file_operations.log
 - [ ] Logging operations via FileTracker
 
 ### **Before Committing:**
+
 - [ ] Run: `python scripts/tools/audit_file_safety.py`
 - [ ] Review flagged issues
 - [ ] Verify writes are in safe zones
@@ -47,6 +52,7 @@ tail -20 data/file_operations_logs/file_operations.log
 - [ ] Check FileTracker logs for unexpected operations
 
 ### **After Running Scripts:**
+
 - [ ] Check logs: `tail data/file_operations_logs/file_operations.log`
 - [ ] Verify operations match expectations
 - [ ] No unexpected 'modify' or 'crop' operations
@@ -62,11 +68,11 @@ with open('mojo2/_asian/image.png', 'wb') as f:
     f.write(data)
 
 # ❌ Modify images in-place (except crop tool)
-image = PIL.Image.open('selected/photo.png')
-image.save('selected/photo.png')
+image = PIL.Image.open('__selected/photo.png')
+image.save('__selected/photo.png')
 
 # ❌ Overwrite companion files
-with open('crop/image.yaml', 'w') as f:
+with open('__crop/image.yaml', 'w') as f:
     yaml.dump(data, f)
 
 # ❌ Move without companions
@@ -131,11 +137,10 @@ grep '"operation": "crop"' data/file_operations_logs/*.log
 ## 💡 **Remember:**
 
 > **"Data is permanent, code is temporary"**
-> 
+>
 > We can always fix code, but we can't recover corrupted data.
 > When in doubt, DON'T modify the file.
 
 ---
 
 **Last Updated:** October 20, 2025
-

@@ -171,6 +171,46 @@ class AIMultiCropTool(MultiCropTool):
             print("[Queue Mode] Enabled - crops will be queued for later processing")
             print(f"[Queue Mode] Queue file: {self.queue_manager.queue_file}")
 
+    # ---- Lightweight UI alert helpers ----
+    def _show_alert(self, message: str, color: str = "red") -> None:
+        try:
+            if hasattr(self, "_alert_artist") and self._alert_artist is not None:
+                try:
+                    self._alert_artist.remove()
+                except Exception:
+                    pass
+                self._alert_artist = None
+            self._alert_artist = self.fig.text(
+                0.5,
+                0.02,
+                message,
+                ha="center",
+                va="bottom",
+                color=color,
+                fontsize=11,
+                bbox=dict(
+                    boxstyle="round,pad=0.3",
+                    facecolor="#fff3cd",
+                    edgecolor=color,
+                    alpha=0.95,
+                ),
+            )
+            self.fig.canvas.draw_idle()
+        except Exception:
+            pass
+
+    def _clear_alert(self) -> None:
+        try:
+            if hasattr(self, "_alert_artist") and self._alert_artist is not None:
+                try:
+                    self._alert_artist.remove()
+                except Exception:
+                    pass
+                self._alert_artist = None
+                self.fig.canvas.draw_idle()
+        except Exception:
+            pass
+
     def crop_and_save(self, image_info, crop_coords):
         """Crop image, save in place, then move to central __cropped directory (or queue)."""
         if self.queue_mode and self.queue_manager:
@@ -310,8 +350,20 @@ class AIMultiCropTool(MultiCropTool):
             except Exception:
                 count = len(moved_files)
             print(f"[*] Centralized {count} file(s) to {cropped_dir.name}/")
+            self._clear_alert()
         except Exception as e:
-            print(f"[!] Error centralizing to {cropped_dir.name}: {e}")
+            msg = str(e)
+            print(f"[!] Error centralizing to {cropped_dir.name}: {msg}")
+            if "COMPANION POLICY VIOLATION" in msg:
+                self._show_alert(
+                    f"Companion files missing for {png_path.name}. Cropped file left in place.",
+                    color="red",
+                )
+            else:
+                self._show_alert(
+                    f"Move error: {png_path.name} → {cropped_dir.name}. See console for details.",
+                    color="red",
+                )
 
     def load_batch(self):
         # Load batch normally (sets up selectors and default full-image crops)

@@ -98,6 +98,93 @@
 
 ## 📅 Backlog
 
+### Dashboard Phase 3 & 4 Improvements
+
+Context
+
+- Phase 3 (Sorting) and Phase 4 (Final Review) need proper tracking in the dashboard. Current dashboard detects Phase 3 but doesn’t track progress. Must support Erik’s workflow: `character_processor` auto-grouping, manual Finder drags into single-underscore category bins (`_ethnicity/`, `_hair_color/`, `_body_type/`), and iterative refinement before final review.
+
+Phase 3: Sorting Phase Tracking
+
+- **Goal**: Track progress as images are sorted from `__selected/` subdirectories into final category directories.
+- **Key metric**: Recursive PNG count in `__selected/` going DOWN (work remaining)
+- **Tasks**
+  - [ ] Capture initial baseline when Phase 3 starts
+    - When Phase 3 detected (no files in `__crop/`, `__crop_auto/`, but files in `__selected/`)
+    - Store `phase3_initial_count = recursive count of __selected/**/*.png`
+    - Save once per project (manifest or state file)
+  - [ ] Show Phase 3 progress in dashboard UI
+    - Remaining: current recursive count in `__selected/`
+    - Initial: stored baseline
+    - Completed: `initial - remaining`
+    - Progress: `(completed / initial) * 100%`
+    - Display: Remaining, Sorted, percentage, progress bar
+  - [ ] Optional: Category breakdown (informational only)
+    - List single-underscore directories (`_ethnicity/`, `_hair_color/`, `_body_type/`, etc.) and counts
+    - Exclude `__character_group_*` (temporary workspace)
+
+Phase 4: Final Review Phase
+
+- **Goal**: Detect and track when sorted files are moved back to `content/` for final review before delivery.
+- **Workflow**: Finish Phase 3 (`__selected/` empty/nearly), drag `_*/` bins back into `content/`, dashboard switches to Phase 4; use web sorter to review/crop/fix.
+- **Tasks**
+  - [ ] Phase 4 detection logic
+    - Triggers when: recursive `content/` PNGs > 50 AND `__selected/` empty or <10 AND Phase 3 previously active
+    - Phase label: “Phase 4: Final Review”
+  - [ ] Phase 4 progress/tracking (first version)
+    - Initial: capture recursive PNG count in `content/` when Phase 4 starts
+    - Current: current recursive count in `content/`
+    - Status: “In Review”
+    - Design exploration (later):
+      - Option A: Show only total count in `content/`
+      - Option B: Track movement OUT of `content/` to final delivery
+      - Option C: Manual “mark as complete”
+    - Display: Phase 4 header with `Files in content/: N`, Status
+  - [ ] Design question (later): What signals Phase 4 complete? (empty `content/` vs manual flag vs delivered path)
+
+Dynamic Dashboard Header
+
+- **Goal**: Show relevant info for the current phase; hide/collapse irrelevant sections.
+- **Tasks**
+  - [ ] Phase-specific header content
+    - Phase 1 (Selection): content/ remaining, selection stats
+    - Phase 2 (Cropping): crop progress, batch counts, rate stats (existing behavior)
+    - Phase 3 (Sorting): `__selected/` remaining, sorting progress, category breakdown
+    - Phase 4 (Final Review): `content/` count, review status, delivery readiness
+  - [ ] Hide/collapse irrelevant metrics in Phase 3/4 (keep historical stats lower on page)
+  - [ ] Phase indicator clarity: large current phase label, color highlight, clear progression (Selection → Cropping → Sorting → Final Review)
+
+Technical Notes
+
+- **Files to modify**: `scripts/dashboard/current_project_dashboard_v2.py`
+  - `get_directory_status()` (recursive counts already fixed)
+  - Phase detection logic (around lines ~1266-1274) and progress calculation
+  - HTML/template rendering (around lines ~1287+)
+- **State management**
+  - Store phase baselines in project manifest (e.g., `data/projects/<project>.project.json`) under `"phaseProgress": {}` (preferred)
+  - Alternative: separate `*.state.json` if needed
+- **Testing**
+  - Simulate by dragging directories between `__selected/`, `_*/`, and `content/`
+  - Refresh dashboard to verify phase switches and progress calculations
+
+Open Questions / Design Decisions
+
+- Phase 3 baseline capture: auto on first detection vs manual “start phase” switch?
+- Phase 4 completion signal: empty `content/` vs manual button vs delivery path observation?
+- Category directory tracking: show counts only vs compute “sorted by category” stats?
+- Progression charts: add Phase 3/4 sorting/review rate over time vs keep a simple progress bar?
+
+Priority
+
+- **Must Have**: Phase 3 progress tracking (`__selected/` going down); dynamic dashboard header
+- **Should Have**: Phase 4 detection and basic tracking
+- **Nice to Have**: Category breakdown; Phase 4 workflow detail
+- **Future**: Phase-specific progression charts
+
+Timeline
+
+- Add to TODO now; implement after Mojo3 delivery. Use directory dragging to test phase transitions.
+
 ### Historical Crop Data Extraction (Experiment)
 
 - [ ] **Extract crop coordinates from historical projects using image matching** [PRIORITY: MEDIUM]
@@ -210,6 +297,26 @@
     - Safe by default (ask before destructive operations)
     - Work with existing quickpr function
   - **Location:** `scripts/tools/git/`
+
+### Web Sorter AI Feedback (Low Volume)
+
+- [ ] Capture delete actions in web character sorter as training feedback [PRIORITY: LOW]
+  - Scope: When user deletes an image during Phase 3/4 review in `03_web_character_sorter.py`, log a lightweight training signal
+  - Implementation options:
+    1. Call `log_selection_only_entry(session_id,set_id,chosen_path,negative_paths)` with `chosen_path=''` and `negatives=[deleted_path]` to record a negative-only example
+    2. Add a minimal `review_feedback` CSV (filename, reason=deleted_bad_crop, timestamp)
+  - Constraints: No extra file writes in production image dirs; logs go to `data/training/` or decisions DB v3
+  - Value: Likely low counts but useful for future “bad-crop” classifier or data hygiene analytics
+
+### File Operations & Logging
+
+- [ ] Investigate retro-logging Finder moves and background tracking [PRIORITY: LOW]
+  - Goal: If files were moved via Finder (outside FileTracker), optionally backfill a lightweight log entry so dashboards remain accurate.
+  - Explore:
+    1. Simple retro-log by recent mtime window (prototype exists; evaluate usefulness and noise)
+    2. Optional background watcher (FSEvents) that records minimal “move” metrics without altering files
+  - Constraints: No content modifications; respect file safety rules; logs only in `data/file_operations_logs/`
+  - Exit criteria: Decide keep/kill based on signal quality and overhead
 
 ### Backups & Delivery Automation
 

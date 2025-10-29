@@ -143,14 +143,14 @@ def get_directory_status(project: Dict[str, Any]) -> Dict[str, Any]:
 
         # Count remaining in content directory
         if root_path and root_path.exists():
-            status["content_dir"] = len(list(root_path.glob("*.png")))
+            status["content_dir"] = len(list(root_path.rglob("*.png")))
 
         # Standard workflow directories at project root
         for dir_key in ["__selected", "__crop", "__crop_auto", "__cropped"]:
             try:
                 dir_path = (project_root / dir_key).resolve()
                 if dir_path.exists():
-                    count = len(list(dir_path.glob("*.png")))
+                    count = len(list(dir_path.rglob("*.png")))
                     status[dir_key] = count
             except Exception:
                 continue
@@ -187,7 +187,7 @@ def get_directory_status(project: Dict[str, Any]) -> Dict[str, Any]:
                 for sc in selected_candidates:
                     try:
                         if sc.exists():
-                            count = len(list(sc.glob("*.png")))
+                            count = len(list(sc.rglob("*.png")))
                             status["selected"] = count
                             break
                     except Exception:
@@ -565,8 +565,7 @@ def compute_phase_hours(
 
 
 def compute_crop_daily_progression(
-    ops: List[Dict[str, Any]],
-    timesheet_project: Optional[Dict[str, Any]]
+    ops: List[Dict[str, Any]], timesheet_project: Optional[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
     """Compute daily crop rate progression to show improvement over time.
 
@@ -599,7 +598,9 @@ def compute_crop_daily_progression(
                 images_by_date[date_key] = images_by_date.get(date_key, 0) + png_count
             else:
                 # Fallback to file_count
-                images_by_date[date_key] = images_by_date.get(date_key, 0) + int(op.get("file_count") or 0)
+                images_by_date[date_key] = images_by_date.get(date_key, 0) + int(
+                    op.get("file_count") or 0
+                )
         except Exception:
             continue
 
@@ -622,12 +623,9 @@ def compute_crop_daily_progression(
         # Calculate rate (only if we have hours)
         rate = round(images / hours, 1) if hours > 0 else 0
 
-        progression.append({
-            "date": date_str,
-            "images": images,
-            "hours": round(hours, 1),
-            "rate": rate
-        })
+        progression.append(
+            {"date": date_str, "images": images, "hours": round(hours, 1), "rate": rate}
+        )
 
     return progression
 
