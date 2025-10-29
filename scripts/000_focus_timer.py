@@ -13,6 +13,11 @@ Features:
 - Audio alert when time's up
 - Pause/resume/reset
 - Logs sessions to CSV for billing
+
+Session Logging:
+- Sessions are logged to ~/focus_sessions.csv
+- Logs on pause, reset, or timer completion
+- Format: timestamp, minutes
 """
 
 import subprocess
@@ -81,9 +86,11 @@ class FocusTimer:
     def pause(self):
         self.running = False
         self.start_btn.config(text="Resume")
+        self.log_session()  # Log when pausing
 
     def reset(self):
         self.running = False
+        self.log_session()  # Log before clearing
         self.elapsed = 0
         self.start_btn.config(text="Start")
         self.update_display()
@@ -106,14 +113,22 @@ class FocusTimer:
         secs = self.elapsed % 60
         self.time_label.config(text=f"{hours:02d}:{mins:02d}:{secs:02d}")
 
+    def log_session(self):
+        """Log the current session to CSV (only if time elapsed > 0)."""
+        if self.elapsed == 0:
+            return  # Don't log empty sessions
+
+        log_path = Path.home() / "focus_sessions.csv"
+        minutes = self.elapsed // 60
+        with open(log_path, "a") as f:
+            f.write(f"{datetime.now()},{minutes}\n")
+
     def alert(self):
         # macOS notification sound
         subprocess.run(["afplay", "/System/Library/Sounds/Glass.aiff"])
 
-        # Log session
-        log_path = Path.home() / "focus_sessions.csv"
-        with open(log_path, "a") as f:
-            f.write(f"{datetime.now()},{self.elapsed // 60}\n")
+        # Log completed session
+        self.log_session()
 
     def run(self):
         self.root.mainloop()
