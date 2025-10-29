@@ -564,6 +564,74 @@ def compute_phase_hours(
     return total_hours
 
 
+def compute_crop_daily_progression(
+    ops: List[Dict[str, Any]],
+    timesheet_project: Optional[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    """Compute daily crop rate progression to show improvement over time.
+
+    Returns list of daily stats: [{date, images, hours, rate}, ...]
+    """
+    # Filter to crop operations only
+    crop_ops = [op for op in ops if classify_operation_phase(op) == "crop"]
+
+    if not crop_ops:
+        return []
+
+    # Group images by date
+    images_by_date: Dict[str, int] = {}
+    for op in crop_ops:
+        ts = op.get("timestamp") or op.get("timestamp_str")
+        if not ts:
+            continue
+
+        try:
+            dt = _parse_iso(ts)
+            if not dt:
+                continue
+
+            date_key = dt.date().isoformat()
+
+            # Count PNGs
+            files = op.get("files") or []
+            if files:
+                png_count = sum(1 for f in files if str(f).lower().endswith(".png"))
+                images_by_date[date_key] = images_by_date.get(date_key, 0) + png_count
+            else:
+                # Fallback to file_count
+                images_by_date[date_key] = images_by_date.get(date_key, 0) + int(op.get("file_count") or 0)
+        except Exception:
+            continue
+
+    # Get daily hours from timesheet if available
+    daily_hours = timesheet_project.get("daily_hours", {}) if timesheet_project else {}
+
+    # Build daily progression
+    progression = []
+    for date_str in sorted(images_by_date.keys()):
+        images = images_by_date[date_str]
+
+        # Convert to timesheet date format (M/D/YYYY)
+        try:
+            date_dt = datetime.fromisoformat(date_str)
+            date_key = f"{date_dt.month}/{date_dt.day}/{date_dt.year}"
+            hours = daily_hours.get(date_key, 0)
+        except Exception:
+            hours = 0
+
+        # Calculate rate (only if we have hours)
+        rate = round(images / hours, 1) if hours > 0 else 0
+
+        progression.append({
+            "date": date_str,
+            "images": images,
+            "hours": round(hours, 1),
+            "rate": rate
+        })
+
+    return progression
+
+
 def build_historical_baseline(
     timesheet_data: Dict[str, Any],
     engine: DashboardDataEngine,
@@ -918,6 +986,9 @@ def create_app() -> Flask:
             except Exception:
                 continue
 
+        # Compute daily crop progression to show rate improvement
+        crop_daily_progression = compute_crop_daily_progression(ops, ts_project)
+
         # Final log line to confirm response isn't hanging
         logging.info(
             "/api/progress computed. images=%s processed=%s",
@@ -962,6 +1033,7 @@ def create_app() -> Flask:
             "phases": phases_current,
             "baseline": baseline,
             "historical_timeline": historical_timeline,
+            "crop_daily_progression": crop_daily_progression,
         }
         _progress_cache["data"] = resp_data
         _progress_cache["ts"] = now
@@ -1255,8 +1327,19 @@ DASHBOARD_TEMPLATE = """
                 }
                 
                 let extra = '';
+
+                // Crop Daily Progression Chart
+                if (data.crop_daily_progression && data.crop_daily_progression.length > 0) {
+                    extra += `
+                    <h2 style="margin: 40px 0 20px 0; color: var(--accent);">Crop Rate Progression</h2>
+                    <div class="chart-container" style="background: var(--surface); padding: 20px; border-radius: 12px;">
+                        <canvas id="progressionChart"></canvas>
+                    </div>`;
+                }
+
+                // Historical Productivity Chart
                 if (data.historical_timeline) {
-                    extra = `
+                    extra += `
                     <h2 style="margin: 40px 0 20px 0; color: var(--accent);">Historical Productivity</h2>
                     <div class="chart-container" style="background: var(--surface); padding: 20px; border-radius: 12px;">
                         <canvas id="historyChart"></canvas>
@@ -1276,6 +1359,83 @@ DASHBOARD_TEMPLATE = """
                     dc.classList.remove('loading');
                 }
                 if (statusTimer) { clearInterval(statusTimer); statusTimer = null; }
+
+                // Render crop daily progression chart
+                if (data.crop_daily_progression && data.crop_daily_progression.length > 0 && window.Chart) {
+                    const progression = data.crop_daily_progression;
+                    const progLabels = progression.map(d => {
+                        // Format date as MM/DD
+                        const date = new Date(d.date);
+                        return `${date.getMonth() + 1}/${date.getDate()}`;
+                    });
+                    const progRates = progression.map(d => d.rate);
+                    const progImages = progression.map(d => d.images);
+
+                    // Get crop baseline for comparison line
+                    const cropBaseline = (data.baseline && data.baseline.crop && data.baseline.crop.avg_rate > 0)
+                        ? data.baseline.crop.avg_rate
+                        : 0;
+
+                    // Color-code points based on baseline
+                    const progColors = progRates.map(r =>
+                        r > cropBaseline * 1.1 ? '#51cf66' :  // Green: above baseline
+                        r < cropBaseline * 0.9 ? '#ff6b6b' :  // Red: below baseline
+                        '#4f9dff'  // Blue: on target
+                    );
+
+                    new Chart(document.getElementById('progressionChart'), {
+                        type: 'line',
+                        data: {
+                            labels: progLabels,
+                            datasets: [{
+                                label: 'Your Rate (img/h)',
+                                data: progRates,
+                                borderColor: '#4f9dff',
+                                backgroundColor: 'rgba(79, 157, 255, 0.1)',
+                                pointBackgroundColor: progColors,
+                                pointBorderColor: progColors,
+                                pointRadius: 6,
+                                pointHoverRadius: 8,
+                                tension: 0.3,
+                                fill: true
+                            }, {
+                                label: 'Baseline (126.2 img/h)',
+                                data: Array(progLabels.length).fill(cropBaseline),
+                                borderColor: '#ffd43b',
+                                borderDash: [5, 5],
+                                pointRadius: 0,
+                                fill: false
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    ticks: { color: '#a0a3b1' },
+                                    title: { display: true, text: 'Images per Hour', color: 'white' },
+                                    beginAtZero: false
+                                },
+                                x: {
+                                    ticks: { color: '#a0a3b1' },
+                                    title: { display: true, text: 'Date', color: 'white' }
+                                }
+                            },
+                            plugins: {
+                                legend: { labels: { color: 'white' } },
+                                tooltip: {
+                                    callbacks: {
+                                        afterLabel: function(context) {
+                                            const idx = context.dataIndex;
+                                            const images = progImages[idx];
+                                            const hours = progression[idx].hours;
+                                            return `${images} images in ${hours}h`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
 
                 // Render historical chart
                 if (data.historical_timeline) {
