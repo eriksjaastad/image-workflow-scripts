@@ -309,25 +309,38 @@ def finish_project(project_id: str, dry_run: bool = True, force: bool = False) -
                 manifest_path.write_text(
                     json.dumps(manifest, indent=2), encoding="utf-8"
                 )
-            # Remove project/content dir patterns from .gitignore
+            # Remove project block from .gitignore (using section markers)
             try:
                 gitignore_path = Path(".gitignore")
                 if gitignore_path.exists():
-                    content_dir_rel = manifest.get("paths", {}).get("root") or ""
-                    content_name = Path(content_dir_rel).name if content_dir_rel else ""
-                    project_pattern = f"{project_id}/"
-                    content_pattern = f"{content_name}/" if content_name else None
-                    lines = gitignore_path.read_text().splitlines()
-                    new_lines = []
-                    for ln in lines:
-                        if ln.strip() in {project_pattern, content_pattern}:
-                            continue
-                        new_lines.append(ln)
-                    gitignore_path.write_text(
-                        "\n".join(new_lines) + ("\n" if new_lines else "")
-                    )
-            except Exception:
-                pass
+                    content = gitignore_path.read_text()
+                    start_marker = f"# === PROJECT: {project_id}"
+                    end_marker = f"# === END PROJECT: {project_id} ==="
+
+                    # Find and remove the project block
+                    start_idx = content.find(start_marker)
+                    if start_idx != -1:
+                        end_idx = content.find(end_marker, start_idx)
+                        if end_idx != -1:
+                            # Remove everything from start to end (including end marker line)
+                            end_of_line = content.find("\n", end_idx)
+                            if end_of_line != -1:
+                                # Remove the block and any preceding blank line
+                                before = content[:start_idx].rstrip()
+                                after = content[end_of_line + 1:]
+                                new_content = before + ("\n\n" if before and after else "\n" if before or after else "")  + after
+                                gitignore_path.write_text(new_content)
+                                print(f"✅ Removed {project_id} from .gitignore")
+                            else:
+                                # End marker is at end of file
+                                gitignore_path.write_text(content[:start_idx].rstrip() + "\n")
+                                print(f"✅ Removed {project_id} from .gitignore")
+                        else:
+                            print(f"⚠️  Found start marker but not end marker for {project_id} in .gitignore")
+                    else:
+                        print(f"⚠️  Project {project_id} not found in .gitignore")
+            except Exception as e:  # noqa: BLE001
+                print(f"⚠️  Failed to update .gitignore: {e}")
         except Exception:
             finished_at = None
             stager_metrics = {}
