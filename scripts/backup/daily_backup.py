@@ -142,8 +142,18 @@ def main():
 
     # Write manifest
     (out_dir / 'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
-    print(f"✅ Backup complete → {out_dir}")
-    print(json.dumps({"summary": manifest["items"]}, indent=2))
+
+    # Force output to stdout and stderr
+    import os
+    print(f"✅ Backup complete → {out_dir}", file=sys.stdout, flush=True)
+    print(json.dumps({"summary": manifest["items"]}, indent=2), file=sys.stdout, flush=True)
+
+    # Also write to a log file for debugging
+    log_file = dest_root / 'backup_log.txt'
+    with open(log_file, 'a', encoding='utf-8') as f:
+        f.write(f"[{datetime.now().isoformat()}] Backup completed to {out_dir}\n")
+        f.write(json.dumps({"summary": manifest["items"]}, indent=2) + "\n")
+        f.write("-" * 50 + "\n")
 
 
 if __name__ == "__main__":

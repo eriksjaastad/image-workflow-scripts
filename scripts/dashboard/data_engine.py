@@ -1625,12 +1625,76 @@ class DashboardDataEngine:
             # Best effort; do not break dashboard
             dashboard_data["artifact_stats"] = {"artifact_events": 0}
 
+        # Add backup status monitoring
+        try:
+            dashboard_data["backup_status"] = self.get_backup_status()
+        except Exception:
+            # Best effort; do not break dashboard
+            dashboard_data["backup_status"] = {
+                "status": "error",
+                "message": "Backup status unavailable"
+            }
+
         overall_time = time_module.time() - overall_start
         print(f"\n{'=' * 70}")
         print(f"[DATA_ENGINE] TOTAL generate_dashboard_data TIME: {overall_time:.3f}s")
         print(f"{'=' * 70}\n")
 
         return dashboard_data
+
+    def get_backup_status(self) -> Dict[str, Any]:
+        """
+        Get backup system status for dashboard monitoring.
+
+        Returns:
+            Dict with backup status information
+        """
+        backup_status = {
+            "status": "unknown",
+            "last_backup": None,
+            "last_backup_timestamp": None,
+            "total_files": 0,
+            "total_size_mb": 0,
+            "failures": [],
+            "message": "Backup status unavailable"
+        }
+
+        try:
+            # Check for backup status file
+            backup_root = Path.home() / "project-data-archives" / "image-workflow"
+            status_file = backup_root / "backup_status.json"
+
+            if status_file.exists():
+                with open(status_file, 'r') as f:
+                    status_data = json.load(f)
+
+                backup_status.update(status_data)
+
+                # Determine status message
+                if backup_status["status"] == "success":
+                    backup_status["message"] = f"✅ Last backup successful: {backup_status['last_backup']} ({backup_status['total_files']} files, {backup_status['total_size_mb']} MB)"
+                elif backup_status["status"] == "failed":
+                    failures = backup_status.get("failures", [])
+                    backup_status["message"] = f"❌ Last backup failed: {backup_status['last_backup']} ({len(failures)} failures)"
+                else:
+                    backup_status["message"] = f"⚠️ Backup status unknown"
+
+                # Check if backup is recent (within 48 hours)
+                if backup_status["last_backup_timestamp"]:
+                    last_backup_time = datetime.fromisoformat(backup_status["last_backup_timestamp"])
+                    hours_since_backup = (datetime.now() - last_backup_time).total_seconds() / 3600
+
+                    if hours_since_backup > 48:
+                        backup_status["message"] = f"⚠️ Backup overdue: Last successful backup {hours_since_backup:.1f} hours ago"
+                        backup_status["status"] = "overdue"
+            else:
+                backup_status["message"] = "⚠️ No backup status file found"
+
+        except Exception as e:
+            backup_status["message"] = f"❌ Error reading backup status: {e}"
+            backup_status["status"] = "error"
+
+        return backup_status
 
 
 def main():

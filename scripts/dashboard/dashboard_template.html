@@ -123,6 +123,29 @@
             border-color: var(--accent);
             color: white;
         }
+
+        .backup-status-indicator {
+            display: flex;
+            align-items: center;
+            font-size: 0.9em;
+        }
+
+        .backup-status-indicator.success {
+            border-color: var(--success);
+            background: rgba(46, 213, 115, 0.1);
+        }
+
+        .backup-status-indicator.failed,
+        .backup-status-indicator.error,
+        .backup-status-indicator.overdue {
+            border-color: var(--danger);
+            background: rgba(255, 71, 87, 0.1);
+        }
+
+        .backup-status-indicator.unknown {
+            border-color: var(--warning);
+            background: rgba(255, 165, 2, 0.1);
+        }
         
         .lookback-input {
             background: var(--hover);
@@ -303,6 +326,9 @@
             <span class="control-label">Lookback:</span>
             <input type="text" class="lookback-input" id="lookback-days" value="30" placeholder="Days" inputmode="numeric" pattern="[0-9]*">
             <button class="time-btn" id="refresh-btn">🔄 Refresh</button>
+            <div id="backup-status" class="backup-status-indicator" style="margin-left: 1rem; font-size: 0.9em; padding: 0.5rem; border-radius: 4px; background: var(--surface); border: 1px solid var(--border);">
+                <span id="backup-status-text">🔄 Loading backup status...</span>
+            </div>
         </div>
     </div>
     
