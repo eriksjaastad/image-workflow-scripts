@@ -163,7 +163,6 @@ class DashboardDataEngine:
         display_names.update(
             {
                 "character_sorter": "Character Sorter",
-                "desktop_image_selector_crop": "Desktop Image Selector Crop",
             }
         )
         return display_names.get(script_name, script_name.replace("_", " ").title())
@@ -1266,7 +1265,6 @@ class DashboardDataEngine:
                 "04_multi_crop_tool",
                 "multi_crop_tool",
                 "ai_desktop_multi_crop_queue",
-                "desktop_image_selector_crop",
                 "ai_assisted_reviewer",
                 # Log script names (from actual data)
                 "character_sorter",

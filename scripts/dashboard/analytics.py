@@ -1033,6 +1033,7 @@ class DashboardAnalytics:
             images = sum(count_pngs(r) for r in records)
 
             # For Multi Crop, also count any project-window moves/copies into cropped dirs
+            # ONLY count moves TO /cropped or __cropped (outputs), NOT /crop or __crop (inputs)
             if display_name == "Multi Crop Tool":
                 try:
 
@@ -1044,8 +1045,6 @@ class DashboardAnalytics:
                                 "/cropped",
                                 "__cropped",
                                 "/__cropped",
-                                "/crop/",
-                                "__crop/",
                             ]
                         )
 
