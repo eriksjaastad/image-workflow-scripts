@@ -14,22 +14,17 @@ Tests:
 - Cron job verification
 """
 
-import sys
 import json
 import subprocess
-from pathlib import Path
+import sys
 from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
+from pathlib import Path
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.backup.daily_backup_simple import (
-    find_database_files,
-    verify_backup,
-    backup_directory
-)
+from scripts.backup.daily_backup_simple import find_database_files, verify_backup
 
 
 class TestBackupSystem:

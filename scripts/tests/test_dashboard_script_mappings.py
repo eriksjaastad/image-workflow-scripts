@@ -85,7 +85,7 @@ def test_mapped_scripts_are_in_production_list():
 
     # Get raw data to see what's in production_scripts
     # We'll call the private method directly for testing
-    raw_data = engine.get_data_for_dashboard(
+    engine.get_data_for_dashboard(
         lookback_days=7,
         time_slice="day",
         production_scripts=None  # Use default list

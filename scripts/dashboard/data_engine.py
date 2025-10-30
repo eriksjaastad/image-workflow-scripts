@@ -1677,7 +1677,7 @@ class DashboardDataEngine:
                     failures = backup_status.get("failures", [])
                     backup_status["message"] = f"❌ Last backup failed: {backup_status['last_backup']} ({len(failures)} failures)"
                 else:
-                    backup_status["message"] = f"⚠️ Backup status unknown"
+                    backup_status["message"] = "⚠️ Backup status unknown"
 
                 # Check if backup is recent (within 48 hours)
                 if backup_status["last_backup_timestamp"]:

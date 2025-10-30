@@ -232,7 +232,6 @@ class AIReviewerHotkeyTester:
                         raise AssertionError(f"API error: {data}")
 
                     # Check that files were moved to expected location
-                    expected_base = tmp / expected_dest
                     found_correct_move = False
 
                     for src, dest in moved_files:
