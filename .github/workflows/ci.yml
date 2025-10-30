@@ -32,7 +32,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           # Install your package and dev dependencies
-          pip install pytest pytest-cov ruff mypy pyyaml
+          pip install pytest pytest-cov ruff mypy pyyaml selenium pillow matplotlib requests
 
       - name: Run tests with coverage (FAIL FAST - check environment first!)
         run: |
