@@ -170,6 +170,14 @@ class AIMultiCropTool(MultiCropTool):
             self.tracker = FileTracker("ai_desktop_multi_crop_queue")
             print("[Queue Mode] Enabled - crops will be queued for later processing")
             print(f"[Queue Mode] Queue file: {self.queue_manager.queue_file}")
+        else:
+            # Normal mode still logs file operations for metrics
+            try:
+                from file_tracker import FileTracker as _FT
+
+                self.tracker = _FT("ai_desktop_multi_crop")
+            except Exception:
+                self.tracker = None
 
     # ---- Lightweight UI alert helpers ----
     def _show_alert(self, message: str, color: str = "red") -> None:
@@ -291,6 +299,18 @@ class AIMultiCropTool(MultiCropTool):
         # Save over the original file (in place)
         cropped_img.save(png_path)
         print(f"Cropped and saved in place: {png_path.name}")
+        # Log crop operation (create/update)
+        try:
+            if getattr(self, "tracker", None) is not None:
+                self.tracker.log_operation(
+                    "crop",
+                    source_dir=str(png_path.parent),
+                    dest_dir=str(png_path.parent),
+                    file_count=1,
+                    files=[png_path.name],
+                )
+        except Exception:
+            pass
 
         # Update SQLite database with final crop coordinates
         try:
@@ -351,6 +371,17 @@ class AIMultiCropTool(MultiCropTool):
                 count = len(moved_files)
             print(f"[*] Centralized {count} file(s) to {cropped_dir.name}/")
             self._clear_alert()
+            # Log move to __cropped
+            try:
+                if getattr(self, "tracker", None) is not None:
+                    self.tracker.log_operation(
+                        "move",
+                        source_dir=str(png_path.parent),
+                        dest_dir=str(cropped_dir),
+                        file_count=count,
+                    )
+            except Exception:
+                pass
         except Exception as e:
             msg = str(e)
             print(f"[!] Error centralizing to {cropped_dir.name}: {msg}")

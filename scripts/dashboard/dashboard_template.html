@@ -335,10 +335,12 @@
                 <div class="stat-value" id="hourly-crop-kpi">-</div>
                 <div class="stat-label">Hourly Crop Average</div>
             </div>
+
+            
         </div>
         
         <!-- Artifact Panel -->
-        <div class="panel" id="artifact-panel" style="margin-top: 1rem;">
+        <div class="panel" id="artifact-panel" style="margin-top: 1rem; display:none;">
             <div class="panel-header">
                 <h2>⚠️ Artifact Candidates</h2>
             </div>
@@ -354,7 +356,7 @@
         </div>
         
         <!-- Productivity Overview Table (Summary) -->
-        <div class="chart-container" style="margin-top: 2rem;">
+        <div class="chart-container" style="margin-top: 2rem; display:none;">
             <div class="chart-header">
                 <div>
                     <h3 class="chart-title">⚡ Productivity Overview</h3>
@@ -391,7 +393,7 @@
         </div>
 
         <!-- Queue Stats Section -->
-        <div class="chart-container" style="margin-top: 2rem;">
+        <div class="chart-container" style="margin-top: 2rem; display:none;">
             <div class="chart-header">
                 <div>
                     <h3 class="chart-title">📦 Queue System Stats</h3>
@@ -462,6 +464,21 @@
                     <div class="loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--text-muted);">
                         Loading session data...
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Daily Activity Window - full width, above Billing Efficiency -->
+        <div class="charts-grid" style="margin-top: 2rem;">
+            <div class="chart-container">
+                <div class="chart-header">
+                    <div>
+                        <h3 class="chart-title">🕒 Daily Activity Window</h3>
+                        <p class="chart-subtitle">Earliest to latest file operations per day</p>
+                    </div>
+                </div>
+                <div class="chart-canvas">
+                    <canvas id="daily-activity-window-chart"></canvas>
                 </div>
             </div>
         </div>
@@ -594,8 +611,10 @@
             </div>
         </div>
         
+        
+
         <!-- Charts Grid -->
-        <div class="charts-grid" style="margin-top: 3rem;">
+        <div class="charts-grid" style="margin-top: 1.5rem;">
             <!-- Project Comparison Chart -->
             <div class="chart-container">
                 <div class="chart-header">
@@ -1641,10 +1660,80 @@
                 showChartError('operations-by-type-chart', 'No operation data available');
             }
 
+            // Render Daily Activity Window chart
+            if (data.charts && data.charts.daily_activity_window) {
+                renderDailyActivityWindowChart(data.charts.daily_activity_window);
+            }
+
             // Render queue stats
             if (data.queue_stats) {
                 renderQueueStats(data.queue_stats);
             }
+        }
+
+        // Floating bars: earliest to latest ops per day using stacked bars
+        function renderDailyActivityWindowChart(payload) {
+            try {
+                console.log('[DAILY WINDOW] rendering payload', payload);
+                const labels = payload.dates || [];
+                const offsets = payload.offset_hours || [];
+                const durations = payload.durations || [];
+                const el = document.getElementById('daily-activity-window-chart');
+                if (!el) return;
+                if (charts['daily-activity-window-chart']) {
+                    charts['daily-activity-window-chart'].destroy();
+                }
+                charts['daily-activity-window-chart'] = new Chart(el.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [
+                            { label: 'offset', data: offsets, backgroundColor: 'rgba(0,0,0,0)', borderColor: 'rgba(0,0,0,0)', stack: 'win' },
+                            { label: 'duration', data: durations, backgroundColor: 'rgba(74,158,255,0.6)', borderColor: '#4a9eff', stack: 'win' }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { 
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    title: (items)=> items && items[0] ? items[0].label : '',
+                                    label: (ctx)=>{
+                                        const i = ctx.dataIndex;
+                                        const start = offsets[i] || 0;
+                                        const end = (offsets[i]||0) + (durations[i]||0);
+                                        const fmt = (h)=>{
+                                            const hour = Math.floor(h);
+                                            const min = Math.round((h - hour) * 60);
+                                            const ampm = hour >= 12 ? 'PM' : 'AM';
+                                            let hh = hour % 12; if (hh === 0) hh = 12;
+                                            const mm = String(min).padStart(2,'0');
+                                            return `${hh}:${mm} ${ampm}`;
+                                        };
+                                        return ` ${fmt(start)} → ${fmt(end)} (${(durations[i]||0).toFixed(2)}h)`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: { stacked: true, ticks: { color: '#b8b8b8' }, grid: { color: '#303030' } },
+                            y: { stacked: true, beginAtZero: true, max: 24, title: { display: true, text: 'Hours (ET)', color: '#b8b8b8' },
+                                ticks: { color: '#b8b8b8', stepSize: 3, callback: (v)=> {
+                                    const hour = Number(v);
+                                    if (![0,3,6,9,12,15,18,21,24].includes(hour)) return '';
+                                    const ampm = hour >= 12 ? 'PM' : 'AM';
+                                    let hh = hour % 12; if (hh === 0) hh = 12;
+                                    return `${hh}${ampm}`;
+                                } }, grid: { color: '#303030' } }
+                        }
+                    }
+                });
+                // Remove any loading overlays on this canvas' parent
+                try { el.parentElement?.querySelectorAll('.loading').forEach(n=>n.remove()); } catch(e) {}
+                console.log('[DAILY WINDOW] rendered with', labels.length, 'days');
+            } catch (e) { console.warn('Daily activity window failed:', e); }
         }
 
         function renderQueueStats(queueStats) {

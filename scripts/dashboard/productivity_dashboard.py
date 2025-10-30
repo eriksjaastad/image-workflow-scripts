@@ -30,212 +30,240 @@ class ProductivityDashboard:
         # Analytics engine should use the same base
         self.analytics = DashboardAnalytics(base)
         # Set template folder to current directory
-        self.app = Flask(__name__, template_folder='.')
+        self.app = Flask(__name__, template_folder=".")
         # Preserve dict order in JSON responses (don't sort keys)
-        self.app.config['JSON_SORT_KEYS'] = False
+        self.app.config["JSON_SORT_KEYS"] = False
         self.setup_routes()
-    
+
     def setup_routes(self):
         """Setup Flask routes"""
-        
+
         @self.app.route("/")
         def dashboard():
             """Main dashboard page"""
-            return render_template('dashboard_template.html')
-        
+            return render_template("dashboard_template.html")
+
         @self.app.route("/api/data/<time_slice>")
         def get_dashboard_data(time_slice):
             """API endpoint for dashboard data"""
-            lookback_days = request.args.get('lookback_days', 60, type=int)  # 60 days to show archived projects
-            project_id = request.args.get('project_id', default=None, type=str)
-            
+            lookback_days = request.args.get(
+                "lookback_days", 60, type=int
+            )  # 60 days to show archived projects
+            project_id = request.args.get("project_id", default=None, type=str)
+
             try:
                 # Treat empty project_id as None to avoid downstream issues
-                pid = project_id if (project_id is not None and str(project_id).strip() != '') else None
-                data = self.data_engine.generate_dashboard_data(
-                    time_slice=time_slice, 
-                    lookback_days=lookback_days,
-                    project_id=pid
+                pid = (
+                    project_id
+                    if (project_id is not None and str(project_id).strip() != "")
+                    else None
                 )
-                
+                data = self.data_engine.generate_dashboard_data(
+                    time_slice=time_slice, lookback_days=lookback_days, project_id=pid
+                )
+
                 # Build complete analytics response (single source of truth for table and charts)
                 analytics_resp = self.analytics.generate_dashboard_response(
-                    time_slice=time_slice,
-                    lookback_days=lookback_days,
-                    project_id=pid
+                    time_slice=time_slice, lookback_days=lookback_days, project_id=pid
                 )
                 chart_data = analytics_resp
                 # Attach artifact stats to API payload for UI consumption
                 try:
-                    chart_data['artifact_stats'] = data.get('artifact_stats', {})
+                    chart_data["artifact_stats"] = data.get("artifact_stats", {})
                 except Exception:
                     pass
                 # Debug provenance marker and no-cache headers
                 try:
-                    chart_data['metadata']['table_source'] = 'analytics'
+                    chart_data["metadata"]["table_source"] = "analytics"
                 except Exception:
                     pass
                 resp = jsonify(chart_data)
-                resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-                resp.headers['Pragma'] = 'no-cache'
+                resp.headers["Cache-Control"] = (
+                    "no-store, no-cache, must-revalidate, max-age=0"
+                )
+                resp.headers["Pragma"] = "no-cache"
                 return resp
             except Exception as e:
                 # Log full traceback for debugging
                 import traceback
-                print("="*70)
+
+                print("=" * 70)
                 print("ERROR in /api/data endpoint:")
                 traceback.print_exc()
-                print("="*70)
+                print("=" * 70)
                 return jsonify({"error": str(e)}), 500
-        
+
         @self.app.route("/api/scripts")
         def get_scripts():
             """Get list of discovered scripts"""
             scripts = self.data_engine.discover_scripts()
             return jsonify({"scripts": scripts})
-        
+
         @self.app.route("/api/script_updates", methods=["GET", "POST"])
         def handle_script_updates():
             """Handle script update tracking"""
             if request.method == "POST":
                 data = request.get_json()
                 self.data_engine.add_script_update(
-                    script=data.get('script'),
-                    description=data.get('description'),
-                    date=data.get('date')
+                    script=data.get("script"),
+                    description=data.get("description"),
+                    date=data.get("date"),
                 )
                 return jsonify({"status": "success"})
             else:
                 updates = self.data_engine.load_script_updates()
-                return jsonify(updates.to_dict('records'))
-        
+                return jsonify(updates.to_dict("records"))
+
         @self.app.route("/api/debug")
         def debug_data():
             """Debug endpoint to see raw data structure"""
             try:
                 raw_data = self.data_engine.generate_dashboard_data(
-                    time_slice='D', 
-                    lookback_days=60  # 60 days to show archived projects
+                    time_slice="D",
+                    lookback_days=60,  # 60 days to show archived projects
                 )
                 return jsonify(raw_data)
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
-    
+
     def transform_for_charts(self, data):
         """Transform raw data into Chart.js format"""
-        chart_data = {
-            "metadata": data["metadata"],
-            "charts": {}
-        }
-        
+        chart_data = {"metadata": data["metadata"], "charts": {}}
+
         # Script name mapping for display
         script_display_names = {
-            'image_version_selector': '01_web_image_selector',
-            'character_sorter': '03_web_character_sorter',
-            'batch_crop_tool': '04_batch_crop_tool'
+            "image_version_selector": "01_web_image_selector",
+            "character_sorter": "03_web_character_sorter",
+            "batch_crop_tool": "04_batch_crop_tool",
         }
-        
+
         # Transform file operations by script
-        if data['file_operations_data'].get('by_script'):
+        if data["file_operations_data"].get("by_script"):
             by_script_data = {}
-            for record in data['file_operations_data']['by_script']:
-                script = record['script']
+            for record in data["file_operations_data"]["by_script"]:
+                script = record["script"]
                 display_name = script_display_names.get(script, script)
-                date = record['time_slice']
-                count = record['file_count']
-                
+                date = record["time_slice"]
+                count = record["file_count"]
+
                 if display_name not in by_script_data:
-                    by_script_data[display_name] = {'dates': [], 'counts': []}
-                
-                by_script_data[display_name]['dates'].append(date)
-                by_script_data[display_name]['counts'].append(count)
-            
+                    by_script_data[display_name] = {"dates": [], "counts": []}
+
+                by_script_data[display_name]["dates"].append(date)
+                by_script_data[display_name]["counts"].append(count)
+
             # Sort dates and counts for each script to ensure chronological order
             for script_name in by_script_data:
-                dates_counts = sorted(zip(by_script_data[script_name]['dates'], 
-                                         by_script_data[script_name]['counts']))
-                by_script_data[script_name]['dates'] = [d for d, c in dates_counts]
-                by_script_data[script_name]['counts'] = [c for d, c in dates_counts]
-            
-            chart_data['charts']['by_script'] = by_script_data
-        
+                dates_counts = sorted(
+                    zip(
+                        by_script_data[script_name]["dates"],
+                        by_script_data[script_name]["counts"],
+                    )
+                )
+                by_script_data[script_name]["dates"] = [d for d, c in dates_counts]
+                by_script_data[script_name]["counts"] = [c for d, c in dates_counts]
+
+            chart_data["charts"]["by_script"] = by_script_data
+
         # Transform file operations by type
-        if data['file_operations_data'].get('by_operation'):
+        if data["file_operations_data"].get("by_operation"):
             by_operation_data = {}
-            for record in data['file_operations_data']['by_operation']:
-                operation = record['operation']
-                date = record['time_slice']
-                count = record['file_count']
-                
+            for record in data["file_operations_data"]["by_operation"]:
+                operation = record["operation"]
+                date = record["time_slice"]
+                count = record["file_count"]
+
                 if operation not in by_operation_data:
-                    by_operation_data[operation] = {'dates': [], 'counts': []}
-                
-                by_operation_data[operation]['dates'].append(date)
-                by_operation_data[operation]['counts'].append(count)
-            
+                    by_operation_data[operation] = {"dates": [], "counts": []}
+
+                by_operation_data[operation]["dates"].append(date)
+                by_operation_data[operation]["counts"].append(count)
+
             # Sort dates and counts for each operation to ensure chronological order
             for operation_name in by_operation_data:
-                dates_counts = sorted(zip(by_operation_data[operation_name]['dates'], 
-                                         by_operation_data[operation_name]['counts']))
-                by_operation_data[operation_name]['dates'] = [d for d, c in dates_counts]
-                by_operation_data[operation_name]['counts'] = [c for d, c in dates_counts]
-            
-            chart_data['charts']['by_operation'] = by_operation_data
-        
+                dates_counts = sorted(
+                    zip(
+                        by_operation_data[operation_name]["dates"],
+                        by_operation_data[operation_name]["counts"],
+                    )
+                )
+                by_operation_data[operation_name]["dates"] = [
+                    d for d, c in dates_counts
+                ]
+                by_operation_data[operation_name]["counts"] = [
+                    c for d, c in dates_counts
+                ]
+
+            chart_data["charts"]["by_operation"] = by_operation_data
+
         # Project comparison payload (overall and per-tool IPH)
         try:
-            pm = data.get('project_metrics', {}) or {}
+            pm = data.get("project_metrics", {}) or {}
             comparisons = []
             for pid, rec in pm.items():
-                title = rec.get('title') or pid
-                iph = float((rec.get('throughput') or {}).get('images_per_hour') or 0)
-                base = rec.get('baseline') or {}
-                overall_base = float(base.get('overall_iph_baseline') or 0)
-                per_tool_base = base.get('per_tool') or {}
+                title = rec.get("title") or pid
+                iph = float((rec.get("throughput") or {}).get("images_per_hour") or 0)
+                base = rec.get("baseline") or {}
+                overall_base = float(base.get("overall_iph_baseline") or 0)
+                per_tool_base = base.get("per_tool") or {}
                 tools = {}
-                for tool, stats in (rec.get('tools') or {}).items():
+                for tool, stats in (rec.get("tools") or {}).items():
                     tools[tool] = {
-                        'iph': float(stats.get('images_per_hour') or 0),
-                        'baseline': float(per_tool_base.get(tool) or 0),
-                        'images_processed': int(stats.get('images_processed') or 0),
-                        'work_time_minutes': float(stats.get('work_time_minutes') or 0)
+                        "iph": float(stats.get("images_per_hour") or 0),
+                        "baseline": float(per_tool_base.get(tool) or 0),
+                        "images_processed": int(stats.get("images_processed") or 0),
+                        "work_time_minutes": float(stats.get("work_time_minutes") or 0),
                     }
-                
+
                 # NEW: Add crop rate data from SQLite v3 database
                 crop_rate = self._get_crop_rate_for_project(pid)
-                
-                comparisons.append({
-                    'projectId': pid,
-                    'title': title,
-                    'iph': iph,
-                    'baseline_overall': overall_base,
-                    'tools': tools,
-                    'startedAt': rec.get('startedAt'),
-                    'finishedAt': rec.get('finishedAt'),
-                    'total_operations': rec.get('totals', {}).get('total_images_processed', 0),
-                    'crop_rate': crop_rate  # NEW: Crop vs approve stats
-                })
+
+                comparisons.append(
+                    {
+                        "projectId": pid,
+                        "title": title,
+                        "iph": iph,
+                        "baseline_overall": overall_base,
+                        "tools": tools,
+                        "startedAt": rec.get("startedAt"),
+                        "finishedAt": rec.get("finishedAt"),
+                        "total_operations": rec.get("totals", {}).get(
+                            "total_images_processed", 0
+                        ),
+                        "crop_rate": crop_rate,  # NEW: Crop vs approve stats
+                    }
+                )
+
             # sort by startedAt if available
             def _key(x):
-                return (x.get('startedAt') or '')
-            chart_data['project_comparisons'] = sorted(comparisons, key=_key)
+                return x.get("startedAt") or ""
+
+            chart_data["project_comparisons"] = sorted(comparisons, key=_key)
         except Exception:
-            chart_data['project_comparisons'] = []
+            chart_data["project_comparisons"] = []
 
         # Add project productivity table data
-        chart_data['project_productivity_table'] = self._build_project_productivity_table(data)
+        chart_data["project_productivity_table"] = (
+            self._build_project_productivity_table(data)
+        )
 
         return chart_data
-    
+
     def _get_crop_rate_for_project(self, project_id: str) -> dict | None:
         """Get crop vs approve statistics from SQLite v3 database."""
         import sqlite3
         from pathlib import Path
-        
-        db_path = Path(self.data_dir) / 'data' / 'training' / 'ai_training_decisions' / f'{project_id}.db'
+
+        db_path = (
+            Path(self.data_dir)
+            / "data"
+            / "training"
+            / "ai_training_decisions"
+            / f"{project_id}.db"
+        )
         if not db_path.exists():
             return None
-        
+
         try:
             conn = sqlite3.connect(str(db_path))
             cursor = conn.execute("""
@@ -247,83 +275,88 @@ class ProductivityDashboard:
             """)
             row = cursor.fetchone()
             conn.close()
-            
+
             if row and row[0] > 0:
                 total, cropped, approved = row
                 return {
-                    'total_decisions': total,
-                    'cropped': cropped,
-                    'approved_no_crop': approved,
-                    'crop_percentage': (cropped / total * 100) if total > 0 else 0,
-                    'approve_percentage': (approved / total * 100) if total > 0 else 0
+                    "total_decisions": total,
+                    "cropped": cropped,
+                    "approved_no_crop": approved,
+                    "crop_percentage": (cropped / total * 100) if total > 0 else 0,
+                    "approve_percentage": (approved / total * 100) if total > 0 else 0,
                 }
         except Exception as e:
             print(f"[!] Error loading crop rate for {project_id}: {e}")
             return None
-        
+
         return None
-    
+
     def _build_project_productivity_table(self, data):
         """Build project productivity table data"""
-        projects = data.get('projects', [])
-        project_metrics = data.get('project_metrics', {})
-        
+        projects = data.get("projects", [])
+        project_metrics = data.get("project_metrics", {})
+
         table_data = []
-        
+
         for project in projects:
-            project_id = project.get('projectId')
+            project_id = project.get("projectId")
             if not project_id:
                 continue
-            
+
             # Get project metrics
             pm = project_metrics.get(project_id, {})
-            
+
             # Start images (from manifest counts)
-            counts = project.get('counts', {})
-            start_images = counts.get('initialImages', 0)
-            
+            counts = project.get("counts", {})
+            start_images = counts.get("initialImages", 0)
+
             # End images (from manifest if finished, else from metrics)
-            end_images = counts.get('finalImages') or pm.get('totals', {}).get('images_processed', 0)
-            
+            end_images = counts.get("finalImages") or pm.get("totals", {}).get(
+                "images_processed", 0
+            )
+
             # Build per-tool breakdown for THIS project
             tools_breakdown = self._build_tools_breakdown_for_project(
-                project_id,
-                project,
-                pm,
-                data
+                project_id, project, pm, data
             )
-            
-            table_data.append(OrderedDict([
-                ("projectId", project_id),
-                ("title", project.get('title') or project_id),
-                ("start_images", start_images),
-                ("end_images", end_images),
-                ("tools", tools_breakdown)
-            ]))
-        
+
+            table_data.append(
+                OrderedDict(
+                    [
+                        ("projectId", project_id),
+                        ("title", project.get("title") or project_id),
+                        ("start_images", start_images),
+                        ("end_images", end_images),
+                        ("tools", tools_breakdown),
+                    ]
+                )
+            )
+
         return table_data
-    
+
     def _build_tools_breakdown_for_project(self, project_id, project, pm, data):
         """Build per-tool breakdown for a specific project"""
         # Define allowed tools in the desired order
         allowed_tools_order = [
-            'Web Image Selector',
-            'Web Character Sorter',
-            'Multi Crop Tool'
+            "Web Image Selector",
+            "Web Character Sorter",
+            "Multi Crop Tool",
         ]
-        
+
         # Build window from server-provided baseline labels
-        meta = data.get('metadata', {})
-        cur_slice = meta.get('time_slice')
-        baseline = (meta.get('baseline_labels', {}) or {}).get(cur_slice, [])
+        meta = data.get("metadata", {})
+        cur_slice = meta.get("time_slice")
+        baseline = (meta.get("baseline_labels", {}) or {}).get(cur_slice, [])
         start_lbl = baseline[0] if baseline else None
         end_lbl = baseline[-1] if baseline else None
+
         def _to_yyyymmdd(lbl):
             if not isinstance(lbl, str):
                 return None
-            if 'T' in lbl:
-                lbl = lbl.split('T')[0]
-            return lbl.replace('-', '')
+            if "T" in lbl:
+                lbl = lbl.split("T")[0]
+            return lbl.replace("-", "")
+
         _to_yyyymmdd(start_lbl)
         _to_yyyymmdd(end_lbl)
 
@@ -332,115 +365,124 @@ class ProductivityDashboard:
             window_ops = self.data_engine.load_file_operations()
         except Exception:
             window_ops = []
-        
+
         # Filter to project by date range (startedAt to finishedAt)
-        started_at = project.get('startedAt')
-        finished_at = project.get('finishedAt')
-        
+        started_at = project.get("startedAt")
+        finished_at = project.get("finishedAt")
+
         def _belongs(rec):
             """Filter file operations to this project's date range."""
             if not started_at:
                 return False  # Can't match without start date
-            
+
             # Get operation timestamp
-            ts = rec.get('timestamp') or rec.get('timestamp_str')
+            ts = rec.get("timestamp") or rec.get("timestamp_str")
             if not ts:
                 return False
-            
+
             try:
                 # Parse operation timestamp (naive local time - no timezone info)
                 if isinstance(ts, str):
                     # Remove Z if present, but DON'T add timezone offset
-                    ts = ts.replace('Z', '')
+                    ts = ts.replace("Z", "")
                     op_dt = datetime.fromisoformat(ts)
                 else:
                     op_dt = ts  # Already datetime
-                
+
                 # Make sure op_dt is naive (no timezone)
                 if op_dt.tzinfo is not None:
                     op_dt = op_dt.replace(tzinfo=None)
-                
+
                 # Parse project dates and convert to naive datetime (drop timezone)
-                start_str = started_at.replace('Z', '') if isinstance(started_at, str) else started_at
+                start_str = (
+                    started_at.replace("Z", "")
+                    if isinstance(started_at, str)
+                    else started_at
+                )
                 start_dt = datetime.fromisoformat(start_str)
                 if start_dt.tzinfo is not None:
                     start_dt = start_dt.replace(tzinfo=None)
-                
+
                 # Check if operation is after project start
                 if op_dt < start_dt:
                     return False
-                
+
                 # Check if operation is before project end (if project is finished)
                 if finished_at:
-                    end_str = finished_at.replace('Z', '') if isinstance(finished_at, str) else finished_at
+                    end_str = (
+                        finished_at.replace("Z", "")
+                        if isinstance(finished_at, str)
+                        else finished_at
+                    )
                     end_dt = datetime.fromisoformat(end_str)
                     if end_dt.tzinfo is not None:
                         end_dt = end_dt.replace(tzinfo=None)
                     if op_dt > end_dt:
                         return False
-                
+
                 return True
             except Exception:
                 return False
-        
+
         proj_ops = [r for r in window_ops if _belongs(r)]
 
         # Group by display tool name
         grouped = {}
         for r in proj_ops:
-            disp = self._get_display_name(r.get('script') or '')
+            disp = self._get_display_name(r.get("script") or "")
             if disp not in allowed_tools_order:
                 continue
             grouped.setdefault(disp, []).append(r)
 
         temp_breakdown = {}
         from datetime import datetime as _dt
+
         for disp in allowed_tools_order:
             recs = grouped.get(disp, [])
             if not recs:
                 # Fallback to project metrics if no activity in window
                 # Find matching tool stats by raw key
                 tool_stats = None
-                for raw, stats in (pm.get('tools', {}) or {}).items():
+                for raw, stats in (pm.get("tools", {}) or {}).items():
                     if self._get_display_name(raw) == disp:
                         tool_stats = stats
                         break
                 if not tool_stats:
                     continue
-                images = int(tool_stats.get('images_processed', 0) or 0)
-                iph = float(tool_stats.get('images_per_hour', 0) or 0)
+                images = int(tool_stats.get("images_processed", 0) or 0)
+                iph = float(tool_stats.get("images_per_hour", 0) or 0)
                 hours = round(images / iph) if iph > 0 else 0
                 days = self._count_active_days_for_tool(data, project_id, raw)
                 if disp == "Web Image Selector":
-                    by_dest = (pm.get('totals', {}) or {}).get('operations_by_dest', {})
-                    move = by_dest.get('move', {}) if isinstance(by_dest, dict) else {}
-                    selected = int(move.get('selected', 0) or 0)
-                    cropped = int(move.get('crop', 0) or 0)
+                    by_dest = (pm.get("totals", {}) or {}).get("operations_by_dest", {})
+                    move = by_dest.get("move", {}) if isinstance(by_dest, dict) else {}
+                    selected = int(move.get("selected", 0) or 0)
+                    cropped = int(move.get("crop", 0) or 0)
                     temp_breakdown[disp] = {
                         "hours": hours,
                         "days": days,
                         "images_total": images,
                         "images_selected": selected,
-                        "images_cropped": cropped
+                        "images_cropped": cropped,
                     }
                 else:
                     temp_breakdown[disp] = {
                         "hours": hours,
                         "days": days,
-                        "images": images
+                        "images": images,
                     }
                 continue
 
             # Hours from file-ops timing
             try:
                 metrics = self.data_engine.calculate_file_operation_work_time(recs)
-                hours = round(float(metrics.get('work_time_minutes') or 0.0) / 60.0, 1)
+                hours = round(float(metrics.get("work_time_minutes") or 0.0) / 60.0, 1)
             except Exception:
                 hours = 0
             # Unique active days
             days_set = set()
             for rec in recs:
-                ts = rec.get('timestamp') or rec.get('timestamp_str')
+                ts = rec.get("timestamp") or rec.get("timestamp_str")
                 if not ts:
                     continue
                 try:
@@ -450,55 +492,71 @@ class ProductivityDashboard:
                         d = v.date().isoformat()
                     elif isinstance(v, str):
                         # Remove Z and parse string timestamps
-                        v = v.replace('Z', '')
+                        v = v.replace("Z", "")
                         d = _dt.fromisoformat(v).date().isoformat()
                     else:
                         continue
-                    
+
                     days_set.add(d)
                 except Exception:
                     continue
             days = len(days_set)
-            images = sum(int(r.get('file_count') or 0) for r in recs)
+            images = sum(int(r.get("file_count") or 0) for r in recs)
 
             if disp == "Web Image Selector":
-                selected = sum(int(r.get('file_count') or 0) for r in recs if (r.get('operation') == 'move' and str(r.get('dest_dir') or '').lower() in {'selected','__selected'}))
-                cropped = sum(int(r.get('file_count') or 0) for r in recs if (r.get('operation') == 'move' and any(k in str(r.get('dest_dir') or '').lower() for k in ['crop','__crop','__crop_auto','crop_auto'])))
+                selected = sum(
+                    int(r.get("file_count") or 0)
+                    for r in recs
+                    if (
+                        r.get("operation") == "move"
+                        and str(r.get("dest_dir") or "").lower()
+                        in {"selected", "__selected"}
+                    )
+                )
+                cropped = sum(
+                    int(r.get("file_count") or 0)
+                    for r in recs
+                    if (
+                        r.get("operation") == "move"
+                        and any(
+                            k in str(r.get("dest_dir") or "").lower()
+                            for k in ["crop", "__crop", "__crop_auto", "crop_auto"]
+                        )
+                    )
+                )
                 temp_breakdown[disp] = {
                     "hours": hours,
                     "days": days,
                     "images_total": images,
                     "images_selected": selected,
-                    "images_cropped": cropped
+                    "images_cropped": cropped,
                 }
             else:
-                temp_breakdown[disp] = {
-                    "hours": hours,
-                    "days": days,
-                    "images": images
-                }
-        
+                temp_breakdown[disp] = {"hours": hours, "days": days, "images": images}
+
         # Return tools as a list of tuples to preserve order (will be converted to dict in frontend)
         tools_breakdown_list = []
         for tool_name in allowed_tools_order:
             if tool_name in temp_breakdown:
                 tools_breakdown_list.append([tool_name, temp_breakdown[tool_name]])
-        
+
         return tools_breakdown_list
-    
+
     def _get_display_name(self, tool_name):
         """Convert tool name to display name"""
         display_names = {
-            'image_version_selector': 'Web Image Selector',
-            'character_sorter': 'Web Character Sorter',  # Renamed from "Character Sorter"
-            'batch_crop_tool': 'Multi Crop Tool',
-            'multi_crop_tool': 'Multi Crop Tool',
-            'recursive_file_mover': 'Recursive File Mover',
-            'test_web_selector': 'Test Web Selector',
-            'web_character_sorter': 'Web Character Sorter'
+            "image_version_selector": "Web Image Selector",
+            "character_sorter": "Web Character Sorter",  # Renamed from "Character Sorter"
+            "batch_crop_tool": "Multi Crop Tool",
+            "multi_crop_tool": "Multi Crop Tool",
+            "ai_desktop_multi_crop_queue": "Multi Crop Tool",
+            "ai_assisted_reviewer": "Web Image Selector",
+            "recursive_file_mover": "Recursive File Mover",
+            "test_web_selector": "Test Web Selector",
+            "web_character_sorter": "Web Character Sorter",
         }
         return display_names.get(tool_name, tool_name)
-    
+
     def _count_active_days_for_tool(self, data, project_id, tool_name):
         """Count unique days a tool was active for a specific project"""
         # Find the project to get its date range
@@ -506,80 +564,88 @@ class ProductivityDashboard:
         project = next((p for p in projects if p.get("projectId") == project_id), None)
         if not project:
             return 0
-        
-        started_at = project.get('startedAt')
-        finished_at = project.get('finishedAt')
+
+        started_at = project.get("startedAt")
+        finished_at = project.get("finishedAt")
         if not started_at:
             return 0
-        
+
         # Load all file operations and filter by date range and tool
         try:
             all_ops = self.data_engine.load_file_operations()
         except Exception:
             return 0
-        
+
         unique_dates = set()
-        
+
         for rec in all_ops:
             # Match tool name
             rec_script = rec.get("script", "")
             if self._get_display_name(rec_script) != self._get_display_name(tool_name):
                 continue
-            
+
             # Filter by project date range
-            ts = rec.get('timestamp') or rec.get('timestamp_str')
+            ts = rec.get("timestamp") or rec.get("timestamp_str")
             if not ts:
                 continue
-            
+
             try:
                 # Parse operation timestamp (naive local time)
                 if isinstance(ts, datetime):
                     op_dt = ts
                 elif isinstance(ts, str):
-                    ts = ts.replace('Z', '')
+                    ts = ts.replace("Z", "")
                     op_dt = datetime.fromisoformat(ts)
                 else:
                     continue
-                
+
                 # Make sure op_dt is naive
                 if op_dt.tzinfo is not None:
                     op_dt = op_dt.replace(tzinfo=None)
-                
+
                 # Parse project dates and convert to naive datetime
-                start_str = started_at.replace('Z', '') if isinstance(started_at, str) else started_at
+                start_str = (
+                    started_at.replace("Z", "")
+                    if isinstance(started_at, str)
+                    else started_at
+                )
                 start_dt = datetime.fromisoformat(start_str)
                 if start_dt.tzinfo is not None:
                     start_dt = start_dt.replace(tzinfo=None)
-                
+
                 # Check if operation is after project start
                 if op_dt < start_dt:
                     continue
-                
+
                 # Check if operation is before project end (if project is finished)
                 if finished_at:
-                    end_str = finished_at.replace('Z', '') if isinstance(finished_at, str) else finished_at
+                    end_str = (
+                        finished_at.replace("Z", "")
+                        if isinstance(finished_at, str)
+                        else finished_at
+                    )
                     end_dt = datetime.fromisoformat(end_str)
                     if end_dt.tzinfo is not None:
                         end_dt = end_dt.replace(tzinfo=None)
                     if op_dt > end_dt:
                         continue
-                
+
                 # Add the date (not datetime) to the set
                 unique_dates.add(op_dt.date().isoformat())
             except Exception:
                 continue
-        
+
         return len(unique_dates)
-    
+
     def run(self, host="127.0.0.1", port=5001, debug=False):
         """Run the dashboard server"""
         import threading
         import time
         import webbrowser
-        
+
         url = f"http://{host}:{port}"
         print(f"🚀 Productivity Dashboard starting at {url}")
-        
+
         # Auto-open browser after a short delay (like your other scripts)
         def open_browser():
             time.sleep(1.5)  # Give server time to start
@@ -588,12 +654,13 @@ class ProductivityDashboard:
                 print(f"🌐 Opening browser to {url}")
             except Exception as e:
                 print(f"Could not auto-open browser: {e}")
-        
+
         # Start browser opener in background thread
         if not debug:  # Don't auto-open in debug mode
             threading.Thread(target=open_browser, daemon=True).start()
-        
+
         self.app.run(host=host, port=port, debug=debug)
+
 
 # Dashboard HTML Template
 DASHBOARD_TEMPLATE = """
@@ -1222,17 +1289,19 @@ DASHBOARD_TEMPLATE = """
 </html>
 """
 
+
 def main():
     parser = argparse.ArgumentParser(description="Productivity Dashboard")
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
     parser.add_argument("--port", default=5001, type=int, help="Port to bind to")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--data-dir", default="scripts", help="Data directory path")
-    
+
     args = parser.parse_args()
-    
+
     dashboard = ProductivityDashboard(args.data_dir)
     dashboard.run(host=args.host, port=args.port, debug=args.debug)
+
 
 if __name__ == "__main__":
     main()
