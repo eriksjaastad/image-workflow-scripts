@@ -110,7 +110,6 @@ memory/
 /__*/
 
 # Content Directories (large datasets - do not track)
-mojo3/
 
 # Image and Data Files
 *.png

@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "projectId": "mojo3",
   "title": "Mojo3",
-  "status": "active",
+  "status": "finished",
   "createdAt": "2025-10-21T14:20:14Z",
   "startedAt": "2025-10-21T14:20:14Z",
-  "finishedAt": null,
+  "finishedAt": "2025-10-29T22:46:13Z",
   "removeFileOnFinish": true,
   "paths": {
     "root": "../../mojo3",
@@ -25,11 +25,31 @@
     "imagesPerHourEndToEnd": null,
     "stepRates": {},
     "stager": {
-      "zip": "",
-      "eligibleCount": 0,
-      "byExtIncluded": {},
-      "excludedCounts": {},
-      "incomingByExt": {}
+      "zip": "/Users/eriksjaastad/projects/image-workflow/mojo3_final.zip",
+      "eligibleCount": 13586,
+      "byExtIncluded": {
+        "png": 4662,
+        "yaml": 4662,
+        "caption": 4243,
+        "txt": 18,
+        "txtvim": 1
+      },
+      "excludedCounts": {
+        "hidden": 2,
+        "banned_name": 0,
+        "banned_ext": 0,
+        "banned_pattern": 0,
+        "not_allowed": 3366,
+        "no_extension": 0
+      },
+      "incomingByExt": {
+        "decision": 3366,
+        "png": 4662,
+        "yaml": 4662,
+        "caption": 4243,
+        "txt": 18,
+        "txtvim": 1
+      }
     }
   },
   "steps": [
