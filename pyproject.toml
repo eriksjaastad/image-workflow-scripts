@@ -19,6 +19,7 @@ ignore = [
 # Allow prints in true CLIs & tests
 "scripts/**/tests/**" = ["T201"]
 "scripts/dashboard/**" = ["T201"]
+"scripts/utils/**" = ["T201"]  # Utility modules often have debug prints
 "scripts/**/run_*.py" = ["T201"]
 "scripts/**/test_*.py" = ["T201"]
 "scripts/[0-9][0-9]_*.py" = ["T201"]  # Numbered workflow scripts (00_start_project, etc.)
