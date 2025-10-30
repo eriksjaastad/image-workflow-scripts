@@ -1720,13 +1720,12 @@
                         scales: {
                             x: { stacked: true, ticks: { color: '#b8b8b8' }, grid: { color: '#303030' } },
                             y: { stacked: true, beginAtZero: true, max: 24, title: { display: true, text: 'Hours (ET)', color: '#b8b8b8' },
-                                ticks: { color: '#b8b8b8', stepSize: 3, callback: (v)=> {
+                                ticks: { color: '#b8b8b8', stepSize: 1, callback: (v)=> {
                                     const hour = Number(v);
-                                    if (![0,3,6,9,12,15,18,21,24].includes(hour)) return '';
-                                    const ampm = hour >= 12 ? 'PM' : 'AM';
-                                    let hh = hour % 12; if (hh === 0) hh = 12;
-                                    return `${hh}${ampm}`;
-                                } }, grid: { color: '#303030' } }
+                                    // Show hourly labels (0:00, 1:00, ... 23:00)
+                                    if (hour !== Math.floor(hour)) return ''; // Skip non-integer values
+                                    return `${hour}:00`;
+                                } }, grid: { color: '#303030', drawOnChartArea: true } }
                         }
                     }
                 });
