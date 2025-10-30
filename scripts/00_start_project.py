@@ -35,7 +35,7 @@ if str(_ROOT) not in sys.path:
 try:
     from scripts.file_tracker import FileTracker
     from scripts.utils.companion_file_utils import extract_timestamp_from_filename
-except Exception:
+except Exception:  # noqa: BLE001
     FileTracker = None  # type: ignore
 
     def extract_timestamp_from_filename(filename: str):  # type: ignore

@@ -20,3 +20,4 @@ ignore = [
 "scripts/dashboard/**" = ["T201"]
 "scripts/**/run_*.py" = ["T201"]
 "scripts/**/test_*.py" = ["T201"]
+"scripts/[0-9][0-9]_*.py" = ["T201"]  # Numbered workflow scripts (00_start_project, etc.)
