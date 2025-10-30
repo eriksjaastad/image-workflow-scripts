@@ -47,10 +47,7 @@ def log(message, level="INFO"):
     with open(log_file, 'a') as f:
         f.write(f"[{timestamp}] {level}: {message}\n")
 
-def alert_failure(message, exception=None):
-    """Alert on backup failure."""
-    monitor = get_error_monitor("daily_backup")
-    monitor.critical_error(f"BACKUP FAILURE: {message}", exception)
+# Removed alert_failure - it was a footgun that crashed scripts
 
 def find_database_files(root_dir: Path) -> List[Path]:
     """Find all SQLite database files in the project."""
@@ -69,30 +66,32 @@ def find_database_files(root_dir: Path) -> List[Path]:
 
 def verify_backup(src, dst, name):
     """Verify that backup was successful."""
+    monitor = get_error_monitor("daily_backup")
+
     try:
         if not dst.exists():
-            alert_failure(f"Backup destination missing: {dst}")
+            monitor.validation_error(f"Backup destination missing: {dst}")
             return False
 
         if src.is_file():
             src_size = src.stat().st_size
             dst_size = dst.stat().st_size
             if src_size != dst_size:
-                alert_failure(f"File size mismatch for {name}: {src_size} vs {dst_size}")
+                monitor.validation_error(f"File size mismatch for {name}: {src_size} vs {dst_size}")
                 return False
         else:
             # Count files
             src_files = len(list(src.rglob('*')))
             dst_files = len(list(dst.rglob('*')))
             if src_files != dst_files:
-                alert_failure(f"File count mismatch for {name}: {src_files} vs {dst_files}")
+                monitor.validation_error(f"File count mismatch for {name}: {src_files} vs {dst_files}")
                 return False
 
         log(f"✅ Verified backup integrity for {name}")
         return True
 
     except Exception as e:
-        alert_failure(f"Backup verification failed for {name}", e)
+        monitor.validation_error(f"Backup verification failed for {name}", {"error": str(e)})
         return False
 
 def backup_directory(src, dst, name):
@@ -285,12 +284,14 @@ def main():
             monitor._send_macos_notification("Backup Success", f"Daily backup completed: {total_files} files, {manifest['total_size_mb']} MB")
         else:
             log("❌ Backup completed with failures!", "ERROR")
-            alert_failure("Daily backup completed but some items failed")
+            monitor = get_error_monitor("daily_backup")
+            monitor.validation_error("Daily backup completed but some items failed")
 
     except Exception as e:
         success = False
         log(f"💥 Backup failed with exception: {e}", "CRITICAL")
-        alert_failure("Daily backup failed with exception", e)
+        monitor = get_error_monitor("daily_backup")
+        monitor.critical_error("Daily backup failed with exception", e)
 
     # Exit with appropriate code
     sys.exit(0 if success else 1)

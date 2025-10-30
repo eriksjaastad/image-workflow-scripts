@@ -41,6 +41,7 @@ class ErrorMonitor:
         """
         Log a CRITICAL error that requires IMMEDIATE attention.
         Sends macOS notification and logs to file.
+        DOES NOT EXIT - let caller decide what to do.
         """
         timestamp = datetime.now().isoformat()
 
@@ -62,8 +63,16 @@ class ErrorMonitor:
             "CRITICAL ERROR", f"{self.script_name}: {message}"
         )
 
-        # For critical errors, also exit with error code
-        self.logger.error("Script terminating due to critical error")
+        # DO NOT EXIT - let caller decide what to do!
+        # Removed: sys.exit(1)
+
+    def fatal_error(self, message: str, exception: Optional[Exception] = None):
+        """
+        Unrecoverable system error - log, notify, and exit.
+        Use only for truly fatal errors that prevent the script from continuing.
+        """
+        self.critical_error(message, exception)  # Log and notify
+        self.logger.error("Script terminating due to fatal error")
         sys.exit(1)
 
     def validation_error(self, message: str, context: Optional[dict] = None):
@@ -201,6 +210,10 @@ def validation_error(message: str, context: Optional[dict] = None):
     """Quick access to validation error reporting."""
     get_error_monitor().validation_error(message, context)
 
+
+def fatal_error(message: str, exception: Optional[Exception] = None):
+    """Quick access to fatal error reporting."""
+    get_error_monitor().fatal_error(message, exception)
 
 def silent_failure_detected(operation: str, expected: str, actual: str = None):
     """Quick access to silent failure detection."""
