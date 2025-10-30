@@ -63,7 +63,7 @@ class TestRunner:  # not a pytest test class (has __init__)
                     print("🚨 CRITICAL TEST FAILED - STOPPING")
                     return False
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             duration = time.time() - start_time
             print(f"💥 ERROR ({duration:.2f}s): {e}")
             self.failed += 1
@@ -597,7 +597,7 @@ class TestRunner:  # not a pytest test class (has __init__)
         except subprocess.TimeoutExpired:
             print("✗ Desktop image selector crop tool tests timed out")
             return False
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"✗ Desktop image selector crop tool tests failed: {e}")
             return False
 
@@ -625,7 +625,7 @@ class TestRunner:  # not a pytest test class (has __init__)
         except subprocess.TimeoutExpired:
             print("✗ Dashboard tests timed out")
             return False
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"✗ Dashboard tests failed: {e}")
             return False
 
