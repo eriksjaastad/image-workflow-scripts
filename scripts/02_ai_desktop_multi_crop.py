@@ -183,12 +183,13 @@ class AIMultiCropTool(MultiCropTool):
                 self.tracker = _FT("ai_desktop_multi_crop")
                 print("[FileTracker] Initialized for ai_desktop_multi_crop")
             except Exception as e:
-                # CRITICAL: FileTracker initialization failed - this will break metrics and logging!
+                # FileTracker initialization failed - log warning but continue
                 error_monitor = get_error_monitor("ai_desktop_multi_crop")
-                error_monitor.critical_error(
+                error_monitor.validation_error(
                     "FileTracker initialization failed - metrics and file operation logging will not work",
-                    e,
+                    {"exception": str(e)}
                 )
+                self.tracker = None  # Continue without tracking
 
     # ---- Lightweight UI alert helpers ----
     def _show_alert(self, message: str, color: str = "red") -> None:
