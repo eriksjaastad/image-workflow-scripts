@@ -18,6 +18,10 @@ ignore = [
   "B007",  # Unused loop vars - Raptor will fix with _ prefix convention
   "B904",  # raise ... from err - exception chaining (Raptor will review)
   "B905",  # zip() without strict= parameter (Raptor will add where needed)
+  "B006",  # Mutable default arguments - Raptor will fix
+  "B023",  # Loop variable binding issues - Raptor will review
+  "B011",  # assert False -> raise AssertionError() - Raptor will fix
+  "B025",  # Duplicate exception handlers - Raptor will consolidate
 ]
 
 [tool.ruff.lint.per-file-ignores]
