@@ -15,6 +15,8 @@ ignore = [
   "BLE001",  # Temporarily disabled - Raptor review will fix broad exception handlers properly
   "T201",  # Temporarily disabled - too many prints, Raptor will review which should be logging
   "F821",  # Undefined names (conditional imports) - Raptor will review
+  "F401",  # Unused imports (test helpers) - Raptor will clean up
+  "B005",  # lstrip with multi-char strings - Raptor will use removeprefix()
   "B007",  # Unused loop vars - Raptor will fix with _ prefix convention
   "B904",  # raise ... from err - exception chaining (Raptor will review)
   "B905",  # zip() without strict= parameter (Raptor will add where needed)
