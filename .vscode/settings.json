@@ -8,7 +8,6 @@
   "ruff.format.enable": true,
   "files.exclude": {
     "**/.git": true,
-    "**/.github": true,
     "**/.vscode": true,
     "**/.venv*": true,
     "**/.cursor*": true,
@@ -17,7 +16,6 @@
   },
   "search.exclude": {
     "**/.git": true,
-    "**/.github": true,
     "**/.vscode": true,
     "**/.venv*": true,
     "**/.cursor*": true,

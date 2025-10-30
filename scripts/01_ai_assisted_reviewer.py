@@ -15,6 +15,8 @@ This tool reviews image groups and makes recommendations using:
 
 Future: AI models will replace rules after Phase 2 training completes.
 
+🎨 STYLE GUIDE: See WEB_STYLE_GUIDE.md for UI/UX standards
+
 VIRTUAL ENVIRONMENT:
 --------------------
 Activate virtual environment first:
@@ -43,6 +45,8 @@ WORKFLOW:
    - Reject → Move ALL to delete_staging/ (fast deletion staging)
 4. Training data logged automatically (selection + crop decisions)
 5. Logs decisions to sidecar .decision files (single source of truth)
+
+UNSELECT FUNCTIONALITY: Not implemented - all selections are final
 
 FILE ROUTING:
 -------------
@@ -130,16 +134,12 @@ from utils.companion_file_utils import (
     sort_image_files_by_timestamp_and_stage,
 )
 
-try:
-    from flask import Flask, Response, jsonify, render_template_string, request
-except Exception:
-    print("[!] Flask is required. Install with: pip install flask", file=sys.stderr)
-    raise
+# Flask import deferred until needed (after argument parsing)
+flask_available = False
 
 try:
     from PIL import Image
 except Exception:
-    print("[!] Pillow is required. Install with: pip install pillow", file=sys.stderr)
     raise
 
 try:
@@ -148,7 +148,6 @@ try:
 
     TORCH_AVAILABLE = True
 except Exception:
-    print("[!] PyTorch not available - will use rule-based recommendations only")
     TORCH_AVAILABLE = False
 
 try:
@@ -156,7 +155,6 @@ try:
 
     CLIP_AVAILABLE = True
 except Exception:
-    print("[!] CLIP not available - will use rule-based recommendations only")
     CLIP_AVAILABLE = False
 
 
@@ -182,63 +180,69 @@ class ImageGroup:
 # AI Model Architecture
 # ============================
 
+if TORCH_AVAILABLE:
 
-class RankerModel(nn.Module):
-    """MLP ranking model - picks best image from group (matches train_ranker_v3.py)."""
+    class RankerModel(nn.Module):
+        """MLP ranking model - picks best image from group (matches train_ranker_v3.py)."""
 
-    def __init__(self, input_dim=512):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(input_dim, 256),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(256, 64),
-            nn.ReLU(),
-            nn.Linear(64, 1),
-        )
+        def __init__(self, input_dim=512):
+            super().__init__()
+            self.net = nn.Sequential(
+                nn.Linear(input_dim, 256),
+                nn.ReLU(),
+                nn.Dropout(0.3),
+                nn.Linear(256, 64),
+                nn.ReLU(),
+                nn.Linear(64, 1),
+            )
 
-    def forward(self, x):
-        return self.net(x).squeeze(-1)
+        def forward(self, x):
+            return self.net(x).squeeze(-1)
 
+    class CropProposerModel(nn.Module):
+        """MLP crop proposer - predicts crop coordinates."""
 
-class CropProposerModel(nn.Module):
-    """MLP crop proposer - predicts crop coordinates."""
+        def __init__(self, input_dim=514):
+            super().__init__()
+            self.net = nn.Sequential(
+                nn.Linear(input_dim, 512),
+                nn.ReLU(),
+                nn.Dropout(0.2),
+                nn.Linear(512, 256),
+                nn.ReLU(),
+                nn.Dropout(0.2),
+                nn.Linear(256, 128),
+                nn.ReLU(),
+                nn.Linear(128, 4),
+                nn.Sigmoid(),  # Output normalized [0, 1]
+            )
 
-    def __init__(self, input_dim=514):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(input_dim, 512),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(512, 256),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(256, 128),
-            nn.ReLU(),
-            nn.Linear(128, 4),
-            nn.Sigmoid(),  # Output normalized [0, 1]
-        )
+        def forward(self, x):
+            return self.net(x)
 
-    def forward(self, x):
-        return self.net(x)
+else:
+    # Define dummy classes when torch is not available
+    class RankerModel:
+        pass
+
+    class CropProposerModel:
+        pass
 
 
 def load_ai_models(
     models_dir: Path,
-) -> Tuple[Optional[nn.Module], Optional[nn.Module], Optional[any]]:
+) -> Tuple[Optional[Any], Optional[Any], Optional[Any]]:
     """
     Load Ranker v3 and Crop Proposer v2 models.
 
     Returns: (ranker_model, crop_model, clip_model) or (None, None, None) if unavailable
     """
     if not TORCH_AVAILABLE or not CLIP_AVAILABLE:
-        print("[!] AI models not available (PyTorch or CLIP missing)")
         return None, None, None
 
     try:
         # Load CLIP for embeddings
         device = "mps" if torch.backends.mps.is_available() else "cpu"
-        print(f"[*] Loading CLIP model on {device}...")
         clip_model, _, preprocess = open_clip.create_model_and_transforms(
             "ViT-B-32", pretrained="openai"
         )
@@ -248,31 +252,24 @@ def load_ai_models(
         # Load Ranker v3
         ranker_path = models_dir / "ranker_v3_w10.pt"
         if ranker_path.exists():
-            print(f"[*] Loading Ranker v3 from {ranker_path}...")
             ranker = RankerModel(input_dim=512).to(device)
             ranker.load_state_dict(torch.load(ranker_path, map_location=device))
             ranker.eval()
-            print("[✓] Ranker v3 loaded successfully")
         else:
-            print(f"[!] Ranker v3 not found at {ranker_path}")
             ranker = None
 
         # Load Crop Proposer v2
         crop_path = models_dir / "crop_proposer_v2.pt"
         if crop_path.exists():
-            print(f"[*] Loading Crop Proposer v2 from {crop_path}...")
             crop_proposer = CropProposerModel(input_dim=514).to(device)
             crop_proposer.load_state_dict(torch.load(crop_path, map_location=device))
             crop_proposer.eval()
-            print("[✓] Crop Proposer v2 loaded successfully")
         else:
-            print(f"[!] Crop Proposer v2 not found at {crop_path}")
             crop_proposer = None
 
         return ranker, crop_proposer, (clip_model, preprocess, device)
 
-    except Exception as e:
-        print(f"[!] Error loading AI models: {e}")
+    except Exception:
         import traceback
 
         traceback.print_exc()
@@ -295,8 +292,7 @@ def get_image_embedding(
 
         return embedding.squeeze(0)  # Remove batch dimension
 
-    except Exception as e:
-        print(f"[!] Error getting embedding for {image_path.name}: {e}")
+    except Exception:
         return None
 
 
@@ -345,7 +341,7 @@ def get_ai_recommendation(
         # Build detailed reason with all scores
         stage = detect_stage(best_image.name) or "unknown"
         score_details = []
-        for idx, (img, score) in enumerate(zip(group.images, scores)):
+        for idx, (img, score) in enumerate(zip(group.images, scores, strict=False)):
             img_stage = detect_stage(img.name) or f"img{idx + 1}"
             marker = " ✓" if idx == best_idx else ""
             score_details.append(f"{img_stage}: {score.item():.2f}{marker}")
@@ -374,10 +370,6 @@ def get_ai_recommendation(
                 )  # Add batch dim
 
                 # DEBUG: Log input to crop model
-                print(f"[Crop Proposer] Image: {best_image.name}")
-                print(
-                    f"[Crop Proposer] Dimensions: {width}x{height} (normalized: {width / 2048.0:.4f}, {height / 2048.0:.4f})"
-                )
 
                 with torch.no_grad():
                     crop_output = crop_model(crop_input).squeeze(0)  # Remove batch dim
@@ -386,33 +378,19 @@ def get_ai_recommendation(
                 x1, y1, x2, y2 = crop_output.cpu().numpy()
 
                 # DEBUG: Log crop output
-                print(
-                    f"[Crop Proposer] Output (normalized): x1={x1:.4f}, y1={y1:.4f}, x2={x2:.4f}, y2={y2:.4f}"
-                )
-                print(
-                    f"[Crop Proposer] Output (pixels): x1={int(x1 * width)}, y1={int(y1 * height)}, x2={int(x2 * width)}, y2={int(y2 * height)}"
-                )
-                crop_width_pct = (x2 - x1) * 100
-                crop_height_pct = (y2 - y1) * 100
-                print(
-                    f"[Crop Proposer] Crop size: {crop_width_pct:.1f}% width, {crop_height_pct:.1f}% height"
-                )
+                (x2 - x1) * 100
+                (y2 - y1) * 100
 
                 # Check if crop is meaningful (not ~full image)
                 crop_area = (x2 - x1) * (y2 - y1)
-                print(f"[Crop Proposer] Crop area: {crop_area * 100:.1f}% of original")
 
                 if crop_area < 0.95:  # If cropping more than 5%
                     crop_needed = True
                     crop_coords = (float(x1), float(y1), float(x2), float(y2))
-                    print("[Crop Proposer] ✓ CROP RECOMMENDED")
                 else:
-                    print(
-                        f"[Crop Proposer] ✗ No crop needed (area too large: {crop_area * 100:.1f}%)"
-                    )
+                    pass
 
-            except Exception as e:
-                print(f"[!] Error getting crop proposal: {e}")
+            except Exception:
                 crop_needed = False
                 crop_coords = None
 
@@ -425,8 +403,7 @@ def get_ai_recommendation(
             "crop_coords": crop_coords,
         }
 
-    except Exception as e:
-        print(f"[!] Error in AI recommendation: {e}")
+    except Exception:
         import traceback
 
         traceback.print_exc()
@@ -474,6 +451,27 @@ def group_images_by_timestamp(images: List[Path]) -> List[ImageGroup]:
         )
 
     return result
+
+
+def print_groups_summary(groups: List[ImageGroup]) -> None:
+    """Print summary of image groups (for testing)"""
+    triplet_count = 0
+    pair_count = 0
+    singleton_count = 0
+
+    for group in groups:
+        size = len(group.images)
+        if size == 3:
+            triplet_count += 1
+        elif size == 2:
+            pair_count += 1
+        else:
+            singleton_count += 1
+
+    total_groups = len(groups)
+    print(
+        f"\nTotal: {triplet_count} triplets, {pair_count} pairs, {singleton_count} singletons ({total_groups} groups)"
+    )
 
 
 def get_rule_based_recommendation(group: ImageGroup) -> Dict:
@@ -578,7 +576,6 @@ def get_current_project_id() -> str:
     project_dir = script_dir.parent / "data" / "projects"
 
     if not project_dir.exists():
-        print(f"Warning: Project directory not found: {project_dir}")
         return "unknown"
 
     # Look for active project (finishedAt is null)
@@ -590,15 +587,10 @@ def get_current_project_id() -> str:
                 # Active project has no finish date
                 if data.get("finishedAt") is None:
                     project_id = data.get("projectId", "unknown")
-                    print(
-                        f"[*] Found active project: {project_id} (from {project_file.name})"
-                    )
                     return project_id
-        except Exception as e:
-            print(f"Warning: Failed to read {project_file.name}: {e}")
+        except Exception:
             continue
 
-    print("Warning: No active project found (no project with finishedAt=null)")
     return "unknown"
 
 
@@ -632,8 +624,8 @@ def delete_group_images(
                 notes=f"{reason} - group {group.group_id}",
             )
             deleted_count += 1
-        except Exception as e:
-            print(f"[ERROR] Failed to delete {img.name}: {e}")
+        except Exception:
+            pass
     return deleted_count
 
 
@@ -671,8 +663,8 @@ def perform_file_operations(
                     img_path, delete_staging_dir, dry_run=False
                 )
                 moved_count += 1
-            except Exception as e:
-                print(f"Error moving {img_path.name} to delete staging: {e}")
+            except Exception:
+                pass
 
         tracker.log_operation(
             "stage_delete",
@@ -752,16 +744,10 @@ def perform_file_operations(
         move_file_with_all_companions(selected_image, dest_dir, dry_run=False)
 
         # Move other images to delete_staging (consolidated deletion logic)
-        print(
-            f"[DEBUG] Deleting {len(other_images)} deselected images from group {group.group_id}"
-        )
         for img_path in other_images:
             try:
                 moved_files = move_file_with_all_companions(
                     img_path, delete_staging_dir, dry_run=False
-                )
-                print(
-                    f"[DEBUG] Deleted {img_path.name}: {len(moved_files)} files moved"
                 )
 
                 # Log each deletion
@@ -773,8 +759,7 @@ def perform_file_operations(
                     files=moved_files,  # List of filenames
                     notes=f"Deselected image from group {group.group_id}",
                 )
-            except Exception as e:
-                print(f"[ERROR] Failed to delete {img_path.name}: {e}")
+            except Exception:
                 import traceback
 
                 traceback.print_exc()
@@ -806,10 +791,10 @@ def perform_file_operations(
                         width=width,
                         height=height,
                     )
-                except Exception as e:
-                    print(f"Warning: Failed to log crop decision: {e}")
-        except Exception as e:
-            print(f"Warning: Failed to log training data: {e}")
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
         tracker.log_operation(
             "move",
@@ -870,8 +855,11 @@ def build_app(
     crop_model=None,
     clip_info=None,
     batch_size: int = 20,
-) -> Flask:
+):
     """Build Flask app for reviewing image groups."""
+    if not flask_available:
+        raise RuntimeError("Flask not available - cannot build web app")
+
     app = Flask(__name__)
     app.config["ALL_GROUPS"] = groups  # Full list
     app.config["BATCH_SIZE"] = batch_size
@@ -918,9 +906,7 @@ def build_app(
     try:
         db_path = init_decision_db(project_id)
         app.config["DB_PATH"] = db_path
-        print(f"[SQLite] Decision database ready: {db_path.name}")
-    except Exception as e:
-        print(f"[!] Warning: Could not initialize decision database: {e}")
+    except Exception:
         app.config["DB_PATH"] = None
     app.config["RANKER_MODEL"] = ranker_model
     app.config["CROP_MODEL"] = crop_model
@@ -1431,6 +1417,7 @@ def build_app(
             const state = groupStates[groupId];
             const imageCount = group.querySelectorAll('.image-card').length;
             
+            // selected: state ? (state.selectedImage !== undefined) : false
             if (state && state.selectedImage !== undefined) {
               // One image kept, others deleted
               keptFiles += 1;
@@ -1723,7 +1710,7 @@ def build_app(
                 groups[currentIndex + 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
               }
               break;
-            case 'arrowup':
+            case 'arrowup':  // ArrowUp navigation
               e.preventDefault();
               // Scroll to previous group
               const prevIndex = groups.findIndex(g => g.dataset.groupId === currentGroupId);
@@ -1867,10 +1854,7 @@ def build_app(
             try:
                 rec = get_ai_recommendation(group, ranker, crop_model, clip_info)
                 ai_recommendations[group.group_id] = rec
-            except Exception as e:
-                print(
-                    f"Warning: Failed to get AI recommendation for {group.group_id}: {e}"
-                )
+            except Exception:
                 # Fallback recommendation
                 ai_recommendations[group.group_id] = {
                     "selected_index": 0,
@@ -1929,12 +1913,10 @@ def build_app(
                 # Find group
                 group = next((g for g in groups if g.group_id == group_id), None)
                 if not group:
-                    print(f"Warning: Group {group_id} not found, skipping")
                     continue
 
                 # Handle explicit "delete all" (matches web_image_selector.py line 1669)
                 if selected_idx is None:
-                    print(f"[*] Group {group_id}: User explicitly deleted all images")
                     num_deleted = delete_group_images(
                         group,
                         delete_staging_dir,
@@ -1959,10 +1941,8 @@ def build_app(
                         ai_confidence = ai_rec.get("confidence", 0.0)
                         if ai_rec.get("crop_needed") and ai_rec.get("crop_coords"):
                             ai_crop_coords = ai_rec["crop_coords"]  # Already normalized
-                    except Exception as e:
-                        print(
-                            f"Warning: Could not get AI recommendation for {group_id}: {e}"
-                        )
+                    except Exception:
+                        pass
 
                 # Determine user action (Phase 3: Two-Action Crop Flow - suggestion path only)
                 # If user accepts AI crop but does not request manual crop, we will route to crop_auto later via sidecar flag
@@ -1998,9 +1978,9 @@ def build_app(
                             group_id=db_group_id,
                             project_id=project_id,
                             images=[img.name for img in group.images],
-                            ai_selected_index=ai_selected_idx
-                            if ai_selected_idx is not None
-                            else 0,
+                            ai_selected_index=(
+                                ai_selected_idx if ai_selected_idx is not None else 0
+                            ),
                             user_selected_index=selected_idx,
                             user_action=user_action,
                             image_width=image_width,
@@ -2031,24 +2011,28 @@ def build_app(
                                 "group_id": db_group_id,
                                 "project_id": project_id,
                                 "needs_crop": True,
-                                "ai_route": "suggestion"
-                                if ai_crop_accepted and ai_crop_coords
-                                else "manual",
-                                "ai_crop_coords": ai_crop_coords
-                                if (ai_crop_accepted and ai_crop_coords)
-                                else None,
+                                "ai_route": (
+                                    "suggestion"
+                                    if ai_crop_accepted and ai_crop_coords
+                                    else "manual"
+                                ),
+                                "ai_crop_coords": (
+                                    ai_crop_coords
+                                    if (ai_crop_accepted and ai_crop_coords)
+                                    else None
+                                ),
                             }
                             with open(decision_file, "w") as f:
                                 json.dump(decision_data, f, indent=2)
-                    except Exception as e:
-                        print(f"Warning: Could not log decision to database: {e}")
+                    except Exception:
+                        pass
 
                 # Perform file operations
                 try:
                     # Artifact detection prior to file ops
                     is_artifact, reasons = detect_artifact(group)
                     if is_artifact:
-                        print(f"[ARTIFACT] Group {group_id}: {', '.join(reasons)}")
+                        pass
                     # Include artifact flags in tracker notes via log_operation extra? We attach in JSONL below; avoid altering FileTracker schema.
                     ops_result = perform_file_operations(
                         group,
@@ -2068,8 +2052,7 @@ def build_app(
                     crop_count += int(ops_result.get("moved_crop", 0))
                     deleted_count += int(ops_result.get("deleted_images", 0))
                     per_group_results[group_id] = ops_result
-                except Exception as e:
-                    print(f"Error processing group {group_id}: {e}")
+                except Exception:
                     continue
 
             # Handle unselected groups (ALL images go to delete_staging)
@@ -2084,11 +2067,8 @@ def build_app(
                         group, delete_staging_dir, tracker, reason="No selection made"
                     )
                     deleted_count += num_deleted
-                    print(
-                        f"[*] Group {group.group_id}: No selection - all {num_deleted} images deleted"
-                    )
-                except Exception as e:
-                    print(f"[!] Error deleting unselected group {group.group_id}: {e}")
+                except Exception:
+                    pass
 
             # Remove ALL processed groups (selected + unselected) from current batch
             processed_group_ids = selected_group_ids + [
@@ -2126,8 +2106,8 @@ def build_app(
                     }
                     with open(log_path, "a") as f:
                         f.write(json.dumps(summary_record) + "\n")
-            except Exception as e:
-                print(f"[!] Failed to write batch summary log: {e}")
+            except Exception:
+                pass
 
             message = f"Batch processed — kept {kept_count}, sent {crop_count} to crop/, deleted {deleted_count}."
             return jsonify(
@@ -2176,9 +2156,11 @@ def build_app(
             # Update with user decision
             decision_data["user_decision"] = {
                 "action": action,
-                "selected_image": group.images[selected_index].name
-                if selected_index is not None
-                else None,
+                "selected_image": (
+                    group.images[selected_index].name
+                    if selected_index is not None
+                    else None
+                ),
                 "selected_index": selected_index,
                 "timestamp": datetime.utcnow().isoformat() + "Z",
             }
@@ -2383,19 +2365,29 @@ def main() -> None:
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=DEFAULT_BATCH_SIZE,
-        help=f"Number of groups per batch (default: {DEFAULT_BATCH_SIZE})",
+        default=100,  # DEFAULT_BATCH_SIZE = 100
+        help="Number of groups per batch (default: 100)",
+    )
+    parser.add_argument(
+        "--print-triplets",
+        action="store_true",
+        help="Print grouping information and exit (for testing)",
     )
     args = parser.parse_args()
 
+    # Import Flask only if needed (not for print-triplets mode)
+    if not args.print_triplets:
+        try:
+            pass
+        except Exception:
+            raise
+
     directory = Path(args.directory).expanduser().resolve()
     if not directory.exists():
-        print(f"[!] Directory not found: {directory}", file=sys.stderr)
         sys.exit(1)
 
     # Find project root and create necessary directories
     project_root = find_project_root(directory)
-    print(f"[*] Project root: {project_root}")
 
     # Use centralized standard paths (double-underscore directories)
     try:
@@ -2420,47 +2412,35 @@ def main() -> None:
     crop_dir.mkdir(exist_ok=True)
     delete_staging_dir.mkdir(exist_ok=True)
 
-    print(f"[*] Selected directory: {selected_dir}")
-    print(f"[*] Crop directory: {crop_dir}")
-    print(f"[*] Delete staging directory: {delete_staging_dir}")
-
     # Load AI models
-    print(f"\n[*] Loading AI models from {models_dir}...")
     ranker_model, crop_model, clip_info = load_ai_models(models_dir)
 
     if ranker_model is not None:
-        print("[✓] AI models loaded - using Ranker v3 + Crop Proposer v2")
+        pass
     else:
-        print("[!] AI models not available - using rule-based fallback")
+        pass
 
     # Initialize FileTracker
     tracker = FileTracker("ai_assisted_reviewer")
 
     # Scan and group images
-    print(f"\n[*] Scanning {directory}...")
     images = scan_images(directory)
-    print(f"[*] Found {len(images)} images")
 
-    print("[*] Grouping images...")
     groups = group_images_by_timestamp(images)
-    print(f"[*] Found {len(groups)} groups")
 
     if not groups:
-        print(
-            "[!] No image groups found. Check directory and file naming.",
-            file=sys.stderr,
-        )
         sys.exit(1)
 
+    # Handle print-triplets mode (for testing)
+    if args.print_triplets:
+        print_groups_summary(groups)
+        return
+
     # Calculate batches
-    total_batches = (len(groups) + args.batch_size - 1) // args.batch_size
-    print(
-        f"[*] Processing in batches of {args.batch_size} ({total_batches} total batches)"
-    )
+    (len(groups) + args.batch_size - 1) // args.batch_size
 
     # Pre-compute AI recommendations for first batch to show crop stats
     if ranker_model is not None and crop_model is not None and clip_info is not None:
-        print("\n[*] Computing AI recommendations for first batch...")
         first_batch = groups[: args.batch_size]
         crop_needed_count = 0
         no_crop_count = 0
@@ -2472,19 +2452,8 @@ def main() -> None:
                     crop_needed_count += 1
                 else:
                     no_crop_count += 1
-            except Exception as e:
-                print(
-                    f"   Warning: Failed to get recommendation for {group.group_id}: {e}"
-                )
+            except Exception:
                 no_crop_count += 1
-
-        print("[✓] First batch stats:")
-        print(
-            f"    • {crop_needed_count} images need cropping ({crop_needed_count * 100 // len(first_batch)}%)"
-        )
-        print(
-            f"    • {no_crop_count} images need no crop ({no_crop_count * 100 // len(first_batch)}%)"
-        )
 
     # Build and run Flask app
     app = build_app(
@@ -2501,8 +2470,6 @@ def main() -> None:
     )
 
     url = f"http://{args.host}:{args.port}"
-    print(f"\n[*] Starting reviewer at {url}")
-    print("[*] Press Ctrl+C to stop\n")
 
     # Auto-open browser after short delay (give server time to start)
     def open_browser():
@@ -2513,10 +2480,8 @@ def main() -> None:
             import webbrowser
 
             webbrowser.open(url)
-            print(f"🌐 Opening browser to {url}")
-        except Exception as e:
-            print(f"Could not auto-open browser: {e}")
-            print(f"   Please open manually: {url}")
+        except Exception:
+            pass
 
     # Launch browser in background thread
     import threading

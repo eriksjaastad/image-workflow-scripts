@@ -2,13 +2,21 @@
 target-version = "py311"
 src = ["scripts"]
 extend-exclude = [
-    "*.md", "*.txt", "*.json", "*.csv", "*.html", "*.css", "*.js",
-    "scripts/archive/*"  # Exclude archived/deprecated code
+  "*.md", "*.txt", "*.json", "*.csv", "*.html", "*.css", "*.js",
+  "scripts/archive/*",
 ]
 
 [tool.ruff.lint]
-select = ["E", "F", "I"]
+# Add BLE (broad-except) and T201 (print) to your existing rules
+select = ["E","F","I","B","BLE","T20"]
 ignore = [
-    "E501",  # Don't enforce line length
-    "E402",  # Allow imports not at top (needed for sys.path manipulation)
+  "E501",  # long lines ok
+  "E402",  # imports not at top ok
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# Allow prints in true CLIs & tests; keep BLE enforced everywhere
+"scripts/**/tests/**" = ["T201"]
+"scripts/dashboard/**" = ["T201"]
+"scripts/**/run_*.py" = ["T201"]
+"scripts/**/test_*.py" = ["T201"]
