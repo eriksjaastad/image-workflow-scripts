@@ -176,7 +176,9 @@ class AIMultiCropTool(MultiCropTool):
                 from file_tracker import FileTracker as _FT
 
                 self.tracker = _FT("ai_desktop_multi_crop")
-            except Exception:
+                print(f"[FileTracker] Initialized for ai_desktop_multi_crop")
+            except Exception as e:
+                print(f"[FileTracker] WARNING: Failed to initialize: {e}")
                 self.tracker = None
 
     # ---- Lightweight UI alert helpers ----
