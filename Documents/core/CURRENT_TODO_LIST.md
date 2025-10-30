@@ -62,6 +62,7 @@
   - **Why:** We have tons of file operation logs from historical projects, can extract better time estimates
 
   - **Feature 2A: Scheduled Batch Session Detection** (AI Assisted Reviewer)
+
     - **Pattern:** Top-of-hour starts, 1-hour intervals, consistent tool usage
     - **Detection Algorithm:**
       ```
@@ -103,6 +104,7 @@
       - Matches user's actual work commitment (1-hour blocks)
 
   - **Feature 2B: Burst Work Session Detection** (Multi-Crop Tool)
+
     - **Pattern:** Short intense bursts (20-40 min) separated by micro-breaks (3-10 min)
     - **Detection Algorithm:**
       ```
@@ -119,6 +121,7 @@
       4. Credit entire session duration (includes micro-breaks)
       ```
     - **Example Pattern:**
+
       ```
       9:15 AM → Crop burst 1: 100 images in 27 min
       9:42 AM → 3 min break (hands tired, shake out)
@@ -131,6 +134,7 @@
       Total images: 300
       Speed progression: 3.7 → 2.5 → 4.7 img/min
       ```
+
     - **Micro-Break Threshold:** < 10 minutes = part of session (like rest between sets at gym)
     - **Why This Works:**
       - Physical work requires hand rest
@@ -144,7 +148,9 @@
       - Suggest breaks when speed drops >30%
 
   - **Feature 2C: Speed & Efficiency Metrics**
+
     - **Per-Tool Speed Tracking:**
+
       ```
       Multi-Crop:
       - Images per minute (overall)
@@ -161,6 +167,7 @@
       - Selections per minute
       - Decision speed
       ```
+
     - **Efficiency Trends:**
       ```
       Dashboard shows:
@@ -175,12 +182,14 @@
     - **Goal:** Celebrate improvements, detect fatigue, optimize workflow
 
   - **Priority Logic (When Multiple Patterns Exist):**
+
     1. **Timer data exists** → Use timer (highest trust)
     2. **Batch mode detected** → Credit full intervals
     3. **Burst work detected** → Include micro-breaks
     4. **Fallback** → Current file-op calculation
 
   - **Files to Modify:**
+
     - `scripts/dashboard/analytics.py` - Add pattern detection functions
     - `scripts/dashboard/data_engine.py` - Add session grouping utilities
 
@@ -455,6 +464,32 @@ Timeline
 
 ### Dashboard Improvements
 
+- [ ] **Add backup status indicators to dashboard** [PRIORITY: MEDIUM]
+  - **Goal:** Show backup health in dashboard header (like validation status)
+  - **Data Source:** `~/project-data-archives/image-workflow/backup_status.json`
+  - **Display:** Last backup date, status (success/failed/overdue), file count, size
+  - **Colors:** Green for recent success, red for failed/overdue
+  - **Integration:** Add to both current project dashboard and main productivity dashboard
+  - **Alert Logic:** Flag if backup >48 hours old
+
+- [x] **Create comprehensive backup testing and monitoring system** ⭐ **COMPLETED**
+  - **Backup System Tests** (`scripts/tests/test_backup_system.py`):
+    - ✅ Backup status file validation
+    - ✅ Recent backup existence verification
+    - ✅ Database discovery testing
+    - ✅ Backup script execution testing
+    - ✅ Cron job configuration verification
+    - ✅ Backup verification logic testing
+  - **Backup Health Monitoring** (`scripts/tools/backup_health_check.py`):
+    - ✅ Runs every 6 hours via cron
+    - ✅ Checks backup status file integrity
+    - ✅ Verifies recent backups exist
+    - ✅ Monitors backup log freshness
+    - ✅ **LOUD ALERTS** for backup failures (macOS notifications)
+  - **Cron Integration**: Health check added to `setup_cron.sh`
+  - **Prevention**: Tests for tests - ensures backup monitoring itself works
+  - **Paranoia Level**: Maximum - alerts on any backup system issues
+
 - [ ] **Reimagine/Simplify Productivity Dashboard** [PRIORITY: MEDIUM]
 
   - **Issue:** Too many graphs that aren't actually useful
@@ -549,11 +584,41 @@ Timeline
 
 ### Backups & Delivery Automation
 
-- [ ] Weekly full rollup to cloud (tar+upload with manifest) [PRIORITY: HIGH]
-  - Source: `~/project-data-archives/image-workflow/`
-  - Compress: one tar.zst per week + manifest (counts, sizes, sha256)
-  - Upload: `gbackup:weekly-rollups/`
-  - Retention: keep 12 weeks locally + cloud
+- [ ] **Set up automated cloud backup using rclone** [PRIORITY: HIGH] ⭐ **TOMORROW**
+  - **Goal:** Get off-site backups running before more data loss from silent failures
+
+  - **EXISTING INFRASTRUCTURE (Already Built!):**
+    - ✅ `scripts/backup/weekly_rollup.py` - Complete weekly backup script
+    - ✅ Cron job slot: `10 2 * * 0` (Sunday 2:10 AM Eastern)
+    - ✅ Local retention: 12 weeks in `~/project-data-archives/image-workflow/`
+    - ✅ Daily backups: Already running, feeding into weekly rollup
+
+  - **WEEKLY ROLLUP PROCESS:**
+    1. **Find daily backups** from last 7 days (e.g., 2025-10-27 to 2025-11-02)
+    2. **Compress** into `weekly_20251027_20251102.tar.zst`
+    3. **Create manifest** with file counts, sizes, SHA256 hashes
+    4. **Upload** to `gbackup:weekly-rollups/` via rclone
+    5. **Clean up** old archives (keep 12 weeks locally + cloud)
+
+  - **WHAT NEEDS TO BE DONE:**
+    - ✅ Daily backups: Already working → `~/project-data-archives/image-workflow/YYYY-MM-DD/`
+    - ✅ Weekly script: Already implemented and ready
+    - ✅ Cron job: **UPDATED** in `setup_cron.sh` to use `weekly_rollup.py`
+    - ⏳ **Configure rclone remote** named `gbackup` (user has done this before)
+    - ⏳ **Test upload** to verify rclone works
+    - ⏳ **Enable weekly cron job** (`bash scripts/setup_cron.sh`)
+
+  - **NEXT STEPS (Tomorrow):**
+    1. Configure/test rclone remote `gbackup`
+    2. Run `bash scripts/setup_cron.sh` to enable weekly job
+    3. Monitor first weekly backup (next Sunday 2:10 AM Eastern)
+    4. Add backup status to dashboard
+
+  - **TIME SENSITIVE:** Daily backup runs tonight at 2:10 AM Eastern!
+    - Check tomorrow if it succeeded (look in `~/project-data-archives/image-workflow/`)
+    - Fix any issues before enabling weekly rollup
+
+  - **DATA INTEGRITY CONCERN:** Recent silent failures erased data - cloud backup critical now!
 - [ ] Auto-upload finished ZIP from 07_finish_project to Drive [PRIORITY: MEDIUM]
   - Hook: after successful finish with `--commit`
   - Target: `gbackup:deliveries/<projectId>/`
@@ -563,6 +628,18 @@ Timeline
 ---
 
 ## ✅ Recently Completed
+
+**Comprehensive Safety & Monitoring System (Oct 30, 2025)**
+
+- [x] **Implement comprehensive error monitoring system** ⭐ **GAME CHANGER!**
+  - Loud, immediate alerts for critical errors with macOS notifications
+  - Real-time data quality validation (prevents silent corruption)
+  - File operation error detection and logging
+  - Daily automated validation reports with alerts
+  - Enhanced FileTracker logging with failure detection
+- [x] **GitHub Actions test runner** - Multiple daily test runs without blocking commits
+- [x] **Comprehensive AI Reviewer hotkey testing** - All routing logic validated
+- [x] **Cron-based daily validation** - Noon Eastern time automated checks
 
 **AI Desktop Multi-Crop UX (Oct 28, 2025)**
 
@@ -632,6 +709,7 @@ Timeline
 - [x] Update AI-Assisted Reviewer to use new schema
 - [x] Document schema evolution and benefits (`Documents/archives/misc/CROP_TRAINING_SCHEMA_V2.md`)
 - [x] Add to Technical Knowledge Base
+- [x] **Added database backups to daily backup system** - SQLite files now backed up to project-data-archives/databases/
 - [ ] **BACKLOG: Migrate 7,194 legacy rows to new schema** (Optional - keep both for now)
 
 ---

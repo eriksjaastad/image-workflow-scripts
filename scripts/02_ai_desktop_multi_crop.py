@@ -89,6 +89,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 import importlib.util as _il_util  # noqa: E402
 
 from utils.companion_file_utils import move_file_with_all_companions  # noqa: E402
+from utils.error_monitoring import (  # noqa: E402
+    get_error_monitor,
+    monitor_errors,
+    validate_data_quality,
+)
 
 
 def _ensure_interactive_matplotlib_backend() -> None:
@@ -176,10 +181,14 @@ class AIMultiCropTool(MultiCropTool):
                 from file_tracker import FileTracker as _FT
 
                 self.tracker = _FT("ai_desktop_multi_crop")
-                print(f"[FileTracker] Initialized for ai_desktop_multi_crop")
+                print("[FileTracker] Initialized for ai_desktop_multi_crop")
             except Exception as e:
-                print(f"[FileTracker] WARNING: Failed to initialize: {e}")
-                self.tracker = None
+                # CRITICAL: FileTracker initialization failed - this will break metrics and logging!
+                error_monitor = get_error_monitor("ai_desktop_multi_crop")
+                error_monitor.critical_error(
+                    "FileTracker initialization failed - metrics and file operation logging will not work",
+                    e,
+                )
 
     # ---- Lightweight UI alert helpers ----
     def _show_alert(self, message: str, color: str = "red") -> None:
@@ -240,6 +249,30 @@ class AIMultiCropTool(MultiCropTool):
             x1, y1, x2, y2 = crop_coords
             width = image_info["image"].width
             height = image_info["image"].height
+
+            # VALIDATE: Ensure crop coordinates are valid (prevent silent corruption)
+            validate_data_quality(
+                "crop coordinates",
+                (x1, y1, x2, y2, width, height),
+                lambda coords: (
+                    coords[0] >= 0
+                    and coords[1] >= 0  # x1, y1 >= 0
+                    and coords[2] > coords[0]
+                    and coords[3] > coords[1]  # x2 > x1, y2 > y1
+                    and coords[2] <= coords[4]
+                    and coords[3] <= coords[5]  # within image bounds
+                ),
+                f"Invalid crop coordinates: ({x1}, {y1}, {x2}, {y2}) for image {width}x{height}",
+            )
+
+            # VALIDATE: Ensure image dimensions are valid (catch the 0x0 bug)
+            validate_data_quality(
+                "image dimensions",
+                (width, height),
+                lambda dims: dims[0] > 0 and dims[1] > 0,
+                f"Invalid image dimensions: {width}x{height} - this will corrupt training data!",
+            )
+
             normalized_coords = [x1 / width, y1 / height, x2 / width, y2 / height]
 
             # Try to update decisions DB with final crop
@@ -610,6 +643,7 @@ class AIMultiCropTool(MultiCropTool):
                 pass
 
 
+@monitor_errors("ai_desktop_multi_crop")
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="AI-assisted desktop multi-crop (preloads AI crop rectangles)"

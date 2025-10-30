@@ -235,12 +235,23 @@ def move_file_with_all_companions(
 
     # Move the main image file
     dst_path = dst_dir / src_path.name
-    if not dry_run and not dst_path.exists():
-        import shutil
+    if not dry_run:
+        if dst_path.exists():
+            logger.warning(f"Destination already exists, skipping: {dst_path}")
+        else:
+            import shutil
 
-        shutil.move(str(src_path), str(dst_path))
-        moved_files.append(src_path.name)
-        _say(f"Moved: {src_path.name}")
+            try:
+                shutil.move(str(src_path), str(dst_path))
+                if dst_path.exists():
+                    moved_files.append(src_path.name)
+                    _say(f"Moved: {src_path.name}")
+                else:
+                    logger.error(f"Move failed - destination doesn't exist: {dst_path}")
+                    raise RuntimeError(f"Failed to move {src_path.name} to {dst_dir}")
+            except Exception as e:
+                logger.error_with_exception(f"Failed to move {src_path.name}", e)
+                raise
     elif dry_run:
         moved_files.append(src_path.name)
         _say(f"[DRY RUN] Would move: {src_path.name}")
@@ -248,12 +259,29 @@ def move_file_with_all_companions(
     # Move companion files (if any)
     for companion in companions:
         companion_dst = dst_dir / companion.name
-        if not dry_run and not companion_dst.exists():
-            import shutil
+        if not dry_run:
+            if companion_dst.exists():
+                logger.warning(
+                    f"Companion destination already exists, skipping: {companion_dst}"
+                )
+            else:
+                import shutil
 
-            shutil.move(str(companion), str(companion_dst))
-            moved_files.append(companion.name)
-            _say(f"Moved companion: {companion.name}")
+                try:
+                    shutil.move(str(companion), str(companion_dst))
+                    if companion_dst.exists():
+                        moved_files.append(companion.name)
+                        _say(f"Moved companion: {companion.name}")
+                    else:
+                        logger.error(
+                            f"Companion move failed - destination doesn't exist: {companion_dst}"
+                        )
+                        raise RuntimeError(f"Failed to move companion {companion.name}")
+                except Exception as e:
+                    logger.error_with_exception(
+                        f"Failed to move companion {companion.name}", e
+                    )
+                    raise
         elif dry_run:
             moved_files.append(companion.name)
             _say(f"[DRY RUN] Would move companion: {companion.name}")
@@ -680,8 +708,9 @@ def safe_delete_paths(
                 files=[p.name for p in deleted],
                 notes="image-only count",
             )
-        except Exception:
-            pass  # tracker is best-effort
+        except Exception as e:
+            # Log tracker errors but don't fail the operation
+            logger.warning(f"FileTracker logging failed: {e}")
 
     return deleted
 
