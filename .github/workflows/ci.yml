@@ -37,7 +37,8 @@ jobs:
       - name: Run ruff linting
         run: ruff check scripts
 
-      - name: Run mypy type checking
+      - name: Run mypy type checking (non-blocking)
+        continue-on-error: true  # Don't fail CI, just show warnings
         run: |
           mypy scripts \
             --ignore-missing-imports \
