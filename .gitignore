@@ -115,9 +115,13 @@ memory/
 *.png
 *.jpg
 *.jpeg
-*.yaml
-*.yml
 *.csv
+# YAML files only in data/project directories (image metadata from unknown project dirs)
+# Root-level YAML configs like .pre-commit-config.yaml will still be tracked
+data/**/*.yaml
+data/**/*.yml
+mojo3/**/*.yaml
+mojo3/**/*.yml
 *.pt
 *.content
 *.caption
@@ -146,6 +150,7 @@ workflow*.md
 # IDE and Editor Files
 .cursor/
 .vscode/
+!.vscode/settings.json  # Track team settings for linting/formatting
 .idea/
 *.swp
 *.swo

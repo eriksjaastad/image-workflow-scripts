@@ -35,7 +35,7 @@ if str(_ROOT) not in sys.path:
 try:
     from scripts.file_tracker import FileTracker
     from scripts.utils.companion_file_utils import extract_timestamp_from_filename
-except Exception:
+except Exception:  # noqa: BLE001
     FileTracker = None  # type: ignore
 
     def extract_timestamp_from_filename(filename: str):  # type: ignore
@@ -161,8 +161,36 @@ def get_project_manifest_template(
     }
 
 
-def update_gitignore(project_id: str, content_dir_name: str | None = None) -> None:
-    """Update .gitignore to exclude the project directory (and content dir name if different)."""
+def scan_extensions(content_dir: Path) -> set[str]:
+    """Scan a directory and return all unique file extensions found."""
+    extensions = set()
+    if not content_dir.exists():
+        return extensions
+
+    for p in content_dir.rglob("*"):
+        try:
+            if not p.is_file():
+                continue
+            ext = p.suffix.lower().lstrip(".")
+            if ext:  # Only add if there's actually an extension
+                extensions.add(ext)
+        except Exception:  # noqa: BLE001
+            continue
+
+    return extensions
+
+
+def update_gitignore(
+    project_id: str,
+    content_dir: Path | None = None,
+    content_dir_name: str | None = None
+) -> None:
+    """
+    Update .gitignore to exclude project files by extension.
+
+    Scans the content directory for all file extensions and adds per-project
+    ignore patterns with section markers for easy removal on project finish.
+    """
     gitignore_path = Path(".gitignore")
 
     # Create .gitignore if it doesn't exist
@@ -170,21 +198,53 @@ def update_gitignore(project_id: str, content_dir_name: str | None = None) -> No
         gitignore_path.write_text("")
 
     current_content = gitignore_path.read_text()
-    lines = current_content.splitlines()
 
-    patterns = []
-    project_pattern = f"{project_id}/"
-    patterns.append(project_pattern)
-    if content_dir_name and content_dir_name != project_id:
-        patterns.append(f"{content_dir_name}/")
+    # Check if project block already exists
+    start_marker = f"# === PROJECT: {project_id}"
+    end_marker = f"# === END PROJECT: {project_id} ==="
 
-    to_add = [p for p in patterns if p not in lines]
-    if to_add:
-        if current_content and not current_content.endswith("\n"):
-            current_content += "\n"
-        current_content += "# Project directories\n" + "\n".join(to_add) + "\n"
-        gitignore_path.write_text(current_content)
-        print(f"✅ Added {', '.join(to_add)} to .gitignore")
+    if start_marker in current_content:
+        print(f"⚠️  Project {project_id} already in .gitignore, skipping")
+        return
+
+    # Scan for extensions if content_dir provided
+    extensions = set()
+    if content_dir and content_dir.exists():
+        extensions = scan_extensions(content_dir)
+
+    # Build project block
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    lines_to_add = [
+        "",
+        f"# === PROJECT: {project_id} (started {timestamp}) ===",
+    ]
+
+    # Add extension-based patterns (sorted for consistency)
+    if extensions:
+        for ext in sorted(extensions):
+            lines_to_add.append(f"{project_id}/**/*.{ext}")
+
+        # Also add patterns for content dir if different from project_id
+        if content_dir_name and content_dir_name != project_id:
+            for ext in sorted(extensions):
+                lines_to_add.append(f"{content_dir_name}/**/*.{ext}")
+    else:
+        # Fallback: just ignore the directories
+        lines_to_add.append(f"{project_id}/")
+        if content_dir_name and content_dir_name != project_id:
+            lines_to_add.append(f"{content_dir_name}/")
+
+    lines_to_add.append(end_marker)
+
+    # Append to gitignore
+    if current_content and not current_content.endswith("\n"):
+        current_content += "\n"
+
+    current_content += "\n".join(lines_to_add) + "\n"
+    gitignore_path.write_text(current_content)
+
+    ext_count = len(extensions) if extensions else 0
+    print(f"✅ Added {project_id} to .gitignore ({ext_count} extensions)")
 
 
 def create_project_manifest(
@@ -257,7 +317,7 @@ def create_project_manifest(
         try:
             shutil.copy2(manifest_path, backup_path)
             print(f"✅ Created backup: {backup_path}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return {"status": "error", "message": f"Failed to create backup: {e}"}
 
     # Generate timestamp
@@ -267,7 +327,7 @@ def create_project_manifest(
     try:
         Path.cwd()
         relative_content = Path("../../" + content_dir.name)
-    except Exception:
+    except Exception:  # noqa: BLE001
         relative_content = content_dir
 
     # Generate manifest
@@ -288,8 +348,8 @@ def create_project_manifest(
         manifest_path.write_text(
             json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"
         )
-        # Update .gitignore with project directory and content directory name
-        update_gitignore(project_id, content_dir.name)
+        # Update .gitignore with project-specific extension patterns
+        update_gitignore(project_id, content_dir, content_dir.name)
         # Log manifest creation (if tracker available)
         try:
             if FileTracker is not None:
@@ -302,7 +362,7 @@ def create_project_manifest(
                     files=[manifest_path.name],
                     notes="create project manifest with groupCount",
                 )
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
         # Ensure per-project allowlist exists (used by prezip_stager)
@@ -323,7 +383,7 @@ def create_project_manifest(
                             continue
                         total_files += 1
                         ext_counts[ext] = ext_counts.get(ext, 0) + 1
-                    except Exception:
+                    except Exception:  # noqa: BLE001
                         continue
 
                 # Write an inventory snapshot for operator visibility
@@ -341,7 +401,7 @@ def create_project_manifest(
                         json.dumps(inventory, indent=2, ensure_ascii=False),
                         encoding="utf-8",
                     )
-                except Exception:
+                except Exception:  # noqa: BLE001
                     pass
 
                 # Derive allowedExtensions from inventory (fallback to sensible defaults)
@@ -365,10 +425,10 @@ def create_project_manifest(
                     encoding="utf-8",
                 )
                 print(f"✅ Created allowlist: {allowlist_path}")
-        except Exception:
+        except Exception:  # noqa: BLE001
             # Non-fatal; prezip_stager will complain if missing
             pass
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return {"status": "error", "message": f"Failed to write manifest: {e}"}
 
     return {
@@ -417,7 +477,7 @@ def interactive_mode():
                 content_dir.mkdir(parents=True, exist_ok=True)
                 print(f"✅ Created directory: {content_dir}")
                 break
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 print(f"❌ Failed to create directory: {e}")
 
     # Get optional title
