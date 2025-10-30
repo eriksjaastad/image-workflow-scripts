@@ -121,7 +121,7 @@ class DailyValidationReport:
                     "SELECT COUNT(*) FROM decisions WHERE timestamp > ?",
                     (seven_days_ago,),
                 )
-                recent_count = cursor.fetchone()[0]
+                cursor.fetchone()  # Execute query but don't store result (for validation)
 
                 conn.close()
 

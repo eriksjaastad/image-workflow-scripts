@@ -144,7 +144,7 @@ def main():
     (out_dir / 'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
 
     # Force output to stdout and stderr
-    import os
+    import sys
     print(f"✅ Backup complete → {out_dir}", file=sys.stdout, flush=True)
     print(json.dumps({"summary": manifest["items"]}, indent=2), file=sys.stdout, flush=True)
 

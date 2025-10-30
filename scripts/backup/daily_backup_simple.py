@@ -7,11 +7,12 @@ A simplified backup script that definitely works, logs everything,
 and alerts on failures to prevent silent failures.
 """
 
-import sys
-import shutil
 import json
-from pathlib import Path
+import shutil
+import sys
 from datetime import datetime
+from pathlib import Path
+from typing import List
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -19,7 +20,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 # Import error monitoring
 try:
-    from scripts.utils.error_monitoring import get_error_monitor, critical_error
+    from scripts.utils.error_monitoring import critical_error, get_error_monitor
 except ImportError:
     # Fallback if monitoring not available
     def get_error_monitor(script_name="backup"):
@@ -155,49 +156,49 @@ def main():
         # Create backup directory
         backup_dir.mkdir(parents=True, exist_ok=True)
 
-    # What to backup
-    backup_sources = [
-        (data_dir / "file_operations_logs", "file operations logs"),
-        (data_dir / "snapshot", "snapshot data"),
-        (data_dir / "training", "training data"),
-        (data_dir / "ai_data", "AI data"),
-    ]
+        # What to backup
+        backup_sources = [
+            (data_dir / "file_operations_logs", "file operations logs"),
+            (data_dir / "snapshot", "snapshot data"),
+            (data_dir / "training", "training data"),
+            (data_dir / "ai_data", "AI data"),
+        ]
 
-    # Separate backup for databases (SQLite files throughout the project)
-    log("📊 Finding database files...")
-    db_sources = find_database_files(PROJECT_ROOT)
-    if db_sources:
-        db_backup_dir = backup_dir / "databases"
-        db_backup_dir.mkdir(parents=True, exist_ok=True)
+        # Separate backup for databases (SQLite files throughout the project)
+        log("📊 Finding database files...")
+        db_sources = find_database_files(PROJECT_ROOT)
+        if db_sources:
+            db_backup_dir = backup_dir / "databases"
+            db_backup_dir.mkdir(parents=True, exist_ok=True)
 
-        db_copied = 0
-        for db_path in db_sources:
-            try:
-                # Create relative path in backup
-                rel_path = db_path.relative_to(PROJECT_ROOT)
-                backup_path = db_backup_dir / str(rel_path)
-                backup_path.parent.mkdir(parents=True, exist_ok=True)
+            db_copied = 0
+            for db_path in db_sources:
+                try:
+                    # Create relative path in backup
+                    rel_path = db_path.relative_to(PROJECT_ROOT)
+                    backup_path = db_backup_dir / str(rel_path)
+                    backup_path.parent.mkdir(parents=True, exist_ok=True)
 
-                shutil.copy2(db_path, backup_path)
-                db_copied += 1
+                    shutil.copy2(db_path, backup_path)
+                    db_copied += 1
 
-                # Verify the copy
-                if backup_path.stat().st_size == db_path.stat().st_size:
-                    log(f"✅ Database: {rel_path}")
-                else:
-                    log(f"❌ Size mismatch for database: {rel_path}", "ERROR")
+                    # Verify the copy
+                    if backup_path.stat().st_size == db_path.stat().st_size:
+                        log(f"✅ Database: {rel_path}")
+                    else:
+                        log(f"❌ Size mismatch for database: {rel_path}", "ERROR")
 
-            except Exception as e:
-                log(f"❌ Failed to backup database {db_path}: {e}", "ERROR")
+                except Exception as e:
+                    log(f"❌ Failed to backup database {db_path}: {e}", "ERROR")
 
-        log(f"📊 Backed up {db_copied} database files")
-        total_db_files = db_copied
-    else:
-        log("⚠️ No database files found to backup")
-        total_db_files = 0
+            log(f"📊 Backed up {db_copied} database files")
+            total_db_files = db_copied
+        else:
+            log("⚠️ No database files found to backup")
+            total_db_files = 0
 
-    total_files = 0
-    total_size = 0
+        total_files = 0
+        total_size = 0
 
         for src, name in backup_sources:
             dst = backup_dir / src.name

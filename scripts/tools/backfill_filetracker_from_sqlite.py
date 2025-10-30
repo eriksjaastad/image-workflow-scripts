@@ -34,9 +34,9 @@ import argparse
 import json
 import sqlite3
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 # Add project root to path
 project_root = Path(__file__).resolve().parents[2]
@@ -89,7 +89,7 @@ def extract_crops_from_sqlite(db_path: Path) -> List[Dict[str, Any]]:
         try:
             images_list = json.loads(images_json) if images_json else []
             image_count = len(images_list)
-        except:
+        except Exception:
             image_count = 1  # Fallback
 
         crops.append({
@@ -238,11 +238,11 @@ def backfill_project(project_name: str, data_dir: Path, dry_run: bool = True):
 
     # Write to FileTracker log
     log_file = data_dir / "file_operations_logs" / "file_operations.log"
-    entries = write_filetracker_entries(batches, log_file, dry_run=dry_run)
+    write_filetracker_entries(batches, log_file, dry_run=dry_run)
 
     # Summary
     total_images = sum(c.get("image_count", 1) for c in crops)
-    print(f"\nSummary:")
+    print("\nSummary:")
     print(f"  Crop groups: {len(crops)}")
     print(f"  Total images: {total_images}")
     print(f"  Batches: {len(batches)}")
