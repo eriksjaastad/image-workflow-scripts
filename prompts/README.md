@@ -78,6 +78,30 @@ git push
 
 ---
 
-> 🪄 **Tip:**  
-> You can re-run `make review` anytime for a blank template,  
+## ⚠️ Known Issues & Tips
+
+### Pre-commit Hook Conflicts
+
+If you encounter pre-commit hook failures about "silent broad excepts" in files you're **not** committing:
+
+```bash
+git commit --no-verify -m "your message here"
+```
+
+This is safe when you're only committing non-Python files (like these review markdown files). The `forbid-silent-broad-excepts` hook currently scans the entire repo, not just staged files.
+
+**TODO:** Update `.pre-commit-config.yaml` to only check staged files.
+
+### Review File Management
+
+The `reviews/` directory is tracked in git to preserve your audit trail. If you prefer to keep reviews local only:
+
+```bash
+echo "reviews/" >> .gitignore
+```
+
+---
+
+> 🪄 **Tip:**
+> You can re-run `make review` anytime for a blank template,
 > or use `./scripts/run_raptor.sh` for the full guided workflow with diffs and prompts.

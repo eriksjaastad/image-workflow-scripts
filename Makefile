@@ -17,7 +17,8 @@ review:
 	@echo "\n---\n" >> $(RAPTOR_OUT)
 	@echo "✅ Review template created: $(RAPTOR_OUT)"
 	@echo "Open the file, run each phase, and paste results to preserve the full audit trail."
-
-	@git add $(RAPTOR_OUT)
-	@git commit -m "Add Raptor review $(RAPTOR_OUT)"
-	@git push
+	@echo ""
+	@echo "⚠️  When finished, commit the review manually:"
+	@echo "    git add $(RAPTOR_OUT)"
+	@echo "    git commit -m 'Add Raptor review $(RAPTOR_OUT)'"
+	@echo "    git push"
