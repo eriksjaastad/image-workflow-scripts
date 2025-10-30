@@ -317,7 +317,7 @@ def create_project_manifest(
         try:
             shutil.copy2(manifest_path, backup_path)
             print(f"✅ Created backup: {backup_path}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return {"status": "error", "message": f"Failed to create backup: {e}"}
 
     # Generate timestamp
@@ -327,7 +327,7 @@ def create_project_manifest(
     try:
         Path.cwd()
         relative_content = Path("../../" + content_dir.name)
-    except Exception:
+    except Exception:  # noqa: BLE001
         relative_content = content_dir
 
     # Generate manifest
@@ -362,7 +362,7 @@ def create_project_manifest(
                     files=[manifest_path.name],
                     notes="create project manifest with groupCount",
                 )
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
         # Ensure per-project allowlist exists (used by prezip_stager)
@@ -383,7 +383,7 @@ def create_project_manifest(
                             continue
                         total_files += 1
                         ext_counts[ext] = ext_counts.get(ext, 0) + 1
-                    except Exception:
+                    except Exception:  # noqa: BLE001
                         continue
 
                 # Write an inventory snapshot for operator visibility
@@ -401,7 +401,7 @@ def create_project_manifest(
                         json.dumps(inventory, indent=2, ensure_ascii=False),
                         encoding="utf-8",
                     )
-                except Exception:
+                except Exception:  # noqa: BLE001
                     pass
 
                 # Derive allowedExtensions from inventory (fallback to sensible defaults)
@@ -425,10 +425,10 @@ def create_project_manifest(
                     encoding="utf-8",
                 )
                 print(f"✅ Created allowlist: {allowlist_path}")
-        except Exception:
+        except Exception:  # noqa: BLE001
             # Non-fatal; prezip_stager will complain if missing
             pass
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return {"status": "error", "message": f"Failed to write manifest: {e}"}
 
     return {
@@ -477,7 +477,7 @@ def interactive_mode():
                 content_dir.mkdir(parents=True, exist_ok=True)
                 print(f"✅ Created directory: {content_dir}")
                 break
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 print(f"❌ Failed to create directory: {e}")
 
     # Get optional title
