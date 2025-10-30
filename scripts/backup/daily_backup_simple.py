@@ -284,12 +284,14 @@ def main():
             monitor._send_macos_notification("Backup Success", f"Daily backup completed: {total_files} files, {manifest['total_size_mb']} MB")
         else:
             log("❌ Backup completed with failures!", "ERROR")
-            alert_failure("Daily backup completed but some items failed")
+            monitor = get_error_monitor("daily_backup")
+            monitor.validation_error("Daily backup completed but some items failed")
 
     except Exception as e:
         success = False
         log(f"💥 Backup failed with exception: {e}", "CRITICAL")
-        alert_failure("Daily backup failed with exception", e)
+        monitor = get_error_monitor("daily_backup")
+        monitor.critical_error("Daily backup failed with exception", e)
 
     # Exit with appropriate code
     sys.exit(0 if success else 1)
