@@ -1,0 +1,82 @@
+name: Deadman Switch - System Health Check
+
+on:
+  schedule:
+    - cron: "*/30 * * * *" # Every 30 minutes
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  check-heartbeat:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check system heartbeat
+        id: heartbeat
+        run: |
+          python - <<'EOF'
+          import json, os, sys
+          from datetime import datetime, timezone, timedelta
+
+          HEARTBEAT_FILE = "ops/heartbeat.json"
+          MAX_MINUTES = int(os.getenv("HEARTBEAT_MAX_MINUTES", "60"))
+
+          try:
+              with open(HEARTBEAT_FILE) as f:
+                  heartbeat = json.load(f)
+              last_ok = datetime.fromisoformat(heartbeat["last_ok"])
+          except FileNotFoundError:
+              print(f"❌ HEARTBEAT FILE MISSING: {HEARTBEAT_FILE}")
+              print(f"::set-output name=status::missing_file")
+              sys.exit(1)
+          except Exception as e:
+              print(f"❌ HEARTBEAT FILE CORRUPT: {e}")
+              print(f"::set-output name=status::corrupt_file")
+              sys.exit(1)
+
+          # Calculate age
+          now = datetime.now(timezone.utc)
+          age = now - last_ok.astimezone(timezone.utc)
+          age_minutes = age.total_seconds() / 60
+
+          print(f"📊 Heartbeat age: {age_minutes:.1f} minutes")
+          print(f"📅 Last OK: {last_ok}")
+          print(f"🎯 Threshold: {MAX_MINUTES} minutes")
+
+          if age > timedelta(minutes=MAX_MINUTES):
+              print(f"🚨 STALE HEARTBEAT: {age_minutes:.1f} minutes old (threshold: {MAX_MINUTES})")
+              print(f"::set-output name=status::stale")
+              print(f"::set-output name=age::{age_minutes:.1f}")
+              sys.exit(1)
+          else:
+              print(f"✅ Heartbeat OK: {age_minutes:.1f} minutes old")
+              print(f"::set-output name=status::ok")
+              print(f"::set-output name=age::{age_minutes:.1f}")
+          EOF
+
+      - name: Alert on heartbeat failure
+        if: failure()
+        run: |
+          echo "🚨 CRITICAL: System heartbeat check failed!"
+          echo "This indicates the image workflow system may not be running properly."
+
+          # Create a GitHub issue for tracking
+          echo "HEARTBEAT_STATUS=failure" >> $GITHUB_ENV
+          echo "ISSUE_TITLE=🚨 System Heartbeat Failure - $(date)" >> $GITHUB_ENV
+
+          # You can add webhook notifications here
+          # curl -X POST -H 'Content-type: application/json' \
+          #   --data '{"text":"🚨 Image workflow heartbeat failed!"}' \
+          #   $SLACK_WEBHOOK_URL
+
+      - name: Report healthy status
+        if: success()
+        run: |
+          echo "✅ System heartbeat is healthy"
+          echo "All monitoring systems are functioning normally."
