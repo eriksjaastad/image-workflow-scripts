@@ -21,9 +21,222 @@
 - [ ] **Review and prune this TODO list** [PRIORITY: HIGH]
   - **Action:** Archive stale items to `Documents/archives/`, consolidate duplicates, re-order by priority
 
-### Dashboard: Actual vs Billed Accuracy (High)
+### Dashboard: Work Time Accuracy & Timer Integration (High)
 
-- [ ] **Make “Actual vs Billed” hours reliable with batch-aware timing** [PRIORITY: HIGH]
+- [x] **PHASE 1 (Oct 30, 2025): Timer Integration** [PRIORITY: HIGH] ⭐ **IN PROGRESS**
+
+  - **Goal:** Use Focus Timer (`000_focus_timer.py`) as ground truth for work time, correlate with file ops for tool attribution
+  - **Current Problem:** File-op-based timing undercounts due to gaps, batches, thinking time
+  - **Focus Timer Data:** `~/focus_sessions.csv` format: `timestamp,minutes`
+  - **Implementation (Option 3: Timer + Validation):**
+    1. **Timer Data Loader** (`data_engine.py`)
+       - Add `load_focus_timer_sessions()` method
+       - Parse `~/focus_sessions.csv` → list of sessions with start_time + duration
+       - Return: `[{start: datetime, end: datetime, duration_minutes: float}, ...]`
+    2. **Timer-File Op Correlation** (`analytics.py`)
+       - For each timer session, find all file ops during that time window
+       - Count PNG files moved per tool during session
+       - Distribute timer duration proportionally by file ops
+       - Example: 2-hour session, 80 crops + 20 selector moves → 96 min crop, 24 min selector
+    3. **Validation Metrics**
+       - Show both timer hours AND file-op hours side-by-side
+       - Flag anomalies: timer says 8h but only 10 file ops (forgot to stop?)
+       - Dashboard display: "Timer: 8.5h | File Ops: 6.2h | Using: Timer"
+    4. **Fallback Logic**
+       - If timer data exists → Use timer (trust user's explicit intent)
+       - If no timer data → Fall back to current file-op calculation
+       - Per-day granularity: can mix timer days with non-timer days
+  - **Files to Modify:**
+    - `scripts/dashboard/data_engine.py` - Add timer loader
+    - `scripts/dashboard/analytics.py` - Add correlation logic in `_build_tools_breakdown_for_project()`
+    - `scripts/dashboard/productivity_dashboard.py` - Display both metrics
+  - **Testing:**
+    - Create test CSV with known sessions
+    - Verify correlation math (proportional distribution)
+    - Check fallback when CSV missing
+  - **Status:** Implementing on `claude/dashboard-review-011CUY1Sx4vrcJ5aZTzjScLV`
+
+- [ ] **PHASE 2 (Future): Pattern Recognition for Historical Data** [PRIORITY: MEDIUM]
+
+  - **Goal:** Backfill accurate work time for days BEFORE focus timer existed using pattern detection
+  - **Why:** We have tons of file operation logs from historical projects, can extract better time estimates
+
+  - **Feature 2A: Scheduled Batch Session Detection** (AI Assisted Reviewer)
+    - **Pattern:** Top-of-hour starts, 1-hour intervals, consistent tool usage
+    - **Detection Algorithm:**
+      ```
+      1. Extract all session starts from file ops (first op after 15+ min gap)
+      2. Check if ≥3 starts cluster near hour boundaries (:00 ±5 min)
+      3. Calculate intervals between starts
+      4. If avg_interval is 55-65 minutes → BATCH MODE DETECTED
+      5. Credit full 1-hour intervals for each session
+      ```
+    - **Example Pattern:**
+      ```
+      9:03 AM  → Batch 1 starts (file ops begin)
+      9:42 AM  → Last file op (earned 18 min break)
+      10:01 AM → Batch 2 starts ON TIME
+      10:35 AM → Last file op (earned 25 min break)
+      11:00 AM → Batch 3 starts ON TIME
+      Result: Credit 9:00-10:00 (1h), 10:00-11:00 (1h), 11:00-12:00 (1h) = 3 hours
+      ```
+    - **Validation:**
+      - Must have file ops during credited interval (not just timer)
+      - Tool must be consistent (same tool across sessions)
+      - Min 3 sessions to establish pattern
+    - **Dashboard Display:**
+      ```
+      ┌─────────────────────────────────────┐
+      │ AI Assisted Reviewer                │
+      ├─────────────────────────────────────┤
+      │ Batch Processing Mode Detected ✓    │
+      │ 7 scheduled sessions @ 1h each      │
+      │ Credited: 7.0h | File Ops: 4.8h     │
+      │ Efficiency Bonus: +2.2h             │
+      │ Pattern: 9:00, 10:00, 11:00...      │
+      └─────────────────────────────────────┘
+      ```
+    - **Why This Works:**
+      - Rewards disciplined scheduling (starting on time)
+      - Credits efficiency (fast completion = earned break)
+      - Honest (requires actual file ops during interval)
+      - Matches user's actual work commitment (1-hour blocks)
+
+  - **Feature 2B: Burst Work Session Detection** (Multi-Crop Tool)
+    - **Pattern:** Short intense bursts (20-40 min) separated by micro-breaks (3-10 min)
+    - **Detection Algorithm:**
+      ```
+      1. Find all file op timestamps for multi-crop
+      2. Group into bursts using gap detection:
+         - Gap < 10 minutes → Same session (micro-break, part of work)
+         - Gap 10-15 minutes → Ambiguous (check context)
+         - Gap > 15 minutes → Separate session (real break)
+      3. For each session, calculate:
+         - Start: first op timestamp
+         - End: last op timestamp
+         - Images: PNG count
+         - Bursts: number of sub-bursts within session
+      4. Credit entire session duration (includes micro-breaks)
+      ```
+    - **Example Pattern:**
+      ```
+      9:15 AM → Crop burst 1: 100 images in 27 min
+      9:42 AM → 3 min break (hands tired, shake out)
+      9:45 AM → Crop burst 2: 50 images in 20 min
+      10:05 AM → 5 min break (water, stretch)
+      10:10 AM → Crop burst 3: 150 images in 32 min
+      10:42 AM → 18 min break (real break, YouTube)
+
+      Session 1: 9:15-10:42 = 87 minutes (includes micro-breaks)
+      Total images: 300
+      Speed progression: 3.7 → 2.5 → 4.7 img/min
+      ```
+    - **Micro-Break Threshold:** < 10 minutes = part of session (like rest between sets at gym)
+    - **Why This Works:**
+      - Physical work requires hand rest
+      - Micro-breaks are PART of the work (fatigue management)
+      - Like weightlifting: rest between sets is part of workout
+      - Matches actual user workflow
+    - **Speed Tracking (Bonus):**
+      - Track images/minute per burst
+      - Detect warmup (slow start, faster later)
+      - Detect fatigue (slowing down after 200+ crops)
+      - Suggest breaks when speed drops >30%
+
+  - **Feature 2C: Speed & Efficiency Metrics**
+    - **Per-Tool Speed Tracking:**
+      ```
+      Multi-Crop:
+      - Images per minute (overall)
+      - Images per minute per burst
+      - Speed progression over session
+      - Fatigue detection (speed drop)
+
+      AI Assisted Reviewer:
+      - Batches per hour
+      - Batch completion time trend
+      - Efficiency improvement (58 min → 42 min)
+
+      Web Image Selector:
+      - Selections per minute
+      - Decision speed
+      ```
+    - **Efficiency Trends:**
+      ```
+      Dashboard shows:
+      "Your batch time improved from 58 min to 42 min! (-27%)"
+      "You're doing 4.5 crops/min today vs 3.2 yesterday (+40%)"
+      "Speed dropped 30% after crop #200 - consider break?"
+      ```
+    - **Implementation:**
+      - Calculate per-session metrics from file ops
+      - Store in time-series for trending
+      - Display in dashboard insights panel
+    - **Goal:** Celebrate improvements, detect fatigue, optimize workflow
+
+  - **Priority Logic (When Multiple Patterns Exist):**
+    1. **Timer data exists** → Use timer (highest trust)
+    2. **Batch mode detected** → Credit full intervals
+    3. **Burst work detected** → Include micro-breaks
+    4. **Fallback** → Current file-op calculation
+
+  - **Files to Modify:**
+    - `scripts/dashboard/analytics.py` - Add pattern detection functions
+    - `scripts/dashboard/data_engine.py` - Add session grouping utilities
+
+  - **Testing:**
+    - Use historical file ops from mojo2, mojo3
+    - Manually verify detected patterns match known work sessions
+    - Compare: pattern-detected hours vs current file-op hours
+    - Validate against billed hours (should be closer)
+
+- [ ] **PHASE 3 (Future): Timer Overlay for Production Tools** [PRIORITY: LOW]
+
+  - **Goal:** Ensure focus timer is always running during work by requiring timer start before tools launch
+  - **User's Idea:** Loading screen overlay that forces timer start before tool is usable
+  - **Implementation:**
+    - **Shared Timer Manager Module:**
+      - Create `scripts/utils/timer_manager.py`
+      - Check if timer is running (look for recent focus_sessions.csv entry)
+      - Show modal overlay if timer not running
+      - "Start Timer to Continue" button
+      - Launches `000_focus_timer.py` subprocess
+      - Polls until timer starts, then dismisses overlay
+    - **Integration Points:**
+      - `01_web_image_selector.py` - Add timer check on launch
+      - `03_web_character_sorter.py` - Add timer check on launch
+      - `04_multi_crop_tool.py` - Add timer check on launch
+      - `01_ai_assisted_reviewer.py` - Add timer check on launch
+    - **UI Design:**
+      ```
+      ┌─────────────────────────────────────┐
+      │                                     │
+      │         ⏰ Start Work Timer?        │
+      │                                     │
+      │  Timer is not running. Start it to  │
+      │  track your work time accurately.   │
+      │                                     │
+      │   [Start Timer & Continue]  [Skip]  │
+      │                                     │
+      └─────────────────────────────────────┘
+      ```
+    - **Configuration:**
+      - Add `require_timer: bool` to config
+      - Optional: can disable overlay if you really want
+    - **Benefits:**
+      - Never forget to start timer
+      - Ensures accurate work time tracking
+      - Gentle reminder without being annoying
+    - **Concerns:**
+      - Adds friction to workflow (extra click)
+      - Timer subprocess management complexity
+      - What if timer crashes?
+    - **Alternatives:**
+      - Auto-start timer in background (no overlay)
+      - Post-hoc detection: warn at end of day if file ops but no timer
+      - Dashboard reminder: "No timer data for today, remember to use it!"
+
+- [ ] **Make "Actual vs Billed" hours reliable with batch-aware timing** [PRIORITY: HIGH]
 
   - **Problem:** AI-Assisted Reviewer processes large batches (e.g., 700) with sparse log timestamps, so hour counting via activity gaps undercounts. Multi-crop (3-up) logs more steadily and counts better.
   - **Current Implementation:** 15-minute bins counted when either (a) ≥7.5 min active with ≤5 min gaps, or (b) ≥30 files processed in-bin.
@@ -36,7 +249,7 @@
       - 2025-10-27: 45.0 min (539 files)
   - **Actions:**
     1. Tune thresholds (gap and in-bin file-count) for batch sessions; validate with debug script.
-    2. Option: add lightweight activity timer to `01_ai_assisted_reviewer.py` (future) to log active minutes explicitly (no content changes), then unify dashboard aggregation.
+    2. COMPLETED: Focus timer integration (Phase 1 above)
     3. Document rules in dashboard README and expose thresholds via config.
 
 ### Documentation Cleanup
