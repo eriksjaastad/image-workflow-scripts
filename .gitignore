@@ -150,6 +150,7 @@ workflow*.md
 # IDE and Editor Files
 .cursor/
 .vscode/
+!.vscode/settings.json  # Track team settings for linting/formatting
 .idea/
 *.swp
 *.swo

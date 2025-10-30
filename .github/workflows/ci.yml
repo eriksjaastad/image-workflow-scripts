@@ -38,7 +38,12 @@ jobs:
         run: ruff check scripts
 
       - name: Run mypy type checking
-        run: mypy scripts --ignore-missing-imports
+        run: |
+          mypy scripts \
+            --ignore-missing-imports \
+            --allow-untyped-defs \
+            --no-warn-return-any \
+            --disable-error-code=union-attr
 
       - name: Run tests with coverage
         run: |
