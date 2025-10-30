@@ -20,7 +20,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 # Import error monitoring
 try:
-    from scripts.utils.error_monitoring import critical_error, get_error_monitor
+    from scripts.utils.error_monitoring import fatal_error, get_error_monitor
 except ImportError:
     # Fallback if monitoring not available
     def get_error_monitor(script_name="backup"):
@@ -29,12 +29,17 @@ except ImportError:
                 print(f"CRITICAL BACKUP ERROR: {msg}", file=sys.stderr)
                 if exc:
                     print(f"Exception: {exc}", file=sys.stderr)
+
         return MockMonitor()
 
-    def critical_error(msg, exc=None):
-        print(f"CRITICAL BACKUP ERROR: {msg}", file=sys.stderr)
+    def fatal_error(msg, exc=None):
+        import sys
+
+        print(f"FATAL BACKUP ERROR: {msg}", file=sys.stderr)
         if exc:
             print(f"Exception: {exc}", file=sys.stderr)
+        sys.exit(1)
+
 
 def log(message, level="INFO"):
     """Log to both stdout and backup log file."""
@@ -44,25 +49,28 @@ def log(message, level="INFO"):
     # Also log to file
     log_file = Path("~/project-data-archives/image-workflow/backup.log").expanduser()
     log_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(log_file, 'a') as f:
+    with open(log_file, "a") as f:
         f.write(f"[{timestamp}] {level}: {message}\n")
 
+
 # Removed alert_failure - it was a footgun that crashed scripts
+
 
 def find_database_files(root_dir: Path) -> List[Path]:
     """Find all SQLite database files in the project."""
     db_files = []
 
     # Common database file patterns
-    patterns = ['*.db', '*.sqlite', '*.sqlite3']
+    patterns = ["*.db", "*.sqlite", "*.sqlite3"]
 
     for pattern in patterns:
         db_files.extend(root_dir.rglob(pattern))
 
     # Filter out any files in backup directories to avoid infinite loops
-    db_files = [f for f in db_files if 'project-data-archives' not in str(f)]
+    db_files = [f for f in db_files if "project-data-archives" not in str(f)]
 
     return sorted(db_files)
+
 
 def verify_backup(src, dst, name):
     """Verify that backup was successful."""
@@ -77,22 +85,29 @@ def verify_backup(src, dst, name):
             src_size = src.stat().st_size
             dst_size = dst.stat().st_size
             if src_size != dst_size:
-                monitor.validation_error(f"File size mismatch for {name}: {src_size} vs {dst_size}")
+                monitor.validation_error(
+                    f"File size mismatch for {name}: {src_size} vs {dst_size}"
+                )
                 return False
         else:
             # Count files
-            src_files = len(list(src.rglob('*')))
-            dst_files = len(list(dst.rglob('*')))
+            src_files = len(list(src.rglob("*")))
+            dst_files = len(list(dst.rglob("*")))
             if src_files != dst_files:
-                monitor.validation_error(f"File count mismatch for {name}: {src_files} vs {dst_files}")
+                monitor.validation_error(
+                    f"File count mismatch for {name}: {src_files} vs {dst_files}"
+                )
                 return False
 
         log(f"✅ Verified backup integrity for {name}")
         return True
 
     except Exception as e:
-        monitor.validation_error(f"Backup verification failed for {name}", {"error": str(e)})
+        monitor.validation_error(
+            f"Backup verification failed for {name}", {"error": str(e)}
+        )
         return False
+
 
 def backup_directory(src, dst, name):
     """Backup a directory with error handling."""
@@ -115,7 +130,7 @@ def backup_directory(src, dst, name):
             files_copied = 0
             total_size = 0
 
-            for item in src.rglob('*'):
+            for item in src.rglob("*"):
                 if item.is_file():
                     rel_path = item.relative_to(src)
                     dest_file = dst / rel_path
@@ -128,13 +143,16 @@ def backup_directory(src, dst, name):
                     except Exception as e:
                         log(f"❌ Failed to copy {item}: {e}")
 
-            log(f"✅ Copied directory {name}: {files_copied} files, {total_size:,} bytes")
+            log(
+                f"✅ Copied directory {name}: {files_copied} files, {total_size:,} bytes"
+            )
 
         return True
 
     except Exception as e:
         log(f"❌ Failed to backup {name}: {e}")
         return False
+
 
 def main():
     """Run the daily backup."""
@@ -213,34 +231,40 @@ def main():
                         total_files += 1
                         total_size += dst.stat().st_size
                     else:
-                        for f in dst.rglob('*'):
+                        for f in dst.rglob("*"):
                             if f.is_file():
                                 total_files += 1
                                 total_size += f.stat().st_size
 
-                backup_items.append({
-                    "name": name,
-                    "source": str(src),
-                    "destination": str(dst),
-                    "status": "success"
-                })
+                backup_items.append(
+                    {
+                        "name": name,
+                        "source": str(src),
+                        "destination": str(dst),
+                        "status": "success",
+                    }
+                )
             else:
                 success = False
-                backup_items.append({
-                    "name": name,
-                    "source": str(src),
-                    "destination": str(dst),
-                    "status": "failed"
-                })
+                backup_items.append(
+                    {
+                        "name": name,
+                        "source": str(src),
+                        "destination": str(dst),
+                        "status": "failed",
+                    }
+                )
 
         # Add database backup info
         if total_db_files > 0:
-            backup_items.append({
-                "name": "databases",
-                "source": "project-wide SQLite files",
-                "destination": str(backup_dir / "databases"),
-                "status": "success" if total_db_files > 0 else "failed"
-            })
+            backup_items.append(
+                {
+                    "name": "databases",
+                    "source": "project-wide SQLite files",
+                    "destination": str(backup_dir / "databases"),
+                    "status": "success" if total_db_files > 0 else "failed",
+                }
+            )
 
         total_files += total_db_files
 
@@ -250,15 +274,15 @@ def main():
             "backup_date": today,
             "total_files": total_files,
             "total_size_bytes": total_size,
-            "total_size_mb": round(total_size / (1024*1024), 2),
+            "total_size_mb": round(total_size / (1024 * 1024), 2),
             "overall_status": "success" if success else "failed",
             "source": str(PROJECT_ROOT),
             "destination": str(backup_dir),
-            "items": backup_items
+            "items": backup_items,
         }
 
         manifest_file = backup_dir / "manifest.json"
-        with open(manifest_file, 'w') as f:
+        with open(manifest_file, "w") as f:
             json.dump(manifest, f, indent=2)
 
         # Create status file for dashboard monitoring
@@ -269,9 +293,9 @@ def main():
             "status": "success" if success else "failed",
             "total_files": total_files,
             "total_size_mb": manifest["total_size_mb"],
-            "failures": [item for item in backup_items if item["status"] == "failed"]
+            "failures": [item for item in backup_items if item["status"] == "failed"],
         }
-        with open(status_file, 'w') as f:
+        with open(status_file, "w") as f:
             json.dump(status_info, f, indent=2)
 
         if success:
@@ -281,7 +305,10 @@ def main():
 
             # Success notification
             monitor = get_error_monitor("daily_backup")
-            monitor._send_macos_notification("Backup Success", f"Daily backup completed: {total_files} files, {manifest['total_size_mb']} MB")
+            monitor._send_macos_notification(
+                "Backup Success",
+                f"Daily backup completed: {total_files} files, {manifest['total_size_mb']} MB",
+            )
         else:
             log("❌ Backup completed with failures!", "ERROR")
             monitor = get_error_monitor("daily_backup")
@@ -290,11 +317,12 @@ def main():
     except Exception as e:
         success = False
         log(f"💥 Backup failed with exception: {e}", "CRITICAL")
-        monitor = get_error_monitor("daily_backup")
-        monitor.critical_error("Daily backup failed with exception", e)
+        # This is a fatal error - the entire backup process failed
+        fatal_error("Daily backup failed with unrecoverable exception", e)
 
     # Exit with appropriate code
     sys.exit(0 if success else 1)
+
 
 if __name__ == "__main__":
     main()

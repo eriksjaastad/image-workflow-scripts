@@ -164,7 +164,8 @@ def get_error_monitor(script_name: str = None) -> ErrorMonitor:
 def monitor_errors(script_name: str = None):
     """
     Decorator to add comprehensive error monitoring to functions.
-    Catches all exceptions and reports them loudly.
+    Catches all exceptions, reports them loudly, then re-raises them.
+    This preserves the original exit behavior while adding monitoring.
     """
 
     def decorator(func: Callable) -> Callable:
@@ -177,6 +178,8 @@ def monitor_errors(script_name: str = None):
             except Exception as e:
                 error_msg = f"Unhandled exception in {func.__name__}"
                 monitor.critical_error(error_msg, e)
+                # Re-raise the exception to preserve original exit behavior
+                raise
 
         return wrapper
 
@@ -214,6 +217,7 @@ def validation_error(message: str, context: Optional[dict] = None):
 def fatal_error(message: str, exception: Optional[Exception] = None):
     """Quick access to fatal error reporting."""
     get_error_monitor().fatal_error(message, exception)
+
 
 def silent_failure_detected(operation: str, expected: str, actual: str = None):
     """Quick access to silent failure detection."""
