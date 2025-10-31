@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""
-Project Startup Script
-======================
+"""Project Startup Script.
+
 Creates a new project manifest with all required fields, proper timestamps,
 and automatic image counting.
 
@@ -21,25 +20,31 @@ Features:
 
 import argparse
 import json
+import logging
 import shutil
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 # Ensure project root on import path for shared utilities
 _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+
 try:
     from scripts.file_tracker import FileTracker
     from scripts.utils.companion_file_utils import extract_timestamp_from_filename
-except Exception:  # noqa: BLE001
+except ImportError as e:
+    logger.warning("FileTracker import failed (audit logging disabled): %s", e)
     FileTracker = None  # type: ignore
 
     def extract_timestamp_from_filename(filename: str):  # type: ignore
-        import re as _re
+        import re as _re  # noqa: PLC0415
 
         m = _re.match(r"^(\d{8}_\d{6})", filename)
         return m.group(1) if m else None
@@ -66,7 +71,7 @@ def count_groups_by_timestamp_stem(directory: Path) -> int:
 
 def get_utc_timestamp() -> str:
     """Get current UTC timestamp in ISO format with Z suffix."""
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def validate_project_id(project_id: str) -> bool:
@@ -85,8 +90,7 @@ def get_project_manifest_template(
     timestamp: str,
     group_count: int,
 ) -> dict:
-    """
-    Generate a project manifest template with all required fields.
+    """Generate a project manifest template with all required fields.
 
     Returns a dictionary matching the schema used by mojo1/mojo2 projects.
     """
@@ -163,10 +167,12 @@ def get_project_manifest_template(
 
 def scan_extensions(content_dir: Path) -> set[str]:
     """Scan a directory and return all unique file extensions found."""
-    extensions = set()
+    extensions: set[str] = set()
     if not content_dir.exists():
+        logger.warning("Cannot scan extensions: %s does not exist", content_dir)
         return extensions
 
+    skipped_count = 0
     for p in content_dir.rglob("*"):
         try:
             if not p.is_file():
@@ -174,8 +180,16 @@ def scan_extensions(content_dir: Path) -> set[str]:
             ext = p.suffix.lower().lstrip(".")
             if ext:  # Only add if there's actually an extension
                 extensions.add(ext)
-        except Exception:  # noqa: BLE001
-            continue
+        except (OSError, PermissionError) as e:
+            skipped_count += 1
+            logger.debug("Skipped unreadable file %s: %s", p, e)
+
+    if skipped_count > 0:
+        logger.warning(
+            "Skipped %d unreadable files during extension scan. "
+            ".gitignore patterns may be incomplete.",
+            skipped_count,
+        )
 
     return extensions
 
@@ -183,10 +197,9 @@ def scan_extensions(content_dir: Path) -> set[str]:
 def update_gitignore(
     project_id: str,
     content_dir: Path | None = None,
-    content_dir_name: str | None = None
+    content_dir_name: str | None = None,
 ) -> None:
-    """
-    Update .gitignore to exclude project files by extension.
+    """Update .gitignore to exclude project files by extension.
 
     Scans the content directory for all file extensions and adds per-project
     ignore patterns with section markers for easy removal on project finish.
@@ -213,7 +226,7 @@ def update_gitignore(
         extensions = scan_extensions(content_dir)
 
     # Build project block
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%d")
     lines_to_add = [
         "",
         f"# === PROJECT: {project_id} (started {timestamp}) ===",
@@ -248,10 +261,9 @@ def update_gitignore(
 
 
 def create_project_manifest(
-    project_id: str, content_dir: Path, title: Optional[str] = None, force: bool = False
+    project_id: str, content_dir: Path, title: str | None = None, force: bool = False
 ) -> dict:
-    """
-    Create a new project manifest.
+    """Create a new project manifest.
 
     Args:
         project_id: Unique project identifier (e.g., "mojo3")
@@ -348,11 +360,29 @@ def create_project_manifest(
         manifest_path.write_text(
             json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"
         )
+
+        # Verify manifest is readable and valid JSON
+        try:
+            verification = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if verification.get("projectId") != project_id:
+                msg = (
+                    f"Manifest verification failed: projectId mismatch "
+                    f"(expected {project_id}, got {verification.get('projectId')})"
+                )
+                logger.error(msg)
+                return {"status": "error", "message": msg}
+            logger.info("Verified manifest: %s", manifest_path)
+        except (json.JSONDecodeError, OSError) as e:
+            msg = f"Manifest written but verification failed: {e}"
+            logger.exception(msg)
+            return {"status": "error", "message": msg}
+
         # Update .gitignore with project-specific extension patterns
         update_gitignore(project_id, content_dir, content_dir.name)
+
         # Log manifest creation (if tracker available)
-        try:
-            if FileTracker is not None:
+        if FileTracker is not None:
+            try:
                 tracker = FileTracker("00_start_project", sandbox=False)
                 tracker.log_operation(
                     "create",
@@ -362,8 +392,13 @@ def create_project_manifest(
                     files=[manifest_path.name],
                     notes="create project manifest with groupCount",
                 )
-        except Exception:  # noqa: BLE001
-            pass
+            except Exception as e:
+                logger.exception(
+                    "Failed to log manifest creation to FileTracker: %s", e
+                )
+                logger.warning("Manifest created but NOT logged in audit trail!")
+        else:
+            logger.warning("FileTracker unavailable - operation not logged")
 
         # Ensure per-project allowlist exists (used by prezip_stager)
         try:
@@ -383,8 +418,10 @@ def create_project_manifest(
                             continue
                         total_files += 1
                         ext_counts[ext] = ext_counts.get(ext, 0) + 1
-                    except Exception:  # noqa: BLE001
-                        continue
+                    except (OSError, PermissionError) as e:
+                        logger.debug("Skipping unreadable file %s: %s", p, e)
+                        # Continue - some files may be inaccessible, but we can still
+                        # build an allowlist from readable ones
 
                 # Write an inventory snapshot for operator visibility
                 try:
@@ -401,8 +438,12 @@ def create_project_manifest(
                         json.dumps(inventory, indent=2, ensure_ascii=False),
                         encoding="utf-8",
                     )
-                except Exception:  # noqa: BLE001
-                    pass
+                    logger.info(
+                        "Created inventory: %s",
+                        allowlist_dir / f"{project_id}_inventory.json",
+                    )
+                except OSError as e:
+                    logger.warning("Failed to write inventory file (non-critical): %s", e)
 
                 # Derive allowedExtensions from inventory (fallback to sensible defaults)
                 allowed_exts = (
@@ -424,10 +465,17 @@ def create_project_manifest(
                     json.dumps(allow_doc, indent=2, ensure_ascii=False),
                     encoding="utf-8",
                 )
-                print(f"✅ Created allowlist: {allowlist_path}")
-        except Exception:  # noqa: BLE001
-            # Non-fatal; prezip_stager will complain if missing
-            pass
+                logger.info("Created allowlist: %s", allowlist_path)
+                print(f"✅ Created extension allowlist: {allowlist_path}")
+        except OSError as e:
+            msg = (
+                f"Failed to create allowlist {allowlist_path}: {e}\n"
+                f"This will cause prezip_stager to fail later. "
+                f"Check directory permissions for data/projects/"
+            )
+            logger.error(msg)
+            # Return error immediately - don't let user think setup succeeded
+            return {"status": "error", "message": msg}
     except Exception as e:  # noqa: BLE001
         return {"status": "error", "message": f"Failed to write manifest: {e}"}
 

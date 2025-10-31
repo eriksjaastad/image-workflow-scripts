@@ -20,7 +20,7 @@
     "**/.git": true,
     "**/.vscode": true,
     "**/.venv*": true,
-    "**/.cursor*": true,
+    "**/.cursor": true,
     "**/.pytest_cache": true,
     "**/__pycache__": true
   },
@@ -28,7 +28,7 @@
     "**/.git": true,
     "**/.vscode": true,
     "**/.venv*": true,
-    "**/.cursor*": true,
+    "**/.cursor": true,
     "**/.pytest_cache": true,
     "**/__pycache__": true
   },
