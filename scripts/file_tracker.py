@@ -342,10 +342,10 @@ def read_log(
 
 def print_recent_activity(hours: int = 24):
     """Print recent file activity in a human-readable format."""
-    from datetime import timedelta  # noqa: PLC0415
+    from datetime import timedelta
 
     entries = read_log()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     cutoff = now - timedelta(hours=hours)
 
     print(f"\n=== File Activity (Last {hours} hours) ===")  # noqa: T201
