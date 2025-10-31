@@ -107,11 +107,18 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 # SQLite v3 Training Data (NEW!)
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -269,10 +276,8 @@ def load_ai_models(
 
         return ranker, crop_proposer, (clip_model, preprocess, device)
 
-    except Exception:
-        import traceback
-
-        traceback.print_exc()
+    except Exception as e:
+        logger.exception(f"Failed to load AI models from {models_dir}: {e}")
         return None, None, None
 
 
@@ -403,10 +408,8 @@ def get_ai_recommendation(
             "crop_coords": crop_coords,
         }
 
-    except Exception:
-        import traceback
-
-        traceback.print_exc()
+    except Exception as e:
+        logger.exception(f"AI recommendation failed for group {group.group_id}: {e}")
         # Fall back to rule-based
         return get_rule_based_recommendation(group)
 
@@ -624,8 +627,8 @@ def delete_group_images(
                 notes=f"{reason} - group {group.group_id}",
             )
             deleted_count += 1
-        except Exception:
-            pass
+        except Exception as e:
+            logger.exception(f"Failed to delete non-selected image {img.name}: {e}")
     return deleted_count
 
 
@@ -759,10 +762,10 @@ def perform_file_operations(
                     files=moved_files,  # List of filenames
                     notes=f"Deselected image from group {group.group_id}",
                 )
-            except Exception:
-                import traceback
-
-                traceback.print_exc()
+            except Exception as e:
+                logger.exception(
+                    f"Failed to log file operation for deselected image in group {group.group_id}: {e}"
+                )
 
         # Log training data
         negative_paths = other_images
@@ -2122,9 +2125,7 @@ def build_app(
             )
 
         except Exception as e:
-            import traceback
-
-            traceback.print_exc()
+            logger.exception("Unhandled error in /process-batch")
             return jsonify({"status": "error", "message": str(e)}), 500
 
     @app.route("/submit", methods=["POST"])
@@ -2207,9 +2208,7 @@ def build_app(
             return jsonify({"status": "ok", "message": msg})
 
         except Exception as e:
-            import traceback
-
-            traceback.print_exc()
+            logger.exception("Unhandled error in /submit")
             return jsonify({"status": "error", "message": str(e)}), 500
 
     @app.route("/next")
