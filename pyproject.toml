@@ -70,7 +70,11 @@ ignore = [
   "D102",     # Missing method docstring (enforced selectively)
   "D103",     # Missing function docstring (enforced selectively)
   "D104",     # Missing package docstring
+  "D105",     # Missing docstring in magic methods (unnecessary noise)
   "D107",     # Missing __init__ docstring
+  "D415",     # First line should end with period (pedantic)
+  "D205",     # 1 blank line required between summary and description (annoying)
+  "D212",     # Multi-line docstring summary should start at first line (style preference)
   
   # Arguments - allow flexibility
   "ARG001",   # Unused function argument (sometimes needed for interface compatibility)
