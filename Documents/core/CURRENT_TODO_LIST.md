@@ -16,6 +16,56 @@
   - **Action:** Identify affected items → recompute from source images/sidecars → validate → write to SQLite v3 → snapshot
   - **Output:** Verified updates in `data/training/ai_training_decisions/*.db` and daily snapshot
 
+- [ ] **Generalize mojo3 backfill scripts for any project** [PRIORITY: MEDIUM]
+  - **Current Scripts:**
+    - `scripts/ai/backfill_mojo3_phase1a_ai_predictions.py` (AI predictions from originals)
+    - `scripts/ai/backfill_mojo3_phase1b_user_data.py` (User selections/crops from finals)
+  - **Action:**
+    - Accept command-line arguments for any original directory and final directory
+    - Rename scripts to remove "mojo3" prefix (e.g., `backfill_project_phase1a_ai_predictions.py`)
+    - Update to work with any project structure, not just mojo3
+  - **Benefit:** Reuse for mojo1, mojo2, or any future project backfills
+
+- [x] **Update and clean up backfill documentation** [PRIORITY: HIGH] ✅ **COMPLETED Oct 31, 2025**
+  - **Completed Actions:**
+    - ✅ Created comprehensive new guide: `Documents/guides/BACKFILL_QUICK_START.md`
+    - ✅ Documents new 3-phase process (1A: AI predictions, 1B: User ground truth, Phase 2: Merge)
+    - ✅ Marked old docs as OBSOLETE with pointers to new process:
+      - `Documents/archives/sessions/2025-10-22/HANDOFF_HISTORICAL_BACKFILL_2025-10-22.md`
+      - `Documents/archives/misc/HANDOFF_HISTORICAL_BACKFILL_2025-10-22.md`
+      - `Documents/archives/misc/BACKFILL_QUICK_START.md`
+    - ✅ Removed all CSV/timesheet references from current documentation
+    - ✅ Emphasized: Physical images are source of truth, never copy AI predictions as user data
+    - ✅ Explained user_action semantics (approve/crop/reject, NO 'skip')
+    - ✅ Documented coordinate tolerances (2% for approve detection, 1% for comparison, 5% for metrics)
+    - ✅ Included real example: mojo3 backfill with actual numbers and results
+
+- [ ] **Backfill AI predictions for historical projects** [PRIORITY: MEDIUM]
+  - **Goal:** Generate AI predictions for mojo1 and mojo2 projects to expand training data and measure AI improvement over time
+  - **Why This Is Valuable:**
+    - We have thousands of user decisions (ground truth) in mojo1/mojo2 databases
+    - We DON'T have AI predictions for those decisions (AI system didn't exist then)
+    - Running current AI models on those historical images would create:
+      - Selection match data: Did AI pick what user picked?
+      - Crop match data: Was AI's crop close to user's crop?
+      - Confidence calibration: How confident was AI when right vs wrong?
+    - This would give us 10,000+ AI-vs-user comparisons for training analysis
+  - **Process:**
+    - Use Phase 1A approach: Run ranker + crop proposer on original images
+    - Create temp database with AI predictions
+    - Compare with real database (which has user ground truth)
+    - Add AI prediction columns WITHOUT touching user data
+    - Analyze: How would current AI have performed on historical projects?
+  - **Benefits:**
+    - Measure AI improvement: "On mojo1, AI would have been 45% accurate. On mojo3, it's 54%!"
+    - More training data for model improvements
+    - Identify patterns: What types of images does AI struggle with?
+    - Better confidence calibration
+  - **Projects to Process:**
+    - mojo1 (if original images still accessible)
+    - mojo2 (if original images still accessible)
+  - **Status:** Add to backlog after mojo3 backfill complete
+
 ### TODO Hygiene
 
 - [ ] **Review and prune this TODO list** [PRIORITY: HIGH]

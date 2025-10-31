@@ -49,8 +49,16 @@ python3 scripts/ai/train_crop_model.py --db data/training/ai_training_decisions/
 ```
 - Validate: IoU/center distance; analyze by stage.
 
-### 4) Backfill (optional)
-- Convert legacy CSVs to v3 SQLite; keep originals; write NEW `.db` files.
+### 4) Backfill (if needed)
+
+**Current Process (Oct 31, 2025):** Use 3-phase backfill to reconstruct complete training data:
+- Phase 1A: Generate AI predictions from original images
+- Phase 1B: Extract user ground truth from physical cropped images
+- Phase 2: Merge with existing database
+
+See: `Documents/guides/BACKFILL_QUICK_START.md`
+
+Key: Physical images are source of truth. Never copy AI predictions as user ground truth.
 
 ## Cost Controls
 - Batch reads; avoid loading entire trees at once.
