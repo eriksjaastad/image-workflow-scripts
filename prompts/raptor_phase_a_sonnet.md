@@ -59,9 +59,3 @@ Be surgical, explicit, and opinionated—no vague advice.
 ```
 
 ---
-
-## TARGET FILE FOR THIS REVIEW
-
-**Replace this line with the file path** (e.g., `scripts/01_ai_assisted_reviewer.py`)
-
-[PASTE FILE PATH HERE]

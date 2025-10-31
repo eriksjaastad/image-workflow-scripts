@@ -16,7 +16,7 @@ prompts/raptor_phase_a_sonnet.md
 
 paste results in reviews doc
 
-## Phase A - AI window ChatGPT-5 Codex
+## Phase B - AI window ChatGPT-5 Codex
 
 prompts/raptor_phase_b_codex.md
 

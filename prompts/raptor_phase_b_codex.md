@@ -36,17 +36,3 @@ OUTPUT FORMAT:
 Be concrete and code-centric—your goal is to raise confidence that no silent failures remain.
 
 ---
-
-## TARGET FILE FOR THIS REVIEW
-
-**Replace with file path** (e.g., `scripts/01_ai_assisted_reviewer.py`)
-
-[PASTE FILE PATH HERE]
-
----
-
-## PHASE A OUTPUT (to verify)
-
-**Paste Phase A findings below:**
-
-[PASTE PHASE A RESULTS HERE]
