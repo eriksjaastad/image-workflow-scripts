@@ -1,11 +1,32 @@
 # Handoff Notes - Historical Backfill Project
+
+**⚠️ OBSOLETE - See New Process Below ⚠️**
+
+**This document describes an OLD approach to backfilling that has been replaced.**
+
+**Current Process (Oct 31, 2025):** See `Documents/guides/BACKFILL_QUICK_START.md` for the new 3-phase backfill process:
+- Phase 1A: Generate AI predictions by running models on original images
+- Phase 1B: Extract user ground truth from physical cropped images via template matching
+- Phase 2: Intelligently merge temp database with real database
+
+**Key differences from this old approach:**
+- No longer uses CSV files or timesheet.csv
+- Uses SQLite databases exclusively
+- Separates AI predictions from user ground truth
+- Preserves timestamps from real database
+- Supports incremental backfilling (adds to existing data)
+
+---
+
+# ARCHIVED CONTENT BELOW (FOR REFERENCE ONLY)
+
 **Audience:** Developers
 
 **Last Updated:** 2025-10-26
 
 **Date:** 2025-10-22  
 **From:** Claude (Sonnet 4.5)  
-**Status:** In Progress - Data Validation Issue Found
+**Status:** OBSOLETE - REPLACED BY NEW 3-PHASE PROCESS
 
 ---
 
@@ -17,7 +38,7 @@ Extract v3 training data from historical project archives by comparing original 
 ## ✅ WHAT'S BEEN COMPLETED
 
 ### 1. Created Backfill Script
-**File:** `/Users/eriksjaastad/projects/Eros Mate/scripts/tools/backfill_v3_from_archives.py`
+**File:** `<project-root>/scripts/tools/backfill_v3_from_archives.py`
 
 **What it does:**
 - Takes project name (e.g., "Aiko_raw") from timesheet
@@ -130,12 +151,12 @@ if project_date not in final_mod_dates:
 ## 📂 FILE LOCATIONS
 
 ### Key Files
-- **Backfill script:** `/Users/eriksjaastad/projects/Eros Mate/scripts/tools/backfill_v3_from_archives.py`
-- **Timesheet:** `/Users/eriksjaastad/projects/Eros Mate/data/timesheet.csv`
+- **Backfill script:** `<project-root>/scripts/tools/backfill_v3_from_archives.py`
+- **Timesheet:** `<project-root>/data/timesheet.csv`
 - **Current test data:**
-  - Originals: `/Users/eriksjaastad/projects/Eros Mate/training data/Aiko_raw/`
-  - Finals: `/Users/eriksjaastad/projects/Eros Mate/training data/Aiko_raw_final/`
-- **Created database:** `/Users/eriksjaastad/projects/Eros Mate/data/training/ai_training_decisions/Aiko_raw.db` (156 KB)
+  - Originals: `<project-root>/training data/Aiko_raw/`
+  - Finals: `<project-root>/training data/Aiko_raw_final/`
+- **Created database:** `<project-root>/data/training/ai_training_decisions/Aiko_raw.db` (156 KB)
 
 ### Shared Utilities Used
 - `scripts/utils/companion_file_utils.py`:
@@ -224,7 +245,7 @@ Matches current v3 format:
 - `user_action`: 'crop' or 'approve'
 - `final_crop_coords`: JSON array or NULL
 - `user_selected_index`: Which image in group was chosen (0-3)
-- Full schema in: `/Users/eriksjaastad/projects/Eros Mate/data/schema/ai_training_decisions_v3.sql`
+- Full schema in: `<project-root>/data/schema/ai_training_decisions_v3.sql`
 
 ---
 

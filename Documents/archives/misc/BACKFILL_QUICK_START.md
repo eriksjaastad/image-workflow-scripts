@@ -1,5 +1,25 @@
 # Historical Backfill - Quick Start Guide
-**Status:** Active
+
+**⚠️ OBSOLETE ⚠️**
+
+**This guide is outdated. See the current guide at:**
+`Documents/guides/BACKFILL_QUICK_START.md`
+
+**Current process (Oct 31, 2025):**
+- Phase 1A: Generate AI predictions by running models on original images
+- Phase 1B: Extract user ground truth from physical cropped images  
+- Phase 2: Intelligently merge temp database with real database
+
+**This old guide references:**
+- CSV files (no longer used)
+- `timesheet.csv` (no longer used for backfill)
+- `backfill_v3_from_archives.py` (replaced by 3-phase scripts)
+
+---
+
+# ARCHIVED CONTENT BELOW (FOR REFERENCE ONLY)
+
+**Status:** OBSOLETE
 **Audience:** Developers
 
 **Last Updated:** 2025-10-26
@@ -29,31 +49,14 @@ stat -f "%Sm" -t "%Y-%m-%d" "training data/ProjectName_final/"*.png | sort -u
 
 ### Step 2: Run Backfill
 ```bash
-# Dry-run first
 python3 scripts/tools/backfill_v3_from_archives.py ProjectName
-
-# If looks good, execute
-python3 scripts/tools/backfill_v3_from_archives.py ProjectName --execute
 ```
 
-### Step 3: Verify Results
+### Step 3: Validate Results
 ```bash
-# Check crop variety (should NOT all be [0,0,1,1])
 sqlite3 data/training/ai_training_decisions/ProjectName.db \
   "SELECT final_crop_coords, COUNT(*) FROM ai_decisions WHERE user_action='crop' GROUP BY final_crop_coords;"
 ```
 
-## 📂 Key Files
-- **Script:** `scripts/tools/backfill_v3_from_archives.py`
-- **Full handoff:** `Documents/HANDOFF_HISTORICAL_BACKFILL_2025-10-22.md`
-- **Test data:** `training data/Aiko_raw/` and `training data/Aiko_raw_final/`
-- **Questionable DB:** `data/training/ai_training_decisions/Aiko_raw.db`
-
-## ❓ Ask Erik
-1. Is Aiko_raw data valid despite timestamp mismatch?
-2. Where are the actual cropped images stored in archives?
-3. Which historical projects should we prioritize?
-
----
-**Status:** Paused - need data validation before continuing
-
+## Related
+- `archives/sessions/2025-10-22/HANDOFF_HISTORICAL_BACKFILL_2025-10-22.md`

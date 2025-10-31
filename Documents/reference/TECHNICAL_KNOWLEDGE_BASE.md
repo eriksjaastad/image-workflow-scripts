@@ -475,11 +475,17 @@ pytest scripts/tests/test_ai_training_integration.py -v       # Integration test
 
 - `data/training/ai_training_decisions/mojo3.db` - NEW system!
 
-**Can backfill old data later (optional):**
+**Backfill Process (Oct 31, 2025):**
 
-- Read old CSVs
-- Convert to SQLite format
-- Populate historical databases
+For reconstructing complete training data from historical projects, use the 3-phase backfill process:
+
+1. **Phase 1A:** Generate AI predictions by running models on original images
+2. **Phase 1B:** Extract user ground truth from physical cropped images via template matching  
+3. **Phase 2:** Intelligently merge temp database with real database (preserves timestamps, never overwrites existing data)
+
+See: `Documents/guides/BACKFILL_QUICK_START.md`
+
+Key principle: Physical images are ALWAYS the source of truth for user data. Never copy AI predictions as user ground truth.
 
 ### **Files Reference**
 
