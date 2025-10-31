@@ -14,19 +14,33 @@ Console
 
 prompts/raptor_phase_a_sonnet.md
 
+## TARGET FILE FOR THIS REVIEW
+
+[[file for review]]
+
 paste results in reviews doc
 
 ## Phase B - AI window ChatGPT-5 Codex
 
 prompts/raptor_phase_b_codex.md
 
-## Target files for this review
+## TARGET FILE FOR THIS REVIEW
 
-scripts/file_tracker.py
+[[file for review]]
 
 ## Phase A Output (to verify)
 
-reviews
+## Phase C - AI window ChatGPT-5 Max mode
+
+prompts/raptor_phase_c_safety.md
+
+## TARGET FILE FOR THIS REVIEW
+
+[[file for review]]
+
+## Phase A Output (to verify)
+
+## Phase B Output (to verify)
 
 ## 🧩 1. First-Time Setup
 
