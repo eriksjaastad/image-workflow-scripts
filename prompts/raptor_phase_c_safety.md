@@ -34,3 +34,27 @@ INSTRUCTIONS:
 Be concise but brutally honest.
 Prefer specific, actionable comments over generalizations.
 Do not sugarcoat — the goal is reliability over speed.
+
+---
+
+## TARGET FILE FOR THIS REVIEW
+
+**Replace with file path** (e.g., `scripts/01_ai_assisted_reviewer.py`)
+
+[PASTE FILE PATH HERE]
+
+---
+
+## PHASE A OUTPUT
+
+**Paste Phase A findings:**
+
+[PASTE PHASE A RESULTS HERE]
+
+---
+
+## PHASE B OUTPUT
+
+**Paste Phase B verification:**
+
+[PASTE PHASE B RESULTS HERE]
