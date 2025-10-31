@@ -6,6 +6,28 @@
 
 ---
 
+Quick run
+Console
+./scripts/run_raptor.sh
+
+## Phase A - AI window Sonnet 4.5 Max mode
+
+prompts/raptor_phase_a_sonnet.md
+
+paste results in reviews doc
+
+## Phase A - AI window ChatGPT-5 Codex
+
+prompts/raptor_phase_b_codex.md
+
+## Target files for this review
+
+scripts/file_tracker.py
+
+## Phase A Output (to verify)
+
+reviews
+
 ## 🧩 1. First-Time Setup
 
 From the repo root, run these commands once:

@@ -41,10 +41,6 @@ Paste output here.
 Prompt file: $PROMPTS_DIR/raptor_phase_c_safety.md  
 Paste output here.
 
----
-
-## Final Reliability Summary
-Paste summary from Meta-Prompt Raptor ( $PROMPTS_DIR/raptor_meta.md ).
 EOF
 
 echo "✅  Created review template:"
