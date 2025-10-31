@@ -8,15 +8,273 @@
 
 ## 🎯 Active Tasks
 
+### 🦖 Raptor Reliability Audit (ACTIVE - In Progress)
+
+**Purpose:** Systematic reliability review of core workflow scripts to catch silent failures, improve error handling, and ensure data integrity.
+
+**Process:** Run 3-phase Raptor review on each script individually (iterative approach).
+
+**Estimated Cost:** ~15K-20K tokens per script × 9 scripts = ~135K-180K tokens total (spread across multiple sessions)
+
+**Review Order (Priority):**
+
+- [ ] **Phase 1: `scripts/00_start_project.py`** [IN PROGRESS]
+
+  - Entry point for all projects
+  - Est. tokens: 15K-20K (all 3 phases)
+  - Est. time: 30-40 minutes
+  - **Next:** Run `./scripts/run_raptor.sh` to start
+
+- [ ] **Phase 2: `scripts/file_tracker.py`**
+
+  - Logging system used by all workflow scripts
+  - Critical for audit trail and debugging
+  - Review before scripts that depend on it
+
+- [ ] **Phase 3: `scripts/01_ai_assisted_reviewer.py`**
+
+  - Image selection tool
+  - Depends on file_tracker
+
+- [ ] **Phase 4: `scripts/02_ai_desktop_multi_crop.py`**
+
+  - Cropping tool
+  - Only script allowed to write image files
+
+- [ ] **Phase 5: `scripts/02_character_processor.py`**
+
+  - Character sorting workflow
+
+- [ ] **Phase 6: `scripts/03_web_character_sorter.py`**
+
+  - Web-based character sorter
+
+- [ ] **Phase 7: `scripts/04_character_check.py`**
+
+  - Character validation
+
+- [ ] **Phase 8: `scripts/07_finish_project.py`**
+
+  - Project completion workflow
+
+- [ ] **Phase 9: Backup Scripts**
+  - `scripts/backup/daily_backup.py`
+  - `scripts/backup/daily_backup_simple.py`
+  - Any other backup-related scripts
+
+**After Each Review:**
+
+1. Implement fixes from Phase A
+2. Commit changes
+3. Move to next script
+
+**Notes:**
+
+- Each review is independent - can pause between scripts
+- Fix issues as you go rather than batching
+- Token usage spreads across days/weeks
+- Creates comprehensive audit trail
+
+---
+
+### AI Predictions Backfill (HIGH PRIORITY)
+
+- [ ] **Add zip file support to AI prediction script** [PRIORITY: HIGH]
+
+  - **Goal:** Modify `backfill_project_phase1a_ai_predictions.py` to accept zip files as input (in addition to directories)
+  - **Why:** Original images for mojo1/mojo2 may be in zip archives on external drives
+  - **Current Status:** Script only accepts `--original-dir` argument pointing to unzipped directory
+  - **Required Changes:**
+    1. Add `--zip-file` argument (mutually exclusive with `--original-dir`)
+    2. Modify `group_original_images()` function to:
+       - Accept `source_path` and `is_zip` boolean
+       - Extract zip to temporary directory if `is_zip=True`
+       - Process images from temp directory
+       - Clean up temp directory after processing
+    3. Add imports: `zipfile`, `tempfile`, `shutil`
+  - **Implementation Code:**
+
+    ```python
+    # In group_original_images():
+    if is_zip:
+        # Extract zip to temporary directory
+        temp_dir = Path(tempfile.mkdtemp(prefix="ai_predict_zip_"))
+        print(f"Extracting zip to temporary directory: {temp_dir}")
+
+        try:
+            with zipfile.ZipFile(source_path, 'r') as zip_ref:
+                # Only extract image files
+                image_extensions = {".png", ".jpg", ".jpeg"}
+                for file_info in zip_ref.filelist:
+                    if Path(file_info.filename).suffix.lower() in image_extensions:
+                        zip_ref.extract(file_info, temp_dir)
+
+            working_dir = temp_dir
+            cleanup_after = True
+        except Exception as e:
+            shutil.rmtree(temp_dir)
+            raise Exception(f"Failed to extract zip: {e}")
+    else:
+        working_dir = source_path
+        cleanup_after = False
+
+    # ... process images from working_dir ...
+
+    # Finally, cleanup:
+    if cleanup_after and temp_dir.exists():
+        print(f"Cleaning up temporary directory: {temp_dir}")
+        shutil.rmtree(temp_dir)
+    ```
+
+  - **Argument Parser Changes:**
+
+    ```python
+    parser.add_argument("--original-dir", required=False,
+                       help="Directory containing original images")
+    parser.add_argument("--zip-file", required=False,
+                       help="Zip file containing original images")
+
+    # Validation
+    if not args.original_dir and not args.zip_file:
+        parser.error("Must specify either --original-dir or --zip-file")
+    if args.original_dir and args.zip_file:
+        parser.error("Cannot specify both --original-dir and --zip-file")
+
+    is_zip = bool(args.zip_file)
+    source_path = Path(args.zip_file) if is_zip else Path(args.original_dir)
+    ```
+
+  - **Safety:** Read-only operation on zip files (never modify zip contents)
+  - **Files to Modify:** `scripts/ai/backfill_project_phase1a_ai_predictions.py`
+
+- [ ] **Backfill AI predictions for ALL historical projects (for dataset completeness)** [PRIORITY: HIGH]
+
+  - **Current State (as of Oct 31, 2025):**
+    - ✅ mojo3.db: 6,468 rows → **6,468 with AI predictions (100%)**
+    - ❌ mojo1.db: 8,268 rows → **0 with AI predictions**
+    - ❌ mojo2.db: 5,985 rows → **0 with AI predictions**
+    - ❌ Aiko.db: 350 rows → **0 with AI predictions**
+    - ❌ Eleni.db: 1,920 rows → **0 with AI predictions**
+    - ❌ Kiara_Slender.db: 1,845 rows → **0 with AI predictions**
+    - ❌ agent-1001/1002/1003.db: 2,058 rows → **0 with AI predictions**
+    - ❌ jmlimages-random.db: 4,486 rows → **0 with AI predictions**
+    - ❌ Others: 1011, 1012, 1013, 1100, 1101_Hailey, tattersail-0918
+    - **Total Missing: ~35,000+ rows need AI predictions across all projects**
+  - **⚠️ IMPORTANT - Training Data Consideration:**
+    - **Current AI models were trained on:** mojo1 (5,244 selections) + mojo2 (4,594 selections) + others
+    - **This means:** Backfilling predictions on mojo1/mojo2 = testing on training data (not true accuracy test)
+    - **Purpose:** Dataset completeness, debugging, baseline comparison ONLY
+    - **For TRUE accuracy:** Use separate test data (see "Train/Test Split Validation" task below)
+  - **Why This Is Still Useful:**
+    - Complete database structure across all projects
+    - Debugging: Check if model memorized vs learned patterns
+    - Baseline: Compare training accuracy vs test accuracy (shows overfitting)
+    - Future retraining: Want ALL user data available for next model version
+  - **Process:**
+
+    1. Locate original images for mojo1 and mojo2 (may be in zips on T7Shield)
+    2. Run Phase 1A script to generate AI predictions:
+
+       ```bash
+       python scripts/ai/backfill_project_phase1a_ai_predictions.py \
+           --project-id mojo1 \
+           --original-dir /Volumes/T7Shield/Eros/original/mojo1 \
+           --output-db data/training/ai_training_decisions/mojo1_backfill_temp.db
+
+       python scripts/ai/backfill_project_phase1a_ai_predictions.py \
+           --project-id mojo2 \
+           --original-dir /Volumes/T7Shield/Eros/original/mojo2 \
+           --output-db data/training/ai_training_decisions/mojo2_backfill_temp.db
+       ```
+
+       (Or use `--zip-file` once zip support is added)
+
+    3. Run Phase 1B to merge AI predictions with existing user ground truth
+    4. Validate: Check selection_match and crop_match columns populated
+
+  - **Expected Output:**
+    - mojo1.db: 8,268 rows with BOTH user data AND AI predictions
+    - mojo2.db: 5,985 rows with BOTH user data AND AI predictions
+    - Can then analyze: "On mojo1, AI would have matched user 45% of the time"
+  - **Dependencies:**
+    - Requires zip file support (above task) if originals are in zip archives
+    - Requires access to original image directories/zips
+  - **Files to Run:**
+    - `scripts/ai/backfill_project_phase1a_ai_predictions.py`
+    - `scripts/ai/backfill_project_phase1b_user_data.py`
+
+- [ ] **Implement proper train/test split validation for AI models** [PRIORITY: MEDIUM]
+
+  - **Problem:** Current AI models were trained on mojo1+mojo2 (9,838 selections total)
+  - **Current Situation:**
+    - Training data: mojo1 (5,244), mojo2 (4,594), plus other projects
+    - Test data: mojo3 has 6,468 rows but only 11 selections in training CSV (likely added later)
+    - Result: mojo3 is effectively held-out data (good!) but very little data
+  - **Goal:** Properly validate AI accuracy using train/test split or cross-validation
+  - **Approaches to Consider:**
+
+    **Option 1: Use mojo3 as held-out test set (RECOMMENDED)**
+
+    - Train on: mojo1 + mojo2 + other projects (exclude mojo3)
+    - Test on: mojo3 only (6,468 rows, never seen during training)
+    - Pro: Clean separation, represents "future" data
+    - Con: Only one test project (can't generalize to other styles)
+
+    **Option 2: K-Fold Cross-Validation by Project**
+
+    - Fold 1: Train on mojo2+others, test on mojo1
+    - Fold 2: Train on mojo1+others, test on mojo2
+    - Fold 3: Train on mojo1+mojo2, test on another project
+    - Pro: Uses all data, measures generalization across projects
+    - Con: Complex, time-consuming
+
+    **Option 3: Random 80/20 split**
+
+    - Randomly split ALL data 80% train, 20% test
+    - Pro: Simple, maximizes training data
+    - Con: Mixes projects, doesn't test generalization to new projects
+
+  - **Recommendation:** Use Option 1 first (mojo3 as test set)
+
+    - Current models likely already exclude mojo3 from training (only 11 rows in CSV)
+    - Can measure TRUE accuracy on mojo3
+    - Then use Option 2 for deeper validation if needed
+
+  - **Implementation Steps:**
+
+    1. **Verify current training data:** Check `selection_only_log.csv` - confirm mojo3 mostly excluded
+    2. **Run backfill on mojo3:** Already done! (6,468 predictions exist)
+    3. **Calculate test accuracy:**
+       ```sql
+       -- mojo3 selection accuracy (test set)
+       SELECT AVG(selection_match)*100 FROM ai_decisions
+       WHERE project_id='mojo3';
+       ```
+    4. **Compare with training accuracy:** Backfill mojo1/mojo2, measure accuracy
+    5. **Document findings:** "Training accuracy: 65%, Test accuracy: 54%" (example)
+    6. **Use for model improvement:** Identify where model fails on test data
+
+  - **Files to Check:**
+
+    - `data/training/selection_only_log.csv` - What data was used for training?
+    - `scripts/ai/train_ranker_v3.py` - How was train/val split done?
+    - `scripts/ai/train_crop_proposer_v2.py` - Crop model training split?
+
+  - **Expected Outcome:**
+    - Know TRUE accuracy of current models (on held-out test data)
+    - Identify overfitting (if training accuracy >> test accuracy)
+    - Guide future model improvements based on test performance
+
 ### Data Integrity Backfill (High)
 
-- [ ] **Backfill missing crop data caused by dimension-logging bug** [PRIORITY: HIGH]
+- [x] **Backfill missing crop data caused by dimension-logging bug** [PRIORITY: HIGH] ✅ **COMPLETED Oct 31, 2025**
 
   - **Scope:** Rows/images impacted when Desktop Multi-Crop logged dimensions as (0,0)
   - **Action:** Identify affected items → recompute from source images/sidecars → validate → write to SQLite v3 → snapshot
   - **Output:** Verified updates in `data/training/ai_training_decisions/*.db` and daily snapshot
 
 - [ ] **Generalize mojo3 backfill scripts for any project** [PRIORITY: MEDIUM]
+
   - **Current Scripts:**
     - `scripts/ai/backfill_mojo3_phase1a_ai_predictions.py` (AI predictions from originals)
     - `scripts/ai/backfill_mojo3_phase1b_user_data.py` (User selections/crops from finals)
@@ -27,6 +285,7 @@
   - **Benefit:** Reuse for mojo1, mojo2, or any future project backfills
 
 - [x] **Update and clean up backfill documentation** [PRIORITY: HIGH] ✅ **COMPLETED Oct 31, 2025**
+
   - **Completed Actions:**
     - ✅ Created comprehensive new guide: `Documents/guides/BACKFILL_QUICK_START.md`
     - ✅ Documents new 3-phase process (1A: AI predictions, 1B: User ground truth, Phase 2: Merge)
@@ -515,6 +774,7 @@ Timeline
 ### Dashboard Improvements
 
 - [ ] **Add backup status indicators to dashboard** [PRIORITY: MEDIUM]
+
   - **Goal:** Show backup health in dashboard header (like validation status)
   - **Data Source:** `~/project-data-archives/image-workflow/backup_status.json`
   - **Display:** Last backup date, status (success/failed/overdue), file count, size
@@ -523,6 +783,7 @@ Timeline
   - **Alert Logic:** Flag if backup >48 hours old
 
 - [x] **Create comprehensive backup testing and monitoring system** ⭐ **COMPLETED**
+
   - **Backup System Tests** (`scripts/tests/test_backup_system.py`):
     - ✅ Backup status file validation
     - ✅ Recent backup existence verification
@@ -635,15 +896,18 @@ Timeline
 ### Backups & Delivery Automation
 
 - [ ] **Set up automated cloud backup using rclone** [PRIORITY: HIGH] ⭐ **TOMORROW**
+
   - **Goal:** Get off-site backups running before more data loss from silent failures
 
   - **EXISTING INFRASTRUCTURE (Already Built!):**
+
     - ✅ `scripts/backup/weekly_rollup.py` - Complete weekly backup script
     - ✅ Cron job slot: `10 2 * * 0` (Sunday 2:10 AM Eastern)
     - ✅ Local retention: 12 weeks in `~/project-data-archives/image-workflow/`
     - ✅ Daily backups: Already running, feeding into weekly rollup
 
   - **WEEKLY ROLLUP PROCESS:**
+
     1. **Find daily backups** from last 7 days (e.g., 2025-10-27 to 2025-11-02)
     2. **Compress** into `weekly_20251027_20251102.tar.zst`
     3. **Create manifest** with file counts, sizes, SHA256 hashes
@@ -651,6 +915,7 @@ Timeline
     5. **Clean up** old archives (keep 12 weeks locally + cloud)
 
   - **WHAT NEEDS TO BE DONE:**
+
     - ✅ Daily backups: Already working → `~/project-data-archives/image-workflow/YYYY-MM-DD/`
     - ✅ Weekly script: Already implemented and ready
     - ✅ Cron job: **UPDATED** in `setup_cron.sh` to use `weekly_rollup.py`
@@ -659,16 +924,19 @@ Timeline
     - ⏳ **Enable weekly cron job** (`bash scripts/setup_cron.sh`)
 
   - **NEXT STEPS (Tomorrow):**
+
     1. Configure/test rclone remote `gbackup`
     2. Run `bash scripts/setup_cron.sh` to enable weekly job
     3. Monitor first weekly backup (next Sunday 2:10 AM Eastern)
     4. Add backup status to dashboard
 
   - **TIME SENSITIVE:** Daily backup runs tonight at 2:10 AM Eastern!
+
     - Check tomorrow if it succeeded (look in `~/project-data-archives/image-workflow/`)
     - Fix any issues before enabling weekly rollup
 
   - **DATA INTEGRITY CONCERN:** Recent silent failures erased data - cloud backup critical now!
+
 - [ ] Auto-upload finished ZIP from 07_finish_project to Drive [PRIORITY: MEDIUM]
   - Hook: after successful finish with `--commit`
   - Target: `gbackup:deliveries/<projectId>/`
