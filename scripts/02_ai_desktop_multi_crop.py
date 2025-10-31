@@ -177,22 +177,31 @@ class AIMultiCropTool(MultiCropTool):
             print(f"[Queue Mode] Queue file: {self.queue_manager.queue_file}")
         else:
             # Normal mode still logs file operations for metrics
+            import logging
+
             try:
                 from file_tracker import FileTracker as _FT
 
                 self.tracker = _FT("ai_desktop_multi_crop")
                 print("[FileTracker] Initialized for ai_desktop_multi_crop")
             except Exception as e:
-                # FileTracker initialization failed - log warning but continue
                 error_monitor = get_error_monitor("ai_desktop_multi_crop")
                 error_monitor.validation_error(
-                    "FileTracker initialization failed - metrics and file operation logging will not work",
-                    {"exception": str(e)}
+                    "FileTracker initialization failed - refusing to proceed without audit trail",
+                    {"exception": str(e)},
                 )
-                self.tracker = None  # Continue without tracking
+                logging.getLogger(__name__).exception(
+                    "FileTracker initialization failed - refusing to proceed without audit trail"
+                )
+                raise RuntimeError(
+                    "FileTracker initialization failed: refusing to proceed without audit trail"
+                ) from e
 
     # ---- Lightweight UI alert helpers ----
     def _show_alert(self, message: str, color: str = "red") -> None:
+        import logging
+
+        logger = logging.getLogger(__name__)
         try:
             if hasattr(self, "_alert_artist") and self._alert_artist is not None:
                 try:
@@ -217,9 +226,12 @@ class AIMultiCropTool(MultiCropTool):
             )
             self.fig.canvas.draw_idle()
         except Exception:
-            pass
+            logger.warning("Failed to show UI alert: %s", message, exc_info=True)
 
     def _clear_alert(self) -> None:
+        import logging
+
+        logger = logging.getLogger(__name__)
         try:
             if hasattr(self, "_alert_artist") and self._alert_artist is not None:
                 try:
@@ -229,7 +241,7 @@ class AIMultiCropTool(MultiCropTool):
                 self._alert_artist = None
                 self.fig.canvas.draw_idle()
         except Exception:
-            pass
+            logger.warning("Failed to clear UI alert", exc_info=True)
 
     def crop_and_save(self, image_info, crop_coords):
         """Crop image, save in place, then move to central __cropped directory (or queue)."""
@@ -329,24 +341,47 @@ class AIMultiCropTool(MultiCropTool):
         x1, y1, x2, y2 = crop_coords
 
         # Load and crop image
+        original_size = png_path.stat().st_size if png_path.exists() else -1
         img = Image.open(png_path)
+        original_dimensions = img.size
         cropped_img = img.crop((x1, y1, x2, y2))
+        cropped_dimensions = cropped_img.size
 
         # Save over the original file (in place)
         cropped_img.save(png_path)
+        # Verify output exists and is non-empty
+        if not png_path.exists():
+            raise RuntimeError(f"Crop failed: output file does not exist: {png_path}")
+        cropped_size = png_path.stat().st_size
+        if cropped_size == 0:
+            raise RuntimeError(f"Crop failed: output file is 0 bytes: {png_path}")
+        # Verify dimensions changed unless full-image crop
+        if (
+            cropped_dimensions == original_dimensions
+            and (x1, y1, x2, y2) != (0, 0, *original_dimensions)
+        ):
+            raise RuntimeError(
+                f"Crop failed: dimensions unchanged despite crop coords: {png_path}"
+            )
+        # Heuristic: size unchanged is suspicious unless full-image crop
+        if (
+            original_size >= 0
+            and cropped_size == original_size
+            and (x1, y1, x2, y2) != (0, 0, *original_dimensions)
+        ):
+            raise RuntimeError(
+                f"Crop failed: file size unchanged after crop (coords={(x1, y1, x2, y2)}, path={png_path})"
+            )
         print(f"Cropped and saved in place: {png_path.name}")
-        # Log crop operation (create/update)
-        try:
-            if getattr(self, "tracker", None) is not None:
-                self.tracker.log_operation(
-                    "crop",
-                    source_dir=str(png_path.parent),
-                    dest_dir=str(png_path.parent),
-                    file_count=1,
-                    files=[png_path.name],
-                )
-        except Exception:
-            pass
+        # Log crop operation (create/update) - fail-fast if tracking is enabled
+        if getattr(self, "tracker", None) is not None:
+            self.tracker.log_operation(
+                "crop",
+                source_dir=str(png_path.parent),
+                dest_dir=str(png_path.parent),
+                file_count=1,
+                files=[png_path.name],
+            )
 
         # Update SQLite database with final crop coordinates
         try:
@@ -541,12 +576,13 @@ class AIMultiCropTool(MultiCropTool):
                     crop_entry["index_in_batch"] = idx
 
                 # Get session/project info
-                from datetime import datetime
+                from datetime import datetime, timezone
 
                 session_id = getattr(
                     self,
                     "session_id",
-                    f"crop_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                    # Use UTC to ensure consistent session IDs across timezones/DST
+                    f"crop_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}",
                 )
 
                 project_id = getattr(self, "project_id", "unknown")
@@ -676,6 +712,20 @@ def main() -> None:
         preload_ai=(not args.no_preload),
     )
     tool.run()
+
+    # Heartbeat: successful completion with basic counters if available
+    try:
+        import logging
+
+        files_processed = len(getattr(tool, "png_files", [])) or len(
+            getattr(tool, "current_images", [])
+        )
+        logging.getLogger(__name__).info(
+            "ai_desktop_multi_crop completed successfully",
+            extra={"files_processed": files_processed},
+        )
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":
