@@ -14,7 +14,6 @@ import hashlib
 import json
 import sys
 from pathlib import Path
-from typing import List, Set
 
 import numpy as np
 import open_clip
@@ -27,7 +26,7 @@ def get_image_hash(image_path: Path) -> str:
     """Generate a hash for the image path to use as filename."""
     return hashlib.sha256(str(image_path).encode()).hexdigest()[:16]
 
-def load_training_image_paths(data_dir: Path) -> Set[Path]:
+def load_training_image_paths(data_dir: Path) -> set[Path]:
     """Load all unique image paths from training logs."""
     image_paths = set()
     import csv
@@ -36,8 +35,7 @@ def load_training_image_paths(data_dir: Path) -> Set[Path]:
     # Load from selection log
     selection_log = data_dir / "training" / "selection_only_log.csv"
     if selection_log.exists():
-        print(f"Reading {selection_log}...")
-        with open(selection_log, 'r') as f:
+        with open(selection_log) as f:
             reader = csv.DictReader(f)
             for row in reader:
                 # Add chosen path
@@ -59,8 +57,7 @@ def load_training_image_paths(data_dir: Path) -> Set[Path]:
     # Load from crop log
     crop_log = data_dir / "training" / "select_crop_log.csv"
     if crop_log.exists():
-        print(f"Reading {crop_log}...")
-        with open(crop_log, 'r') as f:
+        with open(crop_log) as f:
             reader = csv.DictReader(f)
             for row in reader:
                 # Add chosen path
@@ -71,11 +68,11 @@ def load_training_image_paths(data_dir: Path) -> Set[Path]:
     return image_paths
 
 def compute_embeddings(
-    image_paths: List[Path],
+    image_paths: list[Path],
     output_dir: Path,
     cache_file: Path,
     device: str = "mps",
-    max_images: int = None
+    max_images: int | None = None
 ):
     """
     Compute CLIP embeddings for images.
@@ -88,7 +85,6 @@ def compute_embeddings(
         max_images: Maximum images to process (for testing)
     """
     # Load model
-    print(f"\nLoading OpenCLIP model on {device}...")
     model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai')
     model = model.to(device)
     model.eval()
@@ -96,25 +92,20 @@ def compute_embeddings(
     # Load cache of already processed images
     processed = set()
     if cache_file.exists():
-        with open(cache_file, 'r') as f:
+        with open(cache_file) as f:
             for line in f:
                 data = json.loads(line)
                 processed.add(data['image_path'])
-        print(f"Found {len(processed)} already processed images in cache")
     
     # Filter out already processed
     to_process = [p for p in image_paths if str(p) not in processed]
     
     if max_images:
         to_process = to_process[:max_images]
-        print(f"Test mode: Processing only {len(to_process)} images")
     
     if not to_process:
-        print("All images already processed!")
         return
     
-    print(f"\nProcessing {len(to_process)} images...")
-    print(f"Saving embeddings to: {output_dir}")
     
     # Create output directory
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -151,20 +142,12 @@ def compute_embeddings(
                 failed.append((str(img_path), str(e)))
     
     # Summary
-    print("\n" + "=" * 60)
-    print("EXTRACTION COMPLETE")
-    print("=" * 60)
-    print(f"✅ Processed: {len(to_process) - len(failed)}")
-    print(f"❌ Failed:    {len(failed)}")
-    print(f"📁 Saved to:  {output_dir}")
-    print(f"📝 Cache:     {cache_file}")
     
     if failed:
-        print(f"\n⚠️  Failed images ({len(failed)}):")
-        for path, error in failed[:10]:
-            print(f"  • {path}: {error}")
+        for _path, _error in failed[:10]:
+            pass
         if len(failed) > 10:
-            print(f"  ... and {len(failed) - 10} more")
+            pass
 
 def main():
     parser = argparse.ArgumentParser(description="Extract CLIP embeddings from training images")
@@ -190,22 +173,17 @@ def main():
     cache_file = cache_dir / "processed_images.jsonl"
     
     # Load training image paths
-    print("=" * 60)
-    print("CLIP EMBEDDING EXTRACTION")
-    print("=" * 60)
     
     image_paths = load_training_image_paths(data_dir)
-    print(f"\nFound {len(image_paths)} unique images in training logs")
     
     # Filter to existing images only
     existing = [p for p in image_paths if p.exists()]
     missing = len(image_paths) - len(existing)
     
     if missing > 0:
-        print(f"⚠️  Warning: {missing} images from logs no longer exist")
+        pass
     
     if not existing:
-        print("❌ No images found to process!")
         return 1
     
     # Compute embeddings

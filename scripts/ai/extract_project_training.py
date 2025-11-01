@@ -19,9 +19,8 @@ import argparse
 import csv
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -34,7 +33,7 @@ from utils.companion_file_utils import (
 )
 
 
-def load_project_manifest(project_id: str) -> Optional[Dict]:
+def load_project_manifest(project_id: str) -> dict | None:
     """Load project manifest to get metadata."""
     manifest_path = Path(f"data/projects/{project_id}.project.json")
     
@@ -45,12 +44,12 @@ def load_project_manifest(project_id: str) -> Optional[Dict]:
         return json.load(f)
 
 
-def scan_images(directory: Path) -> List[Path]:
+def scan_images(directory: Path) -> list[Path]:
     """Recursively find all PNG images."""
     return list(directory.rglob("*.png"))
 
 
-def find_groups(images: List[Path]) -> List[List[Path]]:
+def find_groups(images: list[Path]) -> list[list[Path]]:
     """
     Group images using EXACT same logic as Web Image Selector.
     
@@ -70,32 +69,26 @@ def extract_training_data(
     raw_dir: Path,
     final_dir: Path,
     project_id: str
-) -> tuple[List[Dict], List[Dict]]:
+) -> tuple[list[dict], list[dict]]:
     """
     Extract selections and crops from a project.
     
     Returns:
         (selections, crops)
     """
-    print(f"\n📂 Analyzing {project_id}...")
-    
     # Scan raw images
     raw_images = scan_images(raw_dir)
-    print(f"   Raw images: {len(raw_images):,}")
     
     # Scan final images
     final_images = scan_images(final_dir)
-    print(f"   Final images: {len(final_images):,}")
     
     # Build lookup of final image filenames
     final_filenames = {img.name for img in final_images}
     
     # Group raw images using Web Image Selector logic
     groups = find_groups(raw_images)
-    print(f"   Groups found: {len(groups):,}")
     
     if not groups:
-        print("   ⚠️  No groups found - project doesn't qualify for training extraction")
         return [], []
     
     # Extract selections and crops
@@ -127,11 +120,11 @@ def extract_training_data(
         dt = extract_datetime_from_filename(winner.name)
         if dt:
             group_id = dt.strftime("%Y%m%d_%H%M%S")
-            timestamp_iso = dt.replace(tzinfo=timezone.utc).isoformat()
+            timestamp_iso = dt.replace(tzinfo=UTC).isoformat()
         else:
             # Fallback: use filename stem
             group_id = winner.stem.split('_stage')[0] if '_stage' in winner.stem else winner.stem
-            timestamp_iso = datetime.now(timezone.utc).isoformat()
+            timestamp_iso = datetime.now(UTC).isoformat()
         
         # Record selection
         selections.append({
@@ -160,8 +153,8 @@ def extract_training_data(
                     break
             
             if final_winner and final_winner.exists():
-                raw_mtime = datetime.fromtimestamp(raw_winner.stat().st_mtime, tz=timezone.utc)
-                final_mtime = datetime.fromtimestamp(final_winner.stat().st_mtime, tz=timezone.utc)
+                raw_mtime = datetime.fromtimestamp(raw_winner.stat().st_mtime, tz=UTC)
+                final_mtime = datetime.fromtimestamp(final_winner.stat().st_mtime, tz=UTC)
                 
                 # If mtimes differ by more than 1 second, it was cropped
                 was_cropped = abs((final_mtime - raw_mtime).total_seconds()) > 1.0
@@ -193,16 +186,12 @@ def extract_training_data(
                     })
                     crops_count += 1
     
-    print("\n📊 Extraction results:")
-    print(f"   Selections: {selections_count:,}")
-    print(f"   Crops: {crops_count:,} ({crops_count/selections_count*100 if selections_count else 0:.1f}%)")
     
     return selections, crops
 
 
-def write_to_csv(selections: List[Dict], crops: List[Dict], project_root: Path) -> None:
+def write_to_csv(selections: list[dict], crops: list[dict], project_root: Path) -> None:
     """Append selections and crops to training logs."""
-    
     # Write selections
     if selections:
         selection_log = project_root / "data/training/selection_only_log.csv"
@@ -216,7 +205,6 @@ def write_to_csv(selections: List[Dict], crops: List[Dict], project_root: Path) 
                 writer.writeheader()
             writer.writerows(selections)
         
-        print(f"   ✅ {len(selections):,} selections → {selection_log}")
     
     # Write crops
     if crops:
@@ -235,7 +223,6 @@ def write_to_csv(selections: List[Dict], crops: List[Dict], project_root: Path) 
                 writer.writeheader()
             writer.writerows(crops)
         
-        print(f"   ✅ {len(crops):,} crops → {crop_log}")
 
 
 def main():
@@ -258,11 +245,7 @@ def main():
     # Load project manifest
     manifest = load_project_manifest(project_id)
     if manifest:
-        print(f"\n📋 Project: {manifest['title']}")
-        print(f"   Status: {manifest['status']}")
-        print(f"   Started: {manifest['startedAt']}")
-        print(f"   Finished: {manifest['finishedAt']}")
-        print(f"   Images: {manifest['counts']['initialImages']} → {manifest['counts']['finalImages']}")
+        pass
     
     # Define paths
     project_root = Path("/Users/eriksjaastad/projects/Eros Mate")
@@ -271,41 +254,33 @@ def main():
     
     # Validate directories exist
     if not raw_dir.exists():
-        print(f"❌ Raw directory not found: {raw_dir}")
         return 1
     
     if not final_dir.exists():
-        print(f"❌ Final directory not found: {final_dir}")
         return 1
     
     # Extract training data
     selections, crops = extract_training_data(raw_dir, final_dir, project_id)
     
     if not selections:
-        print("\n⚠️  No training data extracted - project may not have groups")
         return 1
     
     if args.dry_run:
-        print("\n🔍 DRY RUN - No files written")
         return 0
     
     # Write to CSV logs
     write_to_csv(selections, crops, project_root)
     
-    print(f"\n🎯 Next step: Compute embeddings for {project_id} images")
-    print("   python scripts/ai/compute_embeddings.py")
     
     return 0
 
 
 if __name__ == "__main__":
     try:
-        exit(main())
+        sys.exit(main())
     except KeyboardInterrupt:
-        print("\n\n⚠️  Interrupted by user")
-        exit(1)
-    except Exception as e:
-        print(f"\n❌ Error: {e}")
+        sys.exit(1)
+    except Exception:
         import traceback
         traceback.print_exc()
-        exit(1)
+        sys.exit(1)

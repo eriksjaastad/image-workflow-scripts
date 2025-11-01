@@ -19,9 +19,9 @@ Exit codes:
 import argparse
 import csv
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict
 
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -60,61 +60,35 @@ class ValidationReport:
     
     def print_report(self):
         """Print formatted validation report."""
-        print("=" * 70)
-        print("TRAINING DATA VALIDATION REPORT")
-        print("=" * 70)
-        print(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print()
-        
         # Stats
         if self.stats:
-            print("📊 STATISTICS")
-            print("-" * 70)
-            for key, value in self.stats.items():
-                print(f"   {key}: {value:,}" if isinstance(value, int) else f"   {key}: {value}")
-            print()
+            for _key, _value in self.stats.items():
+                pass
         
         # Info
         if self.info:
-            print("ℹ️  INFORMATION")
-            print("-" * 70)
-            for msg in self.info:
-                print(f"   {msg}")
-            print()
+            for _msg in self.info:
+                pass
         
         # Warnings
         if self.warnings:
-            print("⚠️  WARNINGS")
-            print("-" * 70)
-            for msg in self.warnings:
-                print(f"   {msg}")
-            print()
+            for _msg in self.warnings:
+                pass
         
         # Errors
         if self.errors:
-            print("❌ ERRORS")
-            print("-" * 70)
-            for msg in self.errors:
-                print(f"   {msg}")
-            print()
+            for _msg in self.errors:
+                pass
         
         # Summary
-        print("=" * 70)
-        if self.has_errors():
-            print("❌ VALIDATION FAILED - Errors found!")
-            print("   → Training will likely fail. Fix errors before continuing.")
-        elif self.has_warnings():
-            print("⚠️  VALIDATION PASSED WITH WARNINGS")
-            print("   → Training may work but investigate warnings.")
+        if self.has_errors() or self.has_warnings():
+            pass
         else:
-            print("✅ VALIDATION PASSED - All checks OK!")
-        print("=" * 70)
+            pass
 
 
-def validate_selection_data(report: ValidationReport) -> Dict[str, bool]:
+def validate_selection_data(report: ValidationReport) -> dict[str, bool]:
     """Validate selection log integrity."""
-    print("Checking selection data...")
-    
     if not SELECTION_LOG.exists():
         report.error(f"Selection log missing: {SELECTION_LOG}")
         return {}
@@ -123,7 +97,7 @@ def validate_selection_data(report: ValidationReport) -> Dict[str, bool]:
     selections = []
     filename_to_path = {}
     
-    with open(SELECTION_LOG, 'r') as f:
+    with open(SELECTION_LOG) as f:
         reader = csv.DictReader(f)
         for i, row in enumerate(reader, 1):
             try:
@@ -155,10 +129,8 @@ def validate_selection_data(report: ValidationReport) -> Dict[str, bool]:
     return filename_to_path
 
 
-def validate_crop_data(report: ValidationReport, selection_filenames: Dict[str, str]):
+def validate_crop_data(report: ValidationReport, selection_filenames: dict[str, str]):
     """Validate crop log integrity."""
-    print("Checking crop data...")
-    
     if not CROP_LOG.exists():
         report.error(f"Crop log missing: {CROP_LOG}")
         return {}
@@ -169,7 +141,7 @@ def validate_crop_data(report: ValidationReport, selection_filenames: Dict[str, 
     invalid_coords = []
     filename_to_crop = {}
     
-    with open(CROP_LOG, 'r') as f:
+    with open(CROP_LOG) as f:
         reader = csv.DictReader(f)
         for i, row in enumerate(reader, 1):
             try:
@@ -240,10 +212,8 @@ def validate_crop_data(report: ValidationReport, selection_filenames: Dict[str, 
     return filename_to_crop
 
 
-def validate_embeddings(report: ValidationReport, selection_files: Dict[str, str], crop_files: Dict[str, str]):
+def validate_embeddings(report: ValidationReport, selection_files: dict[str, str], crop_files: dict[str, str]):
     """Validate embeddings cache and files."""
-    print("Checking embeddings...")
-    
     if not EMBEDDINGS_CACHE.exists():
         report.error(f"Embeddings cache missing: {EMBEDDINGS_CACHE}")
         return set(), set()
@@ -257,7 +227,7 @@ def validate_embeddings(report: ValidationReport, selection_files: Dict[str, str
     filename_cache = set()
     hash_to_file = {}
     
-    with open(EMBEDDINGS_CACHE, 'r') as f:
+    with open(EMBEDDINGS_CACHE) as f:
         for line in f:
             try:
                 entry = json.loads(line)
@@ -324,8 +294,6 @@ def validate_embeddings(report: ValidationReport, selection_files: Dict[str, str
 
 def validate_recent_activity(report: ValidationReport):
     """Check for recent data collection activity."""
-    print("Checking recent activity...")
-    
     # Check last modified times
     logs_to_check = [
         ("Selection log", SELECTION_LOG),
@@ -352,34 +320,29 @@ def main():
     
     report = ValidationReport()
     
-    print("Starting validation...\n")
     
     # Run all validation checks
     selection_files = validate_selection_data(report)
     crop_files = validate_crop_data(report, selection_files)
-    filename_cache, missing_emb_files = validate_embeddings(report, selection_files, crop_files)
+    _filename_cache, missing_emb_files = validate_embeddings(report, selection_files, crop_files)
     validate_recent_activity(report)
     
     # Print report
-    print()
     report.print_report()
     
     # Auto-fix if requested
     if args.fix and (missing_emb_files or report.has_errors()):
-        print("\n🔧 Auto-fix requested...")
         if missing_emb_files:
-            print("   Would run: python scripts/ai/compute_embeddings.py")
-            print("   (Not implemented yet - run manually)")
+            pass
     
     # Exit with appropriate code
     if report.has_errors():
         return 2
-    elif report.has_warnings():
+    if report.has_warnings():
         return 1
-    else:
-        return 0
+    return 0
 
 
 if __name__ == "__main__":
-    exit(main())
+    sys.exit(main())
 

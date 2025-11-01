@@ -2,19 +2,19 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Dict, Iterable, Optional, Tuple
 
 from PIL import Image
 
 
-def build_originals_index(originals_root: Path, cache_path: Path) -> Dict[str, str]:
+def build_originals_index(originals_root: Path, cache_path: Path) -> dict[str, str]:
     """Scan originals_root for *.png and build a filename->absolute path index.
 
     Writes cache_path as JSON for reuse. Returns the mapping.
     """
     originals_root = originals_root.resolve()
-    index: Dict[str, str] = {}
+    index: dict[str, str] = {}
     for p in originals_root.rglob("*.png"):
         try:
             index[p.name] = str(p)
@@ -25,7 +25,7 @@ def build_originals_index(originals_root: Path, cache_path: Path) -> Dict[str, s
     return index
 
 
-def load_originals_index(cache_path: Path) -> Optional[Dict[str, str]]:
+def load_originals_index(cache_path: Path) -> dict[str, str] | None:
     try:
         data = json.loads(cache_path.read_text())
         if isinstance(data, dict):
@@ -35,7 +35,7 @@ def load_originals_index(cache_path: Path) -> Optional[Dict[str, str]]:
     return None
 
 
-def iter_ranker_samples(db_paths: Iterable[Path]) -> Iterable[Tuple[str, int]]:
+def iter_ranker_samples(db_paths: Iterable[Path]) -> Iterable[tuple[str, int]]:
     """Yield (images_json, user_selected_index) for all decisions suitable for ranker."""
     for db in db_paths:
         try:
@@ -55,7 +55,7 @@ def iter_ranker_samples(db_paths: Iterable[Path]) -> Iterable[Tuple[str, int]]:
             continue
 
 
-def iter_crop_samples(db_paths: Iterable[Path]) -> Iterable[Tuple[str, int, str, int, int]]:
+def iter_crop_samples(db_paths: Iterable[Path]) -> Iterable[tuple[str, int, str, int, int]]:
     """Yield (images_json, user_selected_index, final_crop_coords_json, image_width, image_height)."""
     for db in db_paths:
         try:
@@ -76,12 +76,12 @@ def iter_crop_samples(db_paths: Iterable[Path]) -> Iterable[Tuple[str, int, str,
             continue
 
 
-def resolve_image_path(filename: str, index: Dict[str, str]) -> Optional[Path]:
+def resolve_image_path(filename: str, index: dict[str, str]) -> Path | None:
     p = index.get(filename)
     return Path(p) if p else None
 
 
-def open_image_as_rgb(path: Path) -> Optional[Image.Image]:
+def open_image_as_rgb(path: Path) -> Image.Image | None:
     try:
         img = Image.open(path).convert("RGB")
         return img

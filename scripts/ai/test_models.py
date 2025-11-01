@@ -16,11 +16,10 @@ Output:
 import csv
 import json
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
-import torch.nn as nn
+from torch import nn
 
 # Paths
 PROJECT_ROOT = Path("/Users/eriksjaastad/projects/Eros Mate")
@@ -52,7 +51,7 @@ class RankingModel(nn.Module):
         return self.net(x).squeeze()
 
 
-def load_embeddings_cache() -> Tuple[Dict, Dict]:
+def load_embeddings_cache() -> tuple[dict, dict]:
     """Load embeddings cache."""
     print("📂 Loading embeddings cache...")
     cache = {}
@@ -67,9 +66,7 @@ def load_embeddings_cache() -> Tuple[Dict, Dict]:
             cache[path] = hash_val
             
             filename = Path(path).name
-            if filename not in filename_cache:
-                filename_cache[filename] = hash_val
-            elif 'training data' not in path:
+            if filename not in filename_cache or 'training data' not in path:
                 filename_cache[filename] = hash_val
     
     print(f"   Loaded {len(cache):,} cached embeddings")
@@ -113,7 +110,7 @@ def load_anomaly_set() -> set:
     return anomalies
 
 
-def load_embedding(path: str, cache: Dict, filename_cache: Dict) -> np.ndarray:
+def load_embedding(path: str, cache: dict, filename_cache: dict) -> np.ndarray:
     """Load embedding with filename fallback."""
     embeddings_dir = PROJECT_ROOT / "data/ai_data/embeddings"
     
@@ -123,17 +120,19 @@ def load_embedding(path: str, cache: Dict, filename_cache: Dict) -> np.ndarray:
     else:
         filename = Path(path).name
         if filename not in filename_cache:
-            raise ValueError(f"No embedding for {path}")
+            msg = f"No embedding for {path}"
+            raise ValueError(msg)
         hash_val = filename_cache[filename]
     
     emb_file = embeddings_dir / f"{hash_val}.npy"
     if not emb_file.exists():
-        raise ValueError(f"Embedding file missing: {emb_file}")
+        msg = f"Embedding file missing: {emb_file}"
+        raise ValueError(msg)
     
     return np.load(emb_file)
 
 
-def load_validation_data(cache: Dict, filename_cache: Dict, anomaly_set: set):
+def load_validation_data(cache: dict, filename_cache: dict, anomaly_set: set):
     """Load validation sets (normal and anomaly)."""
     print("\n📂 Loading validation data...")
     
@@ -165,7 +164,7 @@ def load_validation_data(cache: Dict, filename_cache: Dict, anomaly_set: set):
                 continue
             
             # Create pairs
-            for neg_norm, neg_emb in zip(neg_norms, neg_embs):
+            for neg_norm, neg_emb in zip(neg_norms, neg_embs, strict=False):
                 is_anomaly = (chosen_norm, neg_norm) in anomaly_set
                 
                 pair = {
@@ -192,7 +191,7 @@ def load_validation_data(cache: Dict, filename_cache: Dict, anomaly_set: set):
     return normal_val, anomaly_val
 
 
-def evaluate_model(model: nn.Module, pairs: List[Dict], desc: str) -> Dict:
+def evaluate_model(model: nn.Module, pairs: list[dict], desc: str) -> dict:
     """Evaluate model on pairs."""
     model.eval()
     correct = 0

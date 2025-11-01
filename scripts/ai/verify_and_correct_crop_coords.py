@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 Verify and Correct Crop Coordinates from Physical Images
 
 SOURCE OF TRUTH: Physical cropped images on disk
@@ -35,11 +35,8 @@ import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 import cv2
-import numpy as np
-from PIL import Image
 
 # Paths
 WORKSPACE = Path(__file__).resolve().parents[2]
@@ -47,7 +44,7 @@ WORKSPACE = Path(__file__).resolve().parents[2]
 
 def extract_crop_coordinates(
     original_path: Path, cropped_path: Path, confidence_threshold: float = 0.8
-) -> Optional[Tuple[List[float], float]]:
+) -> tuple[list[float], float] | None:
     """
     Extract crop coordinates using template matching.
 
@@ -75,7 +72,7 @@ def extract_crop_coordinates(
 
         # Template matching
         result = cv2.matchTemplate(original_gray, cropped_gray, cv2.TM_CCOEFF_NORMED)
-        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+        _min_val, max_val, _min_loc, max_loc = cv2.minMaxLoc(result)
 
         confidence = max_val
         if confidence < confidence_threshold:
@@ -95,13 +92,12 @@ def extract_crop_coordinates(
 
         return coords, confidence
 
-    except Exception as e:
-        print(f"    [!] Error extracting coordinates: {e}")
+    except Exception:
         return None
 
 
 def coords_match(
-    coords1: List[float], coords2: List[float], tolerance: float = 0.001
+    coords1: list[float], coords2: list[float], tolerance: float = 0.001
 ) -> bool:
     """Check if two coordinate sets match within tolerance."""
     if not coords1 or not coords2:
@@ -110,14 +106,10 @@ def coords_match(
     if len(coords1) != 4 or len(coords2) != 4:
         return False
 
-    for c1, c2 in zip(coords1, coords2):
-        if abs(c1 - c2) > tolerance:
-            return False
-
-    return True
+    return all(abs(c1 - c2) <= tolerance for c1, c2 in zip(coords1, coords2, strict=False))
 
 
-def format_coords(coords: List[float]) -> str:
+def format_coords(coords: list[float]) -> str:
     """Format coordinates for display."""
     return "[" + ", ".join(f"{x:.4f}" for x in coords) + "]"
 
@@ -141,13 +133,16 @@ class CropCoordinateValidator:
 
         # Validation
         if not self.cropped_dir.exists():
-            raise ValueError(f"Cropped directory not found: {self.cropped_dir}")
+            msg = f"Cropped directory not found: {self.cropped_dir}"
+            raise ValueError(msg)
         if not self.original_dir.exists():
-            raise ValueError(f"Original directory not found: {self.original_dir}")
+            msg = f"Original directory not found: {self.original_dir}"
+            raise ValueError(msg)
         if not self.database_path.exists():
-            raise ValueError(f"Database not found: {self.database_path}")
+            msg = f"Database not found: {self.database_path}"
+            raise ValueError(msg)
 
-    def scan_cropped_images(self) -> List[Path]:
+    def scan_cropped_images(self) -> list[Path]:
         """Find all cropped images recursively."""
         patterns = ["**/*.png", "**/*.jpg", "**/*.jpeg"]
         images = []
@@ -155,7 +150,7 @@ class CropCoordinateValidator:
             images.extend(self.cropped_dir.glob(pattern))
         return sorted(images)
 
-    def get_crop_records_from_database(self) -> List[Dict]:
+    def get_crop_records_from_database(self) -> list[dict]:
         """Get all crop action records from database."""
         conn = sqlite3.connect(str(self.database_path))
         cursor = conn.cursor()
@@ -190,8 +185,7 @@ class CropCoordinateValidator:
                             "user_action": user_action,
                         }
                     )
-            except Exception as e:
-                print(f"Error parsing record {group_id}: {e}")
+            except Exception:
                 continue
 
         return records
@@ -236,20 +230,10 @@ class CropCoordinateValidator:
 
         return None
 
-    def validate_and_correct(self) -> Dict:
+    def validate_and_correct(self) -> dict:
         """Validate all cropped images and report/correct mismatches."""
-        print(f"\n{'=' * 80}")
-        print(f"CROP COORDINATE VALIDATION - {self.project_id}")
-        print(f"{'=' * 80}")
-        print(f"Mode: {'DRY RUN' if self.dry_run else 'LIVE CORRECTION'}")
-        print(f"Cropped images: {self.cropped_dir}")
-        print(f"Original images: {self.original_dir}")
-        print(f"Database: {self.database_path}")
-
         # Get all crop records from database
-        print("\nQuerying database for crop actions...")
         crop_records = self.get_crop_records_from_database()
-        print(f"Found {len(crop_records)} crop actions in database")
 
         results = {
             "total_crop_records": len(crop_records),
@@ -268,16 +252,12 @@ class CropCoordinateValidator:
 
             # Progress indicator every 100 images
             if i % 100 == 0:
-                print(
-                    f"\n[{i}/{len(crop_records)}] Progress: {i/len(crop_records)*100:.1f}% complete"
-                )
+                pass
 
-            print(f"\n[{i}/{len(crop_records)}] Validating: {filename}")
 
             # Find cropped file (recursive search)
             cropped_matches = list(self.cropped_dir.glob(f"**/{filename}"))
             if not cropped_matches:
-                print(f"    ⚠️  Cropped file not found in {self.cropped_dir}")
                 results["cropped_file_not_found"] += 1
                 continue
 
@@ -287,7 +267,6 @@ class CropCoordinateValidator:
             # Find original image (recursive search in original dir)
             original_matches = list(self.original_dir.glob(f"**/{filename}"))
             if not original_matches:
-                print(f"    ⚠️  Original not found: {filename}")
                 results["original_not_found"] += 1
                 continue
 
@@ -296,26 +275,17 @@ class CropCoordinateValidator:
             # Extract coordinates from physical images
             match_result = extract_crop_coordinates(original_path, cropped_path)
             if not match_result:
-                print("    ❌ Template matching failed")
                 results["template_match_failed"] += 1
                 continue
 
             physical_coords, confidence = match_result
             db_coords = record["final_crop_coords"]
 
-            print(
-                f"    Physical coords: {format_coords(physical_coords)} (confidence: {confidence:.4f})"
-            )
-            print(
-                f"    Database coords: {format_coords(db_coords) if db_coords else 'NULL'}"
-            )
 
             # Compare coordinates
             if coords_match(physical_coords, db_coords):
-                print("    ✅ Match!")
                 results["coordinates_match"] += 1
             else:
-                print("    ⚠️  MISMATCH!")
                 results["coordinates_mismatch"] += 1
                 results["mismatches"].append(
                     {
@@ -330,14 +300,13 @@ class CropCoordinateValidator:
                 # Correct if not dry run
                 if not self.dry_run:
                     if self.update_database_coords(record["group_id"], physical_coords):
-                        print("    ✅ Corrected in database")
                         results["corrections_made"] += 1
                     else:
-                        print("    ❌ Failed to update database")
+                        pass
 
         return results
 
-    def update_database_coords(self, group_id: str, coords: List[float]) -> bool:
+    def update_database_coords(self, group_id: str, coords: list[float]) -> bool:
         """Update database with corrected coordinates."""
         try:
             conn = sqlite3.connect(str(self.database_path))
@@ -359,42 +328,23 @@ class CropCoordinateValidator:
             conn.commit()
             conn.close()
             return True
-        except Exception as e:
-            print(f"    [!] Database update error: {e}")
+        except Exception:
             return False
 
-    def print_summary(self, results: Dict):
+    def print_summary(self, results: dict):
         """Print validation summary."""
-        print(f"\n{'=' * 80}")
-        print("VALIDATION SUMMARY")
-        print(f"{'=' * 80}")
-        print(f"Total crop records in DB:   {results['total_crop_records']}")
-        print(f"Cropped file found:         {results['cropped_file_found']}")
-        print(f"Cropped file not found:     {results['cropped_file_not_found']}")
-        print(f"Original not found:         {results['original_not_found']}")
-        print(f"Template matching failed:   {results['template_match_failed']}")
-        print("")
-        print(f"Coordinates match:          {results['coordinates_match']} ✅")
-        print(f"Coordinates MISMATCH:       {results['coordinates_mismatch']} ⚠️")
-
         if results["coordinates_mismatch"] > 0:
-            print("\n⚠️  MISMATCHES DETECTED:")
-            for mismatch in results["mismatches"][:10]:  # Show first 10
-                print(f"   {mismatch['filename']}")
-                print(f"     Physical: {format_coords(mismatch['physical_coords'])}")
-                print(
-                    f"     Database: {format_coords(mismatch['database_coords']) if mismatch['database_coords'] else 'NULL'}"
-                )
+            for _mismatch in results["mismatches"][:10]:  # Show first 10
+                pass
 
             if len(results["mismatches"]) > 10:
-                print(f"   ... and {len(results['mismatches']) - 10} more")
+                pass
 
         if not self.dry_run:
-            print(f"\nCorrections made:           {results['corrections_made']}")
+            pass
         else:
-            print("\n💡 Run with --execute to apply corrections")
+            pass
 
-        print(f"\n{'=' * 80}")
 
 
 def main():

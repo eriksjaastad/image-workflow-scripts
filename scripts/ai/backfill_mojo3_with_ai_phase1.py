@@ -20,10 +20,8 @@ import sqlite3
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 import cv2
-import numpy as np
 from PIL import Image
 
 # Add project root to path
@@ -32,7 +30,6 @@ sys.path.insert(0, str(WORKSPACE))
 
 # Import grouping utilities
 from scripts.utils.companion_file_utils import (
-    extract_timestamp_from_filename,
     find_consecutive_stage_groups,
     sort_image_files_by_timestamp_and_stage,
 )
@@ -57,28 +54,21 @@ def load_ai_models():
 
         # Check if models exist
         if not RANKER_MODEL_PATH.exists() or not CROP_MODEL_PATH.exists():
-            print(
-                "⚠️  AI models not found. Will create database without AI predictions."
-            )
             return None, None
 
-        print("🤖 Loading AI models...")
         # TODO: Load actual models - this needs the model architecture classes
         # For now, return None to indicate models aren't loaded
         # You'll need to implement actual model loading based on your training code
 
-        print("⚠️  AI model loading not yet implemented.")
-        print("    Database will be created with NULL AI predictions.")
         return None, None
 
     except ImportError:
-        print("⚠️  PyTorch not available. Creating database without AI predictions.")
         return None, None
 
 
 def extract_crop_coordinates(
     original_path: Path, cropped_path: Path, confidence_threshold: float = 0.8
-) -> Optional[Tuple[List[float], float]]:
+) -> tuple[list[float], float] | None:
     """Extract crop coordinates using template matching."""
     try:
         original = cv2.imread(str(original_path))
@@ -97,7 +87,7 @@ def extract_crop_coordinates(
         cropped_gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
 
         result = cv2.matchTemplate(original_gray, cropped_gray, cv2.TM_CCOEFF_NORMED)
-        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+        _min_val, max_val, _min_loc, max_loc = cv2.minMaxLoc(result)
 
         confidence = max_val
         if confidence < confidence_threshold:
@@ -147,20 +137,16 @@ def create_temp_database(db_path: Path):
 
     conn.commit()
     conn.close()
-    print(f"✅ Created temporary database: {db_path}")
 
 
-def group_original_images(original_dir: Path) -> List[Tuple[str, List[Path]]]:
+def group_original_images(original_dir: Path) -> list[tuple[str, list[Path]]]:
     """Group original images using the grouping logic."""
-    print(f"\n📁 Scanning original images in: {original_dir}")
-
     # Get all image files
     patterns = ["**/*.png", "**/*.jpg", "**/*.jpeg"]
     all_images = []
     for pattern in patterns:
         all_images.extend(original_dir.glob(pattern))
 
-    print(f"Found {len(all_images)} images")
 
     # Sort by timestamp and stage
     sorted_images = sort_image_files_by_timestamp_and_stage(all_images)
@@ -168,14 +154,13 @@ def group_original_images(original_dir: Path) -> List[Tuple[str, List[Path]]]:
     # Group consecutive images
     groups = find_consecutive_stage_groups(sorted_images)
 
-    print(f"Created {len(groups)} groups")
 
     return groups
 
 
 def find_selected_image(
-    group: List[Path], final_dir: Path
-) -> Optional[Tuple[int, Path]]:
+    group: list[Path], final_dir: Path
+) -> tuple[int, Path] | None:
     """Find which image from the group exists in final directory."""
     for idx, img_path in enumerate(group):
         filename = img_path.name
@@ -189,7 +174,7 @@ def find_selected_image(
 
 
 def process_groups(
-    groups: List[Tuple[str, List[Path]]], final_dir: Path, ranker=None, cropper=None
+    groups: list[tuple[str, list[Path]]], final_dir: Path, ranker=None, cropper=None
 ):
     """Process all groups and create database records."""
     records = []
@@ -204,7 +189,7 @@ def process_groups(
 
     for i, (group_id, group_images) in enumerate(groups, 1):
         if i % 100 == 0:
-            print(f"  Processing group {i}/{len(groups)} ({i/len(groups)*100:.1f}%)")
+            pass
 
         # Find which image was selected
         selection_result = find_selected_image(group_images, final_dir)
@@ -221,7 +206,6 @@ def process_groups(
             with Image.open(group_images[user_selected_index]) as img:
                 image_width, image_height = img.size
         except Exception:
-            print(f"    ⚠️  Could not read image dimensions for {group_id}")
             continue
 
         # Extract crop coordinates
@@ -230,7 +214,7 @@ def process_groups(
         )
 
         if crop_result:
-            final_crop_coords, confidence = crop_result
+            final_crop_coords, _confidence = crop_result
             stats["coord_extracted"] += 1
         else:
             final_crop_coords = None
@@ -276,7 +260,7 @@ def process_groups(
     return records, stats
 
 
-def write_records_to_database(records: List[Dict], db_path: Path):
+def write_records_to_database(records: list[dict], db_path: Path):
     """Write records to temporary database."""
     conn = sqlite3.connect(str(db_path))
     cursor = conn.cursor()
@@ -316,24 +300,15 @@ def write_records_to_database(records: List[Dict], db_path: Path):
     conn.commit()
     conn.close()
 
-    print(f"✅ Wrote {len(records)} records to database")
 
 
 def main():
-    print("=" * 80)
-    print("PHASE 1: Backfill mojo3 Database with AI Predictions")
-    print("=" * 80)
-    print(f"\nOriginal images: {ORIGINAL_DIR}")
-    print(f"Final images:    {FINAL_DIR}")
-    print(f"Output database: {TEMP_DB}")
 
     # Check directories exist
     if not ORIGINAL_DIR.exists():
-        print(f"\n❌ ERROR: Original directory not found: {ORIGINAL_DIR}")
         return
 
     if not FINAL_DIR.exists():
-        print(f"\n❌ ERROR: Final directory not found: {FINAL_DIR}")
         return
 
     # Load AI models
@@ -341,10 +316,8 @@ def main():
 
     # Create temporary database
     if TEMP_DB.exists():
-        print(f"\n⚠️  Temporary database already exists: {TEMP_DB}")
         response = input("Delete and recreate? (yes/no): ")
         if response.lower() != "yes":
-            print("Aborted.")
             return
         TEMP_DB.unlink()
 
@@ -355,28 +328,13 @@ def main():
     groups = group_original_images(ORIGINAL_DIR)
 
     # Process groups
-    print(f"\n🔄 Processing {len(groups)} groups...")
-    records, stats = process_groups(groups, FINAL_DIR, ranker, cropper)
+    records, _stats = process_groups(groups, FINAL_DIR, ranker, cropper)
 
     # Write to database
-    print("\n💾 Writing to database...")
     write_records_to_database(records, TEMP_DB)
 
     # Print statistics
-    print(f"\n{'=' * 80}")
-    print("STATISTICS")
-    print(f"{'=' * 80}")
-    print(f"Total groups:              {stats['total_groups']:,}")
-    print(f"Found in final:            {stats['found_in_final']:,}")
-    print(f"Not in final (deleted):    {stats['not_in_final']:,}")
-    print(f"Crop coords extracted:     {stats['coord_extracted']:,}")
-    print(f"Crop coords failed:        {stats['coord_failed']:,}")
-    print(f"\nRecords in database:       {len(records):,}")
 
-    print("\n✅ PHASE 1 COMPLETE!")
-    print(f"\nTemporary database created: {TEMP_DB}")
-    print("\nNext step: Run Phase 2 to compare with existing database")
-    print("  python scripts/ai/backfill_mojo3_with_ai_phase2.py")
 
 
 if __name__ == "__main__":

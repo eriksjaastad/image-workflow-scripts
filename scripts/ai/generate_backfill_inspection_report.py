@@ -27,15 +27,13 @@ def get_project_from_timestamp(timestamp_str):
         
         if MOJO1_START <= ts_date <= MOJO1_END:
             return "mojo1", ts.strftime('%Y-%m-%d %H:%M:%S')
-        elif MOJO2_START <= ts_date <= MOJO2_END:
+        if MOJO2_START <= ts_date <= MOJO2_END:
             return "mojo2", ts.strftime('%Y-%m-%d %H:%M:%S')
-        else:
-            return "unknown", ts.strftime('%Y-%m-%d %H:%M:%S')
+        return "unknown", ts.strftime('%Y-%m-%d %H:%M:%S')
     except Exception:
         return "unknown", str(timestamp_str or "")
 
 def main():
-    print("Analyzing select_crop_log.csv...")
     
     with CSV_PATH.open('r') as f:
         reader = csv.DictReader(f)
@@ -65,10 +63,10 @@ def main():
             w1 = row.get('width_1')
             h1 = row.get('height_1')
             
-            w0_valid = w0 is not None and w0 != '' and w0 != '0'
-            h0_valid = h0 is not None and h0 != '' and h0 != '0'
-            w1_valid = w1 is not None and w1 != '' and w1 != '0'
-            h1_valid = h1 is not None and h1 != '' and h1 != '0'
+            w0_valid = w0 is not None and w0 not in {'', '0'}
+            h0_valid = h0 is not None and h0 not in {'', '0'}
+            w1_valid = w1 is not None and w1 not in {'', '0'}
+            h1_valid = h1 is not None and h1 not in {'', '0'}
             
             has_dims = ((w0_valid and h0_valid) or (w1_valid and h1_valid))
             
@@ -99,7 +97,6 @@ def main():
                 })
     
     # Write report
-    print(f"Writing report to: {REPORT_PATH}")
     
     with REPORT_PATH.open('w') as f:
         f.write("="*100 + "\n")
@@ -170,15 +167,6 @@ def main():
             fname_short = fname[:55] + '...' if len(fname) > 58 else fname
             f.write(f"{r['row']:<6} {r['project']:<8} {ts_short:<12} {fname_short:<60} {w0_display:<8} {h0_display:<8}\n")
     
-    print("\n✅ Report written successfully!")
-    print(f"   Total rows: {len(rows_to_report)}")
-    print(f"   - Mojo1: {len(mojo1_rows)}")
-    print(f"   - Mojo2: {len(mojo2_rows)}")
-    print("\nThe report shows:")
-    print("  1. First 50 mojo1 rows in DETAIL (showing exact Python repr() values)")
-    print("  2. First 50 mojo2 rows in DETAIL (showing exact Python repr() values)")
-    print("  3. Complete list of all 7,193 rows in summary table")
-    print(f"\n📄 Open the file to review: {REPORT_PATH}")
 
 if __name__ == '__main__':
     main()

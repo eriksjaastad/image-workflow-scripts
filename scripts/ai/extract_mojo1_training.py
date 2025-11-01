@@ -22,9 +22,8 @@ import csv
 import json
 import re
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional
 
 # Project configuration
 RAW_DIR = Path("/Users/eriksjaastad/projects/Eros Mate/training data/mojo1")
@@ -32,11 +31,11 @@ FINAL_DIR = Path("/Users/eriksjaastad/projects/Eros Mate/training data/mojo1_fin
 OUTPUT_DIR = Path("/Users/eriksjaastad/projects/Eros Mate/data/training")
 
 # Project dates (from timesheet.csv)
-PROJECT_START = datetime(2025, 10, 1, tzinfo=timezone.utc)
-PROJECT_END = datetime(2025, 10, 11, 23, 59, 59, tzinfo=timezone.utc)
+PROJECT_START = datetime(2025, 10, 1, tzinfo=UTC)
+PROJECT_END = datetime(2025, 10, 11, 23, 59, 59, tzinfo=UTC)
 
 
-def parse_filename(filename: str) -> Optional[Dict]:
+def parse_filename(filename: str) -> dict | None:
     """
     Extract timestamp and stage from filename.
     
@@ -58,18 +57,16 @@ def parse_filename(filename: str) -> Optional[Dict]:
     return None
 
 
-def group_raw_images() -> Dict[str, List[Dict]]:
+def group_raw_images() -> dict[str, list[dict]]:
     """
     Group all raw images by timestamp.
     
     Returns:
         Dict mapping timestamp -> list of image info dicts
     """
-    print(f"📂 Scanning raw directory: {RAW_DIR}")
     groups = defaultdict(list)
     
     raw_files = list(RAW_DIR.rglob("*.png"))
-    print(f"   Found {len(raw_files)} raw PNG files")
     
     for img_path in raw_files:
         parsed = parse_filename(img_path.name)
@@ -80,11 +77,10 @@ def group_raw_images() -> Dict[str, List[Dict]]:
                 'stage': parsed['stage']
             })
     
-    print(f"   Grouped into {len(groups)} unique timestamp groups")
     return groups
 
 
-def find_winners(raw_groups: Dict) -> Dict[str, Dict]:
+def find_winners(raw_groups: dict) -> dict[str, dict]:
     """
     For each group, find which image (if any) Erik selected.
     Selected images are in mojo1_final/.
@@ -92,9 +88,7 @@ def find_winners(raw_groups: Dict) -> Dict[str, Dict]:
     Returns:
         Dict mapping timestamp -> winner info
     """
-    print(f"\n📂 Scanning final directory: {FINAL_DIR}")
     final_files = list(FINAL_DIR.rglob("*.png"))
-    print(f"   Found {len(final_files)} final PNG files")
     
     winners = {}
     matched_count = 0
@@ -109,11 +103,11 @@ def find_winners(raw_groups: Dict) -> Dict[str, Dict]:
                 matched_count += 1
                 
                 # Get file modification time (when Erik cropped it)
-                mtime = datetime.fromtimestamp(final_img.stat().st_mtime, tz=timezone.utc)
+                mtime = datetime.fromtimestamp(final_img.stat().st_mtime, tz=UTC)
                 
                 # Extract original date from filename
                 # Format: YYYYMMDD_HHMMSS
-                filename_date = datetime.strptime(timestamp[:8], "%Y%m%d").replace(tzinfo=timezone.utc)
+                filename_date = datetime.strptime(timestamp[:8], "%Y%m%d").replace(tzinfo=UTC)
                 
                 # If file was modified significantly after its filename date, it was cropped
                 # Most raw files are from July/August, crops happened in October
@@ -131,13 +125,11 @@ def find_winners(raw_groups: Dict) -> Dict[str, Dict]:
                     'was_cropped': was_cropped
                 }
     
-    print(f"   Matched {matched_count} selections")
-    print(f"   Cropped (modified >7 days after creation): {sum(1 for w in winners.values() if w['was_cropped'])}")
     
     return winners
 
 
-def create_selection_training_data(winners: Dict) -> List[Dict]:
+def create_selection_training_data(winners: dict) -> list[dict]:
     """
     Create selection training entries: (winner, losers) pairs.
     
@@ -176,7 +168,7 @@ def create_selection_training_data(winners: Dict) -> List[Dict]:
     return entries
 
 
-def create_crop_training_data(winners: Dict) -> List[Dict]:
+def create_crop_training_data(winners: dict) -> list[dict]:
     """
     Create crop training entries for images Erik cropped.
     
@@ -202,10 +194,8 @@ def create_crop_training_data(winners: Dict) -> List[Dict]:
     return entries
 
 
-def write_selection_log(entries: List[Dict], output_path: Path):
+def write_selection_log(entries: list[dict], output_path: Path):
     """Write selection training data to CSV."""
-    print(f"\n📝 Writing selection log: {output_path}")
-    
     with output_path.open('w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=[
             'session_id', 'set_id', 'chosen_path', 'neg_paths', 'timestamp'
@@ -221,13 +211,10 @@ def write_selection_log(entries: List[Dict], output_path: Path):
                 'timestamp': entry['timestamp']
             })
     
-    print(f"   Wrote {len(entries)} selection decisions")
 
 
-def write_crop_log(entries: List[Dict], output_path: Path):
+def write_crop_log(entries: list[dict], output_path: Path):
     """Write crop training data to CSV."""
-    print(f"\n📝 Writing crop log: {output_path}")
-    
     with output_path.open('w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=[
             'session_id', 'set_id', 'directory', 'chosen_path', 
@@ -238,13 +225,11 @@ def write_crop_log(entries: List[Dict], output_path: Path):
         for entry in entries:
             writer.writerow(entry)
     
-    print(f"   Wrote {len(entries)} crop decisions (metadata only)")
 
 
-def generate_report(raw_groups: Dict, winners: Dict, 
-                   selection_entries: List, crop_entries: List) -> Dict:
+def generate_report(raw_groups: dict, winners: dict, 
+                   selection_entries: list, crop_entries: list) -> dict:
     """Generate extraction statistics report."""
-    
     # Analyze anomalies (when Erik chose lower stage)
     anomalies = [e for e in selection_entries if e['is_anomaly']]
     
@@ -254,7 +239,7 @@ def generate_report(raw_groups: Dict, winners: Dict,
         stage_counts[entry['chosen_stage']] += 1
     
     report = {
-        'extraction_date': datetime.now(timezone.utc).isoformat(),
+        'extraction_date': datetime.now(UTC).isoformat(),
         'project': 'mojo-1',
         'project_dates': {
             'start': PROJECT_START.isoformat(),
@@ -292,13 +277,6 @@ def generate_report(raw_groups: Dict, winners: Dict,
 
 
 def main():
-    print("=" * 70)
-    print("MOJO 1 TRAINING DATA EXTRACTION")
-    print("=" * 70)
-    print("Project: Mojo 1 (Oct 1-11, 2025)")
-    print(f"Raw dir: {RAW_DIR}")
-    print(f"Final dir: {FINAL_DIR}")
-    print()
     
     # Step 1: Group raw images by timestamp
     raw_groups = group_raw_images()
@@ -307,15 +285,10 @@ def main():
     winners = find_winners(raw_groups)
     
     # Step 3: Create selection training data
-    print("\n🧠 Creating selection training data...")
     selection_entries = create_selection_training_data(winners)
-    print(f"   Created {len(selection_entries)} selection entries")
-    print(f"   Anomalies (chose lower stage): {sum(1 for e in selection_entries if e['is_anomaly'])}")
     
     # Step 4: Create crop training data
-    print("\n✂️  Creating crop training data...")
     crop_entries = create_crop_training_data(winners)
-    print(f"   Created {len(crop_entries)} crop entries")
     
     # Step 5: Write output files
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -328,32 +301,12 @@ def main():
     write_crop_log(crop_entries, crop_path)
     
     # Step 6: Generate report
-    print("\n📊 Generating extraction report...")
     report = generate_report(raw_groups, winners, selection_entries, crop_entries)
     
     with report_path.open('w') as f:
         json.dump(report, f, indent=2)
-    print(f"   Report saved: {report_path}")
     
     # Print summary
-    print("\n" + "=" * 70)
-    print("EXTRACTION COMPLETE")
-    print("=" * 70)
-    print(f"✅ Selection decisions: {len(selection_entries)}")
-    print(f"✅ Crop decisions: {len(crop_entries)}")
-    print(f"⚠️  Anomaly cases: {sum(1 for e in selection_entries if e['is_anomaly'])}")
-    print(f"   ({sum(1 for e in selection_entries if e['is_anomaly'])/len(selection_entries)*100:.1f}% of selections)")
-    print()
-    print("📁 Files created:")
-    print(f"   - {selection_path}")
-    print(f"   - {crop_path}")
-    print(f"   - {report_path}")
-    print()
-    print("🎯 Next steps:")
-    print("   1. Merge with existing selection_only_log.csv")
-    print("   2. Retrain ranking model with combined data")
-    print("   3. Test if anomaly detection improves")
-    print("=" * 70)
 
 
 if __name__ == "__main__":

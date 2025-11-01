@@ -16,10 +16,9 @@ import json
 import re
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, Optional, Tuple
 
 
-def parse_stage(filename: str) -> Optional[int]:
+def parse_stage(filename: str) -> int | None:
     """
     Extract stage number from filename.
     
@@ -55,12 +54,12 @@ def get_project_id(path: str) -> str:
                     '1013', 'agent-1001', 'agent-1002', 'agent-1003', 
                     'Kiara_Slender', 'Kiara_Average', 'Aiko_raw', 'Eleni_raw']:
             return part
-        if part.endswith('_raw') or part.endswith('_final'):
+        if part.endswith(('_raw', '_final')):
             return part.replace('_raw', '').replace('_final', '')
     return 'unknown'
 
 
-def analyze_selection(chosen_path: str, neg_paths_json: str) -> Tuple[bool, Dict]:
+def analyze_selection(chosen_path: str, neg_paths_json: str) -> tuple[bool, dict]:
     """
     Determine if this is an anomaly case.
     
@@ -113,14 +112,8 @@ def main():
     csv_path = Path('data/training/selection_only_log.csv')
     
     if not csv_path.exists():
-        print(f"❌ Training log not found: {csv_path}")
         return
     
-    print("=" * 60)
-    print("ANOMALY ANALYSIS")
-    print("=" * 60)
-    print(f"Reading: {csv_path}")
-    print()
     
     total_selections = 0
     total_anomalies = 0
@@ -130,7 +123,7 @@ def main():
     
     all_anomalies = []
     
-    with open(csv_path, 'r') as f:
+    with open(csv_path) as f:
         reader = csv.DictReader(f)
         for row in reader:
             total_selections += 1
@@ -160,32 +153,20 @@ def main():
                 normal_by_project[project] += 1
     
     # Print summary
-    print(f"📊 Total selections:     {total_selections:,}")
-    print(f"🎯 Anomalies found:      {total_anomalies:,} ({100*total_anomalies/total_selections:.1f}%)")
-    print(f"✅ Normal selections:    {total_selections - total_anomalies - unparseable:,}")
-    print(f"❓ Unparseable stages:   {unparseable:,}")
-    print()
     
     if args.by_project or args.export:
-        print("=" * 60)
-        print("ANOMALIES BY PROJECT")
-        print("=" * 60)
         
         # Sort projects by anomaly count
         sorted_projects = sorted(anomalies_by_project.items(), 
                                 key=lambda x: len(x[1]), reverse=True)
         
-        print(f"{'Project':<20} {'Anomalies':>10} {'Normal':>10} {'Anomaly %':>12}")
-        print("-" * 60)
         
         for project, anomaly_list in sorted_projects:
             anomaly_count = len(anomaly_list)
             normal_count = normal_by_project[project]
             total = anomaly_count + normal_count
-            pct = 100 * anomaly_count / total if total > 0 else 0
-            print(f"{project:<20} {anomaly_count:>10,} {normal_count:>10,} {pct:>11.1f}%")
+            100 * anomaly_count / total if total > 0 else 0
         
-        print()
     
     if args.export:
         output_path = Path('data/training/anomaly_cases.csv')
@@ -197,8 +178,6 @@ def main():
             writer.writeheader()
             writer.writerows(all_anomalies)
         
-        print(f"✅ Exported {len(all_anomalies):,} anomaly cases to: {output_path}")
-        print()
         
         # Also create a summary JSON
         summary = {
@@ -220,17 +199,10 @@ def main():
         with open(summary_path, 'w') as f:
             json.dump(summary, f, indent=2)
         
-        print(f"✅ Saved summary to: {summary_path}")
-        print()
         
         # Show some example anomalies
-        print("=" * 60)
-        print("EXAMPLE ANOMALIES")
-        print("=" * 60)
-        for i, anomaly in enumerate(all_anomalies[:5], 1):
-            print(f"\n{i}. Project: {anomaly['project']}")
-            print(f"   Chose stage {anomaly['chosen_stage']} over stage {anomaly['max_rejected_stage']}")
-            print(f"   File: {Path(anomaly['chosen_path']).name}")
+        for _i, _anomaly in enumerate(all_anomalies[:5], 1):
+            pass
 
 
 if __name__ == '__main__':
