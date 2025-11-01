@@ -703,6 +703,31 @@
 - [ ] Crop overlay rounding to integers (scripts/tests/test_ai_assisted_reviewer_batch.py)
 - [ ] Full pytest rerun and address any remaining stragglers
 
+#### Dashboard Server Test Failing (New)
+
+- [ ] Fix dashboard server test startup failure (investigate and resolve)
+
+  - Observed:
+    - `scripts/tests/test_runner.py` → "Dashboard Test" consistently fails after ~42–48s.
+    - Recent runs still fail even with snapshot skipping and richer logging.
+  - Repro command (saves full logs):
+    ```bash
+    cd /Users/eriksjaastad/projects/image-workflow
+    source .venv311/bin/activate
+    export DASHBOARD_SKIP_SNAPSHOTS=1
+    python /Users/eriksjaastad/projects/image-workflow/scripts/tests/test_dashboard.py 2>&1 | tee /Users/eriksjaastad/projects/image-workflow/sandbox/dashboard_test_$(date -u +%Y%m%dT%H%M%SZ).log
+    ```
+  - What we already tried (did not resolve):
+    - Added `--skip-snapshots` flag and `DASHBOARD_SKIP_SNAPSHOTS` env to `scripts/dashboard/run_dashboard.py` to bypass preprocessing.
+    - Modified `scripts/tests/test_dashboard.py` to start server with `--debug --skip-snapshots`, increased startup wait, captured stdout/stderr on failure, terminated process to prevent cascading timeouts.
+    - Replaced `requests` usage with stdlib `urllib` to remove external dependency and reduce early aborts.
+    - Updated test runner to print both stdout and stderr on dashboard test failure when `-v` is used.
+  - Suspicions / next steps:
+    - Template resolution: `productivity_dashboard.py` calls `render_template("dashboard_template.html")` but no file exists; likely 500s on `/` even if server starts. Consider switching to `render_template_string(DASHBOARD_TEMPLATE)` or embedding the template file.
+    - Verify Flask import path and environment activation (`.venv311`).
+    - Confirm port availability on 5002 and that binding is successful on `127.0.0.1`.
+    - After capturing the log above, paste the stderr excerpt here and fix accordingly.
+
 ---
 
 ## 📅 Backlog

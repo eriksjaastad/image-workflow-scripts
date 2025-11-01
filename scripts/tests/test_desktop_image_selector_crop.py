@@ -85,10 +85,14 @@ class DesktopImageSelectorCropTest:
                 from utils.base_desktop_image_tool import BaseDesktopImageTool
 
                 if not hasattr(tool_module, "TripletProgressTracker"):
-                    print("⚠️  TripletProgressTracker not available; skipping triplet detection")
+                    print(
+                        "⚠️  TripletProgressTracker not available; skipping triplet detection"
+                    )
                     return True
 
-                progress_tracker = tool_module.TripletProgressTracker(self.temp_dir / "test_images")
+                progress_tracker = tool_module.TripletProgressTracker(
+                    self.temp_dir / "test_images"
+                )
                 groups = progress_tracker.triplets
 
                 print(f"  Detected {len(groups)} triplet groups")
@@ -152,14 +156,14 @@ class DesktopImageSelectorCropTest:
                 tool_module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(tool_module)
 
-                # Test that the tool can be imported and classes exist
+                # Test that the tool can be imported and main classes exist
                 assert hasattr(
-                    tool_module, "DesktopImageSelectorCrop"
-                ), "Main tool class should exist"
+                    tool_module, "AIMultiCropTool"
+                ), "AIMultiCropTool class should exist"
+                # Base MultiCropTool is re-exported by the AI wrapper module
                 assert hasattr(
-                    tool_module, "TripletProgressTracker"
-                ), "Progress tracker should exist"
-                assert hasattr(tool_module, "Triplet"), "Triplet record should exist"
+                    tool_module, "MultiCropTool"
+                ), "MultiCropTool should exist"
 
                 print("✅ Tool initialization test PASSED")
                 return True

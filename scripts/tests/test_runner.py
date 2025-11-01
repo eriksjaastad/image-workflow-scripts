@@ -634,7 +634,18 @@ class TestRunner:  # not a pytest test class (has __init__)
                 return True
             print("✗ Dashboard tests failed")
             if self.verbose:
-                print(f"Error output: {result.stderr}")
+                try:
+                    if result.stdout:
+                        print("Stdout:")
+                        print(result.stdout)
+                except Exception:
+                    pass
+                try:
+                    if result.stderr:
+                        print("Stderr:")
+                        print(result.stderr)
+                except Exception:
+                    pass
             return False
 
         except subprocess.TimeoutExpired:
