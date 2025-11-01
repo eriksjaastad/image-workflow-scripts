@@ -95,9 +95,15 @@ except Exception:
             ActivityTimer,
             FileTracker,
         )
-    except Exception:
-        ActivityTimer = None  # type: ignore
-        FileTracker = None  # type: ignore
+    except Exception as e:
+        print(
+            f"[!] Failed to import ActivityTimer/FileTracker: {e}\n"
+            "[!] File operation tracking will not work - aborting for safety",
+            file=sys.stderr,
+        )
+        raise RuntimeError(
+            "ActivityTimer/FileTracker unavailable - refusing to proceed without audit trail"
+        ) from e
 
 try:
     from utils.companion_file_utils import (
@@ -517,8 +523,8 @@ def parse_caption_file(caption_path: Path) -> Optional[Dict]:
         }
 
     except Exception as e:
-        print(f"[!] Error parsing {caption_path}: {e}")
-        return None
+        print(f"[ERROR] Failed to parse {caption_path}: {e}", file=sys.stderr)
+        raise RuntimeError(f"Caption parsing failed for {caption_path}") from e
 
 
 def parse_yaml_file(yaml_path: Path) -> Optional[Dict]:
@@ -612,8 +618,8 @@ def parse_yaml_file(yaml_path: Path) -> Optional[Dict]:
         }
 
     except Exception as e:
-        print(f"[!] Error parsing {yaml_path}: {e}")
-        return None
+        print(f"[ERROR] Failed to parse {yaml_path}: {e}", file=sys.stderr)
+        raise RuntimeError(f"YAML parsing failed for {yaml_path}") from e
 
 
 def parse_metadata_file(metadata_path: Path) -> Optional[Dict]:
@@ -722,7 +728,7 @@ def analyze_yaml(
     analysis_data = {
         "metadata": {
             "source_directory": str(directory_path),
-            "analysis_timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "analysis_timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "total_files_analyzed": processing_stats["processed"],
             "processing_time_seconds": processing_stats["processing_time"],
         },
@@ -743,10 +749,16 @@ def analyze_yaml(
         try:
             with open(output_path, "w", encoding="utf-8") as f:
                 json.dump(analysis_data, f, indent=2, ensure_ascii=False)
+            # Verify file was written and is non-empty
+            if not output_path.exists():
+                raise RuntimeError(f"Write verification failed: {output_path} does not exist")
+            if output_path.stat().st_size == 0:
+                raise RuntimeError(f"Write verification failed: {output_path} is empty")
             if not quiet:
                 print(f"✅ Analysis saved to: {output_path}")
         except Exception as e:
-            print(f"[!] Error writing output file: {e}")
+            print(f"[ERROR] Failed to write analysis file: {e}", file=sys.stderr)
+            raise RuntimeError(f"Analysis file write failed: {output_path}") from e
 
     # Print summary
     if not quiet:
@@ -949,7 +961,10 @@ def add_sequential_context(analysis_data: Dict, quiet: bool = False) -> Dict:
 
 
 def preview_grouping_plan(
-    character_mapping: Dict, source_directory: str, group_by: str = "character"
+    character_mapping: Dict,
+    source_directory: str,
+    group_by: str = "character",
+    auto_confirm: bool = False,
 ) -> bool:
     """
     Show preview of what will happen and get user confirmation.
@@ -1025,7 +1040,9 @@ def preview_grouping_plan(
 
     print("\n" + "=" * 70)
 
-    # Get user confirmation
+    # Get user confirmation (allow non-interactive auto-confirm)
+    if auto_confirm:
+        return True
     try:
         response = input("Proceed with file moves? [y/N]: ").strip().lower()
         return response in ["y", "yes"]
@@ -1055,7 +1072,20 @@ def move_file_pair(
                     png_path, target_dir, dry_run=False
                 )
 
-                # Track file operations
+                # Verify files actually moved
+                if not moved_files:
+                    raise RuntimeError(
+                        f"move_file_with_all_companions returned empty list for {png_path}"
+                    )
+
+                # Verify PNG actually moved
+                target_png = target_dir / png_path.name
+                if not target_png.exists():
+                    raise RuntimeError(
+                        f"Move verification failed: {target_png} does not exist after move"
+                    )
+
+                # Track file operations (fail-fast if tracking enabled)
                 if tracker:
                     for moved_file in moved_files:
                         tracker.track_file_operation(
@@ -1064,41 +1094,15 @@ def move_file_pair(
                             str(target_dir / moved_file),
                         )
             else:
-                # Fallback to old logic if companion utilities not available
-                target_dir.mkdir(parents=True, exist_ok=True)
-
-                # Move PNG file (skip if target already exists)
-                png_target = target_dir / png_path.name
-                if not png_target.exists():
-                    png_path.rename(png_target)
-                else:
-                    print(
-                        f"⚠️  SKIPPING: {png_path.name} (already exists in destination)"
-                    )
-
-                # Move YAML file if it exists (skip if target already exists)
-                if yaml_path.exists():
-                    yaml_target = target_dir / yaml_path.name
-                    if not yaml_target.exists():
-                        yaml_path.rename(yaml_target)
-                    else:
-                        print(
-                            f"⚠️  SKIPPING: {yaml_path.name} (already exists in destination)"
-                        )
-
-                # Track file operations
-                if tracker:
-                    tracker.track_file_operation("move", str(png_path), str(png_target))
-                    if yaml_path.exists():
-                        tracker.track_file_operation(
-                            "move", str(yaml_path), str(yaml_target)
-                        )
+                raise RuntimeError(
+                    "Companion utilities unavailable - cannot safely move with companions"
+                )
 
         return True
 
     except Exception as e:
-        print(f"[!] Error moving {png_path.name}: {e}")
-        return False
+        print(f"[ERROR] Failed to move {png_path.name}: {e}", file=sys.stderr)
+        raise RuntimeError(f"File move failed for {png_path.name}") from e
 
 
 def create_character_directories(
@@ -1168,6 +1172,14 @@ def group_by_category(
     tracker = None
     if ActivityTimer and not dry_run:
         tracker = FileTracker()
+    elif not dry_run:
+        # Tracking disabled → degraded auditability
+        print(
+            "[!] FileTracker not initialized - file operations will NOT be audited",
+            file=sys.stderr,
+        )
+        # Optional: uncomment to fail-fast in live mode per safety policy
+        # raise RuntimeError("FileTracker unavailable - aborting to preserve audit trail")
 
     # Statistics tracking
     stats = {
@@ -1550,15 +1562,28 @@ def process_directory(
             try:
                 with open(context_file, "w", encoding="utf-8") as f:
                     json.dump(enhanced_data, f, indent=2, ensure_ascii=False)
+                # Verify file was written and is non-empty
+                context_path = Path(context_file)
+                if not context_path.exists():
+                    raise RuntimeError(
+                        f"Write verification failed: {context_path} does not exist"
+                    )
+                if context_path.stat().st_size == 0:
+                    raise RuntimeError(
+                        f"Write verification failed: {context_path} is empty"
+                    )
                 if not quiet:
                     print(f"✅ Enhanced analysis saved to: {context_file}")
             except Exception as e:
-                print(f"[!] Error saving enhanced analysis: {e}")
+                print(f"[ERROR] Failed to save enhanced analysis: {e}", file=sys.stderr)
+                raise RuntimeError(
+                    f"Enhanced analysis file write failed: {context_file}"
+                ) from e
 
     # Preview and Confirmation (skip for dry-run since it already shows what would happen)
     if not dry_run and not quiet:
         if not preview_grouping_plan(
-            enhanced_data["character_mapping"], directory, group_by
+            enhanced_data["character_mapping"], directory, group_by, auto_confirm=args.yes
         ):
             if not quiet:
                 print("\n[!] Operation cancelled by user")
@@ -1672,6 +1697,12 @@ Examples:
         type=int,
         default=20,
         help="Minimum files per group for prompt analysis (default: 20)",
+    )
+    parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Proceed without interactive confirmation",
     )
 
     args = parser.parse_args()
