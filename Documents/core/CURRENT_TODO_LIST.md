@@ -75,6 +75,27 @@
 - Token usage spreads across days/weeks
 - Creates comprehensive audit trail
 
+**Future Automation:**
+
+- [ ] **Automate Raptor review workflow using API endpoints**
+  - **Goal:** Replace manual copy/paste workflow with automated API calls
+  - **Resources:** Erik has ChatGPT and Claude API endpoints available
+  - **Workflow to automate:**
+    1. Phase A: Call Claude Sonnet 4.5 API with Phase A prompt + target file
+    2. Parse Phase A output, extract findings section
+    3. Phase B: Call GPT-5 Codex API with Phase B prompt + Phase A results
+    4. Parse Phase B output, extract validation summary
+    5. Phase C: Call GPT-5 API with Phase C prompt + all prior results
+    6. Generate complete review document automatically
+    7. Optionally: Auto-apply diffs if confidence score meets threshold
+  - **Benefits:**
+    - Remove manual copy/paste (slowest part of workflow)
+    - Enable batch processing of multiple scripts overnight
+    - Consistent prompt execution (no human error in pasting)
+    - Generate structured JSON output for dashboard integration
+  - **Priority:** LOW (current manual workflow is working well)
+  - **Estimated Effort:** 2-3 hours for API integration script
+
 ---
 
 ### AI Predictions Backfill (HIGH PRIORITY)

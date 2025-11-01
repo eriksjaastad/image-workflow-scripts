@@ -20,11 +20,14 @@ Features:
 
 import argparse
 import json
+import logging
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict
+
+logger = logging.getLogger(__name__)
 
 # Ensure project root on import path for local package imports
 _ROOT = Path(__file__).resolve().parents[1]
@@ -110,6 +113,7 @@ def run_prezip_stager(
         return {"status": "success", "stager_output": output, "dry_run": dry_run}
 
     except Exception as e:
+        logger.error(f"Failed to run prezip_stager: {e}", exc_info=True)
         return {"status": "error", "message": f"Failed to run prezip_stager: {e}"}
 
 
@@ -144,6 +148,7 @@ def finish_project(project_id: str, dry_run: bool = True, force: bool = False) -
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except Exception as e:
+        logger.error(f"Failed to read manifest {manifest_path.name}: {e}", exc_info=True)
         return {"status": "error", "message": f"Failed to read manifest: {e}"}
 
     # Check if already finished
@@ -274,9 +279,11 @@ def finish_project(project_id: str, dry_run: bool = True, force: bool = False) -
                 for n in notable:
                     print(f"  - {n}")
             print("\n[DRY RUN] ✅ Ready to finalize project")
-        except Exception:
-            # Fail open: don't block finishing if summary fails
-            pass
+        except Exception as e:
+            logger.error(f"Failed to generate cleanup summary: {e}", exc_info=True)
+            print("\n[DRY RUN] ⚠️  Failed to generate cleanup summary")
+            print(f"[DRY RUN] Error: {e}")
+            print("[DRY RUN] This is a preview error only - the actual operation may still work")
 
     result = run_prezip_stager(
         project_id=project_id,
@@ -304,8 +311,14 @@ def finish_project(project_id: str, dry_run: bool = True, force: bool = False) -
                     import shutil
 
                     shutil.copy2(manifest_path, backup)
-                except Exception:
-                    pass
+                    logger.info(f"Backed up manifest to {backup}")
+                except Exception as e:
+                    logger.error(f"Failed to backup manifest to {backup}: {e}", exc_info=True)
+                    print(f"⚠️  WARNING: Failed to backup manifest before update: {e}")
+                    print("⚠️  Manifest will be updated without backup - cancel now if concerned (Ctrl+C)")
+                    import time
+
+                    time.sleep(3)  # Give user time to cancel
                 manifest_path.write_text(
                     json.dumps(manifest, indent=2), encoding="utf-8"
                 )
@@ -340,8 +353,10 @@ def finish_project(project_id: str, dry_run: bool = True, force: bool = False) -
                     else:
                         print(f"⚠️  Project {project_id} not found in .gitignore")
             except Exception as e:  # noqa: BLE001
+                logger.warning(f"Failed to update .gitignore: {e}")
                 print(f"⚠️  Failed to update .gitignore: {e}")
-        except Exception:
+        except Exception as e:
+            logger.error(f"Failed to reload manifest after update: {e}", exc_info=True)
             finished_at = None
             stager_metrics = {}
     else:
@@ -373,6 +388,7 @@ def finish_project(project_id: str, dry_run: bool = True, force: bool = False) -
                 "message": "Archive script not available",
             }
         except Exception as e:
+            logger.error(f"Archive failed for {project_id}: {e}", exc_info=True)
             print(f"  ⚠️  Archive failed: {e}")
             # Don't fail the entire operation if archive fails
             archive_result = {"status": "error", "message": str(e)}
@@ -419,8 +435,10 @@ def interactive_mode():
                     initial = manifest.get("counts", {}).get("initialImages", "?")
                     started = manifest.get("startedAt", "Unknown")
                     active_projects.append((project_id, title, initial, started))
-            except Exception:
-                continue
+            except Exception as e:
+                logger.warning(f"Failed to read manifest {manifest_path.name}: {e}")
+                print(f"  ⚠️  Skipped corrupt manifest: {manifest_path.name} ({e})")
+                # Continue - don't block listing other projects
 
         if active_projects:
             print("Active projects:")
@@ -552,6 +570,18 @@ def interactive_mode():
 
 def main():
     """Main entry point."""
+    # Configure logging
+    log_dir = Path("data/file_operations_logs")
+    log_dir.mkdir(parents=True, exist_ok=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+        handlers=[
+            logging.FileHandler(log_dir / "finish_project.log"),
+            logging.StreamHandler(),
+        ],
+    )
+
     parser = argparse.ArgumentParser(
         description="Finish a project by running prezip_stager to create delivery ZIP",
         formatter_class=argparse.RawDescriptionHelpFormatter,
