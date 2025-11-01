@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-🚀 Productivity Dashboard Launcher
-Launch the web-based productivity analytics dashboard
+🚀 Dashboard Launcher - Unified Tabbed Interface
+Launch the web-based dashboard with Current Project and Productivity tabs
 
 HOW TO RUN:
 ===========
@@ -24,7 +24,7 @@ from pathlib import Path
 # Add current directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-from productivity_dashboard import ProductivityDashboard
+from dashboard_app import UnifiedDashboard
 
 
 def main():
@@ -55,6 +55,9 @@ The dashboard shows:
 
     parser.add_argument("--debug", action="store_true", help="Enable Flask debug mode")
     parser.add_argument(
+        "--no-browser", action="store_true", help="Don't auto-open browser"
+    )
+    parser.add_argument(
         "--skip-snapshots",
         action="store_true",
         help="Skip pre-start snapshot extraction/aggregation (use existing data)",
@@ -72,7 +75,7 @@ The dashboard shows:
     inferred_root = Path(__file__).resolve().parents[2]
     data_dir = Path(args.data_dir).resolve() if args.data_dir else inferred_root
 
-    print("🚀 Starting Productivity Dashboard...")
+    print("🚀 Starting Unified Dashboard...")
     print(f"📊 Data source: {data_dir}")
 
     # Auto-update snapshots before dashboard loads
@@ -107,18 +110,22 @@ The dashboard shows:
     print(f"🌐 URL: http://{args.host}:{args.port}")
     print("🎨 Theme: Dark mode with Erik's style guide")
     print()
-    print("📈 Tracking your 3 production scripts:")
-    print("   • 01_web_image_selector")
-    print("   • 03_web_character_sorter")
-    print("   • 04_batch_crop_tool")
+    print("📊 Tabs:")
+    print("   • Current Project - Real-time progress & phase tracking")
+    print("   • Productivity - Historical analytics & cross-project metrics")
     print()
     print("Press Ctrl+C to stop the dashboard")
     print("=" * 50)
 
     try:
         # Create and run dashboard
-        dashboard = ProductivityDashboard(data_dir=str(data_dir))
-        dashboard.run(host=args.host, port=args.port, debug=args.debug)
+        dashboard = UnifiedDashboard(data_dir=str(data_dir))
+        dashboard.run(
+            host=args.host,
+            port=args.port,
+            debug=args.debug,
+            auto_open=not args.no_browser,
+        )
 
     except KeyboardInterrupt:
         print("\n👋 Dashboard stopped by user")
