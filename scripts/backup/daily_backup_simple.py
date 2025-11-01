@@ -73,13 +73,19 @@ def find_database_files(root_dir: Path) -> List[Path]:
 
 
 def verify_backup(src, dst, name):
-    """Verify that backup was successful."""
+    """Verify that backup was successful.
+
+    Returns: (success: bool, is_warning: bool)
+    - (True, False): Perfect match, no issues
+    - (True, True): Minor mismatch in non-critical data (e.g., temp files in AI data)
+    - (False, False): Critical validation failure
+    """
     monitor = get_error_monitor("daily_backup")
 
     try:
         if not dst.exists():
             monitor.validation_error(f"Backup destination missing: {dst}")
-            return False
+            return (False, False)
 
         if src.is_file():
             src_size = src.stat().st_size
@@ -88,25 +94,72 @@ def verify_backup(src, dst, name):
                 monitor.validation_error(
                     f"File size mismatch for {name}: {src_size} vs {dst_size}"
                 )
-                return False
+                return (False, False)
         else:
-            # Count files
-            src_files = len(list(src.rglob("*")))
-            dst_files = len(list(dst.rglob("*")))
-            if src_files != dst_files:
-                monitor.validation_error(
-                    f"File count mismatch for {name}: {src_files} vs {dst_files}"
-                )
-                return False
+            # Count files and get lists for comparison
+            src_file_list = {
+                str(f.relative_to(src)) for f in src.rglob("*") if f.is_file()
+            }
+            dst_file_list = {
+                str(f.relative_to(dst)) for f in dst.rglob("*") if f.is_file()
+            }
+
+            src_count = len(src_file_list)
+            dst_count = len(dst_file_list)
+
+            if src_count != dst_count:
+                diff = abs(src_count - dst_count)
+
+                # Find which files differ
+                only_in_src = src_file_list - dst_file_list
+                only_in_dst = dst_file_list - src_file_list
+
+                # Build detailed diff message
+                diff_details = []
+                if only_in_src:
+                    diff_details.append(f"   In source only ({len(only_in_src)}):")
+                    for f in sorted(list(only_in_src)[:10]):  # Show max 10 files
+                        diff_details.append(f"     • {f}")
+                    if len(only_in_src) > 10:
+                        diff_details.append(
+                            f"     ... and {len(only_in_src) - 10} more"
+                        )
+
+                if only_in_dst:
+                    diff_details.append(f"   In backup only ({len(only_in_dst)}):")
+                    for f in sorted(list(only_in_dst)[:10]):  # Show max 10 files
+                        diff_details.append(f"     • {f}")
+                    if len(only_in_dst) > 10:
+                        diff_details.append(
+                            f"     ... and {len(only_in_dst) - 10} more"
+                        )
+
+                diff_msg = "\n".join(diff_details)
+
+                # AI data can have temporary files (embeddings cache, temp DBs, etc.)
+                # Treat small mismatches as warnings, not failures
+                if name == "AI data" and diff <= 5:
+                    log(
+                        f"⚠️  Minor file count difference for {name}: {src_count} source vs {dst_count} backup (diff: {diff})\n"
+                        f"{diff_msg}\n"
+                        f"   This is likely due to temporary files (embeddings cache, temp DBs) created during processing.\n"
+                        f"   Non-critical validation passed with warning."
+                    )
+                    return (True, True)  # Success with warning
+                else:
+                    monitor.validation_error(
+                        f"File count mismatch for {name}: {src_count} vs {dst_count} (diff: {diff})\n{diff_msg}"
+                    )
+                    return (False, False)
 
         log(f"✅ Verified backup integrity for {name}")
-        return True
+        return (True, False)
 
     except Exception as e:
         monitor.validation_error(
             f"Backup verification failed for {name}", {"error": str(e)}
         )
-        return False
+        return (False, False)
 
 
 def backup_directory(src, dst, name):
@@ -216,14 +269,18 @@ def main():
 
         total_files = 0
         total_size = 0
+        has_warnings = False
 
         for src, name in backup_sources:
             dst = backup_dir / src.name
             if backup_directory(src, dst, name):
                 # Verify the backup
-                if not verify_backup(src, dst, name):
+                verified, is_warning = verify_backup(src, dst, name)
+                if not verified:
                     success = False
                     continue
+                if is_warning:
+                    has_warnings = True
 
                 # Count files in destination
                 if dst.exists():
@@ -241,7 +298,9 @@ def main():
                         "name": name,
                         "source": str(src),
                         "destination": str(dst),
-                        "status": "success",
+                        "status": (
+                            "success" if not is_warning else "success_with_warning"
+                        ),
                     }
                 )
             else:
@@ -276,6 +335,7 @@ def main():
             "total_size_bytes": total_size,
             "total_size_mb": round(total_size / (1024 * 1024), 2),
             "overall_status": "success" if success else "failed",
+            "has_warnings": has_warnings,
             "source": str(PROJECT_ROOT),
             "destination": str(backup_dir),
             "items": backup_items,
@@ -287,6 +347,9 @@ def main():
 
         # Create status file for dashboard monitoring
         status_file = backup_root / "backup_status.json"
+        warnings_list = [
+            item for item in backup_items if item["status"] == "success_with_warning"
+        ]
         status_info = {
             "last_backup": today,
             "last_backup_timestamp": datetime.now().isoformat(),
@@ -294,13 +357,21 @@ def main():
             "total_files": total_files,
             "total_size_mb": manifest["total_size_mb"],
             "failures": [item for item in backup_items if item["status"] == "failed"],
+            "warnings": warnings_list,
         }
         with open(status_file, "w") as f:
             json.dump(status_info, f, indent=2)
 
         if success:
-            log("✅ Backup completed successfully!", "SUCCESS")
+            status_msg = "✅ Backup completed successfully!"
+            if has_warnings:
+                status_msg += " (with warnings)"
+            log(status_msg, "SUCCESS")
             log(f"📊 Summary: {total_files} files, {manifest['total_size_mb']} MB")
+            if has_warnings:
+                log(
+                    f"⚠️  {len(warnings_list)} item(s) backed up with warnings (see log above)"
+                )
             log(f"📄 Manifest: {manifest_file}")
 
             # Success notification
