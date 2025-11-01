@@ -30,15 +30,15 @@ cat > "$REVIEW_FILE" <<EOF
 _Date:_ $(date -u +"%Y-%m-%d %H:%M:%SZ") UTC
 
 ## Phase 1 – Claude Sonnet 4.5 (Max Mode)
-Prompt file: $PROMPTS_DIR/raptor_phase_a_Claude_sonnet_MAX.md  
+Prompt file: $PROMPTS_DIR/raptor_phase_1_Claude_sonnet_MAX.md  
 Paste output here.
 
 ## Phase 2 – GPT-5 Codex Verification
-Prompt file: $PROMPTS_DIR/raptor_phase_b_ChatGPT5_codex.md  
+Prompt file: $PROMPTS_DIR/raptor_phase_2_ChatGPT5_codex.md  
 Paste output here.
 
 ## Phase 3 – Human Safety Check
-Prompt file: $PROMPTS_DIR/raptor_phase_c_ChatGPT5_MAX.md  
+Prompt file: $PROMPTS_DIR/raptor_phase_3_ChatGPT5_MAX.md  
 Paste output here.
 
 EOF

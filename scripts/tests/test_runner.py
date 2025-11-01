@@ -100,6 +100,7 @@ class TestRunner:  # not a pytest test class (has __init__)
                 ],
                 capture_output=True,
                 text=True,
+                check=False,
                 cwd=Path(__file__).parent,  # scripts/tests/
             )
 
@@ -117,6 +118,7 @@ class TestRunner:  # not a pytest test class (has __init__)
                 ],
                 capture_output=True,
                 text=True,
+                check=False,
                 cwd=Path(__file__).parent.parent.parent,  # Project root
             )
 
@@ -163,6 +165,7 @@ class TestRunner:  # not a pytest test class (has __init__)
                 ],
                 capture_output=True,
                 text=True,
+                check=False,
                 cwd=Path(__file__).parent,  # scripts/tests/
             )
 
@@ -180,6 +183,7 @@ class TestRunner:  # not a pytest test class (has __init__)
                 ],
                 capture_output=True,
                 text=True,
+                check=False,
                 cwd=Path(__file__).parent.parent.parent,  # Project root
             )
 
@@ -215,6 +219,7 @@ class TestRunner:  # not a pytest test class (has __init__)
                 [sys.executable, "create_problematic_test_data.py"],
                 capture_output=True,
                 text=True,
+                check=False,
                 cwd=Path(__file__).parent,
             )
 
@@ -232,6 +237,7 @@ class TestRunner:  # not a pytest test class (has __init__)
             ],
             capture_output=True,
             text=True,
+            check=False,
             cwd=Path(__file__).parent.parent.parent,  # Project root
         )
 
@@ -276,6 +282,7 @@ class TestRunner:  # not a pytest test class (has __init__)
             [sys.executable, "test_ui_simple.py"],
             capture_output=True,
             text=True,
+            check=False,
             cwd=Path(__file__).parent,
         )
 
@@ -294,6 +301,7 @@ class TestRunner:  # not a pytest test class (has __init__)
             [sys.executable, "test_web_tools_simple.py"],
             capture_output=True,
             text=True,
+            check=False,
             cwd=Path(__file__).parent,
         )
 
@@ -323,6 +331,7 @@ class TestRunner:  # not a pytest test class (has __init__)
                 ],
                 capture_output=True,
                 text=True,
+                check=False,
                 cwd=Path(__file__).parent,  # scripts/tests/
             )
 
@@ -342,6 +351,7 @@ class TestRunner:  # not a pytest test class (has __init__)
                 capture_output=True,
                 text=True,
                 timeout=30,
+                check=False,
                 cwd=Path(__file__).parent.parent.parent,  # Project root
             )  # 30 second timeout
 
@@ -370,6 +380,7 @@ class TestRunner:  # not a pytest test class (has __init__)
                 ],
                 capture_output=True,
                 text=True,
+                check=False,
                 cwd=Path(__file__).parent,  # scripts/tests/
             )
 
@@ -387,6 +398,7 @@ class TestRunner:  # not a pytest test class (has __init__)
                 ],
                 capture_output=True,
                 text=True,
+                check=False,
                 cwd=Path(__file__).parent.parent.parent,  # Project root
             )
 
@@ -446,6 +458,7 @@ class TestRunner:  # not a pytest test class (has __init__)
                 ],
                 capture_output=True,
                 text=True,
+                check=False,
                 cwd=Path(__file__).parent,  # scripts/tests/
             )
 
@@ -463,6 +476,7 @@ class TestRunner:  # not a pytest test class (has __init__)
                 ],
                 capture_output=True,
                 text=True,
+                check=False,
                 cwd=Path(__file__).parent.parent.parent,  # Project root
             )
 
@@ -518,6 +532,7 @@ class TestRunner:  # not a pytest test class (has __init__)
                 ],
                 capture_output=True,
                 text=True,
+                check=False,
                 cwd=Path(__file__).parent,  # scripts/tests/
             )
 
@@ -541,6 +556,7 @@ class TestRunner:  # not a pytest test class (has __init__)
                     ],
                     capture_output=True,
                     text=True,
+                    check=False,
                     cwd=Path(__file__).parent.parent.parent,  # Project root
                     timeout=10,  # Short timeout since we're just testing file safety
                 )
@@ -558,14 +574,13 @@ class TestRunner:  # not a pytest test class (has __init__)
 
                     print("✓ Source files unchanged during analysis")
                     return True
-                else:
-                    # Script failed to run (likely due to missing Flask)
-                    # This is acceptable - we just can't test the full functionality
-                    # But we can still verify that the test data wasn't modified during import
-                    print(
-                        "⚠️ Script failed to run (missing Flask) - verifying test data integrity only"
-                    )
-                    return True
+                # Script failed to run (likely due to missing Flask)
+                # This is acceptable - we just can't test the full functionality
+                # But we can still verify that the test data wasn't modified during import
+                print(
+                    "⚠️ Script failed to run (missing Flask) - verifying test data integrity only"
+                )
+                return True
 
             except subprocess.TimeoutExpired:
                 print("⚠️ Script timed out - verifying test data integrity only")
@@ -583,16 +598,16 @@ class TestRunner:  # not a pytest test class (has __init__)
                 capture_output=True,
                 text=True,
                 timeout=60,
+                check=False,
             )
 
             if result.returncode == 0:
                 print("✓ Desktop image selector crop tool tests passed")
                 return True
-            else:
-                print("✗ Desktop image selector crop tool tests failed")
-                if self.verbose:
-                    print(f"Error output: {result.stderr}")
-                return False
+            print("✗ Desktop image selector crop tool tests failed")
+            if self.verbose:
+                print(f"Error output: {result.stderr}")
+            return False
 
         except subprocess.TimeoutExpired:
             print("✗ Desktop image selector crop tool tests timed out")
@@ -611,16 +626,16 @@ class TestRunner:  # not a pytest test class (has __init__)
                 capture_output=True,
                 text=True,
                 timeout=120,
+                check=False,
             )  # Longer timeout for server startup
 
             if result.returncode == 0:
                 print("✓ Dashboard tests passed with real data")
                 return True
-            else:
-                print("✗ Dashboard tests failed")
-                if self.verbose:
-                    print(f"Error output: {result.stderr}")
-                return False
+            print("✗ Dashboard tests failed")
+            if self.verbose:
+                print(f"Error output: {result.stderr}")
+            return False
 
         except subprocess.TimeoutExpired:
             print("✗ Dashboard tests timed out")
@@ -651,12 +666,11 @@ class TestRunner:  # not a pytest test class (has __init__)
         if critical_failed > 0:
             print("\n🚨 CRITICAL FAILURES DETECTED - DO NOT USE SCRIPTS")
             return False
-        elif self.failed > 0:
+        if self.failed > 0:
             print("\n⚠️  Some tests failed - review before deployment")
             return False
-        else:
-            print("\n🎉 ALL TESTS PASSED - Scripts are safe to use")
-            return True
+        print("\n🎉 ALL TESTS PASSED - Scripts are safe to use")
+        return True
 
 
 def main():
@@ -684,6 +698,7 @@ def main():
         print("\n🔧 Creating test data...")
         subprocess.run(
             [sys.executable, "create_test_data.py", "--size", "medium"],
+            check=False,
             cwd=Path(__file__).parent,  # scripts/tests/
         )
 

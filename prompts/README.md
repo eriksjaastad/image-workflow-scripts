@@ -12,7 +12,7 @@ Console
 
 ## Phase 1 - AI window Sonnet 4.5 Max mode
 
-prompts/raptor_phase_a_Claude_sonnet_MAX.md
+prompts/raptor_phase_1_Claude_sonnet_MAX.md
 
 ## TARGET FILE FOR THIS REVIEW
 
@@ -22,7 +22,7 @@ paste results in reviews doc
 
 ## Phase 2 - AI window ChatGPT-5 Codex
 
-prompts/raptor_phase_b_ChatGPT5_codex.md
+prompts/raptor_phase_2_ChatGPT5_codex.md
 
 ## TARGET FILE FOR THIS REVIEW
 
@@ -32,7 +32,7 @@ prompts/raptor_phase_b_ChatGPT5_codex.md
 
 ## Phase 3 - AI window ChatGPT-5 Max mode
 
-prompts/raptor_phase_c_ChatGPT5_MAX.md
+prompts/raptor_phase_3_ChatGPT5_MAX.md
 
 ## TARGET FILE FOR THIS REVIEW
 
@@ -89,9 +89,9 @@ From the repo root, run:
 
 | Phase | Cursor Model                             | Max Mode?  | Prompt File                        | What It Does                                                                                                                                  |
 | :---: | :--------------------------------------- | :--------: | :--------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------- |
-| **A** | **Claude Sonnet 4.5**                    | ✅ **YES** | `prompts/raptor_phase_a_Claude_sonnet_MAX.md` | 🔍 **Deep Reliability Review**<br>• Find silent failures<br>• Identify bare excepts<br>• Check for missing logging<br>• Suggest up to 5 fixes |
-| **B** | **GPT-5 Codex**                          | ❌ **NO**  | `prompts/raptor_phase_b_ChatGPT5_codex.md`  | ✅ **Code Verification**<br>• Validate Phase 1 diffs<br>• Check syntax/logic<br>• Verify test quality<br>• Confirm Ruff/MyPy compliance       |
-| **C** | **GPT-5**<br>(NOT Codex - regular GPT-5) | ✅ **YES** | `prompts/raptor_phase_c_ChatGPT5_MAX.md` | 🛡️ **Human Safety Check**<br>• Pre-merge review<br>• Check edge cases<br>• Verify logging clarity<br>• Assess rollback safety                 |
+| **A** | **Claude Sonnet 4.5**                    | ✅ **YES** | `prompts/raptor_phase_1_Claude_sonnet_MAX.md` | 🔍 **Deep Reliability Review**<br>• Find silent failures<br>• Identify bare excepts<br>• Check for missing logging<br>• Suggest up to 5 fixes |
+| **B** | **GPT-5 Codex**                          | ❌ **NO**  | `prompts/raptor_phase_2_ChatGPT5_codex.md`  | ✅ **Code Verification**<br>• Validate Phase 1 diffs<br>• Check syntax/logic<br>• Verify test quality<br>• Confirm Ruff/MyPy compliance       |
+| **C** | **GPT-5**<br>(NOT Codex - regular GPT-5) | ✅ **YES** | `prompts/raptor_phase_3_ChatGPT5_MAX.md` | 🛡️ **Human Safety Check**<br>• Pre-merge review<br>• Check edge cases<br>• Verify logging clarity<br>• Assess rollback safety                 |
 
 **Why these specific models?**
 
@@ -154,7 +154,7 @@ Based on a typical review session (assuming ~20 files changed, medium complexity
    - Click the model selector dropdown
    - Select **"Claude Sonnet 4.5"**
    - Toggle **"Max Mode"** ON (you'll see a Max badge)
-3. **Open file:** `prompts/raptor_phase_a_Claude_sonnet_MAX.md`
+3. **Open file:** `prompts/raptor_phase_1_Claude_sonnet_MAX.md`
 4. **Copy entire contents** of the prompt file
 5. **Paste into Cursor chat** and press Enter
 6. **Wait for output** (may take 3-7 minutes in Max Mode)
@@ -173,7 +173,7 @@ Based on a typical review session (assuming ~20 files changed, medium complexity
    - Click the model selector dropdown
    - Select **"GPT-5 Codex"**
    - **Do NOT enable Max Mode** (keep it off)
-3. **Open file:** `prompts/raptor_phase_b_ChatGPT5_codex.md`
+3. **Open file:** `prompts/raptor_phase_2_ChatGPT5_codex.md`
 4. **Copy entire contents** of the prompt file
 5. **Paste into Cursor chat** with Codex
 6. **Important:** Codex will read Phase 1's output from your review file
@@ -190,7 +190,7 @@ Based on a typical review session (assuming ~20 files changed, medium complexity
    - Click the model selector dropdown
    - Select **"GPT-5"** (NOT "GPT-5 Codex" - select regular GPT-5)
    - Toggle **"Max Mode"** ON
-3. **Open file:** `prompts/raptor_phase_c_ChatGPT5_MAX.md`
+3. **Open file:** `prompts/raptor_phase_3_ChatGPT5_MAX.md`
 4. **Copy entire contents** of the prompt file
 5. **Paste into Cursor chat** with GPT-5 Max
 6. **Important:** GPT-5 will read Phase 1 and B outputs from your review file
