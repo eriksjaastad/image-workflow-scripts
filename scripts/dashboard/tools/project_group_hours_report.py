@@ -32,10 +32,10 @@ import csv
 import json
 import sys
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Set
 
 # Ensure project root import path
 _ROOT = Path(__file__).resolve().parents[3]
@@ -54,26 +54,26 @@ TIMESHEET_CSV = _ROOT / "data" / "timesheet.csv"
 class ProjectSummary:
     project_id: str
     title: str
-    status: Optional[str]
-    started_at: Optional[str]
-    finished_at: Optional[str]
-    root_path: Optional[str]
+    status: str | None
+    started_at: str | None
+    finished_at: str | None
+    root_path: str | None
     group_count: int
     timesheet_hours: float
-    hours_per_group: Optional[float]
-    timeline_days: List[str]
+    hours_per_group: float | None
+    timeline_days: list[str]
 
 
-def _read_json(path: Path) -> Optional[dict]:
+def _read_json(path: Path) -> dict | None:
     try:
-        with open(path, "r") as f:
+        with open(path) as f:
             return json.load(f)
     except Exception:
         return None
 
 
 def _iter_project_manifests(
-    project_filter: Optional[Set[str]] = None,
+    project_filter: set[str] | None = None,
 ) -> Iterable[dict]:
     if not PROJECTS_DIR.exists():
         return []
@@ -89,8 +89,8 @@ def _iter_project_manifests(
         yield pj
 
 
-def _collect_group_stems(dir_paths: List[Path]) -> Set[str]:
-    stems: Set[str] = set()
+def _collect_group_stems(dir_paths: list[Path]) -> set[str]:
+    stems: set[str] = set()
     for d in dir_paths:
         try:
             if not d.exists() or not d.is_dir():
@@ -105,17 +105,17 @@ def _collect_group_stems(dir_paths: List[Path]) -> Set[str]:
     return stems
 
 
-def _parse_timesheet_hours() -> Dict[str, float]:
+def _parse_timesheet_hours() -> dict[str, float]:
     """Return total hours per projectId from data/timesheet.csv.
 
     Expected columns include a project name/id column (4th index per sample). We do a
     forgiving parse: strip, lower, and normalize underscores. Blank project rows are ignored.
     """
-    totals: Dict[str, float] = defaultdict(float)
+    totals: dict[str, float] = defaultdict(float)
     if not TIMESHEET_CSV.exists():
         return totals
     try:
-        with open(TIMESHEET_CSV, "r") as f:
+        with open(TIMESHEET_CSV) as f:
             reader = csv.reader(f)
             for row in reader:
                 # Skip aggregate/footer rows heuristically: if duration empty but hours in a single summary cell, ignore
@@ -138,7 +138,7 @@ def _parse_timesheet_hours() -> Dict[str, float]:
     return totals
 
 
-def _collect_timeline_days_for_project(project: dict) -> List[str]:
+def _collect_timeline_days_for_project(project: dict) -> list[str]:
     """Approximate timeline days using startedAt/finishedAt from manifest.
     Falls back to timesheet (if we later wire per-day), but for now just a date span list.
     """
@@ -148,7 +148,7 @@ def _collect_timeline_days_for_project(project: dict) -> List[str]:
     ).strip()
     try:
 
-        def _parse_iso(v: str) -> Optional[datetime]:
+        def _parse_iso(v: str) -> datetime | None:
             if not v:
                 return None
             v2 = v[:-1] + "+00:00" if v.endswith("Z") else v
@@ -173,11 +173,11 @@ def _collect_timeline_days_for_project(project: dict) -> List[str]:
         return []
 
 
-def build_report(project_ids: Optional[List[str]] = None) -> List[ProjectSummary]:
+def build_report(project_ids: list[str] | None = None) -> list[ProjectSummary]:
     project_filter = set(project_ids) if project_ids else None
     timesheet_hours = _parse_timesheet_hours()
 
-    results: List[ProjectSummary] = []
+    results: list[ProjectSummary] = []
     for pj in _iter_project_manifests(project_filter):
         pid = str(pj.get("projectId") or "").strip()
         title = str(pj.get("title") or pid)
@@ -189,7 +189,7 @@ def build_report(project_ids: Optional[List[str]] = None) -> List[ProjectSummary
 
         # Resolve character group directories relative to manifest location
         manifest_path = PROJECTS_DIR / f"{pid}.project.json"
-        group_dirs: List[Path] = []
+        group_dirs: list[Path] = []
         for rel in character_groups:
             try:
                 group_dirs.append((manifest_path.parent / rel).resolve())
@@ -226,14 +226,14 @@ def build_report(project_ids: Optional[List[str]] = None) -> List[ProjectSummary
     return results
 
 
-def write_json(results: List[ProjectSummary], path: Path = SAFE_JSON_PATH) -> None:
+def write_json(results: list[ProjectSummary], path: Path = SAFE_JSON_PATH) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = [asdict(r) for r in results]
     with open(path, "w") as f:
         json.dump(payload, f, indent=2)
 
 
-def write_csv(results: List[ProjectSummary], path: Path = SAFE_CSV_PATH) -> None:
+def write_csv(results: list[ProjectSummary], path: Path = SAFE_CSV_PATH) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fieldnames = [
         "project_id",

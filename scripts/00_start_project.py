@@ -44,7 +44,7 @@ except ImportError as e:
     FileTracker = None  # type: ignore
 
     def extract_timestamp_from_filename(filename: str):  # type: ignore
-        import re as _re  # noqa: PLC0415
+        import re as _re
 
         m = _re.match(r"^(\d{8}_\d{6})", filename)
         return m.group(1) if m else None
@@ -443,7 +443,9 @@ def create_project_manifest(
                         allowlist_dir / f"{project_id}_inventory.json",
                     )
                 except OSError as e:
-                    logger.warning("Failed to write inventory file (non-critical): %s", e)
+                    logger.warning(
+                        "Failed to write inventory file (non-critical): %s", e
+                    )
 
                 # Derive allowedExtensions from inventory (fallback to sensible defaults)
                 allowed_exts = (

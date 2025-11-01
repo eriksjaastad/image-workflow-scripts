@@ -23,9 +23,9 @@ import json
 import logging
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ def count_images(directory: Path) -> int:
 
 def get_utc_timestamp() -> str:
     """Get current UTC timestamp in ISO format with Z suffix."""
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def run_prezip_stager(
@@ -53,7 +53,7 @@ def run_prezip_stager(
     output_zip: Path,
     dry_run: bool = True,
     verbose: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Run prezip_stager to create delivery ZIP and update manifest.
 
@@ -148,7 +148,9 @@ def finish_project(project_id: str, dry_run: bool = True, force: bool = False) -
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except Exception as e:
-        logger.error(f"Failed to read manifest {manifest_path.name}: {e}", exc_info=True)
+        logger.error(
+            f"Failed to read manifest {manifest_path.name}: {e}", exc_info=True
+        )
         return {"status": "error", "message": f"Failed to read manifest: {e}"}
 
     # Check if already finished
@@ -213,7 +215,7 @@ def finish_project(project_id: str, dry_run: bool = True, force: bool = False) -
                 "other": 0,
             }
             notable: list[str] = []
-            included_by_ext: Dict[str, int] = {}
+            included_by_ext: dict[str, int] = {}
 
             def categorize(rel_path: str, ext: str) -> str:
                 if ext == "decision":
@@ -283,7 +285,9 @@ def finish_project(project_id: str, dry_run: bool = True, force: bool = False) -
             logger.error(f"Failed to generate cleanup summary: {e}", exc_info=True)
             print("\n[DRY RUN] ⚠️  Failed to generate cleanup summary")
             print(f"[DRY RUN] Error: {e}")
-            print("[DRY RUN] This is a preview error only - the actual operation may still work")
+            print(
+                "[DRY RUN] This is a preview error only - the actual operation may still work"
+            )
 
     result = run_prezip_stager(
         project_id=project_id,
@@ -313,9 +317,13 @@ def finish_project(project_id: str, dry_run: bool = True, force: bool = False) -
                     shutil.copy2(manifest_path, backup)
                     logger.info(f"Backed up manifest to {backup}")
                 except Exception as e:
-                    logger.error(f"Failed to backup manifest to {backup}: {e}", exc_info=True)
+                    logger.error(
+                        f"Failed to backup manifest to {backup}: {e}", exc_info=True
+                    )
                     print(f"⚠️  WARNING: Failed to backup manifest before update: {e}")
-                    print("⚠️  Manifest will be updated without backup - cancel now if concerned (Ctrl+C)")
+                    print(
+                        "⚠️  Manifest will be updated without backup - cancel now if concerned (Ctrl+C)"
+                    )
                     import time
 
                     time.sleep(3)  # Give user time to cancel
@@ -340,16 +348,30 @@ def finish_project(project_id: str, dry_run: bool = True, force: bool = False) -
                             if end_of_line != -1:
                                 # Remove the block and any preceding blank line
                                 before = content[:start_idx].rstrip()
-                                after = content[end_of_line + 1:]
-                                new_content = before + ("\n\n" if before and after else "\n" if before or after else "")  + after
+                                after = content[end_of_line + 1 :]
+                                new_content = (
+                                    before
+                                    + (
+                                        "\n\n"
+                                        if before and after
+                                        else "\n"
+                                        if before or after
+                                        else ""
+                                    )
+                                    + after
+                                )
                                 gitignore_path.write_text(new_content)
                                 print(f"✅ Removed {project_id} from .gitignore")
                             else:
                                 # End marker is at end of file
-                                gitignore_path.write_text(content[:start_idx].rstrip() + "\n")
+                                gitignore_path.write_text(
+                                    content[:start_idx].rstrip() + "\n"
+                                )
                                 print(f"✅ Removed {project_id} from .gitignore")
                         else:
-                            print(f"⚠️  Found start marker but not end marker for {project_id} in .gitignore")
+                            print(
+                                f"⚠️  Found start marker but not end marker for {project_id} in .gitignore"
+                            )
                     else:
                         print(f"⚠️  Project {project_id} not found in .gitignore")
             except Exception as e:  # noqa: BLE001

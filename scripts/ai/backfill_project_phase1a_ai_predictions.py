@@ -132,7 +132,6 @@ def group_original_images(original_dir: Path) -> list[tuple[str, list[Path]]]:
     if not all_images:
         return []
 
-
     # Sort by timestamp and stage
     sorted_images = sort_image_files_by_timestamp_and_stage(all_images)
 
@@ -355,7 +354,6 @@ def main():
     ranker_model_path = MODELS_DIR / args.ranker_model
     crop_model_path = MODELS_DIR / args.crop_model
 
-
     # Verify paths
     if not original_dir.exists():
         return
@@ -391,7 +389,6 @@ def main():
     if not groups:
         return
 
-
     # Create temp database
     if output_db.exists():
         response = input("Overwrite? (y/n): ")
@@ -419,7 +416,6 @@ def main():
             ai_crop_coords,
             ai_confidence,
         )
-
 
 
 if __name__ == "__main__":

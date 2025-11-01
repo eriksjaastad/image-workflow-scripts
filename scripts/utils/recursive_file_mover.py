@@ -38,7 +38,6 @@ FEATURES:
 import argparse
 import sys
 from pathlib import Path
-from typing import List
 
 # Add the project root to Python path for imports
 project_root = Path(__file__).parent.parent.parent
@@ -50,7 +49,7 @@ from scripts.utils.companion_file_utils import (
 )
 
 
-def find_all_image_files(source_dir: Path) -> List[Path]:
+def find_all_image_files(source_dir: Path) -> list[Path]:
     """Find all image files in source directory recursively."""
     image_files = []
 
@@ -67,7 +66,6 @@ def find_all_image_files(source_dir: Path) -> List[Path]:
 
 def move_files(source_dir: Path, dest_dir: Path, dry_run: bool = False) -> None:
     """Move all image files and their companions from source to destination."""
-
     # Initialize FileTracker
     tracker = FileTracker("recursive_file_mover")
 

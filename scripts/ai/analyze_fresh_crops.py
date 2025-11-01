@@ -34,7 +34,6 @@ x_centers = [(x1 + x2) / 2 for x1, y1, x2, y2 in crops]
 y_centers = [(y1 + y2) / 2 for x1, y1, x2, y2 in crops]
 
 
-
 width_cv = statistics.stdev(crop_widths) / statistics.mean(crop_widths)
 height_cv = statistics.stdev(crop_heights) / statistics.mean(crop_heights)
 x_std = statistics.stdev(x1_positions)
@@ -51,5 +50,3 @@ else:
 for _i, (x1, y1, x2, y2) in enumerate(crops, 1):
     w = (x2 - x1) * 100
     h = (y2 - y1) * 100
-
-

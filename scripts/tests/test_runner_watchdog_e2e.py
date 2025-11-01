@@ -11,22 +11,32 @@ def test_reducer_watchdog_simulated_hang():
         sys.executable,
         str(ROOT / "scripts/tools/reducer.py"),
         "run",
-        "--variant", "A",
-        "--profile", "conservative",
+        "--variant",
+        "A",
+        "--profile",
+        "conservative",
         "--dry-run",
-        "--sandbox-root", "sandbox/mojo2",
+        "--sandbox-root",
+        "sandbox/mojo2",
         "--simulate-hang",
-        "--max-runtime", "3",
-        "--watchdog-threshold", "1",
-        "--progress-interval", "0.5",
+        "--max-runtime",
+        "3",
+        "--watchdog-threshold",
+        "1",
+        "--progress-interval",
+        "0.5",
         "--no-stack-dump",
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
     # Expect non-zero exit due to abort
-    assert result.returncode != 0, f"Expected abort non-zero exit, got 0. stdout={result.stdout} stderr={result.stderr}"
+    assert (
+        result.returncode != 0
+    ), f"Expected abort non-zero exit, got 0. stdout={result.stdout} stderr={result.stderr}"
     # Expect ABORT line in stdout or stderr
     combined = (result.stdout or "") + (result.stderr or "")
-    assert "ABORT" in combined, f"No ABORT message. stdout={result.stdout} stderr={result.stderr}"
+    assert (
+        "ABORT" in combined
+    ), f"No ABORT message. stdout={result.stdout} stderr={result.stderr}"
     print("✓ reducer watchdog simulated hang aborts as expected")
 
 

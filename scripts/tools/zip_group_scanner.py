@@ -23,7 +23,6 @@ import sys
 import zipfile
 from collections import Counter
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 # Ensure project root
 _ROOT = Path(__file__).resolve().parents[2]
@@ -52,7 +51,7 @@ class _ZipEntry:
         self.parent_dir = parts[-2] if len(parts) >= 2 else ""
 
 
-def _sort_zip_png_names(rel_paths: List[str]) -> List[_ZipEntry]:
+def _sort_zip_png_names(rel_paths: list[str]) -> list[_ZipEntry]:
     def _key(rp: str):
         base = rp.split("/")[-1]
         ts = extract_timestamp_from_filename(base) or "99999999_999999"
@@ -67,14 +66,14 @@ def _top_component(rel_path: str) -> str:
     return parts[0] if parts else ""
 
 
-def scan_zip(zip_path: Path) -> Tuple[int, Dict[int, int], int, int, str, Dict]:
+def scan_zip(zip_path: Path) -> tuple[int, dict[int, int], int, int, str, dict]:
     """
     Return (total_groups, groups_count_by_size, total_images, singles_count).
     Groups are formed using the same logic as AI-Assisted Reviewer (nearest-up by stage).
     Singles are images not included in any formed group.
     """
-    rel_png_paths: List[str] = []
-    top_stats: Dict[str, Dict[str, int]] = {}
+    rel_png_paths: list[str] = []
+    top_stats: dict[str, dict[str, int]] = {}
     try:
         with zipfile.ZipFile(zip_path, "r") as zf:
             for info in zf.infolist():
@@ -105,7 +104,7 @@ def scan_zip(zip_path: Path) -> Tuple[int, Dict[int, int], int, int, str, Dict]:
     reason = ""
     preferred = {
         k
-        for k in top_stats.keys()
+        for k in top_stats
         if any(
             s in k.lower() for s in ("selected", "final", "crop", "exports", "deliver")
         )
@@ -122,11 +121,10 @@ def scan_zip(zip_path: Path) -> Tuple[int, Dict[int, int], int, int, str, Dict]:
         if stagey:
             chosen_tops = stagey
             reason = "stage-ratio>=0.1"
-        else:
-            if top_stats:
-                largest = max(top_stats.items(), key=lambda kv: kv[1].get("png", 0))[0]
-                chosen_tops = {largest}
-                reason = "largest-top"
+        elif top_stats:
+            largest = max(top_stats.items(), key=lambda kv: kv[1].get("png", 0))[0]
+            chosen_tops = {largest}
+            reason = "largest-top"
 
     filtered_rel = (
         [rp for rp in rel_png_paths if _top_component(rp) in chosen_tops]
@@ -152,13 +150,13 @@ def scan_zip(zip_path: Path) -> Tuple[int, Dict[int, int], int, int, str, Dict]:
     def _dt_of(item: _ZipEntry):
         return extract_datetime_from_filename(item.name)
 
-    groups_count_by_size: Dict[int, int] = Counter()
+    groups_count_by_size: dict[int, int] = Counter()
     singles_count = 0
     mode = "stage"
 
     if use_timestamp_fallback:
         mode = "timestamp"
-        stems: Dict[tuple, int] = Counter()
+        stems: dict[tuple, int] = Counter()
         no_ts = 0
         for rp in filtered_rel:
             base = rp.split("/")[-1]
@@ -220,7 +218,7 @@ def main() -> None:
     args = parser.parse_args()
 
     # Gather zips (files or from directories recursively) with container label
-    def _gather(paths: List[str]):
+    def _gather(paths: list[str]):
         found = []
         for p in paths:
             path = Path(p)
@@ -235,8 +233,8 @@ def main() -> None:
 
     results = []
     total_groups_all = 0
-    agg_by_size: Dict[int, int] = Counter()
-    totals_by_container: Dict[str, int] = Counter()
+    agg_by_size: dict[int, int] = Counter()
+    totals_by_container: dict[str, int] = Counter()
     total_images_all = 0
     singles_all = 0
 

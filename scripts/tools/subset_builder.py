@@ -24,7 +24,6 @@ import shutil
 # Ensure project root on sys.path when invoked directly
 import sys
 from pathlib import Path
-from typing import List
 
 _ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:
@@ -37,11 +36,13 @@ from scripts.utils.companion_file_utils import (
 )
 
 
-def deterministic_group_filter(groups: List[List[Path]], *, fraction: float, modulus: int = 100, offset: int = 0) -> List[List[Path]]:
+def deterministic_group_filter(
+    groups: list[list[Path]], *, fraction: float, modulus: int = 100, offset: int = 0
+) -> list[list[Path]]:
     modulus = max(1, int(modulus))
     # Convert fraction to a threshold in [0, modulus)
     threshold = max(0, min(modulus, int(round(fraction * modulus))))
-    selected: List[List[Path]] = []
+    selected: list[list[Path]] = []
     for g in groups:
         if not g:
             continue
@@ -52,7 +53,7 @@ def deterministic_group_filter(groups: List[List[Path]], *, fraction: float, mod
     return selected
 
 
-def _score_group_fast(group: List[Path], thumb_size: int = 128) -> float:
+def _score_group_fast(group: list[Path], thumb_size: int = 128) -> float:
     """Higher score means more likely to contain a risky top-stage (challenge).
     Heuristic: compare top stage vs median of group using simple Tenengrad and clip fraction.
     """
@@ -61,6 +62,7 @@ def _score_group_fast(group: List[Path], thumb_size: int = 128) -> float:
         from PIL import Image
     except Exception:
         return 0.0
+
     def metrics(p: Path) -> tuple:
         try:
             with Image.open(p) as img:
@@ -68,20 +70,25 @@ def _score_group_fast(group: List[Path], thumb_size: int = 128) -> float:
                 g = img.convert("L")
                 a = np.asarray(g, dtype=np.float32)
                 # Sobel
-                kx = np.array([[1,0,-1],[2,0,-2],[1,0,-1]], dtype=np.float32)
-                ky = np.array([[1,2,1],[0,0,0],[-1,-2,-1]], dtype=np.float32)
+                kx = np.array([[1, 0, -1], [2, 0, -2], [1, 0, -1]], dtype=np.float32)
+                ky = np.array([[1, 2, 1], [0, 0, 0], [-1, -2, -1]], dtype=np.float32)
                 from numpy.lib.stride_tricks import sliding_window_view
+
                 def conv2(x, k):
                     w = sliding_window_view(x, k.shape)
-                    return (w * k).sum(axis=(-1,-2))
+                    return (w * k).sum(axis=(-1, -2))
+
                 gx = conv2(a, kx)
                 gy = conv2(a, ky)
-                ten = (gx*gx + gy*gy).mean()
+                ten = (gx * gx + gy * gy).mean()
                 v = a.reshape(-1)
-                clip = ((v <= 1).sum() + (v >= 254).sum()) / float(v.size if v.size else 1)
+                clip = ((v <= 1).sum() + (v >= 254).sum()) / float(
+                    v.size if v.size else 1
+                )
                 return float(ten), float(clip)
         except Exception:
             return 0.0, 0.0
+
     # compute group metrics
     mets = [metrics(p) for p in group]
     if not mets:
@@ -89,6 +96,7 @@ def _score_group_fast(group: List[Path], thumb_size: int = 128) -> float:
     ten_vals = [m[0] for m in mets]
     clip_vals = [m[1] for m in mets]
     import numpy as _np
+
     med_ten = float(_np.median(ten_vals))
     top_ten = ten_vals[-1]
     top_clip = clip_vals[-1]
@@ -98,7 +106,9 @@ def _score_group_fast(group: List[Path], thumb_size: int = 128) -> float:
     return blur_penalty + clip_penalty
 
 
-def challenge_group_filter(groups: List[List[Path]], *, fraction: float, thumb_size: int = 128) -> List[List[Path]]:
+def challenge_group_filter(
+    groups: list[list[Path]], *, fraction: float, thumb_size: int = 128
+) -> list[list[Path]]:
     if fraction <= 0.0:
         return []
     if fraction >= 1.0:
@@ -133,18 +143,51 @@ def copy_with_companions(src_path: Path, dst_dir: Path, *, dry_run: bool) -> int
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Deterministic subset builder (sandbox-only)")
+    ap = argparse.ArgumentParser(
+        description="Deterministic subset builder (sandbox-only)"
+    )
     ap.add_argument("--source", default="sandbox/mojo2", help="Source sandbox root")
-    ap.add_argument("--dest", default="sandbox/mojo2_subset", help="Destination sandbox root (will be created)")
-    ap.add_argument("--fraction", type=float, default=0.25, help="Fraction of groups to include (0..1)")
-    ap.add_argument("--modulus", type=int, default=100, help="Hash buckets for sampling")
-    ap.add_argument("--offset", type=int, default=0, help="Hash offset for deterministic seed-variation")
-    ap.add_argument("--challenge", action="store_true", default=False, help="Use risk-scored challenge sampling instead of hash")
-    ap.add_argument("--challenge-thumb", type=int, default=128, help="Thumbnail size for challenge scoring")
+    ap.add_argument(
+        "--dest",
+        default="sandbox/mojo2_subset",
+        help="Destination sandbox root (will be created)",
+    )
+    ap.add_argument(
+        "--fraction",
+        type=float,
+        default=0.25,
+        help="Fraction of groups to include (0..1)",
+    )
+    ap.add_argument(
+        "--modulus", type=int, default=100, help="Hash buckets for sampling"
+    )
+    ap.add_argument(
+        "--offset",
+        type=int,
+        default=0,
+        help="Hash offset for deterministic seed-variation",
+    )
+    ap.add_argument(
+        "--challenge",
+        action="store_true",
+        default=False,
+        help="Use risk-scored challenge sampling instead of hash",
+    )
+    ap.add_argument(
+        "--challenge-thumb",
+        type=int,
+        default=128,
+        help="Thumbnail size for challenge scoring",
+    )
     mode = ap.add_mutually_exclusive_group()
     mode.add_argument("--dry-run", action="store_true", default=True)
     mode.add_argument("--commit", action="store_true", default=False)
-    ap.add_argument("--max-groups", type=int, default=None, help="Optional cap for groups to process (after sampling)")
+    ap.add_argument(
+        "--max-groups",
+        type=int,
+        default=None,
+        help="Optional cap for groups to process (after sampling)",
+    )
     args = ap.parse_args()
 
     src = Path(args.source)
@@ -154,15 +197,26 @@ def main():
         sys.exit(2)
 
     exclude_dirs = {"metrics", "reports", "runs", "logs", "selected", "delete", "crop"}
-    image_files = [p for p in src.rglob("*.png") if not any(part in exclude_dirs for part in p.parts)]
+    image_files = [
+        p
+        for p in src.rglob("*.png")
+        if not any(part in exclude_dirs for part in p.parts)
+    ]
     image_files = sort_image_files_by_timestamp_and_stage(image_files)
 
     groups = find_consecutive_stage_groups(image_files)
     if args.challenge:
-        sampled = challenge_group_filter(groups, fraction=float(args.fraction), thumb_size=int(args.challenge_thumb))
+        sampled = challenge_group_filter(
+            groups, fraction=float(args.fraction), thumb_size=int(args.challenge_thumb)
+        )
         mode_used = "challenge"
     else:
-        sampled = deterministic_group_filter(groups, fraction=float(args.fraction), modulus=int(args.modulus), offset=int(args.offset))
+        sampled = deterministic_group_filter(
+            groups,
+            fraction=float(args.fraction),
+            modulus=int(args.modulus),
+            offset=int(args.offset),
+        )
         mode_used = "hash"
     if args.max_groups:
         sampled = sampled[: int(args.max_groups)]
@@ -209,5 +263,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

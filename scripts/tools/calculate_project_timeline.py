@@ -16,7 +16,9 @@ print(f"{'='*80}\n")
 print(f"Total images to crop: {TOTAL_IMAGES:,}")
 print("\nBased on your historical patterns:")
 print(f"  Median speed: {MEDIAN_CROPS_PER_HOUR:.1f} crops/hour")
-print(f"  Average session: {AVG_SESSION_LENGTH_MIN:.1f} minutes, {AVG_CROPS_PER_SESSION:.1f} crops")
+print(
+    f"  Average session: {AVG_SESSION_LENGTH_MIN:.1f} minutes, {AVG_CROPS_PER_SESSION:.1f} crops"
+)
 print(f"  Median break: {MEDIAN_BREAK_MIN:.1f} minutes")
 
 # Method 1: Simple calculation
@@ -24,7 +26,9 @@ pure_crop_hours = TOTAL_IMAGES / MEDIAN_CROPS_PER_HOUR
 print(f"\n{'='*80}")
 print("METHOD 1: Pure cropping time")
 print(f"{'='*80}")
-print(f"  Time needed: {pure_crop_hours:.1f} hours ({pure_crop_hours/24:.1f} days of 24/7 work)")
+print(
+    f"  Time needed: {pure_crop_hours:.1f} hours ({pure_crop_hours/24:.1f} days of 24/7 work)"
+)
 
 # Method 2: Session-based calculation (more realistic)
 sessions_needed = TOTAL_IMAGES / AVG_CROPS_PER_SESSION
@@ -52,7 +56,9 @@ print(f"{'='*80}")
 
 for hours_per_day in [4, 6, 8]:
     days_needed = total_time_with_breaks / hours_per_day
-    print(f"  At {hours_per_day} hours/day: {days_needed:.1f} days ({days_needed/7:.1f} weeks)")
+    print(
+        f"  At {hours_per_day} hours/day: {days_needed:.1f} days ({days_needed/7:.1f} weeks)"
+    )
 
 # Speed improvement scenarios
 print(f"\n{'='*80}")
@@ -62,9 +68,11 @@ print("\nCurrent median time between crops: 0.31 seconds (batch submit time)")
 print("If you eliminate processing wait time, you could potentially:")
 
 for boost_pct in [25, 50, 100]:
-    boosted_rate = MEDIAN_CROPS_PER_HOUR * (1 + boost_pct/100)
+    boosted_rate = MEDIAN_CROPS_PER_HOUR * (1 + boost_pct / 100)
     boosted_hours = TOTAL_IMAGES / boosted_rate
     improvement = pure_crop_hours - boosted_hours
-    print(f"  {boost_pct:3d}% faster: {boosted_rate:6.1f} crops/hr → {boosted_hours:5.1f} hours (save {improvement:4.1f} hours)")
+    print(
+        f"  {boost_pct:3d}% faster: {boosted_rate:6.1f} crops/hr → {boosted_hours:5.1f} hours (save {improvement:4.1f} hours)"
+    )
 
 print(f"\n{'='*80}\n")

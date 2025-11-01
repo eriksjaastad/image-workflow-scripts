@@ -54,4 +54,3 @@ def test_heartbeat_progress_and_watchdog_timeout(tmp_path: Path = None):
 if __name__ == "__main__":
     ok = test_heartbeat_progress_and_watchdog_timeout()
     print("OK" if ok else "FAIL")
-

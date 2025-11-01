@@ -27,6 +27,55 @@ sys.path.insert(0, str(Path(__file__).parent))
 from dashboard_app import UnifiedDashboard
 
 
+def validate_port(port: int) -> int:
+    """Validate port number is in acceptable range.
+
+    Args:
+        port: Port number to validate
+
+    Returns:
+        Valid port number
+
+    Raises:
+        ValueError: If port is outside valid range (1024-65535)
+    """
+    if not (1024 <= port <= 65535):
+        raise ValueError(
+            f"Port must be between 1024-65535 (got {port}). "
+            f"Ports below 1024 require root privileges."
+        )
+    return port
+
+
+def validate_data_dir(path: Path) -> Path:
+    """Validate data directory exists and has expected structure.
+
+    Args:
+        path: Path to data directory
+
+    Returns:
+        Validated Path object
+
+    Raises:
+        ValueError: If directory doesn't exist or has invalid structure
+    """
+    if not path.exists():
+        raise ValueError(f"Data directory does not exist: {path}")
+
+    if not path.is_dir():
+        raise ValueError(f"Data directory path is not a directory: {path}")
+
+    # Check for expected 'data' subdirectory (core requirement for dashboard)
+    data_subdir = path / "data"
+    if not data_subdir.exists():
+        raise ValueError(
+            f"Invalid project structure: Missing 'data/' subdirectory in {path}\n"
+            f"Expected structure: <project_root>/data/"
+        )
+
+    return path
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="🚀 Launch Productivity Dashboard",
@@ -71,9 +120,23 @@ The dashboard shows:
 
     args = parser.parse_args()
 
+    # Validate port
+    try:
+        port = validate_port(args.port)
+    except ValueError as e:
+        print(f"❌ Invalid port: {e}")
+        sys.exit(1)
+
     # Resolve data directory robustly: default to repo root based on this file's location
     inferred_root = Path(__file__).resolve().parents[2]
     data_dir = Path(args.data_dir).resolve() if args.data_dir else inferred_root
+
+    # Validate data directory
+    try:
+        data_dir = validate_data_dir(data_dir)
+    except ValueError as e:
+        print(f"❌ Invalid data directory: {e}")
+        sys.exit(1)
 
     print("🚀 Starting Unified Dashboard...")
     print(f"📊 Data source: {data_dir}")
@@ -107,7 +170,7 @@ The dashboard shows:
     else:
         print("⏭  Skipping snapshot updates (test mode)")
 
-    print(f"🌐 URL: http://{args.host}:{args.port}")
+    print(f"🌐 URL: http://{args.host}:{port}")
     print("🎨 Theme: Dark mode with Erik's style guide")
     print()
     print("📊 Tabs:")
@@ -122,7 +185,7 @@ The dashboard shows:
         dashboard = UnifiedDashboard(data_dir=str(data_dir))
         dashboard.run(
             host=args.host,
-            port=args.port,
+            port=port,
             debug=args.debug,
             auto_open=not args.no_browser,
         )

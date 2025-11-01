@@ -51,6 +51,7 @@ except ImportError as e:
             capture_output=True,
             text=True,
             cwd=Path.cwd(),
+            check=False,
         )
 
         # For now, just check that import works

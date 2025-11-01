@@ -48,15 +48,12 @@ def main():
     )
     args = parser.parse_args()
 
-
-
     # Track results
     results = {"successful": [], "failed": [], "skipped": []}
 
     start_time = datetime.now()
 
     for _idx, project_id in enumerate(PROJECTS, 1):
-
         temp_db = DB_DIR / f"{project_id}_ai_predictions_temp.db"
         real_db = DB_DIR / f"{project_id}.db"
 
@@ -101,7 +98,6 @@ def main():
     # Final summary
     end_time = datetime.now()
     end_time - start_time
-
 
     if results["successful"]:
         for _p in results["successful"]:

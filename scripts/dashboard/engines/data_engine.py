@@ -14,11 +14,14 @@ Features:
 """
 
 import json
+import logging
 import re
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
+
+logger = logging.getLogger(__name__)
 
 # Add the project root to Python path for imports
 project_root = Path(__file__).parent.parent.parent
@@ -30,6 +33,7 @@ from scripts.dashboard.engines.project_metrics_aggregator import (
     ProjectMetricsAggregator,
 )
 from scripts.dashboard.parsers.snapshot_loader import SnapshotLoader
+from scripts.utils.datetime_utils import normalize_to_naive_utc
 
 
 class DashboardDataEngine:
@@ -51,14 +55,14 @@ class DashboardDataEngine:
         # Cache for processed data
         self._cache = {}
 
-    def load_projects(self) -> List[Dict[str, Any]]:
+    def load_projects(self) -> list[dict[str, Any]]:
         """Load project manifests from data/projects/*.project.json"""
-        projects: List[Dict[str, Any]] = []
+        projects: list[dict[str, Any]] = []
         if not self.projects_dir.exists():
             return projects
         for mf in sorted(self.projects_dir.glob("*.project.json")):
             try:
-                with open(mf, "r") as f:
+                with open(mf) as f:
                     pj = json.load(f)
                 projects.append(
                     {
@@ -72,12 +76,13 @@ class DashboardDataEngine:
                         "manifestPath": str(mf),
                     }
                 )
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Failed to parse project manifest {mf}: {e}")
                 continue
         return projects
 
     # ---------------------------- Baseline Labels ----------------------------
-    def build_time_labels(self, time_slice: str, lookback_days: int) -> List[str]:
+    def build_time_labels(self, time_slice: str, lookback_days: int) -> list[str]:
         """Build canonical label list for a given time_slice over lookback_days.
 
         Returns labels matching _get_time_slice_key formats:
@@ -86,7 +91,7 @@ class DashboardDataEngine:
         - 'W': YYYY-MM-DD of Monday week start
         - 'M': YYYY-MM-01
         """
-        labels: List[str] = []
+        labels: list[str] = []
         now = datetime.now()
         # Interpret lookback_days as "days back" EXCLUDING today; labels include today.
         # Example: lookback_days=7 → today + 7 back = 8 daily labels
@@ -171,7 +176,7 @@ class DashboardDataEngine:
         )
         return display_names.get(script_name, script_name.replace("_", " ").title())
 
-    def discover_scripts(self) -> List[str]:
+    def discover_scripts(self) -> list[str]:
         """Dynamically discover all scripts that have generated data"""
         scripts = set()
 
@@ -180,19 +185,21 @@ class DashboardDataEngine:
         if self.timer_data_dir.exists():
             for daily_file in self.timer_data_dir.glob("daily_*.json"):
                 try:
-                    with open(daily_file, "r") as f:
+                    with open(daily_file) as f:
                         data = json.load(f)
                         for script_name in data.get("scripts", {}):
                             scripts.add(script_name)
-                except Exception:
-                    # Silently skip - timer data is deprecated and may have incompatible formats
-                    pass
+                except Exception as e:
+                    # Timer data is deprecated and may have incompatible formats
+                    logger.debug(
+                        f"Skipping incompatible timer data file {daily_file}: {e}"
+                    )
 
         # From FileTracker logs
         if self.file_ops_dir.exists():
             for log_file in self.file_ops_dir.glob("*.log"):
                 try:
-                    with open(log_file, "r") as f:
+                    with open(log_file) as f:
                         for line in f:
                             if line.strip():
                                 data = json.loads(line)
@@ -204,8 +211,8 @@ class DashboardDataEngine:
         return sorted(list(scripts))
 
     def load_activity_data(
-        self, start_date: Optional[str] = None, end_date: Optional[str] = None
-    ) -> List[Dict]:
+        self, start_date: str | None = None, end_date: str | None = None
+    ) -> list[dict]:
         """Load and process ActivityTimer data"""
         records = []
 
@@ -222,7 +229,7 @@ class DashboardDataEngine:
                 continue
 
             try:
-                with open(daily_file, "r") as f:
+                with open(daily_file) as f:
                     data = json.load(f)
                 # Support list-shaped files (legacy or malformed); skip quietly
                 if isinstance(data, list):
@@ -259,13 +266,13 @@ class DashboardDataEngine:
                                 record["end_time"]
                             )
                         records.append(record)
-            except Exception:
-                # Silence malformed daily files
+            except Exception as e:
+                logger.warning(f"Malformed daily snapshot file {snap}: {e}")
                 continue
 
         return records
 
-    def load_session_data(self, lookback_days: int = 14) -> List[Dict]:
+    def load_session_data(self, lookback_days: int = 14) -> list[dict]:
         """
         Load session data from configured source (derived or legacy).
 
@@ -301,20 +308,19 @@ class DashboardDataEngine:
                         "source": "derived_from_operation_events_v1",
                     }
                     records.append(record)
-                except Exception:
-                    # Skip malformed sessions silently
+                except Exception as e:
+                    logger.warning(f"Malformed session record in {session_file}: {e}")
                     continue
             return records
-        else:
-            # Fall back to legacy timer data
-            cutoff_date = (datetime.now() - timedelta(days=lookback_days)).strftime(
-                "%Y%m%d"
-            )
-            return self.load_activity_data(start_date=cutoff_date)
+        # Fall back to legacy timer data
+        cutoff_date = (datetime.now() - timedelta(days=lookback_days)).strftime(
+            "%Y%m%d"
+        )
+        return self.load_activity_data(start_date=cutoff_date)
 
     def calculate_file_operation_work_time(
-        self, file_operations: List[Dict], break_threshold_minutes: int = 5
-    ) -> Dict[str, Any]:
+        self, file_operations: list[dict], break_threshold_minutes: int = 5
+    ) -> dict[str, Any]:
         """
         Calculate work time from file operations using intelligent break detection.
 
@@ -339,7 +345,7 @@ class DashboardDataEngine:
             }
 
         # Normalize records for companion utils: ensure 'timestamp' is a string
-        ops_for_metrics: List[Dict[str, Any]] = []
+        ops_for_metrics: list[dict[str, Any]] = []
         for op in file_operations:
             try:
                 op_copy = dict(op)
@@ -358,14 +364,13 @@ class DashboardDataEngine:
 
         # Calculate work time using gap threshold (stop at first gap > threshold)
         try:
-            times: List[datetime] = []
+            times: list[datetime] = []
             for op in ops_for_metrics:
                 ts = op.get("timestamp")
                 if isinstance(ts, str):
                     ts = datetime.fromisoformat(ts.replace("Z", "+00:00"))
                 if isinstance(ts, datetime):
-                    if getattr(ts, "tzinfo", None) is not None:
-                        ts = ts.replace(tzinfo=None)
+                    ts = normalize_to_naive_utc(ts)
                     times.append(ts)
             times.sort()
             work_seconds = 0.0
@@ -399,7 +404,7 @@ class DashboardDataEngine:
             "timing_method": "file_operations",
         }
 
-    def get_combined_timing_data(self, script_name: str, date: str) -> Dict[str, Any]:
+    def get_combined_timing_data(self, script_name: str, date: str) -> dict[str, Any]:
         """
         Get combined timing data for a script on a specific date.
 
@@ -432,7 +437,7 @@ class DashboardDataEngine:
         if script_name in file_heavy_tools:
             # Use file-operation timing
             return self.calculate_file_operation_work_time(script_file_ops)
-        elif script_name in scroll_heavy_tools:
+        if script_name in scroll_heavy_tools:
             # Use ActivityTimer data
             timer_data = self.load_activity_data(date, date)
             script_timer_data = [
@@ -460,32 +465,29 @@ class DashboardDataEngine:
                     ),
                     "timing_method": "activity_timer",
                 }
-            else:
-                return {
-                    "work_time_seconds": 0.0,
-                    "work_time_minutes": 0.0,
-                    "total_operations": 0,
-                    "files_processed": 0,
-                    "efficiency_score": 0.0,
-                    "timing_method": "activity_timer",
-                }
-        else:
-            # Unknown script - try file operations first, fallback to timer
-            if script_file_ops:
-                return self.calculate_file_operation_work_time(script_file_ops)
-            else:
-                return {
-                    "work_time_seconds": 0.0,
-                    "work_time_minutes": 0.0,
-                    "total_operations": 0,
-                    "files_processed": 0,
-                    "efficiency_score": 0.0,
-                    "timing_method": "unknown",
-                }
+            return {
+                "work_time_seconds": 0.0,
+                "work_time_minutes": 0.0,
+                "total_operations": 0,
+                "files_processed": 0,
+                "efficiency_score": 0.0,
+                "timing_method": "activity_timer",
+            }
+        # Unknown script - try file operations first, fallback to timer
+        if script_file_ops:
+            return self.calculate_file_operation_work_time(script_file_ops)
+        return {
+            "work_time_seconds": 0.0,
+            "work_time_minutes": 0.0,
+            "total_operations": 0,
+            "files_processed": 0,
+            "efficiency_score": 0.0,
+            "timing_method": "unknown",
+        }
 
     def load_file_operations(
-        self, start_date: Optional[str] = None, end_date: Optional[str] = None
-    ) -> List[Dict]:
+        self, start_date: str | None = None, end_date: str | None = None
+    ) -> list[dict]:
         """
         Load file operations with smart archive optimization.
 
@@ -560,7 +562,7 @@ class DashboardDataEngine:
                 belongs_to_active = False
                 for path_key in ["source_dir", "dest_dir", "working_dir"]:
                     path = str(record.get(path_key, "")).lower()
-                    for active_id in active_projects.keys():
+                    for active_id in active_projects:
                         if active_id.lower() in path:
                             belongs_to_active = True
                             break
@@ -601,11 +603,11 @@ class DashboardDataEngine:
 
     def _load_bins_as_operations(
         self, bin_path: Path, project_id: str
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Load bins and convert to operation-like records for compatibility."""
         bins = []
         try:
-            with open(bin_path, "r") as f:
+            with open(bin_path) as f:
                 for line in f:
                     try:
                         bin_record = json.loads(line)
@@ -635,9 +637,9 @@ class DashboardDataEngine:
     def _load_from_snapshot_aggregates(
         self,
         aggregates_dir: Path,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-    ) -> List[Dict]:
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> list[dict]:
         """Load from new snapshot daily_aggregates_v1 format"""
         records = []
 
@@ -655,7 +657,7 @@ class DashboardDataEngine:
                 continue
 
             try:
-                with open(agg_file, "r") as f:
+                with open(agg_file) as f:
                     agg = json.load(f)
 
                 # Convert aggregate to summary-compatible format
@@ -686,9 +688,9 @@ class DashboardDataEngine:
     def _load_from_daily_summaries(
         self,
         summaries_dir: Path,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-    ) -> List[Dict]:
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> list[dict]:
         """Load records from daily summary files"""
         records = []
 
@@ -705,7 +707,7 @@ class DashboardDataEngine:
                 continue
 
             try:
-                with open(summary_file, "r") as f:
+                with open(summary_file) as f:
                     summary_data = json.load(f)
 
                 # Convert daily summary to individual records for compatibility
@@ -736,9 +738,8 @@ class DashboardDataEngine:
                             # Convert timestamp
                             try:
                                 ts = datetime.fromisoformat(record["timestamp_str"])
-                                # Normalize to naive datetime to avoid tz mixing downstream
-                                if getattr(ts, "tzinfo", None) is not None:
-                                    ts = ts.replace(tzinfo=None)
+                                # Normalize to naive UTC
+                                ts = normalize_to_naive_utc(ts)
                                 record["timestamp"] = ts
                                 record["date"] = ts.date()
                             except Exception:
@@ -753,8 +754,8 @@ class DashboardDataEngine:
         return records
 
     def _load_from_detailed_logs(
-        self, start_date: Optional[str] = None, end_date: Optional[str] = None
-    ) -> List[Dict]:
+        self, start_date: str | None = None, end_date: str | None = None
+    ) -> list[dict]:
         """Fallback: Load records from detailed log files"""
         records = []
 
@@ -806,8 +807,7 @@ class DashboardDataEngine:
                                             ts = datetime.fromisoformat(
                                                 record["timestamp_str"]
                                             )
-                                            if getattr(ts, "tzinfo", None) is not None:
-                                                ts = ts.replace(tzinfo=None)
+                                            ts = normalize_to_naive_utc(ts)
                                             record["timestamp"] = ts
                                             record["date"] = ts.date()
                                         except Exception:
@@ -820,7 +820,7 @@ class DashboardDataEngine:
                                     continue
                 else:
                     # Handle regular files
-                    with open(log_file, "r") as f:
+                    with open(log_file) as f:
                         for line in f:
                             if line.strip():
                                 try:
@@ -843,8 +843,7 @@ class DashboardDataEngine:
                                             ts = datetime.fromisoformat(
                                                 record["timestamp_str"]
                                             )
-                                            if getattr(ts, "tzinfo", None) is not None:
-                                                ts = ts.replace(tzinfo=None)
+                                            ts = normalize_to_naive_utc(ts)
                                             record["timestamp"] = ts
                                             record["date"] = ts.date()
                                         except Exception:
@@ -862,11 +861,11 @@ class DashboardDataEngine:
 
     def aggregate_by_time_slice(
         self,
-        records: List[Dict],
+        records: list[dict],
         time_slice: str,
         value_field: str,
         group_field: str = "script",
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Aggregate data by time slices for dashboard visualization
 
@@ -911,8 +910,8 @@ class DashboardDataEngine:
         return sorted(result, key=lambda x: x["time_slice"])
 
     def _aggregate_by_project(
-        self, records: List[Dict], time_slice: str, projects: List[Dict]
-    ) -> List[Dict]:
+        self, records: list[dict], time_slice: str, projects: list[dict]
+    ) -> list[dict]:
         """
         Aggregate file operations by project and time slice.
 
@@ -964,8 +963,7 @@ class DashboardDataEngine:
                             rec_dt = datetime.fromisoformat(rec_ts.replace("Z", ""))
                         else:
                             rec_dt = rec_ts
-                        if rec_dt.tzinfo:
-                            rec_dt = rec_dt.replace(tzinfo=None)
+                        rec_dt = normalize_to_naive_utc(rec_dt)
 
                         # For daily summaries (timestamp at midnight), use DATE comparison only
                         # This handles projects that start/end mid-day
@@ -985,8 +983,7 @@ class DashboardDataEngine:
 
                             # Parse project dates (compare dates only, not times)
                             start_dt = datetime.fromisoformat(started.replace("Z", ""))
-                            if start_dt.tzinfo:
-                                start_dt = start_dt.replace(tzinfo=None)
+                            start_dt = normalize_to_naive_utc(start_dt)
                             start_date = start_dt.date()
 
                             # Check if in range (DATE level, not datetime)
@@ -997,8 +994,7 @@ class DashboardDataEngine:
                                 end_dt = datetime.fromisoformat(
                                     finished.replace("Z", "")
                                 )
-                                if end_dt.tzinfo:
-                                    end_dt = end_dt.replace(tzinfo=None)
+                                end_dt = normalize_to_naive_utc(end_dt)
                                 end_date = end_dt.date()
                                 if rec_date > end_date:
                                     continue
@@ -1053,13 +1049,13 @@ class DashboardDataEngine:
 
         return sorted(result, key=lambda x: x["time_slice"])
 
-    def _get_time_slice_key(self, record: Dict, time_slice: str) -> Optional[str]:
+    def _get_time_slice_key(self, record: dict, time_slice: str) -> str | None:
         """Get time slice key for a record"""
         # Determine which timestamp to use
         timestamp = None
-        if "timestamp" in record and record["timestamp"]:
+        if record.get("timestamp"):
             timestamp = record["timestamp"]
-        elif "start_datetime" in record and record["start_datetime"]:
+        elif record.get("start_datetime"):
             timestamp = record["start_datetime"]
 
         # Convert string timestamps to datetime
@@ -1094,18 +1090,18 @@ class DashboardDataEngine:
             # Round to 15-minute intervals
             minute = (timestamp.minute // 15) * 15
             return timestamp.replace(minute=minute, second=0, microsecond=0).isoformat()
-        elif time_slice == "1H":
+        if time_slice == "1H":
             # Round to hour
             return timestamp.replace(minute=0, second=0, microsecond=0).isoformat()
-        elif time_slice == "D":
+        if time_slice == "D":
             # Daily
             return timestamp.date().isoformat()
-        elif time_slice == "W":
+        if time_slice == "W":
             # Weekly (Monday as start of week)
             days_since_monday = timestamp.weekday()
             monday = timestamp - timedelta(days=days_since_monday)
             return monday.date().isoformat()
-        elif time_slice == "M":
+        if time_slice == "M":
             # Monthly
             return f"{timestamp.year}-{timestamp.month:02d}-01"
 
@@ -1113,12 +1109,12 @@ class DashboardDataEngine:
 
     def calculate_historical_averages(
         self,
-        records: List[Dict],
+        records: list[dict],
         time_slice: str,
         value_field: str,
         group_field: str = "script",
         lookback_days: int = 30,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Calculate historical averages for 'cloud' overlay backgrounds"""
         if not records:
             return []
@@ -1129,9 +1125,9 @@ class DashboardDataEngine:
 
         for record in records:
             timestamp = None
-            if "timestamp" in record and record["timestamp"]:
+            if record.get("timestamp"):
                 timestamp = record["timestamp"]
-            elif "start_datetime" in record and record["start_datetime"]:
+            elif record.get("start_datetime"):
                 timestamp = record["start_datetime"]
 
             # Normalize tz-aware to naive for comparison
@@ -1184,22 +1180,21 @@ class DashboardDataEngine:
                 # Intraday: pattern by hour of day
                 dt = datetime.fromisoformat(time_slice_key)
                 return str(dt.hour)
-            elif time_slice == "D":
+            if time_slice == "D":
                 # Daily: pattern by day of week
                 dt = datetime.fromisoformat(time_slice_key)
                 return str(dt.weekday())
-            elif time_slice == "W":
+            if time_slice == "W":
                 # Weekly: pattern by week of year (simplified)
                 dt = datetime.fromisoformat(time_slice_key)
                 return str(dt.isocalendar()[1])
-            else:
-                # Monthly: pattern by month
-                dt = datetime.fromisoformat(time_slice_key)
-                return str(dt.month)
+            # Monthly: pattern by month
+            dt = datetime.fromisoformat(time_slice_key)
+            return str(dt.month)
         except Exception:
             return "unknown"
 
-    def load_script_updates(self) -> List[Dict]:
+    def load_script_updates(self) -> list[dict]:
         """Load script update tracking data"""
         if not self.script_updates_file.exists():
             # Create empty file with headers
@@ -1209,7 +1204,7 @@ class DashboardDataEngine:
 
         try:
             updates = []
-            with open(self.script_updates_file, "r") as f:
+            with open(self.script_updates_file) as f:
                 lines = f.readlines()
                 if len(lines) > 1:  # Skip header
                     for line in lines[1:]:
@@ -1227,9 +1222,7 @@ class DashboardDataEngine:
             print(f"Warning: Could not load script updates: {e}")
             return []
 
-    def add_script_update(
-        self, script: str, description: str, date: Optional[str] = None
-    ):
+    def add_script_update(self, script: str, description: str, date: str | None = None):
         """Add a script update entry"""
         if date is None:
             date = datetime.now().strftime("%Y-%m-%d")
@@ -1244,9 +1237,9 @@ class DashboardDataEngine:
         self,
         time_slice: str = "D",
         lookback_days: int = 30,
-        production_scripts: List[str] = None,
-        project_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        production_scripts: list[str] = None,
+        project_id: str | None = None,
+    ) -> dict[str, Any]:
         """
         Generate complete dashboard data package
 
@@ -1336,7 +1329,7 @@ class DashboardDataEngine:
                 root_hint = project.get("paths", {}).get("root")
             if root_hint:
 
-                def belongs(rec: Dict[str, Any]) -> bool:
+                def belongs(rec: dict[str, Any]) -> bool:
                     src = rec.get("source_dir") or ""
                     dst = rec.get("dest_dir") or ""
                     wd = rec.get("working_dir") or ""
@@ -1503,7 +1496,7 @@ class DashboardDataEngine:
             # Count images kept (moves to selected/crop) and images deleted (send_to_trash/delete)
             # Only include records that explicitly indicate image-only counting via notes or where
             # we can reasonably infer PNG-only from the files list.
-            def _is_png_only(rec: Dict[str, Any]) -> bool:
+            def _is_png_only(rec: dict[str, Any]) -> bool:
                 # Some logs may carry notes as non-strings (lists/objects) —
                 # coerce safely before calling lower() to avoid 500s.
                 n = rec.get("notes")
@@ -1520,7 +1513,7 @@ class DashboardDataEngine:
                 # If no explicit signal, be conservative and do not assume
                 return False
 
-            png_only_records: List[Dict[str, Any]] = [
+            png_only_records: list[dict[str, Any]] = [
                 r for r in file_ops_records if _is_png_only(r)
             ]
             if png_only_records:
@@ -1574,11 +1567,11 @@ class DashboardDataEngine:
 
         # Compute timing_data per display script for summary cards
         # Prefer file-operation timing when available for a script; otherwise use activity timer sums
-        timing_by_display: Dict[str, Dict[str, Any]] = {}
+        timing_by_display: dict[str, dict[str, Any]] = {}
 
         # Group file ops by display script
         if file_ops_records:
-            ops_by_display: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+            ops_by_display: dict[str, list[dict[str, Any]]] = defaultdict(list)
             for r in file_ops_records:
                 display = self.get_display_name(r.get("script"))
                 ops_by_display[display].append(r)
@@ -1588,7 +1581,7 @@ class DashboardDataEngine:
 
         # Group activity by display script for scripts without file ops
         if activity_records:
-            tmp_by_display: Dict[str, Dict[str, float]] = defaultdict(
+            tmp_by_display: dict[str, dict[str, float]] = defaultdict(
                 lambda: {"work_time_seconds": 0.0, "files_processed": 0.0}
             )
             for r in activity_records:
@@ -1648,7 +1641,7 @@ class DashboardDataEngine:
 
         return dashboard_data
 
-    def get_backup_status(self) -> Dict[str, Any]:
+    def get_backup_status(self) -> dict[str, Any]:
         """
         Get backup system status for dashboard monitoring.
 
@@ -1671,7 +1664,7 @@ class DashboardDataEngine:
             status_file = backup_root / "backup_status.json"
 
             if status_file.exists():
-                with open(status_file, "r") as f:
+                with open(status_file) as f:
                     status_data = json.load(f)
 
                 backup_status.update(status_data)

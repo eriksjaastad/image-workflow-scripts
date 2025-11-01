@@ -16,9 +16,8 @@ import argparse
 import sys
 from collections import defaultdict
 from datetime import datetime
-from pathlib import Path
-from pathlib import Path as _P
-from typing import Any, Dict, List
+from pathlib import Path, Path as _P
+from typing import Any
 
 # Ensure project root is on sys.path so 'scripts' package can be imported
 _ROOT = _P(__file__).resolve().parents[3]
@@ -88,7 +87,7 @@ def main() -> None:
         if day:
             summary_days.add(day)
 
-    filtered_detailed: List[Dict[str, Any]] = []
+    filtered_detailed: list[dict[str, Any]] = []
     for rec in detailed_ops:
         day = _parse_iso_date(rec.get("timestamp") or rec.get("timestamp_str") or "")
         if day and day in summary_days:
@@ -110,7 +109,7 @@ def main() -> None:
         proj_ops = list(ops_by_time)
 
     # Group by day and compute work_time_minutes per day
-    by_day_ops: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    by_day_ops: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for rec in proj_ops:
         day = _parse_iso_date(rec.get("timestamp") or rec.get("timestamp_str") or "")
         if not day:

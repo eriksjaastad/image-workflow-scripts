@@ -64,7 +64,6 @@ def main():
     # Find images in database but not in directory
     missing_from_dir = db_images - dir_images
 
-
     if missing_from_db:
         for _i, _img in enumerate(sorted(missing_from_db)[:20], 1):
             pass

@@ -14,17 +14,18 @@ import time
 import unittest
 
 from flask import Flask
-from scripts.tests.test_base_selenium import BaseSeleniumTest
 from selenium.webdriver.common.by import By
+
+from scripts.tests.test_base_selenium import BaseSeleniumTest
 
 
 class TestSeleniumInfrastructure(BaseSeleniumTest):
     """Test that Selenium infrastructure is working correctly."""
-    
+
     def get_flask_app(self):
         """Create a minimal test Flask app."""
         app = Flask(__name__)
-        
+
         @app.route("/")
         def index():
             return """
@@ -43,22 +44,22 @@ class TestSeleniumInfrastructure(BaseSeleniumTest):
             </body>
             </html>
             """
-        
+
         return app
-    
+
     def test_page_loads(self):
         """Test that a basic page loads."""
         self.get("/")
         heading = self.driver.find_element(By.ID, "heading")
         self.assertEqual(heading.text, "Hello Selenium!")
-    
+
     def test_button_present(self):
         """Test that buttons are found."""
         self.get("/")
         button = self.driver.find_element(By.ID, "test-btn")
         self.assertIsNotNone(button)
         self.assertEqual(button.text, "Click Me")
-    
+
     def test_javascript_execution(self):
         """Test that JavaScript executes."""
         self.get("/")
@@ -71,4 +72,3 @@ class TestSeleniumInfrastructure(BaseSeleniumTest):
 
 if __name__ == "__main__":
     unittest.main()
-

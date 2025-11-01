@@ -19,15 +19,15 @@ from pathlib import Path
 def create_sidecars(root: Path) -> int:
     count = 0
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if not d.startswith('.')]
+        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
         for name in filenames:
-            if name.startswith('.'):
+            if name.startswith("."):
                 continue
             p = Path(dirpath) / name
-            if p.suffix.lower() == '.png':
-                sidecar = p.with_suffix('.cropped')
+            if p.suffix.lower() == ".png":
+                sidecar = p.with_suffix(".cropped")
                 try:
-                    sidecar.write_text('')
+                    sidecar.write_text("")
                     count += 1
                 except OSError:
                     pass
@@ -36,7 +36,7 @@ def create_sidecars(root: Path) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate .cropped sidecars for PNGs")
-    parser.add_argument('--dir', required=True, help='Directory to scan (e.g., crop/)')
+    parser.add_argument("--dir", required=True, help="Directory to scan (e.g., crop/)")
     args = parser.parse_args()
 
     root = Path(args.dir).resolve()
@@ -47,7 +47,5 @@ def main() -> None:
     print(f"[*] Created/updated {n} .cropped sidecars under {root}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
-
-

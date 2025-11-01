@@ -86,6 +86,7 @@ try:
 except Exception:
     _SEND2TRASH_AVAILABLE = False
 
+
 def find_image_directories(output_dir):
     """Find all subdirectories containing images, or treat as single directory if images are directly in it."""
     # Convert to absolute path from script's parent directory
@@ -93,39 +94,44 @@ def find_image_directories(output_dir):
         output_path = Path(__file__).parent.parent / output_dir
     else:
         output_path = Path(output_dir)
-    
+
     if not output_path.exists():
         print(f"❌ Directory not found: {output_path}")
         return []
-    
+
     directories = []
-    
+
     # First check if there are images directly in the main directory
     direct_images = list(output_path.glob("*.png"))
     if direct_images:
         # Treat the main directory as a single image directory
-        directories.append({
-            'name': output_path.name,
-            'path': output_path,
-            'images': sorted([img.name for img in direct_images]),
-            'count': len(direct_images)
-        })
+        directories.append(
+            {
+                "name": output_path.name,
+                "path": output_path,
+                "images": sorted([img.name for img in direct_images]),
+                "count": len(direct_images),
+            }
+        )
         return directories
-    
+
     # Otherwise, look for subdirectories containing images
     for subdir in sorted(output_path.iterdir()):
         if subdir.is_dir():
             # Find PNG files in this directory
             images = list(subdir.glob("*.png"))
             if images:
-                directories.append({
-                    'name': subdir.name,
-                    'path': subdir,
-                    'images': sorted([img.name for img in images]),
-                    'count': len(images)
-                })
-    
+                directories.append(
+                    {
+                        "name": subdir.name,
+                        "path": subdir,
+                        "images": sorted([img.name for img in images]),
+                        "count": len(images),
+                    }
+                )
+
     return directories
+
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -614,22 +620,23 @@ JAVASCRIPT_CODE = """
 </script>
 """
 
+
 def create_app(left_dir, right_dir):
     app = Flask(__name__)
-    
+
     # Convert to absolute paths
     left_path = Path(left_dir).resolve()
     right_path = Path(right_dir).resolve()
-    
+
     # Initialize FileTracker
     tracker = FileTracker("multi_directory_viewer")
-    
-    @app.route('/')
+
+    @app.route("/")
     def index():
         # Scan directories fresh each time to reflect deletions
         left_images = sorted([img.name for img in left_path.glob("*.png")])
         right_images = sorted([img.name for img in right_path.glob("*.png")])
-        
+
         return render_template_string(
             HTML_TEMPLATE + JAVASCRIPT_CODE,
             left_images=left_images,
@@ -638,14 +645,14 @@ def create_app(left_dir, right_dir):
             right_dir_name=right_path.name,
             left_dir=left_dir,
             right_dir=right_dir,
-            error_display_html=get_error_display_html()
+            error_display_html=get_error_display_html(),
         )
-    
-    @app.route('/image/<directory>/<filename>')
+
+    @app.route("/image/<directory>/<filename>")
     def serve_image(directory, filename):
         """Serve image thumbnails from the directories."""
         from flask import Response
-        
+
         # Determine which directory to serve from
         if directory == left_path.name:
             image_path = left_path / filename
@@ -653,158 +660,186 @@ def create_app(left_dir, right_dir):
             image_path = right_path / filename
         else:
             return "Directory not found", 404
-        
+
         if image_path.exists():
             try:
                 # Generate thumbnail using shared function
                 stat = image_path.stat()
                 thumbnail_data = generate_thumbnail(
-                    str(image_path), 
-                    int(stat.st_mtime_ns), 
+                    str(image_path),
+                    int(stat.st_mtime_ns),
                     stat.st_size,
                     max_dim=THUMBNAIL_MAX_DIM,
-                    quality=85
+                    quality=85,
                 )
-                return Response(thumbnail_data, mimetype='image/jpeg')
+                return Response(thumbnail_data, mimetype="image/jpeg")
             except Exception as e:
-                logger.error_with_exception(f"Error generating thumbnail for {filename}", e)
+                logger.error_with_exception(
+                    f"Error generating thumbnail for {filename}", e
+                )
                 return "Error generating thumbnail", 500
-        
+
         return "Image not found", 404
-    
-    @app.route('/process', methods=['POST'])
+
+    @app.route("/process", methods=["POST"])
     def process_selections():
         """Process batch of delete selections."""
         data = request.get_json()
-        selections = data.get('selections', [])
-        
+        selections = data.get("selections", [])
+
         if not selections:
-            return jsonify({'success': False, 'message': 'No selections provided'})
-        
+            return jsonify({"success": False, "message": "No selections provided"})
+
         processed = 0
         errors = []
-        
+
         for selection in selections:
-            directory = selection.get('directory')
-            image = selection.get('image')
-            action = selection.get('action')
-            
+            directory = selection.get("directory")
+            image = selection.get("image")
+            action = selection.get("action")
+
             if not all([directory, image, action]):
                 errors.append(f"Invalid selection: {selection}")
                 continue
-            
+
             # Only allow deletions from the right directory
             if directory != right_path.name:
                 errors.append(f"Can only delete from right directory: {directory}")
                 continue
-                
+
             source_path = right_path / image
             if not source_path.exists():
                 errors.append(f"Image not found: {image}")
                 continue
-            
+
             try:
-                if action == 'delete':
+                if action == "delete":
                     # Use shared companion-aware delete for image and ALL companions
                     try:
-                        _ = safe_delete_image_and_yaml(source_path, hard_delete=False, tracker=tracker)
+                        _ = safe_delete_image_and_yaml(
+                            source_path, hard_delete=False, tracker=tracker
+                        )
                     except Exception as e:
-                        errors.append(f"send2trash not available or delete failed for {image}: {e}")
+                        errors.append(
+                            f"send2trash not available or delete failed for {image}: {e}"
+                        )
                         continue
-                    
+
                     # Log training data for duplicate detection
                     try:
                         training_dir = get_training_dir()
                         log_path = training_dir / "duplicate_detection_log.csv"
-                        header = ['timestamp', 'session_id', 'left_directory', 'right_directory', 'deleted_image']
+                        header = [
+                            "timestamp",
+                            "session_id",
+                            "left_directory",
+                            "right_directory",
+                            "deleted_image",
+                        ]
                         row = {
-                            'timestamp': datetime.now().isoformat(),
-                            'session_id': datetime.now().strftime('%Y%m%d_%H%M%S'),
-                            'left_directory': str(left_path),
-                            'right_directory': str(right_path),
-                            'deleted_image': str(source_path)
+                            "timestamp": datetime.now().isoformat(),
+                            "session_id": datetime.now().strftime("%Y%m%d_%H%M%S"),
+                            "left_directory": str(left_path),
+                            "right_directory": str(right_path),
+                            "deleted_image": str(source_path),
                         }
                         _append_csv_row(log_path, header, row)
                     except Exception:
                         pass  # Don't let logging errors break the workflow
-                
+
                 processed += 1
-                
+
             except Exception as e:
-                errors.append(f"Error processing {image}: {str(e)}")
-        
+                errors.append(f"Error processing {image}: {e!s}")
+
         if errors:
-            return jsonify({
-                'success': False, 
-                'message': f"Processed {processed}, errors: {'; '.join(errors[:3])}"
-            })
-        else:
-            return jsonify({
-                'success': True, 
-                'processed': processed,
-                'message': f"Successfully processed {processed} operations"
-            })
-    
+            return jsonify(
+                {
+                    "success": False,
+                    "message": f"Processed {processed}, errors: {'; '.join(errors[:3])}",
+                }
+            )
+        return jsonify(
+            {
+                "success": True,
+                "processed": processed,
+                "message": f"Successfully processed {processed} operations",
+            }
+        )
+
     return app
+
 
 def open_browser(url):
     """Open browser after a short delay."""
     # Extract host and port from URL for shared function
     from urllib.parse import urlparse
+
     parsed = urlparse(url)
     host = parsed.hostname or "localhost"
     port = parsed.port or 5000
     launch_browser(host, port, delay=1.5)
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Web duplicate finder - compare two directories side by side")
+    parser = argparse.ArgumentParser(
+        description="Web duplicate finder - compare two directories side by side"
+    )
     parser.add_argument("left_dir", help="Left directory (view-only reference)")
     parser.add_argument("right_dir", help="Right directory (interactive, can delete)")
-    parser.add_argument("--port", type=int, default=5005, help="Port to run the server on (default: 5005)")
-    parser.add_argument("--no-browser", action="store_true", help="Don't automatically open browser")
-    
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=5005,
+        help="Port to run the server on (default: 5005)",
+    )
+    parser.add_argument(
+        "--no-browser", action="store_true", help="Don't automatically open browser"
+    )
+
     args = parser.parse_args()
-    
+
     # Validate both directories exist
     left_path = Path(args.left_dir)
     right_path = Path(args.right_dir)
-    
+
     if not left_path.exists():
         logger.directory_not_found(args.left_dir)
         sys.exit(1)
-    
+
     if not right_path.exists():
         logger.directory_not_found(args.right_dir)
         sys.exit(1)
-    
+
     # Get images from both directories
     left_images = list(left_path.glob("*.png"))
     right_images = list(right_path.glob("*.png"))
-    
+
     if not left_images:
         print(f"❌ Error: No PNG images found in left directory '{args.left_dir}'")
         sys.exit(1)
-    
+
     if not right_images:
         print(f"❌ Error: No PNG images found in right directory '{args.right_dir}'")
         sys.exit(1)
-    
+
     print("🚀 Starting Web Duplicate Finder...")
     print(f"📂 Left directory: {args.left_dir} ({len(left_images)} images)")
     print(f"📂 Right directory: {args.right_dir} ({len(right_images)} images)")
-    
+
     app = create_app(args.left_dir, args.right_dir)
-    
+
     url = f"http://localhost:{args.port}"
     print(f"🌐 Server starting at: {url}")
-    
+
     if not args.no_browser:
         threading.Thread(target=open_browser, args=(url,), daemon=True).start()
-    
+
     try:
-        app.run(host='0.0.0.0', port=args.port, debug=False)
+        app.run(host="0.0.0.0", port=args.port, debug=False)
     except KeyboardInterrupt:
         print("\n👋 Server stopped")
+
 
 if __name__ == "__main__":
     main()

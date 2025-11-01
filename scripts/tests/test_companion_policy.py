@@ -90,7 +90,9 @@ def test_raises_on_single_image_without_companions() -> bool:
             raised = True
             assert "COMPANION POLICY VIOLATION" in str(e)
 
-        assert raised, "Expected RuntimeError when moving single image without companions"
+        assert (
+            raised
+        ), "Expected RuntimeError when moving single image without companions"
         print("   ✅ Raised on single-file image move as expected")
         return True
 
@@ -118,5 +120,3 @@ def run_all() -> bool:
 if __name__ == "__main__":
     ok = run_all()
     sys.exit(0 if ok else 1)
-
-

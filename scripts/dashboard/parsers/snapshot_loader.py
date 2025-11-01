@@ -6,9 +6,9 @@ Loads pre-aggregated snapshot data for dashboard performance mode.
 """
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 
 class SnapshotLoader:
@@ -19,7 +19,7 @@ class SnapshotLoader:
         self.snapshot_dir = self.project_root / "data" / "snapshot"
         self.config = self._load_config()
 
-    def _load_config(self) -> Dict[str, Any]:
+    def _load_config(self) -> dict[str, Any]:
         """Load metrics configuration."""
         config_path = self.project_root / "configs" / "metrics_config.json"
         if config_path.exists():
@@ -37,18 +37,18 @@ class SnapshotLoader:
             "lookbackDays": 14,
         }
 
-    def load_derived_sessions(self, lookback_days: int = 14) -> List[Dict[str, Any]]:
+    def load_derived_sessions(self, lookback_days: int = 14) -> list[dict[str, Any]]:
         """Load derived sessions from snapshot."""
         sessions_dir = self.snapshot_dir / "derived_sessions_v1"
         if not sessions_dir.exists():
             return []
 
-        cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_days)
+        cutoff = datetime.now(UTC) - timedelta(days=lookback_days)
         sessions = []
 
         for day_dir in sessions_dir.glob("day=*"):
             day_str = day_dir.name.split("=")[1]
-            day_date = datetime.strptime(day_str, "%Y%m%d").replace(tzinfo=timezone.utc)
+            day_date = datetime.strptime(day_str, "%Y%m%d").replace(tzinfo=UTC)
 
             if day_date < cutoff:
                 continue
@@ -64,18 +64,18 @@ class SnapshotLoader:
 
     def load_daily_aggregates(
         self, lookback_days: int = 14
-    ) -> Dict[str, Dict[str, Any]]:
+    ) -> dict[str, dict[str, Any]]:
         """Load daily aggregates from snapshot."""
         agg_dir = self.snapshot_dir / "daily_aggregates_v1"
         if not agg_dir.exists():
             return {}
 
-        cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_days)
+        cutoff = datetime.now(UTC) - timedelta(days=lookback_days)
         aggregates = {}
 
         for day_dir in agg_dir.glob("day=*"):
             day_str = day_dir.name.split("=")[1]
-            day_date = datetime.strptime(day_str, "%Y%m%d").replace(tzinfo=timezone.utc)
+            day_date = datetime.strptime(day_str, "%Y%m%d").replace(tzinfo=UTC)
 
             if day_date < cutoff:
                 continue

@@ -88,7 +88,7 @@ def test_mapped_scripts_are_in_production_list():
     engine.get_data_for_dashboard(
         lookback_days=7,
         time_slice="day",
-        production_scripts=None  # Use default list
+        production_scripts=None,  # Use default list
     )
 
     # This is a bit hacky, but we want to ensure the scripts are being loaded
@@ -96,8 +96,9 @@ def test_mapped_scripts_are_in_production_list():
     # For now, just verify the mapping exists
     for script in critical_scripts:
         display_name = engine.get_display_name(script)
-        assert display_name != script.replace("_", " ").title(), \
-            f"Critical script '{script}' not explicitly mapped!"
+        assert (
+            display_name != script.replace("_", " ").title()
+        ), f"Critical script '{script}' not explicitly mapped!"
 
 
 def test_no_duplicate_mappings():

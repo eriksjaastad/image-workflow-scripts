@@ -13,7 +13,6 @@ making maintenance easier.
 import sys
 import time
 from pathlib import Path
-from typing import Dict, Optional, Tuple
 
 # Set matplotlib backend before importing pyplot
 import matplotlib
@@ -42,7 +41,6 @@ from utils.companion_file_utils import (
 # Add the project root to the path for importing
 sys.path.append(str(Path(__file__).parent.parent.parent))
 from scripts.file_tracker import FileTracker
-
 from utils.companion_file_utils import format_image_display_name
 
 
@@ -52,7 +50,7 @@ class BaseDesktopImageTool:
     def __init__(
         self,
         directory: Path,
-        aspect_ratio: Optional[float] = None,
+        aspect_ratio: float | None = None,
         tool_name: str = "base_tool",
     ):
         """Initialize base desktop image tool with common functionality."""
@@ -329,16 +327,13 @@ class BaseDesktopImageTool:
         key = event.key.lower()
 
         # Common global controls
-        if key == "q":
+        if key == "q" or key == "escape":
             self.handle_quit()
             return
-        elif key == "escape":
-            self.handle_quit()
-            return
-        elif key == "enter":
+        if key == "enter":
             self.submit_batch()
             return
-        elif key in ["left", "arrow_left", "leftarrow"] or key == "b":
+        if key in ["left", "arrow_left", "leftarrow"] or key == "b":
             self.go_back()
             return
 
@@ -347,7 +342,6 @@ class BaseDesktopImageTool:
 
     def handle_specific_keys(self, key: str):
         """Handle tool-specific keys - override in subclasses."""
-        pass
 
     def handle_quit(self):
         """Handle quit with confirmation for uncommitted changes."""
@@ -405,7 +399,7 @@ class BaseDesktopImageTool:
         # PERFORMANCE: Use draw_idle() for non-blocking updates
         self.fig.canvas.draw_idle()
 
-    def crop_and_save(self, image_info: Dict, crop_coords: Tuple[int, int, int, int]):
+    def crop_and_save(self, image_info: dict, crop_coords: tuple[int, int, int, int]):
         """Crop image and save over the original file in place."""
         png_path = image_info["path"]
         png_path.with_suffix(".yaml")
@@ -578,7 +572,7 @@ class BaseDesktopImageTool:
             ax.text(
                 0.5,
                 0.5,
-                f"LOAD ERROR\n{png_path.name}\n{str(e)}",
+                f"LOAD ERROR\n{png_path.name}\n{e!s}",
                 ha="center",
                 va="center",
                 fontsize=10,

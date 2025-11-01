@@ -6,15 +6,14 @@ Tests the productivity dashboard with real data to ensure it always works correc
 Validates data processing, API endpoints, and dashboard functionality.
 """
 
+import json
 import os
 import subprocess
 import sys
 import time
 from pathlib import Path
-
-import json
 from urllib import request as urlrequest
-from urllib.error import URLError, HTTPError
+from urllib.error import HTTPError, URLError
 
 
 def _http_get(url: str, timeout: int = 5):
@@ -398,9 +397,8 @@ class DashboardTest:
             if passed == total:
                 print("\n🎉 ALL DASHBOARD TESTS PASSED - Dashboard is ready for use!")
                 return True
-            else:
-                print(f"\n⚠️  {total - passed} dashboard tests failed")
-                return False
+            print(f"\n⚠️  {total - passed} dashboard tests failed")
+            return False
 
         finally:
             self.cleanup()

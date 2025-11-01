@@ -1,14 +1,10 @@
 # .pre-commit-config.yaml
 repos:
-  - repo: https://github.com/psf/black
-    rev: 24.10.0
-    hooks:
-      - id: black
-
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.9
     hooks:
       - id: ruff
+        args: [--fix]  # Auto-fix issues when possible
       - id: ruff-format
 
   - repo: https://github.com/pre-commit/mirrors-mypy
@@ -22,16 +18,18 @@ repos:
       - id: forbid-silent-broad-excepts
         name: Forbid silent broad excepts
         language: system
-        pass_filenames: true  # ← FIXED: now only checks staged files
-        files: '\.py$'        # ← ADDED: only Python files
-        entry: >
-          bash -c '
-          found_error=0
-          for file in "$@"; do
-            if rg -n "(?s)except(\s+Exception)?\s*:\s*(pass\b|return\b|continue\b|$)" "$file" --pcre2 2>/dev/null; then
-              echo "ERROR: silent broad except found in $file"
-              found_error=1
-            fi
-          done
-          exit $found_error
-          ' --
+        pass_filenames: true
+        files: '\.py$'
+        entry: bash
+        args:
+          - -c
+          - |
+            found_error=0
+            for file in "$@"; do
+              if rg -n "(?s)except(\s+Exception)?\s*:\s*(pass\b|return\b|continue\b|$)" "$file" --pcre2 2>/dev/null; then
+                echo "ERROR: silent broad except found in $file"
+                found_error=1
+              fi
+            done
+            exit $found_error
+          - --

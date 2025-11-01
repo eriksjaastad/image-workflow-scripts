@@ -24,9 +24,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, List, Optional, Set
 
 # Ensure project root import path
 _ROOT = Path(__file__).resolve().parents[3]
@@ -40,15 +40,15 @@ PROJECTS_DIR = _ROOT / "data" / "projects"
 BACKUP_DIR = _ROOT / "data" / "ai_data" / "backups" / "manifests"
 
 
-def _read_json(path: Path) -> Optional[dict]:
+def _read_json(path: Path) -> dict | None:
     try:
-        with open(path, "r") as f:
+        with open(path) as f:
             return json.load(f)
     except Exception:
         return None
 
 
-def _iter_project_paths(project_filter: Optional[Set[str]] = None) -> Iterable[Path]:
+def _iter_project_paths(project_filter: set[str] | None = None) -> Iterable[Path]:
     if not PROJECTS_DIR.exists():
         return []
     for mf in sorted(PROJECTS_DIR.glob("*.project.json")):
@@ -60,8 +60,8 @@ def _iter_project_paths(project_filter: Optional[Set[str]] = None) -> Iterable[P
         yield mf
 
 
-def _collect_group_stems(group_dirs: List[Path]) -> int:
-    stems: Set[str] = set()
+def _collect_group_stems(group_dirs: list[Path]) -> int:
+    stems: set[str] = set()
     for d in group_dirs:
         try:
             if not d.exists() or not d.is_dir():
@@ -75,9 +75,9 @@ def _collect_group_stems(group_dirs: List[Path]) -> int:
     return len(stems)
 
 
-def _resolve_group_dirs(manifest_path: Path, pj: dict) -> List[Path]:
+def _resolve_group_dirs(manifest_path: Path, pj: dict) -> list[Path]:
     groups = (pj.get("paths") or {}).get("characterGroups") or []
-    dirs: List[Path] = []
+    dirs: list[Path] = []
     for rel in groups:
         try:
             dirs.append((manifest_path.parent / rel).resolve())

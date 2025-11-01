@@ -8,7 +8,6 @@ Provides helpers to reference commonly used directories in a single place.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List
 
 
 def get_project_root() -> Path:
@@ -42,11 +41,11 @@ def get_character_group_dir(index: int) -> Path:
     return get_project_root() / f"__character_group_{index}"
 
 
-def get_character_group_dirs() -> List[Path]:
+def get_character_group_dirs() -> list[Path]:
     return [get_character_group_dir(i) for i in (1, 2, 3)]
 
 
-def ensure_standard_dirs_exist() -> Dict[str, Path]:
+def ensure_standard_dirs_exist() -> dict[str, Path]:
     """Create standard directories if they do not exist; return mapping for convenience."""
     dirs = {
         "selected": get_selected_dir(),

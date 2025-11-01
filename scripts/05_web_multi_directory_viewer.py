@@ -79,6 +79,7 @@ from scripts.file_tracker import FileTracker
 
 _SEND2TRASH_AVAILABLE = importlib.util.find_spec("send2trash") is not None
 
+
 def find_image_directories(output_dir):
     """Find all subdirectories containing images, or treat as single directory if images are directly in it."""
     # Convert to absolute path from script's parent directory
@@ -86,39 +87,44 @@ def find_image_directories(output_dir):
         output_path = Path(__file__).parent.parent / output_dir
     else:
         output_path = Path(output_dir)
-    
+
     if not output_path.exists():
         print(f"❌ Directory not found: {output_path}")
         return []
-    
+
     directories = []
-    
+
     # First check if there are images directly in the main directory
     direct_images = list(output_path.glob("*.png"))
     if direct_images:
         # Treat the main directory as a single image directory
-        directories.append({
-            'name': output_path.name,
-            'path': output_path,
-            'images': sorted([img.name for img in direct_images]),
-            'count': len(direct_images)
-        })
+        directories.append(
+            {
+                "name": output_path.name,
+                "path": output_path,
+                "images": sorted([img.name for img in direct_images]),
+                "count": len(direct_images),
+            }
+        )
         return directories
-    
+
     # Otherwise, look for subdirectories containing images
     for subdir in sorted(output_path.iterdir()):
         if subdir.is_dir():
             # Find PNG files in this directory
             images = list(subdir.glob("*.png"))
             if images:
-                directories.append({
-                    'name': subdir.name,
-                    'path': subdir,
-                    'images': sorted([img.name for img in images]),
-                    'count': len(images)
-                })
-    
+                directories.append(
+                    {
+                        "name": subdir.name,
+                        "path": subdir,
+                        "images": sorted([img.name for img in images]),
+                        "count": len(images),
+                    }
+                )
+
     return directories
+
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -559,27 +565,28 @@ JAVASCRIPT_CODE = """
 </script>
 """
 
+
 def create_app(output_dir):
     app = Flask(__name__)
-    
-    # Convert to absolute path from script's parent directory  
+
+    # Convert to absolute path from script's parent directory
     if not Path(output_dir).is_absolute():
         output_path = Path(__file__).parent.parent / output_dir
     else:
         output_path = Path(output_dir)
-    
+
     # Find all directories with images
     directories = find_image_directories(output_dir)
-    total_images = sum(d['count'] for d in directories)
-    
+    total_images = sum(d["count"] for d in directories)
+
     print(f"📁 Found {len(directories)} directories with {total_images} total images")
     for d in directories:
         print(f"   • {d['name']}: {d['count']} images")
-    
+
     # Initialize FileTracker
     tracker = FileTracker("multi_directory_viewer")
-    
-    @app.route('/')
+
+    @app.route("/")
     def index():
         return render_template_string(
             HTML_TEMPLATE + JAVASCRIPT_CODE,
@@ -587,76 +594,77 @@ def create_app(output_dir):
             total_directories=len(directories),
             total_images=total_images,
             output_dir=output_dir,
-            error_display_html=get_error_display_html()
+            error_display_html=get_error_display_html(),
         )
-    
-    @app.route('/image/<directory>/<filename>')
+
+    @app.route("/image/<directory>/<filename>")
     def serve_image(directory, filename):
         """Serve image thumbnails from the directories."""
         from flask import Response
-        
+
         # Find the correct directory structure
         for dir_info in directories:
-            if dir_info['name'] == directory:
-                image_path = dir_info['path'] / filename
+            if dir_info["name"] == directory:
+                image_path = dir_info["path"] / filename
                 if image_path.exists():
                     try:
                         # Generate thumbnail using shared function
                         stat = image_path.stat()
                         thumbnail_data = generate_thumbnail(
-                            str(image_path), 
-                            int(stat.st_mtime_ns), 
+                            str(image_path),
+                            int(stat.st_mtime_ns),
                             stat.st_size,
                             max_dim=THUMBNAIL_MAX_DIM,
-                            quality=85
+                            quality=85,
                         )
-                        return Response(thumbnail_data, mimetype='image/jpeg')
+                        return Response(thumbnail_data, mimetype="image/jpeg")
                     except Exception as e:
                         print(f"[!] Error generating thumbnail for {filename}: {e}")
                         return "Error generating thumbnail", 500
                 break
-        
+
         return "Image not found", 404
-    
-    @app.route('/process', methods=['POST'])
+
+    @app.route("/process", methods=["POST"])
     def process_selections():
         """Process batch of crop and delete selections."""
         data = request.get_json()
-        selections = data.get('selections', [])
-        
+        selections = data.get("selections", [])
+
         if not selections:
-            return jsonify({'success': False, 'message': 'No selections provided'})
-        
+            return jsonify({"success": False, "message": "No selections provided"})
+
         processed = 0
         errors = []
-        
+
         for selection in selections:
-            directory = selection.get('directory')
-            image = selection.get('image')
-            action = selection.get('action')
-            
+            directory = selection.get("directory")
+            image = selection.get("image")
+            action = selection.get("action")
+
             if not all([directory, image, action]):
                 errors.append(f"Invalid selection: {selection}")
                 continue
-            
+
             source_path = output_path / directory / image
             if not source_path.exists():
                 errors.append(f"Image not found: {image}")
                 continue
-            
+
             try:
-                if action == 'crop':
+                if action == "crop":
                     # Move to central __crop directory with ALL companion files
                     try:
                         from utils.standard_paths import get_crop_dir
+
                         crop_dir = get_crop_dir()
                         crop_dir.mkdir(exist_ok=True)
                     except Exception:
-                        crop_dir = output_path.parent / '__crop'
+                        crop_dir = output_path.parent / "__crop"
                         crop_dir.mkdir(exist_ok=True)
-                    
+
                     dest_path = crop_dir / image
-                    
+
                     # Handle name conflicts
                     counter = 1
                     while dest_path.exists():
@@ -664,75 +672,96 @@ def create_app(output_dir):
                         suffix = source_path.suffix
                         dest_path = crop_dir / f"{stem}_{counter:03d}{suffix}"
                         counter += 1
-                    
+
                     # Use companion file utilities to move image and ALL companions
                     move_file_with_all_companions(source_path, crop_dir, dry_run=False)
-                    
+
                     tracker.log_move(source_path, dest_path, "crop_action")
-                    
-                elif action == 'delete':
+
+                elif action == "delete":
                     # Use shared utility to delete image and ALL companions
                     try:
-                        _ = safe_delete_image_and_yaml(source_path, hard_delete=False, tracker=tracker)
+                        _ = safe_delete_image_and_yaml(
+                            source_path, hard_delete=False, tracker=tracker
+                        )
                     except Exception as e:
                         errors.append(f"Delete failed for {image}: {e}")
                         continue
-                
+
                 processed += 1
-                
+
             except Exception as e:
-                errors.append(f"Error processing {image}: {str(e)}")
-        
+                errors.append(f"Error processing {image}: {e!s}")
+
         if errors:
-            return jsonify({
-                'success': False, 
-                'message': f"Processed {processed}, errors: {'; '.join(errors[:3])}"
-            })
-        else:
-            return jsonify({
-                'success': True, 
-                'processed': processed,
-                'message': f"Successfully processed {processed} operations"
-            })
-    
+            return jsonify(
+                {
+                    "success": False,
+                    "message": f"Processed {processed}, errors: {'; '.join(errors[:3])}",
+                }
+            )
+        return jsonify(
+            {
+                "success": True,
+                "processed": processed,
+                "message": f"Successfully processed {processed} operations",
+            }
+        )
+
     return app
+
 
 def open_browser(url):
     """Open browser after a short delay."""
     # Extract host and port from URL for shared function
     from urllib.parse import urlparse
+
     parsed = urlparse(url)
     host = parsed.hostname or "localhost"
     port = parsed.port or 5000
     launch_browser(host, port, delay=1.5)
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Multi-directory image viewer for clustering results")
-    parser.add_argument("output_dir", help="Directory containing subdirectories with images (e.g., out_k7_final)")
-    parser.add_argument("--port", type=int, default=5005, help="Port to run the server on (default: 5005)")
-    parser.add_argument("--no-browser", action="store_true", help="Don't automatically open browser")
-    
+    parser = argparse.ArgumentParser(
+        description="Multi-directory image viewer for clustering results"
+    )
+    parser.add_argument(
+        "output_dir",
+        help="Directory containing subdirectories with images (e.g., out_k7_final)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=5005,
+        help="Port to run the server on (default: 5005)",
+    )
+    parser.add_argument(
+        "--no-browser", action="store_true", help="Don't automatically open browser"
+    )
+
     args = parser.parse_args()
-    
+
     if not Path(args.output_dir).exists():
         print(f"❌ Error: Directory '{args.output_dir}' not found")
         sys.exit(1)
-    
+
     print("🚀 Starting Multi-Directory Image Viewer...")
     print(f"📂 Scanning: {args.output_dir}")
-    
+
     app = create_app(args.output_dir)
-    
+
     url = f"http://localhost:{args.port}"
     print(f"🌐 Server starting at: {url}")
-    
+
     if not args.no_browser:
         threading.Thread(target=open_browser, args=(url,), daemon=True).start()
-    
+
     try:
-        app.run(host='0.0.0.0', port=args.port, debug=False)
+        app.run(host="0.0.0.0", port=args.port, debug=False)
     except KeyboardInterrupt:
         print("\n👋 Server stopped")
+
 
 if __name__ == "__main__":
     main()

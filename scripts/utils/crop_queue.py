@@ -6,9 +6,8 @@ Crop Queue Manager - handles queuing and status tracking for batch crop operatio
 import fcntl
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional
 
 # Add parent directory to path for imports
 _parent = Path(__file__).parent.parent
@@ -21,10 +20,12 @@ from file_tracker import FileTracker
 class CropQueueManager:
     """Manages the crop queue (JSONL file) with thread-safe operations."""
 
-    def __init__(self, queue_file: Optional[Path] = None):
+    def __init__(self, queue_file: Path | None = None):
         # Default to safe zone if not specified
         if queue_file is None:
-            safe_zone = Path(__file__).parent.parent.parent / "data" / "ai_data" / "crop_queue"
+            safe_zone = (
+                Path(__file__).parent.parent.parent / "data" / "ai_data" / "crop_queue"
+            )
             queue_file = safe_zone / "crop_queue.jsonl"
 
         self.queue_file = Path(queue_file)
@@ -55,7 +56,7 @@ class CropQueueManager:
         Returns:
             Unique batch ID
         """
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 
         # Find next sequence number for this timestamp
         # Lock is already held by caller
@@ -65,9 +66,9 @@ class CropQueueManager:
             if line.strip():
                 try:
                     batch = json.loads(line)
-                    if batch.get('batch_id', '').startswith(timestamp):
+                    if batch.get("batch_id", "").startswith(timestamp):
                         # Extract sequence number
-                        parts = batch['batch_id'].split('_')
+                        parts = batch["batch_id"].split("_")
                         if len(parts) >= 3:
                             try:
                                 existing_seq = int(parts[-1])
@@ -79,12 +80,7 @@ class CropQueueManager:
 
         return f"{timestamp}_{seq:03d}"
 
-    def enqueue_batch(
-        self,
-        crops: List[Dict],
-        session_id: str,
-        project_id: str
-    ) -> str:
+    def enqueue_batch(self, crops: list[dict], session_id: str, project_id: str) -> str:
         """
         Add a batch of crops to the queue.
 
@@ -102,12 +98,12 @@ class CropQueueManager:
         """
         # Open file with exclusive lock for ID generation AND append
         # This prevents race conditions in ID generation
-        with open(self.queue_file, 'a+') as f:  # a+ allows reading too
+        with open(self.queue_file, "a+") as f:  # a+ allows reading too
             fcntl.flock(f.fileno(), fcntl.LOCK_EX)
             try:
                 # Generate unique ID while holding lock
                 batch_id = self._generate_batch_id(f)
-                timestamp = datetime.now(timezone.utc).isoformat()
+                timestamp = datetime.now(UTC).isoformat()
 
                 batch = {
                     "batch_id": batch_id,
@@ -118,12 +114,12 @@ class CropQueueManager:
                     "status": "pending",
                     "timestamp_processed": None,
                     "processing_time_ms": None,
-                    "error": None
+                    "error": None,
                 }
 
                 # Append to queue file (still holding lock)
                 f.seek(0, 2)  # Seek to end for append
-                f.write(json.dumps(batch) + '\n')
+                f.write(json.dumps(batch) + "\n")
                 f.flush()
             finally:
                 fcntl.flock(f.fileno(), fcntl.LOCK_UN)
@@ -133,12 +129,12 @@ class CropQueueManager:
             "create",
             dest_dir=str(self.queue_file.parent),
             file_count=len(crops),
-            notes=f"batch_id={batch_id}, project={project_id}"
+            notes=f"batch_id={batch_id}, project={project_id}",
         )
 
         return batch_id
 
-    def get_pending_batches(self, limit: Optional[int] = None) -> List[Dict]:
+    def get_pending_batches(self, limit: int | None = None) -> list[dict]:
         """
         Get all pending batches from the queue.
 
@@ -150,14 +146,14 @@ class CropQueueManager:
         """
         pending = []
 
-        with open(self.queue_file, 'r') as f:
+        with open(self.queue_file) as f:
             fcntl.flock(f.fileno(), fcntl.LOCK_SH)
             try:
                 for line in f:
                     if line.strip():
                         try:
                             batch = json.loads(line)
-                            if batch.get('status') == 'pending':
+                            if batch.get("status") == "pending":
                                 pending.append(batch)
                                 if limit and len(pending) >= limit:
                                     break
@@ -172,8 +168,8 @@ class CropQueueManager:
         self,
         batch_id: str,
         status: str,
-        processing_time_ms: Optional[int] = None,
-        error: Optional[str] = None
+        processing_time_ms: int | None = None,
+        error: str | None = None,
     ) -> bool:
         """
         Update the status of a batch in the queue.
@@ -188,7 +184,7 @@ class CropQueueManager:
             True if batch was found and updated, False otherwise
         """
         # Read all lines
-        with open(self.queue_file, 'r') as f:
+        with open(self.queue_file) as f:
             fcntl.flock(f.fileno(), fcntl.LOCK_SH)
             try:
                 lines = f.readlines()
@@ -203,16 +199,16 @@ class CropQueueManager:
             if line.strip():
                 try:
                     batch = json.loads(line)
-                    if batch.get('batch_id') == batch_id:
-                        batch['status'] = status
-                        if status in ('completed', 'failed'):
-                            batch['timestamp_processed'] = datetime.now(timezone.utc).isoformat()
+                    if batch.get("batch_id") == batch_id:
+                        batch["status"] = status
+                        if status in ("completed", "failed"):
+                            batch["timestamp_processed"] = datetime.now(UTC).isoformat()
                         if processing_time_ms is not None:
-                            batch['processing_time_ms'] = processing_time_ms
+                            batch["processing_time_ms"] = processing_time_ms
                         if error is not None:
-                            batch['error'] = error
+                            batch["error"] = error
                         updated = True
-                    updated_lines.append(json.dumps(batch) + '\n')
+                    updated_lines.append(json.dumps(batch) + "\n")
                 except json.JSONDecodeError:
                     updated_lines.append(line)
             else:
@@ -220,8 +216,8 @@ class CropQueueManager:
 
         # Write back atomically
         if updated:
-            temp_file = self.queue_file.with_suffix('.tmp')
-            with open(temp_file, 'w') as f:
+            temp_file = self.queue_file.with_suffix(".tmp")
+            with open(temp_file, "w") as f:
                 fcntl.flock(f.fileno(), fcntl.LOCK_EX)
                 try:
                     f.writelines(updated_lines)
@@ -242,7 +238,7 @@ class CropQueueManager:
         crops_in_batch: int,
         total_time_ms: int,
         project_id: str,
-        session_id: str
+        session_id: str,
     ):
         """Log processing timing to CSV for analysis."""
         avg_time = total_time_ms / crops_in_batch if crops_in_batch > 0 else 0
@@ -252,7 +248,7 @@ class CropQueueManager:
             f"{crops_in_batch},{total_time_ms},{avg_time:.1f},{project_id},{session_id}\n"
         )
 
-        with open(self.timing_log, 'a') as f:
+        with open(self.timing_log, "a") as f:
             fcntl.flock(f.fileno(), fcntl.LOCK_EX)
             try:
                 f.write(row)
@@ -260,27 +256,21 @@ class CropQueueManager:
             finally:
                 fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
-    def get_queue_stats(self) -> Dict[str, int]:
+    def get_queue_stats(self) -> dict[str, int]:
         """Get queue statistics (pending, processing, completed, failed counts)."""
-        stats = {
-            'pending': 0,
-            'processing': 0,
-            'completed': 0,
-            'failed': 0,
-            'total': 0
-        }
+        stats = {"pending": 0, "processing": 0, "completed": 0, "failed": 0, "total": 0}
 
-        with open(self.queue_file, 'r') as f:
+        with open(self.queue_file) as f:
             fcntl.flock(f.fileno(), fcntl.LOCK_SH)
             try:
                 for line in f:
                     if line.strip():
                         try:
                             batch = json.loads(line)
-                            status = batch.get('status', 'unknown')
+                            status = batch.get("status", "unknown")
                             if status in stats:
                                 stats[status] += 1
-                            stats['total'] += 1
+                            stats["total"] += 1
                         except json.JSONDecodeError:
                             pass
             finally:
@@ -296,7 +286,7 @@ class CropQueueManager:
             Number of batches removed
         """
         # Read all lines
-        with open(self.queue_file, 'r') as f:
+        with open(self.queue_file) as f:
             fcntl.flock(f.fileno(), fcntl.LOCK_SH)
             try:
                 lines = f.readlines()
@@ -311,7 +301,7 @@ class CropQueueManager:
             if line.strip():
                 try:
                     batch = json.loads(line)
-                    if batch.get('status') != 'completed':
+                    if batch.get("status") != "completed":
                         kept_lines.append(line)
                     else:
                         removed_count += 1
@@ -321,8 +311,8 @@ class CropQueueManager:
                 kept_lines.append(line)
 
         # Write back
-        temp_file = self.queue_file.with_suffix('.tmp')
-        with open(temp_file, 'w') as f:
+        temp_file = self.queue_file.with_suffix(".tmp")
+        with open(temp_file, "w") as f:
             fcntl.flock(f.fileno(), fcntl.LOCK_EX)
             try:
                 f.writelines(kept_lines)

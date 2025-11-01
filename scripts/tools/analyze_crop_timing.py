@@ -18,36 +18,40 @@ from pathlib import Path
 
 def parse_timestamp(ts_str):
     """Parse ISO 8601 timestamp."""
-    return datetime.fromisoformat(ts_str.replace('Z', '+00:00'))
+    return datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+
 
 def analyze_crop_timing(csv_path):
     """Analyze timing patterns from crop log."""
-
     crops = []
-    with open(csv_path, 'r') as f:
+    with open(csv_path) as f:
         reader = csv.DictReader(f)
         for row in reader:
-            if row['timestamp']:
-                crops.append({
-                    'timestamp': parse_timestamp(row['timestamp']),
-                    'session_id': row['session_id'],
-                    'directory': row['directory']
-                })
+            if row["timestamp"]:
+                crops.append(
+                    {
+                        "timestamp": parse_timestamp(row["timestamp"]),
+                        "session_id": row["session_id"],
+                        "directory": row["directory"],
+                    }
+                )
 
     # Sort by timestamp
-    crops.sort(key=lambda x: x['timestamp'])
+    crops.sort(key=lambda x: x["timestamp"])
 
     print(f"\n{'='*80}")
     print("CROP TIMING ANALYSIS")
     print(f"{'='*80}")
     print(f"\nTotal crops: {len(crops)}")
-    print(f"Date range: {crops[0]['timestamp'].date()} to {crops[-1]['timestamp'].date()}")
+    print(
+        f"Date range: {crops[0]['timestamp'].date()} to {crops[-1]['timestamp'].date()}"
+    )
     print(f"Total days: {(crops[-1]['timestamp'] - crops[0]['timestamp']).days}")
 
     # Calculate time between crops
     time_diffs = []
     for i in range(1, len(crops)):
-        diff = (crops[i]['timestamp'] - crops[i-1]['timestamp']).total_seconds()
+        diff = (crops[i]["timestamp"] - crops[i - 1]["timestamp"]).total_seconds()
         time_diffs.append(diff)
 
     # Identify sessions (gaps > 10 minutes = new session)
@@ -55,7 +59,7 @@ def analyze_crop_timing(csv_path):
     current_session = [crops[0]]
 
     for i in range(1, len(crops)):
-        time_diff = (crops[i]['timestamp'] - crops[i-1]['timestamp']).total_seconds()
+        time_diff = (crops[i]["timestamp"] - crops[i - 1]["timestamp"]).total_seconds()
 
         if time_diff < 600:  # Less than 10 minutes = same session
             current_session.append(crops[i])
@@ -78,8 +82,8 @@ def analyze_crop_timing(csv_path):
         if len(session) < 2:
             continue
 
-        start = session[0]['timestamp']
-        end = session[-1]['timestamp']
+        start = session[0]["timestamp"]
+        end = session[-1]["timestamp"]
         duration = (end - start).total_seconds() / 60  # minutes
         crop_count = len(session)
 
@@ -112,7 +116,9 @@ def analyze_crop_timing(csv_path):
     within_session_diffs = []
     for session in sessions:
         for i in range(1, len(session)):
-            diff = (session[i]['timestamp'] - session[i-1]['timestamp']).total_seconds()
+            diff = (
+                session[i]["timestamp"] - session[i - 1]["timestamp"]
+            ).total_seconds()
             if diff < 60:  # Only count diffs under 1 minute (within active cropping)
                 within_session_diffs.append(diff)
 
@@ -131,8 +137,8 @@ def analyze_crop_timing(csv_path):
     if len(sessions) > 1:
         break_times = []
         for i in range(1, len(sessions)):
-            prev_end = sessions[i-1][-1]['timestamp']
-            next_start = sessions[i][0]['timestamp']
+            prev_end = sessions[i - 1][-1]["timestamp"]
+            next_start = sessions[i][0]["timestamp"]
             break_duration = (next_start - prev_end).total_seconds() / 60  # minutes
             break_times.append(break_duration)
 
@@ -164,27 +170,32 @@ def analyze_crop_timing(csv_path):
     for session in sessions:
         if len(session) < 2:
             continue
-        start = session[0]['timestamp']
-        end = session[-1]['timestamp']
+        start = session[0]["timestamp"]
+        end = session[-1]["timestamp"]
         duration = (end - start).total_seconds() / 60
         crop_count = len(session)
         crops_per_hour = (crop_count / duration) * 60 if duration > 0 else 0
 
-        session_details.append({
-            'start': start,
-            'duration': duration,
-            'crops': crop_count,
-            'speed': crops_per_hour
-        })
+        session_details.append(
+            {
+                "start": start,
+                "duration": duration,
+                "crops": crop_count,
+                "speed": crops_per_hour,
+            }
+        )
 
-    session_details.sort(key=lambda x: x['duration'], reverse=True)
+    session_details.sort(key=lambda x: x["duration"], reverse=True)
 
     for i, s in enumerate(session_details[:10], 1):
-        print(f"{i:2d}. {s['start'].strftime('%Y-%m-%d %H:%M')} | "
-              f"{s['duration']:6.1f} min | {s['crops']:4d} crops | "
-              f"{s['speed']:6.1f} crops/hr")
+        print(
+            f"{i:2d}. {s['start'].strftime('%Y-%m-%d %H:%M')} | "
+            f"{s['duration']:6.1f} min | {s['crops']:4d} crops | "
+            f"{s['speed']:6.1f} crops/hr"
+        )
 
     print(f"\n{'='*80}\n")
+
 
 def _get_repo_root() -> Path:
     # scripts/tools/analyze_crop_timing.py → repo root is parents[2]
@@ -192,13 +203,20 @@ def _get_repo_root() -> Path:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Analyze crop timing patterns from historical select_crop_log.csv")
+    parser = argparse.ArgumentParser(
+        description="Analyze crop timing patterns from historical select_crop_log.csv"
+    )
     default_csv = _get_repo_root() / "data" / "training" / "select_crop_log.csv"
-    parser.add_argument("--csv", dest="csv_path", default=str(default_csv), help="Path to select_crop_log.csv")
+    parser.add_argument(
+        "--csv",
+        dest="csv_path",
+        default=str(default_csv),
+        help="Path to select_crop_log.csv",
+    )
     args = parser.parse_args()
 
     analyze_crop_timing(args.csv_path)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

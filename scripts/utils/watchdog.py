@@ -14,9 +14,10 @@ artifacts strictly under the sandbox. No global trackers/logs are used here.
 import json
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any
 
 
 @dataclass
@@ -41,16 +42,28 @@ class Heartbeat:
             notes="start",
         )
 
-    def update(self, *, files_scanned: Optional[int] = None, groups_built: Optional[int] = None,
-               items_processed: Optional[int] = None, notes: str = "") -> ProgressSnapshot:
+    def update(
+        self,
+        *,
+        files_scanned: int | None = None,
+        groups_built: int | None = None,
+        items_processed: int | None = None,
+        notes: str = "",
+    ) -> ProgressSnapshot:
         with self._lock:
             now = time.time()
             snap = self._last_snapshot
             self._last_snapshot = ProgressSnapshot(
                 timestamp_utc=now,
-                files_scanned=snap.files_scanned if files_scanned is None else files_scanned,
-                groups_built=snap.groups_built if groups_built is None else groups_built,
-                items_processed=snap.items_processed if items_processed is None else items_processed,
+                files_scanned=snap.files_scanned
+                if files_scanned is None
+                else files_scanned,
+                groups_built=snap.groups_built
+                if groups_built is None
+                else groups_built,
+                items_processed=snap.items_processed
+                if items_processed is None
+                else items_processed,
                 notes=notes or snap.notes,
             )
             return self._last_snapshot
@@ -68,17 +81,19 @@ class Watchdog:
     - Total wall time exceeds max_runtime_sec
     """
 
-    def __init__(self,
-                 heartbeat: Heartbeat,
-                 *,
-                 start_time_utc: float,
-                 max_runtime_sec: float = 900.0,
-                 stall_threshold_sec: float = 120.0,
-                 poll_interval_sec: float = 5.0,
-                 on_abort: Optional[Callable[[str], None]] = None,
-                 sandbox_root: Optional[Path] = None,
-                 run_id: Optional[str] = None,
-                 write_stack: bool = True) -> None:
+    def __init__(
+        self,
+        heartbeat: Heartbeat,
+        *,
+        start_time_utc: float,
+        max_runtime_sec: float = 900.0,
+        stall_threshold_sec: float = 120.0,
+        poll_interval_sec: float = 5.0,
+        on_abort: Callable[[str], None] | None = None,
+        sandbox_root: Path | None = None,
+        run_id: str | None = None,
+        write_stack: bool = True,
+    ) -> None:
         self.heartbeat = heartbeat
         self.start_time_utc = start_time_utc
         self.max_runtime_sec = max_runtime_sec
@@ -132,7 +147,7 @@ class Watchdog:
         # Error JSON
         error_path = logs_dir / f"error_{self.run_id}.json"
         snap = self.heartbeat.snapshot()
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "reason": reason,
             "time": time.time(),
             "start_time": self.start_time_utc,
@@ -145,6 +160,7 @@ class Watchdog:
         if self.write_stack:
             try:
                 import faulthandler
+
                 stack_path = logs_dir / f"stack_{self.run_id}.txt"
                 with stack_path.open("w") as f:
                     faulthandler.dump_traceback(file=f)
@@ -153,15 +169,23 @@ class Watchdog:
                 pass
 
 
-def print_progress(prefix: str, hb: Heartbeat, *, interval_sec: float = 10.0, stop_event: Optional[threading.Event] = None) -> threading.Thread:
+def print_progress(
+    prefix: str,
+    hb: Heartbeat,
+    *,
+    interval_sec: float = 10.0,
+    stop_event: threading.Event | None = None,
+) -> threading.Thread:
     """Spawn a background printer that emits periodic progress to stdout."""
+
     def _loop():
         while not (stop_event and stop_event.is_set()):
             snap = hb.snapshot()
-            print(f"{prefix} files={snap.files_scanned} groups={snap.groups_built} items={snap.items_processed} note={snap.notes}")
+            print(
+                f"{prefix} files={snap.files_scanned} groups={snap.groups_built} items={snap.items_processed} note={snap.notes}"
+            )
             time.sleep(interval_sec)
+
     t = threading.Thread(target=_loop, name="progress_printer", daemon=True)
     t.start()
     return t
-
-

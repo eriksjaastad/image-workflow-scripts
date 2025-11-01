@@ -37,9 +37,10 @@ import json
 import logging
 import sys
 import threading
-from datetime import datetime, timedelta, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 from flask import Flask, jsonify, render_template_string
 
@@ -50,14 +51,42 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from scripts.dashboard.engines.data_engine import DashboardDataEngine
 from scripts.dashboard.parsers.timesheet_parser import TimesheetParser
+from scripts.utils.api_response_utils import error_response
 from scripts.utils.companion_file_utils import launch_browser
+from scripts.utils.math_utils import safe_rate
 
 DATA_DIR = PROJECT_ROOT / "data"
 PROJECTS_DIR = DATA_DIR / "projects"
 TIMESHEET_PATH = DATA_DIR / "timesheet.csv"
 
+logger = logging.getLogger(__name__)
 
-def _parse_iso(ts: Optional[str]) -> Optional[datetime]:
+
+def _safe_path_resolve(base: Path, user_path: str) -> Path | None:
+    """Safely resolve a user-provided path relative to base.
+
+    Prevents path traversal attacks by ensuring resolved path stays under base.
+
+    Args:
+        base: The base directory that resolved path must stay under
+        user_path: User-provided path (potentially malicious)
+
+    Returns:
+        Resolved path if safe, None if path escapes base or is invalid
+    """
+    try:
+        resolved = (base / user_path).resolve()
+        # Ensure resolved path is under base directory
+        resolved.relative_to(base.resolve())
+        return resolved
+    except (ValueError, OSError) as e:
+        logger.warning(
+            f"Rejected unsafe path resolution: base={base}, user_path={user_path}, error={e}"
+        )
+        return None
+
+
+def _parse_iso(ts: str | None) -> datetime | None:
     """Parse ISO timestamp and normalize to naive UTC.
 
     - If tz-aware, convert to UTC and drop tzinfo
@@ -73,13 +102,13 @@ def _parse_iso(ts: Optional[str]) -> Optional[datetime]:
         )
         dt = datetime.fromisoformat(v) if isinstance(v, str) else v
         if isinstance(dt, datetime) and getattr(dt, "tzinfo", None) is not None:
-            return dt.astimezone(timezone.utc).replace(tzinfo=None)
+            return dt.astimezone(UTC).replace(tzinfo=None)
         return dt
     except Exception:
         return None
 
 
-def get_directory_status(project: Dict[str, Any]) -> Dict[str, Any]:
+def get_directory_status(project: dict[str, Any]) -> dict[str, Any]:
     """Count images in workflow directories to show real-time progress."""
     status = {
         "selected": 0,
@@ -107,42 +136,29 @@ def get_directory_status(project: Dict[str, Any]) -> Dict[str, Any]:
             else project_root
         )
 
-        # Try multiple candidates for the content root
-        root_candidates: List[Path] = []
+        # Try multiple candidates for the content root (with path traversal protection)
+        root_candidates: list[Path] = []
         if root:
-            try:
-                # Candidate 1: as absolute or already-resolved path
-                root_candidates.append(Path(root).resolve())
-            except Exception:
-                pass
-            try:
-                # Candidate 2: relative to project root
-                if root.startswith("../../"):
-                    root_candidates.append(
-                        (project_root / root.lstrip("../../")).resolve()
-                    )
-                else:
-                    root_candidates.append((project_root / root).resolve())
-            except Exception:
-                pass
-            try:
-                # Candidate 3: relative to manifest directory
-                root_candidates.append((manifest_dir / root).resolve())
-            except Exception:
-                pass
+            # Candidate 1: relative to project root
+            safe_root = _safe_path_resolve(project_root, root)
+            if safe_root:
+                root_candidates.append(safe_root)
+
+            # Candidate 2: relative to manifest directory
+            if manifest_dir != project_root:
+                safe_manifest_root = _safe_path_resolve(manifest_dir, root)
+                if safe_manifest_root:
+                    root_candidates.append(safe_manifest_root)
 
         # First existing candidate wins
-        root_path: Optional[Path] = None
+        root_path: Path | None = None
         for cand in root_candidates:
-            try:
-                if cand and cand.exists():
-                    root_path = cand
-                    break
-            except Exception:
-                continue
+            if cand.exists():
+                root_path = cand
+                break
 
         # Count remaining in content directory
-        if root_path and root_path.exists():
+        if root_path:
             status["content_dir"] = len(list(root_path.rglob("*.png")))
 
         # Standard workflow directories at project root
@@ -173,7 +189,7 @@ def get_directory_status(project: Dict[str, Any]) -> Dict[str, Any]:
         selected_dir = paths.get("selectedDir")
         if selected_dir:
             try:
-                selected_candidates: List[Path] = []
+                selected_candidates: list[Path] = []
                 try:
                     selected_candidates.append(
                         (project_root / selected_dir.lstrip("../../")).resolve()
@@ -201,16 +217,16 @@ def get_directory_status(project: Dict[str, Any]) -> Dict[str, Any]:
     return status
 
 
-def find_active_project() -> Optional[Dict[str, Any]]:
+def find_active_project() -> dict[str, Any] | None:
     """Find the active project (status='active' or no finishedAt)."""
     if not PROJECTS_DIR.exists():
         return None
 
-    candidates: List[Tuple[datetime, Dict[str, Any]]] = []
+    candidates: list[tuple[datetime, dict[str, Any]]] = []
     scanned = 0
     finished_count = 0
     not_finished_count = 0
-    status_counts: Dict[str, int] = {}
+    status_counts: dict[str, int] = {}
     for manifest_file in PROJECTS_DIR.glob("*.project.json"):
         try:
             project_data = json.loads(manifest_file.read_text(encoding="utf-8"))
@@ -258,7 +274,7 @@ def find_active_project() -> Optional[Dict[str, Any]]:
     return candidates[0][1]
 
 
-def load_timesheet_data() -> Dict[str, Any]:
+def load_timesheet_data() -> dict[str, Any]:
     """Load and parse timesheet CSV."""
     if not TIMESHEET_PATH.exists():
         return {"projects": [], "totals": {"total_hours": 0, "total_projects": 0}}
@@ -269,9 +285,9 @@ def load_timesheet_data() -> Dict[str, Any]:
 
 def get_project_file_operations(
     engine: DashboardDataEngine,
-    project: Dict[str, Any],
-    preloaded_ops: Optional[List[Dict[str, Any]]] = None,
-) -> List[Dict[str, Any]]:
+    project: dict[str, Any],
+    preloaded_ops: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     """Get all file operations for a specific project."""
     # Load all file operations (use preloaded if provided)
     all_ops = (
@@ -324,9 +340,8 @@ def get_project_file_operations(
                     if start_compare:
                         if start_compare <= op_dt <= end_compare:
                             matches_time = True
-                    else:
-                        if op_dt <= end_compare:
-                            matches_time = True
+                    elif op_dt <= end_compare:
+                        matches_time = True
             except Exception:
                 pass
 
@@ -336,7 +351,7 @@ def get_project_file_operations(
     return project_ops
 
 
-def classify_operation_phase(op: Dict[str, Any]) -> str:
+def classify_operation_phase(op: dict[str, Any]) -> str:
     """Classify a file operation into a phase: selection, crop, or sort."""
     operation = str(op.get("operation") or "").lower()
     dest_dir_raw = str(op.get("dest_dir") or "").strip()
@@ -370,7 +385,7 @@ def classify_operation_phase(op: Dict[str, Any]) -> str:
     return "unknown"
 
 
-def compute_phase_metrics(ops: List[Dict[str, Any]], phase: str) -> Dict[str, Any]:
+def compute_phase_metrics(ops: list[dict[str, Any]], phase: str) -> dict[str, Any]:
     """Compute metrics for a specific phase."""
     phase_ops = [op for op in ops if classify_operation_phase(op) == phase]
 
@@ -411,14 +426,14 @@ def compute_phase_metrics(ops: List[Dict[str, Any]], phase: str) -> Dict[str, An
     }
 
 
-def compute_phase_active_days(ops: List[Dict[str, Any]], phase: str) -> Set[str]:
+def compute_phase_active_days(ops: list[dict[str, Any]], phase: str) -> set[str]:
     """Return the set of ISO date strings where the given phase had activity.
 
     We derive phase-active days from operation timestamps. While timestamps can be
     batchy, at a day granularity they are good enough to detect overlaps. This
     function is used to apportion daily billed hours across overlapping phases.
     """
-    active_days: Set[str] = set()
+    active_days: set[str] = set()
     for op in ops:
         if classify_operation_phase(op) != phase:
             continue
@@ -435,8 +450,8 @@ def compute_phase_active_days(ops: List[Dict[str, Any]], phase: str) -> Set[str]
 
 
 def compute_phase_hours_by_active_days(
-    timesheet_project: Dict[str, Any], active_days_map: Dict[str, Set[str]]
-) -> Dict[str, float]:
+    timesheet_project: dict[str, Any], active_days_map: dict[str, set[str]]
+) -> dict[str, float]:
     """Allocate timesheet hours per day across phases active that day.
 
     - Convert timesheet daily hours keys (M/D/YYYY) to ISO dates for matching
@@ -444,24 +459,24 @@ def compute_phase_hours_by_active_days(
     - Ensures sum(phase_hours) <= total billed hours (no double-counting)
     """
     # Map ISO date -> hours from timesheet
-    daily_hours_mdy: Dict[str, float] = timesheet_project.get("daily_hours", {})
-    iso_to_hours: Dict[str, float] = {}
+    daily_hours_mdy: dict[str, float] = timesheet_project.get("daily_hours", {})
+    iso_to_hours: dict[str, float] = {}
     for mdy, hours in daily_hours_mdy.items():
         try:
             # Parse M/D/YYYY
-            month, day, year = [int(x) for x in mdy.split("/")]
+            month, day, year = (int(x) for x in mdy.split("/"))
             dt = datetime(year, month, day)
             iso_to_hours[dt.date().isoformat()] = float(hours or 0)
         except Exception:
             continue
 
     # Union of all active days
-    all_active_days: Set[str] = set()
+    all_active_days: set[str] = set()
     for day_set in active_days_map.values():
         all_active_days.update(day_set)
 
     # Allocate hours per day across active phases
-    allocated: Dict[str, float] = {"selection": 0.0, "crop": 0.0, "sort": 0.0}
+    allocated: dict[str, float] = {"selection": 0.0, "crop": 0.0, "sort": 0.0}
     for day_iso in sorted(all_active_days):
         hours_for_day = float(iso_to_hours.get(day_iso, 0.0))
         if hours_for_day <= 0:
@@ -493,8 +508,8 @@ def compute_phase_hours_by_active_days(
 
 
 def match_timesheet_to_project(
-    timesheet_data: Dict[str, Any], project_id: str
-) -> Optional[Dict[str, Any]]:
+    timesheet_data: dict[str, Any], project_id: str
+) -> dict[str, Any] | None:
     """Find matching timesheet entry for a project."""
     # Normalize project ID for matching
     proj_normalized = (
@@ -531,9 +546,9 @@ def match_timesheet_to_project(
 
 
 def compute_phase_hours(
-    timesheet_project: Dict[str, Any],
-    phase_start: Optional[str],
-    phase_end: Optional[str],
+    timesheet_project: dict[str, Any],
+    phase_start: str | None,
+    phase_end: str | None,
 ) -> float:
     """Compute billed hours for a specific phase based on date range."""
     if not phase_start or not phase_end:
@@ -565,8 +580,8 @@ def compute_phase_hours(
 
 
 def compute_crop_daily_progression(
-    ops: List[Dict[str, Any]], timesheet_project: Optional[Dict[str, Any]]
-) -> List[Dict[str, Any]]:
+    ops: list[dict[str, Any]], timesheet_project: dict[str, Any] | None
+) -> list[dict[str, Any]]:
     """Compute daily crop rate progression to show improvement over time.
 
     Returns list of daily stats: [{date, images, hours, rate}, ...]
@@ -578,7 +593,7 @@ def compute_crop_daily_progression(
         return []
 
     # Group images by date
-    images_by_date: Dict[str, int] = {}
+    images_by_date: dict[str, int] = {}
     for op in crop_ops:
         ts = op.get("timestamp") or op.get("timestamp_str")
         if not ts:
@@ -620,8 +635,8 @@ def compute_crop_daily_progression(
         except Exception:
             hours = 0
 
-        # Calculate rate (only if we have hours)
-        rate = round(images / hours, 1) if hours > 0 else 0
+        # Calculate rate (safely handle zero division)
+        rate = safe_rate(images, hours)
 
         progression.append(
             {"date": date_str, "images": images, "hours": round(hours, 1), "rate": rate}
@@ -631,11 +646,11 @@ def compute_crop_daily_progression(
 
 
 def build_historical_baseline(
-    timesheet_data: Dict[str, Any],
+    timesheet_data: dict[str, Any],
     engine: DashboardDataEngine,
-    preloaded_ops: Optional[List[Dict[str, Any]]] = None,
-    progress_cb: Optional[Callable[[int, int, str], None]] = None,
-) -> Dict[str, Dict[str, Any]]:
+    preloaded_ops: list[dict[str, Any]] | None = None,
+    progress_cb: Callable[[int, int, str], None] | None = None,
+) -> dict[str, dict[str, Any]]:
     """Build per-phase baseline from completed projects."""
     baselines = {
         "selection": {"total_hours": 0, "total_images": 0, "projects": 0},
@@ -739,7 +754,7 @@ def create_app() -> Flask:
     logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 
     # Simple in-process progress tracker
-    progress_state: Dict[str, Any] = {
+    progress_state: dict[str, Any] = {
         "phase": "idle",
         "detail": "",
         "current": 0,
@@ -759,7 +774,7 @@ def create_app() -> Flask:
         return jsonify(progress_state)
 
     # Simple memo cache for progress responses
-    _progress_cache: Dict[str, Any] = {"data": None, "ts": None}
+    _progress_cache: dict[str, Any] = {"data": None, "ts": None}
 
     @app.route("/api/progress")
     def progress_api():
@@ -790,7 +805,7 @@ def create_app() -> Flask:
             progress_state.update(
                 {"phase": "idle", "detail": "", "current": 0, "total": 0}
             )
-            return jsonify({"error": "No active project found"}), 404
+            return error_response("No active project found", 404)
 
         project_id = active_project.get("projectId")
         title = active_project.get("title") or project_id
@@ -927,7 +942,7 @@ def create_app() -> Flask:
             # Allocate billed hours for this phase based on phase-active days
             hours = allocated_hours.get(phase, 0.0)
 
-            rate = round(images / hours, 1) if hours > 0 else 0
+            rate = safe_rate(images, hours)
 
             # Compare to baseline
             baseline_rate = baseline.get(phase, {}).get("avg_rate", 0)
@@ -971,7 +986,7 @@ def create_app() -> Flask:
         )
 
         # Build historical timeline from timesheet
-        historical_timeline: List[Dict[str, Any]] = []
+        historical_timeline: list[dict[str, Any]] = []
         for ts_proj in timesheet_data.get("projects", []):
             try:
                 historical_timeline.append(

@@ -14,9 +14,9 @@ import argparse
 import csv
 import json
 import sys
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
 
 # Ensure project root
 _ROOT = Path(__file__).resolve().parents[3]
@@ -31,9 +31,9 @@ TIMESHEET_CSV = _ROOT / "data" / "timesheet.csv"
 TRAINING_DIR = _ROOT / "data" / "training" / "ai_training_decisions"
 
 
-def _read_json(path: Path) -> Optional[dict]:
+def _read_json(path: Path) -> dict | None:
     try:
-        with open(path, "r") as f:
+        with open(path) as f:
             return json.load(f)
     except Exception:
         return None
@@ -51,7 +51,7 @@ def _iter_project_manifests() -> Iterable[dict]:
         yield pj, mf
 
 
-def _collect_group_stems(group_dirs: List[Path]) -> int:
+def _collect_group_stems(group_dirs: list[Path]) -> int:
     stems = set()
     for d in group_dirs:
         try:
@@ -66,7 +66,7 @@ def _collect_group_stems(group_dirs: List[Path]) -> int:
     return len(stems)
 
 
-def _groups_by_size_from_training(db_dir: Path) -> Dict[int, int]:
+def _groups_by_size_from_training(db_dir: Path) -> dict[int, int]:
     """Approximate groups by size using training DB presence if any (requires DB queries in future).
     For now, return empty counts; placeholder for future enrichment.
     """
@@ -78,7 +78,7 @@ def _parse_timesheet_hours_total() -> float:
         return 0.0
     total = 0.0
     try:
-        with open(TIMESHEET_CSV, "r") as f:
+        with open(TIMESHEET_CSV) as f:
             reader = csv.reader(f)
             for row in reader:
                 if not row or len(row) < 6:
@@ -106,7 +106,7 @@ def build_overview(now_str: str) -> str:
     images_cropped = 0
 
     projects_with_training_db = 0
-    known_gaps: List[str] = []
+    known_gaps: list[str] = []
 
     for pj, manifest_path in _iter_project_manifests():
         total_projects += 1
@@ -125,7 +125,7 @@ def build_overview(now_str: str) -> str:
             total_groups += group_count
         else:
             groups = (pj.get("paths") or {}).get("characterGroups") or []
-            gdirs: List[Path] = []
+            gdirs: list[Path] = []
             for rel in groups:
                 try:
                     gdirs.append((manifest_path.parent / rel).resolve())
@@ -164,7 +164,7 @@ def build_overview(now_str: str) -> str:
         ]
     )
 
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append(f"## Dataset Overview (as of {now_str})")
     lines.append("")
     lines.append("### Projects Summary")

@@ -10,13 +10,21 @@ import argparse
 from pathlib import Path
 
 from PIL import Image
+
 from scripts.process_crop_queue import CropQueueProcessor
 from scripts.utils.crop_queue import CropQueueManager
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Smoke test the queue processor with one image")
-    parser.add_argument("--dir", dest="directory", required=True, help="Source directory with PNGs (e.g., mojo3)")
+    parser = argparse.ArgumentParser(
+        description="Smoke test the queue processor with one image"
+    )
+    parser.add_argument(
+        "--dir",
+        dest="directory",
+        required=True,
+        help="Source directory with PNGs (e.g., mojo3)",
+    )
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parents[2]
@@ -31,20 +39,26 @@ def main() -> None:
         w, h = im.size
 
     cq = CropQueueManager()
-    cq.enqueue_batch([
-        {
-            "source_path": str(img.resolve()),
-            "crop_rect": [int(w * 0.1), int(h * 0.1), int(w * 0.9), int(h * 0.9)],
-            "crop_rect_normalized": [0.1, 0.1, 0.9, 0.9],
-            "dest_directory": str(dest_dir),
-            "image_width": w,
-            "image_height": h,
-            "index_in_batch": 0,
-        }
-    ], session_id="smoke_test", project_id="debug")
+    cq.enqueue_batch(
+        [
+            {
+                "source_path": str(img.resolve()),
+                "crop_rect": [int(w * 0.1), int(h * 0.1), int(w * 0.9), int(h * 0.9)],
+                "crop_rect_normalized": [0.1, 0.1, 0.9, 0.9],
+                "dest_directory": str(dest_dir),
+                "image_width": w,
+                "image_height": h,
+                "index_in_batch": 0,
+            }
+        ],
+        session_id="smoke_test",
+        project_id="debug",
+    )
 
     # Process immediately (fast)
-    processor = CropQueueProcessor(queue_manager=cq, timing_simulator=None, preview_mode=False)
+    processor = CropQueueProcessor(
+        queue_manager=cq, timing_simulator=None, preview_mode=False
+    )
     processor.run(limit=1, skip_confirmation=True)
 
     # Verify output exists

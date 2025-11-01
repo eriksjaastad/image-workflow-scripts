@@ -12,9 +12,9 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 LOG_DIR = Path("data") / "log_archives"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -27,14 +27,16 @@ class ErrorEvent:
     tool: str  # e.g., ai_reviewer, web_sorter, desktop_multi_crop
     level: str  # error | warning
     message: str
-    context: Dict[str, Any]
+    context: dict[str, Any]
 
 
-def record_error(tool: str, message: str, level: str = "error", context: Optional[Dict[str, Any]] = None) -> None:
+def record_error(
+    tool: str, message: str, level: str = "error", context: dict[str, Any] | None = None
+) -> None:
     """Append a single error/warning to JSONL file (best-effort)."""
     try:
         evt = ErrorEvent(
-            ts=datetime.now(timezone.utc).isoformat(),
+            ts=datetime.now(UTC).isoformat(),
             tool=tool,
             level=level,
             message=message,
@@ -47,9 +49,11 @@ def record_error(tool: str, message: str, level: str = "error", context: Optiona
         pass
 
 
-def load_recent_errors(limit: int = 50, tools: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+def load_recent_errors(
+    limit: int = 50, tools: list[str] | None = None
+) -> list[dict[str, Any]]:
     """Load up to 'limit' most recent errors, optionally filtered by tools."""
-    results: List[Dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
     try:
         if not ERRORS_FILE.exists():
             return []

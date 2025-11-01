@@ -36,7 +36,7 @@ def check_backup_health():
         issues.append("Backup status file missing - backups may not be running")
     else:
         try:
-            with open(status_file, 'r') as f:
+            with open(status_file) as f:
                 status_data = json.load(f)
 
             # Check last backup age
@@ -46,7 +46,9 @@ def check_backup_health():
                 days_since_backup = (datetime.now() - last_backup_date).days
 
                 if days_since_backup > 2:
-                    issues.append(f"Last backup is {days_since_backup} days old - backups overdue")
+                    issues.append(
+                        f"Last backup is {days_since_backup} days old - backups overdue"
+                    )
                 elif days_since_backup > 1:
                     monitor.validation_error(f"Backup is {days_since_backup} day old")
             else:
@@ -81,13 +83,17 @@ def check_backup_health():
         hours_since_log = (datetime.now() - log_mtime).total_seconds() / 3600
 
         if hours_since_log > 48:
-            issues.append(f"Backup log is {hours_since_log:.1f} hours old - backups may be failing silently")
+            issues.append(
+                f"Backup log is {hours_since_log:.1f} hours old - backups may be failing silently"
+            )
     else:
         issues.append("Backup log file missing")
 
     # Report issues
     if issues:
-        critical_issues = [i for i in issues if "missing" in i or "corrupted" in i or "failed" in i]
+        critical_issues = [
+            i for i in issues if "missing" in i or "corrupted" in i or "failed" in i
+        ]
         warning_issues = [i for i in issues if i not in critical_issues]
 
         if critical_issues:
@@ -103,9 +109,8 @@ def check_backup_health():
             print(f"   • {issue}")
 
         return False
-    else:
-        print("✅ Backup system health check passed")
-        return True
+    print("✅ Backup system health check passed")
+    return True
 
 
 def main():
@@ -114,16 +119,18 @@ def main():
         success = check_backup_health()
 
         # Write health check status
-        status_file = Path("~/project-data-archives/image-workflow/health_check_status.json").expanduser()
+        status_file = Path(
+            "~/project-data-archives/image-workflow/health_check_status.json"
+        ).expanduser()
         status_file.parent.mkdir(parents=True, exist_ok=True)
 
         status_data = {
             "last_check": datetime.now().isoformat(),
             "status": "healthy" if success else "unhealthy",
-            "timestamp": datetime.now().timestamp()
+            "timestamp": datetime.now().timestamp(),
         }
 
-        with open(status_file, 'w') as f:
+        with open(status_file, "w") as f:
             json.dump(status_data, f)
 
         return 0 if success else 1

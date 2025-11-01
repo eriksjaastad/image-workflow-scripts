@@ -15,7 +15,6 @@ if str(_ROOT) not in sys.path:
 
 import concurrent.futures
 from functools import lru_cache
-from typing import Tuple
 
 from scripts.tools.prof import Profiler
 from scripts.utils.companion_file_utils import (
@@ -51,57 +50,168 @@ def parse_args(argv=None):
     sub = parser.add_subparsers(dest="command", required=True)
 
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--sandbox-root", default=DEFAULTS["sandbox_root"]) 
-    common.add_argument("--images-glob", default=DEFAULTS["images_glob"]) 
+    common.add_argument("--sandbox-root", default=DEFAULTS["sandbox_root"])
+    common.add_argument("--images-glob", default=DEFAULTS["images_glob"])
     # Accept --time-window as an alias for --group-window
-    common.add_argument("--group-window", "--time-window", dest="group_window", choices=["2m","5m","10m"], default=DEFAULTS["group_window"]) 
+    common.add_argument(
+        "--group-window",
+        "--time-window",
+        dest="group_window",
+        choices=["2m", "5m", "10m"],
+        default=DEFAULTS["group_window"],
+    )
     # Accept --dedupe-threshold as an alias for --dedupe
-    common.add_argument("--dedupe", "--dedupe-threshold", dest="dedupe", type=float, choices=[0.90,0.85,0.80], default=DEFAULTS["dedupe"]) 
-    common.add_argument("--sharpness-metric", choices=["lapvar","tenengrad"], default=DEFAULTS["sharpness_metric"]) 
-    common.add_argument("--sharpness-quantile", type=float, choices=[0.95,0.90,0.85,0.80], default=DEFAULTS["sharpness_quantile"]) 
-    common.add_argument("--border-band", type=float, choices=[1.0,2.5,5.0], default=DEFAULTS["border_band"]) 
-    common.add_argument("--exposure-band", type=float, choices=[2.0,2.5,3.0], default=DEFAULTS["exposure_band"]) 
-    common.add_argument("--seed", type=int, default=DEFAULTS["seed"]) 
+    common.add_argument(
+        "--dedupe",
+        "--dedupe-threshold",
+        dest="dedupe",
+        type=float,
+        choices=[0.90, 0.85, 0.80],
+        default=DEFAULTS["dedupe"],
+    )
+    common.add_argument(
+        "--sharpness-metric",
+        choices=["lapvar", "tenengrad"],
+        default=DEFAULTS["sharpness_metric"],
+    )
+    common.add_argument(
+        "--sharpness-quantile",
+        type=float,
+        choices=[0.95, 0.90, 0.85, 0.80],
+        default=DEFAULTS["sharpness_quantile"],
+    )
+    common.add_argument(
+        "--border-band",
+        type=float,
+        choices=[1.0, 2.5, 5.0],
+        default=DEFAULTS["border_band"],
+    )
+    common.add_argument(
+        "--exposure-band",
+        type=float,
+        choices=[2.0, 2.5, 3.0],
+        default=DEFAULTS["exposure_band"],
+    )
+    common.add_argument("--seed", type=int, default=DEFAULTS["seed"])
     # watchdog & progress flags
-    common.add_argument("--max-runtime", type=float, default=900.0, help="Max wall time (seconds) before abort")
-    common.add_argument("--stage-timeout", type=float, default=120.0, help="Per-phase timeout (seconds)")
-    common.add_argument("--progress-interval", type=float, default=10.0, help="Seconds between progress prints")
-    common.add_argument("--watchdog-threshold", type=float, default=120.0, help="No-progress stall threshold (seconds)")
-    common.add_argument("--no-stack-dump", action="store_true", help="Disable stack dump on abort")
+    common.add_argument(
+        "--max-runtime",
+        type=float,
+        default=900.0,
+        help="Max wall time (seconds) before abort",
+    )
+    common.add_argument(
+        "--stage-timeout", type=float, default=120.0, help="Per-phase timeout (seconds)"
+    )
+    common.add_argument(
+        "--progress-interval",
+        type=float,
+        default=10.0,
+        help="Seconds between progress prints",
+    )
+    common.add_argument(
+        "--watchdog-threshold",
+        type=float,
+        default=120.0,
+        help="No-progress stall threshold (seconds)",
+    )
+    common.add_argument(
+        "--no-stack-dump", action="store_true", help="Disable stack dump on abort"
+    )
 
     # plan
     p_plan = sub.add_parser("plan", parents=[common], help="Create an execution plan")
-    p_plan.add_argument("--variant", choices=["A","B","C"], required=True)
-    p_plan.add_argument("--profile", choices=["conservative","balanced","aggressive"], required=True)
+    p_plan.add_argument("--variant", choices=["A", "B", "C"], required=True)
+    p_plan.add_argument(
+        "--profile", choices=["conservative", "balanced", "aggressive"], required=True
+    )
     p_plan.add_argument("--limit", type=int, default=None)
 
     # run
-    p_run = sub.add_parser("run", parents=[common], help="Execute a plan (default dry-run)")
-    p_run.add_argument("--variant", choices=["A","B","C"], required=True)
-    p_run.add_argument("--profile", choices=["conservative","balanced","aggressive"], required=True)
+    p_run = sub.add_parser(
+        "run", parents=[common], help="Execute a plan (default dry-run)"
+    )
+    p_run.add_argument("--variant", choices=["A", "B", "C"], required=True)
+    p_run.add_argument(
+        "--profile", choices=["conservative", "balanced", "aggressive"], required=True
+    )
     mode = p_run.add_mutually_exclusive_group()
     mode.add_argument("--dry-run", action="store_true", default=True)
     mode.add_argument("--commit", action="store_true", default=False)
     p_run.add_argument("--limit", type=int, default=None)
     # testing hook to simulate hang
     p_run.add_argument("--simulate-hang", action="store_true", default=False)
-    p_run.add_argument("--quiet", action="store_true", default=False, help="Reduce per-file logs")
+    p_run.add_argument(
+        "--quiet", action="store_true", default=False, help="Reduce per-file logs"
+    )
     # investigation & profiling
-    p_run.add_argument("--investigate", action="store_true", default=False, help="Enable profiling and periodic checkpoints")
-    p_run.add_argument("--checkpoint-interval", type=float, default=300.0, help="Seconds between investigation checkpoints (JSONL)")
+    p_run.add_argument(
+        "--investigate",
+        action="store_true",
+        default=False,
+        help="Enable profiling and periodic checkpoints",
+    )
+    p_run.add_argument(
+        "--checkpoint-interval",
+        type=float,
+        default=300.0,
+        help="Seconds between investigation checkpoints (JSONL)",
+    )
     # deterministic sharding (by group)
-    p_run.add_argument("--shards", type=int, default=1, help="Total number of shards (groups are assigned deterministically)")
-    p_run.add_argument("--shard-index", type=int, default=0, help="Shard index [0..shards-1]")
+    p_run.add_argument(
+        "--shards",
+        type=int,
+        default=1,
+        help="Total number of shards (groups are assigned deterministically)",
+    )
+    p_run.add_argument(
+        "--shard-index", type=int, default=0, help="Shard index [0..shards-1]"
+    )
     # companion lookup optimization toggle
-    p_run.add_argument("--use-stem-index", action="store_true", default=False, help="Use stem-indexed companion cache within directories")
+    p_run.add_argument(
+        "--use-stem-index",
+        action="store_true",
+        default=False,
+        help="Use stem-indexed companion cache within directories",
+    )
     # async moves queue (write-behind) toggle
-    p_run.add_argument("--async-moves", action="store_true", default=False, help="Enable async write-behind queue for file moves")
-    p_run.add_argument("--move-workers", type=int, default=4, help="Number of worker threads for async moves")
-    p_run.add_argument("--move-queue-size", type=int, default=128, help="Max outstanding move operations before waiting")
+    p_run.add_argument(
+        "--async-moves",
+        action="store_true",
+        default=False,
+        help="Enable async write-behind queue for file moves",
+    )
+    p_run.add_argument(
+        "--move-workers",
+        type=int,
+        default=4,
+        help="Number of worker threads for async moves",
+    )
+    p_run.add_argument(
+        "--move-queue-size",
+        type=int,
+        default=128,
+        help="Max outstanding move operations before waiting",
+    )
     # quality-aware selection
-    p_run.add_argument("--quality-aware", action="store_true", default=False, help="Enable defect-aware selection within groups (fallback to lower stage if top is poor)")
-    p_run.add_argument("--qa-thumb-size", type=int, default=256, help="Thumbnail max side for QA metrics")
-    p_run.add_argument("--qa-clip-threshold", type=float, default=0.02, help="Exposure clipping threshold (fraction of pixels at 0 or 255)")
+    p_run.add_argument(
+        "--quality-aware",
+        action="store_true",
+        default=False,
+        help="Enable defect-aware selection within groups (fallback to lower stage if top is poor)",
+    )
+    p_run.add_argument(
+        "--qa-thumb-size",
+        type=int,
+        default=256,
+        help="Thumbnail max side for QA metrics",
+    )
+    p_run.add_argument(
+        "--qa-clip-threshold",
+        type=float,
+        default=0.02,
+        help="Exposure clipping threshold (fraction of pixels at 0 or 255)",
+    )
 
     # report
     p_rep = sub.add_parser("report", help="Emit markdown summary for a prior run")
@@ -155,7 +265,9 @@ def ensure_sandbox_dirs(root: Path, run_id: str):
 
 def cmd_plan(args):
     print_summary_panel(args)
-    run_id = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ") + f"_{args.variant}-{args.profile}"
+    run_id = (
+        datetime.utcnow().strftime("%Y%m%dT%H%M%SZ") + f"_{args.variant}-{args.profile}"
+    )
     root = Path(args.sandbox_root)
     ensure_sandbox_dirs(root, run_id)
     manifest = {
@@ -172,13 +284,17 @@ def cmd_plan(args):
             "exposure_band": args.exposure_band,
         },
     }
-    (root / "runs" / run_id / "manifest.json").write_text(json.dumps(manifest, indent=2))
+    (root / "runs" / run_id / "manifest.json").write_text(
+        json.dumps(manifest, indent=2)
+    )
     print(f"Plan created: {run_id}")
 
 
 def cmd_run(args):
     print_summary_panel(args)
-    run_id = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ") + f"_{args.variant}-{args.profile}"
+    run_id = (
+        datetime.utcnow().strftime("%Y%m%dT%H%M%SZ") + f"_{args.variant}-{args.profile}"
+    )
     root = Path(args.sandbox_root)
     ensure_sandbox_dirs(root, run_id)
     # Setup heartbeat & watchdog
@@ -206,11 +322,21 @@ def cmd_run(args):
     profiler = None
     try:
         import threading
+
         stop_event = threading.Event()
-        printer = print_progress("[progress]", hb, interval_sec=float(args.progress_interval), stop_event=stop_event)
+        printer = print_progress(
+            "[progress]",
+            hb,
+            interval_sec=float(args.progress_interval),
+            stop_event=stop_event,
+        )
 
         if args.investigate:
-            profiler = Profiler(Path(args.sandbox_root), run_id, checkpoint_interval_sec=float(args.checkpoint_interval))
+            profiler = Profiler(
+                Path(args.sandbox_root),
+                run_id,
+                checkpoint_interval_sec=float(args.checkpoint_interval),
+            )
             profiler.start_checkpoints(hb)
 
         # Apply optional companion optimization flag via environment
@@ -219,15 +345,29 @@ def cmd_run(args):
 
         if args.simulate_hang:
             start_ts = time.time()
-            while abort_reason["reason"] is None and time.time() - start_ts < (float(args.max_runtime) + 5):
+            while abort_reason["reason"] is None and time.time() - start_ts < (
+                float(args.max_runtime) + 5
+            ):
                 time.sleep(0.2)
         else:
             # Selection-and-move using centralized grouping utilities
-            exclude_dirs = {"metrics", "reports", "runs", "logs", "selected", "delete", "crop"}
+            exclude_dirs = {
+                "metrics",
+                "reports",
+                "runs",
+                "logs",
+                "selected",
+                "delete",
+                "crop",
+            }
             # scan stage
             if profiler:
                 profiler.start_stage("scan")
-            image_files = [p for p in root.rglob("*.png") if not any(part in exclude_dirs for part in p.parts)]
+            image_files = [
+                p
+                for p in root.rglob("*.png")
+                if not any(part in exclude_dirs for part in p.parts)
+            ]
             image_files = sort_image_files_by_timestamp_and_stage(image_files)
             if profiler:
                 profiler.set_counter("n_files", len(image_files))
@@ -247,18 +387,25 @@ def cmd_run(args):
             # deterministic sharding by group's first file path
             if int(getattr(args, "shards", 1)) > 1:
                 import hashlib
+
                 shard_k = int(args.shards)
                 shard_i = int(args.shard_index)
                 shard_i = max(0, min(shard_i, shard_k - 1))
+
                 def group_hash(g):
                     if not g:
                         return 0
                     h = hashlib.sha1(str(g[0]).encode("utf-8")).hexdigest()
                     return int(h[:8], 16)
+
                 group_iter = [g for g in groups if (group_hash(g) % shard_k) == shard_i]
             if profiler:
                 profiler.set_counter("n_groups_shard", len(group_iter))
-                avg_sz = (sum(len(g) for g in group_iter) / len(group_iter)) if group_iter else 0.0
+                avg_sz = (
+                    (sum(len(g) for g in group_iter) / len(group_iter))
+                    if group_iter
+                    else 0.0
+                )
                 profiler.set_counter("avg_group_size", avg_sz)
             if args.limit:
                 group_iter = group_iter[: int(args.limit)]
@@ -290,19 +437,26 @@ def cmd_run(args):
                 # wrap to record duration on worker
                 def _task():
                     t0 = time.time()
-                    move_file_with_all_companions(path_src, dst_dir, dry_run=not args.commit)
+                    move_file_with_all_companions(
+                        path_src, dst_dir, dry_run=not args.commit
+                    )
                     return time.time() - t0
+
                 return executor.submit(_task)
 
             if use_async_moves:
-                executor = concurrent.futures.ThreadPoolExecutor(max_workers=max(1, int(getattr(args, "move_workers", 4))))
+                executor = concurrent.futures.ThreadPoolExecutor(
+                    max_workers=max(1, int(getattr(args, "move_workers", 4)))
+                )
 
             if profiler:
                 profiler.start_stage("select")
 
             # ------------------------------ quality metrics helpers ------------------------------
             @lru_cache(maxsize=4096)
-            def _qa_metrics_cached(path_str: str, mtime_ns: int, thumb_size: int) -> Tuple[float, float]:
+            def _qa_metrics_cached(
+                path_str: str, mtime_ns: int, thumb_size: int
+            ) -> tuple[float, float]:
                 """Return (sharpness_score, clip_fraction). Pure-Python/Numpy on thumbnail; fail-open to zeros."""
                 try:
                     import numpy as _np
@@ -315,21 +469,30 @@ def cmd_run(args):
                         g = img.convert("L")
                         a = _np.asarray(g, dtype=_np.float32)
                         # Tenengrad (Sobel magnitude squared)
-                        kx = _np.array([[1, 0, -1],[2,0,-2],[1,0,-1]], dtype=_np.float32)
-                        ky = _np.array([[1, 2, 1],[0,0,0],[-1,-2,-1]], dtype=_np.float32)
+                        kx = _np.array(
+                            [[1, 0, -1], [2, 0, -2], [1, 0, -1]], dtype=_np.float32
+                        )
+                        ky = _np.array(
+                            [[1, 2, 1], [0, 0, 0], [-1, -2, -1]], dtype=_np.float32
+                        )
+
                         # simple valid-convolution via correlate
                         def conv2(x, k):
                             from numpy.lib.stride_tricks import sliding_window_view
+
                             w = sliding_window_view(x, k.shape)
-                            return (w * k).sum(axis=(-1,-2))
+                            return (w * k).sum(axis=(-1, -2))
+
                         gx = conv2(a, kx)
                         gy = conv2(a, ky)
-                        tenengrad = (gx*gx + gy*gy).mean()
+                        tenengrad = (gx * gx + gy * gy).mean()
                         # exposure clipping fraction
                         v = a.reshape(-1)
                         zeros = (v <= 1).sum()
                         highs = (v >= 254).sum()
-                        clip_frac = float(zeros + highs) / float(v.size if v.size else 1)
+                        clip_frac = float(zeros + highs) / float(
+                            v.size if v.size else 1
+                        )
                         return float(tenengrad), float(clip_frac)
                 except Exception:
                     return 0.0, 0.0
@@ -344,15 +507,22 @@ def cmd_run(args):
                 for pth in candidates:
                     try:
                         st = pth.stat()
-                        s, c = _qa_metrics_cached(str(pth), getattr(st, "st_mtime_ns", int(st.st_mtime * 1e9)), thumb_size)
+                        s, c = _qa_metrics_cached(
+                            str(pth),
+                            getattr(st, "st_mtime_ns", int(st.st_mtime * 1e9)),
+                            thumb_size,
+                        )
                     except Exception:
                         s, c = 0.0, 0.0
                     metrics.append((pth, s, c))
                 # group median sharpness as baseline
                 import numpy as _np
+
                 med_s = float(_np.median([m[1] for m in metrics])) if metrics else 0.0
+
                 def passes(s, c):
                     return (s >= med_s) and (c <= clip_thr)
+
                 # check winner first
                 w_s = metrics[0][1] if metrics else 0.0
                 w_c = metrics[0][2] if metrics else 1.0
@@ -363,7 +533,12 @@ def cmd_run(args):
                 if passing:
                     # choose highest stage among passing
                     stages = [(p, detect_stage(p.name)) for p in passing]
-                    stages_sorted = sorted(stages, key=lambda it: {"1":1.0,"1.5":1.5,"2":2.0,"3":3.0}.get(it[1], 0.0))
+                    stages_sorted = sorted(
+                        stages,
+                        key=lambda it: {"1": 1.0, "1.5": 1.5, "2": 2.0, "3": 3.0}.get(
+                            it[1], 0.0
+                        ),
+                    )
                     return stages_sorted[-1][0]
                 # if none pass, keep original winner
                 return winner_path
@@ -371,7 +546,12 @@ def cmd_run(args):
             for idx, group in enumerate(group_iter):
                 # group is a list of Paths sorted by stage asc; choose highest stage
                 stages = [(p, detect_stage(p.name)) for p in group]
-                stages_sorted = sorted(stages, key=lambda it: {"1":1.0,"1.5":1.5,"2":2.0,"3":3.0}.get(it[1], 0.0))
+                stages_sorted = sorted(
+                    stages,
+                    key=lambda it: {"1": 1.0, "1.5": 1.5, "2": 2.0, "3": 3.0}.get(
+                        it[1], 0.0
+                    ),
+                )
                 winner_path, winner_stage = stages_sorted[-1]
                 losers = [p for (p, s) in stages_sorted[:-1]]
                 if getattr(args, "quality_aware", False):
@@ -392,7 +572,11 @@ def cmd_run(args):
                         pending.append(_submit_move(lp, dst_delete))
                     # backpressure when pending exceeds cap
                     if len(pending) >= move_queue_cap:
-                        done, not_done = concurrent.futures.wait(pending, timeout=2.0, return_when=concurrent.futures.FIRST_COMPLETED)
+                        done, not_done = concurrent.futures.wait(
+                            pending,
+                            timeout=2.0,
+                            return_when=concurrent.futures.FIRST_COMPLETED,
+                        )
                         pending = list(not_done)
                         if profiler and done:
                             for fut in done:
@@ -405,9 +589,13 @@ def cmd_run(args):
                             hb.update(items_processed=idx + 1, notes="select_async")
                 else:
                     _t0 = time.time()
-                    move_file_with_all_companions(winner_path, dst_selected, dry_run=not args.commit)
+                    move_file_with_all_companions(
+                        winner_path, dst_selected, dry_run=not args.commit
+                    )
                     for lp in losers:
-                        move_file_with_all_companions(lp, dst_delete, dry_run=not args.commit)
+                        move_file_with_all_companions(
+                            lp, dst_delete, dry_run=not args.commit
+                        )
                     if profiler:
                         profiler.add_duration("moves", time.time() - _t0)
 
@@ -424,7 +612,11 @@ def cmd_run(args):
                 try:
                     # Periodically wait with timeout to allow heartbeat updates
                     while pending:
-                        done, not_done = concurrent.futures.wait(pending, timeout=2.0, return_when=concurrent.futures.FIRST_COMPLETED)
+                        done, not_done = concurrent.futures.wait(
+                            pending,
+                            timeout=2.0,
+                            return_when=concurrent.futures.FIRST_COMPLETED,
+                        )
                         if profiler and done:
                             for fut in done:
                                 try:
@@ -441,7 +633,16 @@ def cmd_run(args):
 
         if abort_reason["reason"] is not None:
             print(f"ABORT {run_id} reason={abort_reason['reason']}", flush=True)
-            (root / "runs" / run_id / "manifest.json").write_text(json.dumps({"run_id": run_id, "args": vars(args), "aborted": abort_reason["reason"]}, indent=2))
+            (root / "runs" / run_id / "manifest.json").write_text(
+                json.dumps(
+                    {
+                        "run_id": run_id,
+                        "args": vars(args),
+                        "aborted": abort_reason["reason"],
+                    },
+                    indent=2,
+                )
+            )
             print(f"Run aborted: {run_id} reason={abort_reason['reason']}")
             sys.exit(2)
 
@@ -453,7 +654,11 @@ def cmd_run(args):
             "input_count": int(locals().get("total", 0)),
             "groups": int(locals().get("winners", 0)),
             "winners": int(locals().get("winners", 0)),
-            "percent_reduction": (1.0 - (locals().get("winners", 0) / locals().get("total", 1))) if locals().get("total", 0) else 0.0,
+            "percent_reduction": (
+                1.0 - (locals().get("winners", 0) / locals().get("total", 1))
+            )
+            if locals().get("total", 0)
+            else 0.0,
             "needs_crop": 0,
             "no_crop": int(locals().get("winners", 0)),
             "runtime_sec": float(elapsed_total),
@@ -471,9 +676,15 @@ def cmd_run(args):
         }
         with (root / "metrics" / "automation_metrics.jsonl").open("a") as f:
             f.write(json.dumps(metrics_line) + "\n")
-        (root / "metrics" / f"samples_{run_id}.csv").write_text("run_id,group_id,winner_tp,winner_fp,winner_fn,crop_tp,crop_fp,crop_fn\n")
-        (root / "reports" / f"summary_{run_id}.md").write_text(f"# Summary {run_id}\n\nSandbox selection run.\n")
-        (root / "runs" / run_id / "manifest.json").write_text(json.dumps({"run_id": run_id, "args": vars(args)}, indent=2))
+        (root / "metrics" / f"samples_{run_id}.csv").write_text(
+            "run_id,group_id,winner_tp,winner_fp,winner_fn,crop_tp,crop_fp,crop_fn\n"
+        )
+        (root / "reports" / f"summary_{run_id}.md").write_text(
+            f"# Summary {run_id}\n\nSandbox selection run.\n"
+        )
+        (root / "runs" / run_id / "manifest.json").write_text(
+            json.dumps({"run_id": run_id, "args": vars(args)}, indent=2)
+        )
         (root / "logs" / f"filetracker_{run_id}.log").write_text("")
         if profiler:
             profiler.finish()
@@ -517,5 +728,3 @@ def main(argv=None):
 
 if __name__ == "__main__":
     sys.exit(main())
-
-

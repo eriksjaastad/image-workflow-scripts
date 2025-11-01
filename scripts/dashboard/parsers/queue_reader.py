@@ -18,9 +18,8 @@ Provides:
 import csv
 import json
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Dict, List
 
 
 class QueueDataReader:
@@ -35,7 +34,7 @@ class QueueDataReader:
             self.data_dir / "data" / "ai_data" / "crop_queue" / "timing_log.csv"
         )
 
-    def get_queue_stats(self) -> Dict[str, int]:
+    def get_queue_stats(self) -> dict[str, int]:
         """
         Get current queue status counts.
 
@@ -54,7 +53,7 @@ class QueueDataReader:
             return stats
 
         try:
-            with open(self.queue_file, "r") as f:
+            with open(self.queue_file) as f:
                 for line in f:
                     line = line.strip()
                     if not line:
@@ -77,7 +76,7 @@ class QueueDataReader:
 
         return stats
 
-    def get_processing_time_trends(self, lookback_days: int = 30) -> List[Dict]:
+    def get_processing_time_trends(self, lookback_days: int = 30) -> list[dict]:
         """
         Get processing time trends over time.
 
@@ -92,7 +91,7 @@ class QueueDataReader:
         trends = []
 
         try:
-            with open(self.timing_log, "r") as f:
+            with open(self.timing_log) as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     try:
@@ -102,7 +101,7 @@ class QueueDataReader:
                         dt = datetime.fromisoformat(ts_norm)
                         # Convert aware → naive UTC for consistent comparisons
                         if dt.tzinfo is not None:
-                            dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+                            dt = dt.astimezone(UTC).replace(tzinfo=None)
                         timestamp = dt
                         if timestamp < cutoff_date:
                             continue
@@ -126,7 +125,7 @@ class QueueDataReader:
 
         return trends
 
-    def get_batches_per_session(self, lookback_days: int = 30) -> List[Dict]:
+    def get_batches_per_session(self, lookback_days: int = 30) -> list[dict]:
         """
         Group batches into sessions and count batches per session.
 
@@ -144,9 +143,7 @@ class QueueDataReader:
             try:
                 t = str(ts or "").strip().replace("Z", "+00:00")
                 d = datetime.fromisoformat(t)
-                return (
-                    d.astimezone(timezone.utc).replace(tzinfo=None) if d.tzinfo else d
-                )
+                return d.astimezone(UTC).replace(tzinfo=None) if d.tzinfo else d
             except Exception:
                 return datetime.min
 
@@ -208,7 +205,7 @@ class QueueDataReader:
 
         return sessions
 
-    def get_throughput_by_day(self, lookback_days: int = 30) -> Dict[str, Dict]:
+    def get_throughput_by_day(self, lookback_days: int = 30) -> dict[str, dict]:
         """
         Get crops processed per day.
 
@@ -236,7 +233,7 @@ class QueueDataReader:
 
         return dict(by_day)
 
-    def get_summary_stats(self, lookback_days: int = 30) -> Dict:
+    def get_summary_stats(self, lookback_days: int = 30) -> dict:
         """
         Get summary statistics for queue system.
 

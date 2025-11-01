@@ -33,5 +33,3 @@ def test_sorting_timestamp_then_stage():
             "20250706_171804_stage2_upscaled.png",
             "20250706_171948_stage3_enhanced.png",
         ]
-
-

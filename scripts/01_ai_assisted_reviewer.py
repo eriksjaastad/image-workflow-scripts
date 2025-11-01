@@ -112,7 +112,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 # Configure logging
 logging.basicConfig(
@@ -151,7 +151,7 @@ except Exception:
 
 try:
     import torch
-    import torch.nn as nn
+    from torch import nn
 
     TORCH_AVAILABLE = True
 except Exception:
@@ -179,7 +179,7 @@ class ImageGroup:
     """Represents a group of images with same timestamp."""
 
     group_id: str  # timestamp identifier
-    images: List[Path]  # sorted by stage
+    images: list[Path]  # sorted by stage
     directory: Path  # parent directory
 
 
@@ -238,7 +238,7 @@ else:
 
 def load_ai_models(
     models_dir: Path,
-) -> Tuple[Optional[Any], Optional[Any], Optional[Any]]:
+) -> tuple[Any | None, Any | None, Any | None]:
     """
     Load Ranker v3 and Crop Proposer v2 models.
 
@@ -283,7 +283,7 @@ def load_ai_models(
 
 def get_image_embedding(
     image_path: Path, clip_model, preprocess, device
-) -> Optional[torch.Tensor]:
+) -> torch.Tensor | None:
     """Get CLIP embedding for an image."""
     try:
         image = Image.open(image_path).convert("RGB")
@@ -303,7 +303,7 @@ def get_image_embedding(
 
 def get_ai_recommendation(
     group: ImageGroup, ranker_model, crop_model, clip_info
-) -> Dict:
+) -> dict:
     """
     Get AI recommendation using Ranker v3 and Crop Proposer v2.
 
@@ -414,14 +414,14 @@ def get_ai_recommendation(
         return get_rule_based_recommendation(group)
 
 
-def scan_images(directory: Path) -> List[Path]:
+def scan_images(directory: Path) -> list[Path]:
     """Scan directory for PNG images."""
     if not directory.exists():
         return []
     return list(directory.rglob("*.png"))
 
 
-def group_images_by_timestamp(images: List[Path]) -> List[ImageGroup]:
+def group_images_by_timestamp(images: list[Path]) -> list[ImageGroup]:
     """
     Group images using EXACT same logic as web image selector.
     Reuses find_consecutive_stage_groups from companion_file_utils.
@@ -456,7 +456,7 @@ def group_images_by_timestamp(images: List[Path]) -> List[ImageGroup]:
     return result
 
 
-def print_groups_summary(groups: List[ImageGroup]) -> None:
+def print_groups_summary(groups: list[ImageGroup]) -> None:
     """Print summary of image groups (for testing)"""
     triplet_count = 0
     pair_count = 0
@@ -477,7 +477,7 @@ def print_groups_summary(groups: List[ImageGroup]) -> None:
     )
 
 
-def get_rule_based_recommendation(group: ImageGroup) -> Dict:
+def get_rule_based_recommendation(group: ImageGroup) -> dict:
     """
     Rule-based recommendation (Phase 3 temporary, before AI training).
 
@@ -500,7 +500,7 @@ def get_rule_based_recommendation(group: ImageGroup) -> Dict:
 
 def load_or_create_decision_file(
     group: ImageGroup, ranker_model=None, crop_model=None, clip_info=None
-) -> Dict:
+) -> dict:
     """
     Load existing decision or create new one.
     Decision files are stored alongside images with .decision extension.
@@ -508,7 +508,7 @@ def load_or_create_decision_file(
     decision_path = group.directory / f"{group.group_id}.decision"
 
     if decision_path.exists():
-        with open(decision_path, "r") as f:
+        with open(decision_path) as f:
             return json.load(f)
 
     # Create new decision with AI recommendation (or rule-based fallback)
@@ -527,7 +527,7 @@ def load_or_create_decision_file(
     }
 
 
-def save_decision_file(group: ImageGroup, decision_data: Dict) -> None:
+def save_decision_file(group: ImageGroup, decision_data: dict) -> None:
     """
     Save decision to sidecar .decision file.
     This is the SINGLE SOURCE OF TRUTH for user decisions.
@@ -584,7 +584,7 @@ def get_current_project_id() -> str:
     # Look for active project (finishedAt is null)
     for project_file in project_dir.glob("*.project.json"):
         try:
-            with open(project_file, "r") as f:
+            with open(project_file) as f:
                 data = json.load(f)
 
                 # Active project has no finish date
@@ -635,14 +635,14 @@ def delete_group_images(
 def perform_file_operations(
     group: ImageGroup,
     action: str,
-    selected_index: Optional[int],
-    crop_coords: Optional[Tuple[float, float, float, float]],
+    selected_index: int | None,
+    crop_coords: tuple[float, float, float, float] | None,
     tracker: FileTracker,
     selected_dir: Path,
     crop_dir: Path,
     delete_staging_dir: Path,
     project_id: str = "unknown",
-) -> Dict[str, any]:
+) -> dict[str, any]:
     """
     Execute file operations based on user decision.
 
@@ -824,14 +824,14 @@ def perform_file_operations(
         }
 
 
-def detect_artifact(group: ImageGroup) -> Tuple[bool, List[str]]:
+def detect_artifact(group: ImageGroup) -> tuple[bool, list[str]]:
     """Detect artifact conditions for a group.
     Rules:
       - Multi-directory: images span multiple parent directories
       - Mismatched stems: base stem before '_stage' differs across images
     Returns (is_artifact, reasons)
     """
-    reasons: List[str] = []
+    reasons: list[str] = []
     parents = {str(p.parent) for p in group.images}
     if len(parents) > 1:
         reasons.append("multi_directory")
@@ -848,7 +848,7 @@ def detect_artifact(group: ImageGroup) -> Tuple[bool, List[str]]:
 
 
 def build_app(
-    groups: List[ImageGroup],
+    groups: list[ImageGroup],
     base_dir: Path,
     tracker: FileTracker,
     selected_dir: Path,
@@ -1905,7 +1905,7 @@ def build_app(
             kept_count = 0
             crop_count = 0
             deleted_count = 0
-            per_group_results: Dict[str, Dict[str, Any]] = {}
+            per_group_results: dict[str, dict[str, Any]] = {}
 
             for idx, selection in enumerate(selections):
                 group_id = selection.get("groupId")

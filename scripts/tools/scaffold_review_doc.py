@@ -40,11 +40,17 @@ Head: {short_sha} ({full_sha})
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Scaffold a review doc in the current branch")
-    parser.add_argument("--topic", required=True, help="Short topic slug (e.g., claude_queue_dashboard)")
+    parser = argparse.ArgumentParser(
+        description="Scaffold a review doc in the current branch"
+    )
+    parser.add_argument(
+        "--topic", required=True, help="Short topic slug (e.g., claude_queue_dashboard)"
+    )
     parser.add_argument("--pr", required=False, help="PR number or full URL")
     parser.add_argument("--branch", required=True, help="Target branch being reviewed")
-    parser.add_argument("--commit", required=False, default="", help="Head commit full SHA")
+    parser.add_argument(
+        "--commit", required=False, default="", help="Head commit full SHA"
+    )
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parents[2]
@@ -54,7 +60,11 @@ def main() -> None:
 
     short_sha = args.commit[:9] if args.commit else ""
     full_sha = args.commit or ""
-    pr_url = args.pr if (args.pr and args.pr.startswith("http")) else (f"https://github.com/<org>/<repo>/pull/{args.pr}" if args.pr else "")
+    pr_url = (
+        args.pr
+        if (args.pr and args.pr.startswith("http"))
+        else (f"https://github.com/<org>/<repo>/pull/{args.pr}" if args.pr else "")
+    )
 
     path = reviews_dir / f"REVIEW_{args.topic}_{today}.md"
     if path.exists():
@@ -75,5 +85,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
