@@ -13,13 +13,22 @@ Features:
 """
 
 import argparse
+import sys
 from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
 
+# Add project root to path
+project_root = Path(__file__).resolve().parents[2]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 from engines.analytics import DashboardAnalytics
 from engines.data_engine import DashboardDataEngine
 from flask import Flask, jsonify, render_template, request
+
+from scripts.utils.api_response_utils import error_response
+from scripts.utils.datetime_utils import normalize_to_naive_utc
 
 
 class ProductivityDashboard:
@@ -91,7 +100,7 @@ class ProductivityDashboard:
                 print("ERROR in /api/data endpoint:")
                 traceback.print_exc()
                 print("=" * 70)
-                return jsonify({"error": str(e)}), 500
+                return error_response(str(e), 500)
 
         @self.app.route("/api/scripts")
         def get_scripts():
@@ -110,9 +119,8 @@ class ProductivityDashboard:
                     date=data.get("date"),
                 )
                 return jsonify({"status": "success"})
-            else:
-                updates = self.data_engine.load_script_updates()
-                return jsonify(updates.to_dict("records"))
+            updates = self.data_engine.load_script_updates()
+            return jsonify(updates.to_dict("records"))
 
         @self.app.route("/api/debug")
         def debug_data():
@@ -124,7 +132,7 @@ class ProductivityDashboard:
                 )
                 return jsonify(raw_data)
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return error_response(str(e), 500)
 
     def transform_for_charts(self, data):
         """Transform raw data into Chart.js format"""
@@ -158,6 +166,7 @@ class ProductivityDashboard:
                     zip(
                         by_script_data[script_name]["dates"],
                         by_script_data[script_name]["counts"],
+                        strict=False,
                     )
                 )
                 by_script_data[script_name]["dates"] = [d for d, c in dates_counts]
@@ -185,6 +194,7 @@ class ProductivityDashboard:
                     zip(
                         by_operation_data[operation_name]["dates"],
                         by_operation_data[operation_name]["counts"],
+                        strict=False,
                     )
                 )
                 by_operation_data[operation_name]["dates"] = [
@@ -383,27 +393,28 @@ class ProductivityDashboard:
                 return False
 
             try:
-                # Parse operation timestamp (naive local time - no timezone info)
+                # Parse operation timestamp and normalize to naive UTC
                 if isinstance(ts, str):
-                    # Remove Z if present, but DON'T add timezone offset
-                    ts = ts.replace("Z", "")
+                    ts = ts.replace("Z", "+00:00") if ts.endswith("Z") else ts
                     op_dt = datetime.fromisoformat(ts)
+                    op_dt = normalize_to_naive_utc(op_dt)
                 else:
-                    op_dt = ts  # Already datetime
+                    op_dt = normalize_to_naive_utc(ts) if hasattr(ts, "tzinfo") else ts
 
-                # Make sure op_dt is naive (no timezone)
-                if op_dt.tzinfo is not None:
-                    op_dt = op_dt.replace(tzinfo=None)
-
-                # Parse project dates and convert to naive datetime (drop timezone)
+                # Parse project dates and convert to naive UTC
                 start_str = (
-                    started_at.replace("Z", "")
+                    started_at.replace("Z", "+00:00")
+                    if started_at.endswith("Z")
+                    else started_at
                     if isinstance(started_at, str)
                     else started_at
                 )
-                start_dt = datetime.fromisoformat(start_str)
-                if start_dt.tzinfo is not None:
-                    start_dt = start_dt.replace(tzinfo=None)
+                start_dt = (
+                    datetime.fromisoformat(start_str)
+                    if isinstance(start_str, str)
+                    else start_str
+                )
+                start_dt = normalize_to_naive_utc(start_dt)
 
                 # Check if operation is after project start
                 if op_dt < start_dt:
@@ -412,13 +423,18 @@ class ProductivityDashboard:
                 # Check if operation is before project end (if project is finished)
                 if finished_at:
                     end_str = (
-                        finished_at.replace("Z", "")
+                        finished_at.replace("Z", "+00:00")
+                        if finished_at.endswith("Z")
+                        else finished_at
                         if isinstance(finished_at, str)
                         else finished_at
                     )
-                    end_dt = datetime.fromisoformat(end_str)
-                    if end_dt.tzinfo is not None:
-                        end_dt = end_dt.replace(tzinfo=None)
+                    end_dt = (
+                        datetime.fromisoformat(end_str)
+                        if isinstance(end_str, str)
+                        else end_str
+                    )
+                    end_dt = normalize_to_naive_utc(end_dt)
                     if op_dt > end_dt:
                         return False
 

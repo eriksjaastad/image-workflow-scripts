@@ -35,16 +35,16 @@ from utils.companion_file_utils import (
 
 class TestFindAllCompanionFiles(unittest.TestCase):
     """Test finding all companion files for an image."""
-    
+
     def setUp(self):
         """Create temp directory with test files."""
         self.temp_dir = tempfile.TemporaryDirectory()
         self.temp_path = Path(self.temp_dir.name)
-    
+
     def tearDown(self):
         """Clean up temp directory."""
         self.temp_dir.cleanup()
-    
+
     def test_finds_yaml_companion(self):
         """Test finding .yaml companion file."""
         # Create files
@@ -52,11 +52,11 @@ class TestFindAllCompanionFiles(unittest.TestCase):
         yaml = self.temp_path / "test_20250101_120000_stage1_generated.yaml"
         img.touch()
         yaml.touch()
-        
+
         companions = find_all_companion_files(img)
         self.assertEqual(len(companions), 1)
         self.assertEqual(companions[0].name, yaml.name)
-    
+
     def test_finds_multiple_companions(self):
         """Test finding multiple companion files (.yaml + .caption)."""
         img = self.temp_path / "test_20250101_120000_stage1_generated.png"
@@ -65,21 +65,21 @@ class TestFindAllCompanionFiles(unittest.TestCase):
         img.touch()
         yaml.touch()
         caption.touch()
-        
+
         companions = find_all_companion_files(img)
         self.assertEqual(len(companions), 2)
         companion_names = {c.name for c in companions}
         self.assertIn(yaml.name, companion_names)
         self.assertIn(caption.name, companion_names)
-    
+
     def test_no_companions(self):
         """Test image with no companion files."""
         img = self.temp_path / "test_20250101_120000_stage1_generated.png"
         img.touch()
-        
+
         companions = find_all_companion_files(img)
         self.assertEqual(len(companions), 0)
-    
+
     def test_ignores_other_files_same_directory(self):
         """Test that it doesn't pick up unrelated files."""
         img = self.temp_path / "test_20250101_120000_stage1_generated.png"
@@ -88,7 +88,7 @@ class TestFindAllCompanionFiles(unittest.TestCase):
         img.touch()
         yaml.touch()
         other.touch()
-        
+
         companions = find_all_companion_files(img)
         self.assertEqual(len(companions), 1)
         self.assertEqual(companions[0].name, yaml.name)
@@ -96,7 +96,7 @@ class TestFindAllCompanionFiles(unittest.TestCase):
 
 class TestMoveFileWithAllCompanions(unittest.TestCase):
     """Test moving files with their companions."""
-    
+
     def setUp(self):
         """Create temp directories."""
         self.temp_dir = tempfile.TemporaryDirectory()
@@ -105,32 +105,32 @@ class TestMoveFileWithAllCompanions(unittest.TestCase):
         self.dest_dir = self.temp_path / "dest"
         self.source_dir.mkdir()
         self.dest_dir.mkdir()
-    
+
     def tearDown(self):
         """Clean up."""
         self.temp_dir.cleanup()
-    
+
     def test_moves_image_and_yaml(self):
         """Test moving PNG with .yaml companion."""
         img = self.source_dir / "test_20250101_120000_stage1_generated.png"
         yaml = self.source_dir / "test_20250101_120000_stage1_generated.yaml"
         img.write_text("image data")
         yaml.write_text("yaml data")
-        
+
         # Mock tracker and activity_timer
         MagicMock()
-        
+
         moved = move_file_with_companions(img, self.dest_dir, dry_run=False)
-        
+
         # Check files moved
         self.assertFalse(img.exists())
         self.assertFalse(yaml.exists())
         self.assertTrue((self.dest_dir / img.name).exists())
         self.assertTrue((self.dest_dir / yaml.name).exists())
-        
+
         # Check return value
         self.assertEqual(len(moved), 2)
-    
+
     def test_moves_image_with_multiple_companions(self):
         """Test moving PNG with multiple companions."""
         img = self.source_dir / "test_20250101_120000_stage1_generated.png"
@@ -139,11 +139,11 @@ class TestMoveFileWithAllCompanions(unittest.TestCase):
         img.write_text("image")
         yaml.write_text("yaml")
         caption.write_text("caption")
-        
+
         MagicMock()
-        
+
         moved = move_file_with_companions(img, self.dest_dir, dry_run=False)
-        
+
         self.assertEqual(len(moved), 3)
         self.assertTrue((self.dest_dir / img.name).exists())
         self.assertTrue((self.dest_dir / yaml.name).exists())
@@ -152,45 +152,45 @@ class TestMoveFileWithAllCompanions(unittest.TestCase):
 
 class TestSortImageFiles(unittest.TestCase):
     """Test deterministic image sorting."""
-    
+
     def setUp(self):
         """Create temp directory."""
         self.temp_dir = tempfile.TemporaryDirectory()
         self.temp_path = Path(self.temp_dir.name)
-    
+
     def tearDown(self):
         """Clean up."""
         self.temp_dir.cleanup()
-    
+
     def test_sorts_by_timestamp(self):
         """Test files sorted by timestamp first."""
         # Create files in wrong order
         file3 = self.temp_path / "20250101_150000_stage1_generated.png"
         file1 = self.temp_path / "20250101_120000_stage1_generated.png"
         file2 = self.temp_path / "20250101_130000_stage1_generated.png"
-        
+
         for f in [file3, file1, file2]:
             f.touch()
-        
+
         files = [file3, file1, file2]
         sorted_files = sort_image_files_by_timestamp_and_stage(files)
-        
+
         self.assertEqual(sorted_files[0].name, file1.name)
         self.assertEqual(sorted_files[1].name, file2.name)
         self.assertEqual(sorted_files[2].name, file3.name)
-    
+
     def test_sorts_by_stage_within_timestamp(self):
         """Test same timestamp sorted by stage."""
         file2 = self.temp_path / "20250101_120000_stage2_upscaled.png"
         file1 = self.temp_path / "20250101_120000_stage1_generated.png"
         file3 = self.temp_path / "20250101_120000_stage3_enhanced.png"
-        
+
         for f in [file2, file1, file3]:
             f.touch()
-        
+
         files = [file2, file1, file3]
         sorted_files = sort_image_files_by_timestamp_and_stage(files)
-        
+
         self.assertEqual(sorted_files[0].name, file1.name)
         self.assertEqual(sorted_files[1].name, file2.name)
         self.assertEqual(sorted_files[2].name, file3.name)
@@ -198,27 +198,27 @@ class TestSortImageFiles(unittest.TestCase):
 
 class TestStageDetection(unittest.TestCase):
     """Test stage number detection from filenames."""
-    
+
     def test_detects_stage1(self):
         """Test detecting stage1."""
         stage = detect_stage("20250101_120000_stage1_generated.png")
         self.assertEqual(stage, "stage1_generated")
-    
+
     def test_detects_stage1_5(self):
         """Test detecting stage1.5."""
         stage = detect_stage("20250101_120000_stage1.5_face_swapped.png")
         self.assertEqual(stage, "stage1.5_face_swapped")
-    
+
     def test_detects_stage2(self):
         """Test detecting stage2."""
         stage = detect_stage("20250101_120000_stage2_upscaled.png")
         self.assertEqual(stage, "stage2_upscaled")
-    
+
     def test_detects_stage3(self):
         """Test detecting stage3."""
         stage = detect_stage("20250101_120000_stage3_enhanced.png")
         self.assertEqual(stage, "stage3_enhanced")
-    
+
     def test_get_stage_number(self):
         """Test converting stage string to number."""
         self.assertEqual(get_stage_number("stage1_generated"), 1.0)
@@ -229,93 +229,93 @@ class TestStageDetection(unittest.TestCase):
 
 class TestFlexibleGroups(unittest.TestCase):
     """Test image grouping logic."""
-    
+
     def setUp(self):
         """Create temp directory."""
         self.temp_dir = tempfile.TemporaryDirectory()
         self.temp_path = Path(self.temp_dir.name)
-    
+
     def tearDown(self):
         """Clean up."""
         self.temp_dir.cleanup()
-    
+
     def test_groups_progressive_stages(self):
         """Test grouping 1→2→3."""
         file1 = self.temp_path / "20250101_120000_stage1_generated.png"
         file2 = self.temp_path / "20250101_120100_stage2_upscaled.png"
         file3 = self.temp_path / "20250101_120200_stage3_enhanced.png"
-        
+
         for f in [file1, file2, file3]:
             f.touch()
-        
+
         files = [file1, file2, file3]
         groups = find_consecutive_stage_groups(files)
-        
+
         self.assertEqual(len(groups), 1)
         self.assertEqual(len(groups[0]), 3)
-    
+
     def test_does_not_group_same_stage(self):
         """Test that same stages don't group together."""
         file1 = self.temp_path / "20250101_120000_stage2_upscaled.png"
         file2 = self.temp_path / "20250101_120100_stage2_upscaled.png"
         file3 = self.temp_path / "20250101_120200_stage2_upscaled.png"
-        
+
         for f in [file1, file2, file3]:
             f.touch()
-        
+
         files = [file1, file2, file3]
         groups = find_consecutive_stage_groups(files)
-        
+
         # Same stages should not group
         self.assertEqual(len(groups), 0)
-    
+
     def test_groups_with_skipped_stage(self):
         """Test grouping 1→3 (skipping 2)."""
         file1 = self.temp_path / "20250101_120000_stage1_generated.png"
         file3 = self.temp_path / "20250101_120100_stage3_enhanced.png"
-        
+
         for f in [file1, file3]:
             f.touch()
-        
+
         files = [file1, file3]
         groups = find_consecutive_stage_groups(files)
-        
+
         self.assertEqual(len(groups), 1)
         self.assertEqual(len(groups[0]), 2)
 
 
 class TestSafeDelete(unittest.TestCase):
     """Test safe deletion of images and all companion files."""
-    
+
     def setUp(self):
         """Create temp directory with test files."""
         self.temp_dir = tempfile.TemporaryDirectory()
         self.temp_path = Path(self.temp_dir.name)
-    
+
     def tearDown(self):
         """Clean up temp directory."""
         self.temp_dir.cleanup()
-    
-    @patch('utils.companion_file_utils.send2trash')
+
+    @patch("utils.companion_file_utils.send2trash")
     def test_deletes_image_and_yaml(self, mock_send2trash):
         """Test deleting PNG with .yaml companion."""
         img = self.temp_path / "test_20250101_120000_stage1_generated.png"
         yaml = self.temp_path / "test_20250101_120000_stage1_generated.yaml"
         img.write_text("image data")
         yaml.write_text("yaml data")
-        
+
         # Call safe_delete_image_and_yaml
         deleted = safe_delete_image_and_yaml(img, hard_delete=False, tracker=None)
-        
+
         # Verify send2trash was called for both files
         self.assertEqual(mock_send2trash.call_count, 2)
-        
+
         # Verify both paths were in the deleted list
         deleted_names = {p.name for p in deleted}
         self.assertIn(img.name, deleted_names)
         self.assertIn(yaml.name, deleted_names)
-    
-    @patch('utils.companion_file_utils.send2trash')
+
+    @patch("utils.companion_file_utils.send2trash")
     def test_deletes_image_with_all_companions(self, mock_send2trash):
         """Test deleting PNG with multiple companions (.yaml + .caption)."""
         img = self.temp_path / "test_20250101_120000_stage1_generated.png"
@@ -324,68 +324,69 @@ class TestSafeDelete(unittest.TestCase):
         img.write_text("image")
         yaml.write_text("yaml")
         caption.write_text("caption text")
-        
+
         # Call safe_delete_image_and_yaml (should find ALL companions)
         deleted = safe_delete_image_and_yaml(img, hard_delete=False, tracker=None)
-        
+
         # Verify send2trash was called for all 3 files
         self.assertEqual(mock_send2trash.call_count, 3)
-        
+
         # Verify all paths were in the deleted list
         deleted_names = {p.name for p in deleted}
         self.assertIn(img.name, deleted_names)
         self.assertIn(yaml.name, deleted_names)
         self.assertIn(caption.name, deleted_names)
-    
-    @patch('utils.companion_file_utils.send2trash')
+
+    @patch("utils.companion_file_utils.send2trash")
     def test_deletes_multiple_images_with_safe_delete_paths(self, mock_send2trash):
         """Test deleting multiple files at once with safe_delete_paths."""
         img1 = self.temp_path / "test1_20250101_120000_stage1_generated.png"
         yaml1 = self.temp_path / "test1_20250101_120000_stage1_generated.yaml"
         img2 = self.temp_path / "test2_20250101_130000_stage2_upscaled.png"
         caption2 = self.temp_path / "test2_20250101_130000_stage2_upscaled.caption"
-        
+
         for f in [img1, yaml1, img2, caption2]:
             f.write_text("data")
-        
+
         # Call safe_delete_paths with multiple files
-        deleted = safe_delete_paths([img1, yaml1, img2, caption2], hard_delete=False, tracker=None)
-        
+        deleted = safe_delete_paths(
+            [img1, yaml1, img2, caption2], hard_delete=False, tracker=None
+        )
+
         # Verify send2trash was called for all 4 files
         self.assertEqual(mock_send2trash.call_count, 4)
         self.assertEqual(len(deleted), 4)
-    
-    @patch('utils.companion_file_utils.send2trash')
+
+    @patch("utils.companion_file_utils.send2trash")
     def test_handles_missing_companion_gracefully(self, mock_send2trash):
         """Test deleting image when companion files don't exist."""
         img = self.temp_path / "test_20250101_120000_stage1_generated.png"
         img.write_text("image data")
         # No yaml or caption created
-        
+
         # Should still work and only delete the PNG
         deleted = safe_delete_image_and_yaml(img, hard_delete=False, tracker=None)
-        
+
         # Verify send2trash was called once (just the PNG)
         self.assertEqual(mock_send2trash.call_count, 1)
         self.assertEqual(len(deleted), 1)
         self.assertEqual(deleted[0].name, img.name)
-    
-    @patch('utils.companion_file_utils.os.remove')
+
+    @patch("utils.companion_file_utils.os.remove")
     def test_hard_delete_bypasses_trash(self, mock_remove):
         """Test that hard_delete=True uses os.remove instead of send2trash."""
         img = self.temp_path / "test_20250101_120000_stage1_generated.png"
         yaml = self.temp_path / "test_20250101_120000_stage1_generated.yaml"
         img.write_text("image")
         yaml.write_text("yaml")
-        
+
         # Call with hard_delete=True
         deleted = safe_delete_image_and_yaml(img, hard_delete=True, tracker=None)
-        
+
         # Verify os.remove was called (not send2trash)
         self.assertEqual(mock_remove.call_count, 2)
         self.assertEqual(len(deleted), 2)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
-

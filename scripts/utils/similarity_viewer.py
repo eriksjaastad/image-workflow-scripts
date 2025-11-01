@@ -51,99 +51,112 @@ from flask import Flask, jsonify, render_template_string
 def load_similarity_data(output_dir):
     """Load nodes, edges, and neighbors data from similarity map files."""
     output_path = Path(output_dir)
-    
+
     # Load nodes (image -> cluster mapping)
     nodes = {}
     nodes_file = output_path / "nodes.csv"
     if nodes_file.exists():
-        with open(nodes_file, 'r') as f:
+        with open(nodes_file) as f:
             reader = csv.DictReader(f)
             for row in reader:
-                nodes[row['filename']] = {
-                    'index': int(row['index']),
-                    'label': int(row['label']),
-                    'filename': row['filename']
+                nodes[row["filename"]] = {
+                    "index": int(row["index"]),
+                    "label": int(row["label"]),
+                    "filename": row["filename"],
                 }
-    
+
     # Load edges (similarity connections)
     edges = []
     edges_file = output_path / "edges.csv"
     if edges_file.exists():
-        with open(edges_file, 'r') as f:
+        with open(edges_file) as f:
             reader = csv.DictReader(f)
             for row in reader:
-                edges.append({
-                    'src_idx': int(row['src_idx']),
-                    'dst_idx': int(row['dst_idx']),
-                    'src_label': int(row['src_label']),
-                    'dst_label': int(row['dst_label']),
-                    'similarity': float(row['sim']),
-                    'distance': float(row['dist']),
-                    'src_file': row['src_file'],
-                    'dst_file': row['dst_file']
-                })
-    
+                edges.append(
+                    {
+                        "src_idx": int(row["src_idx"]),
+                        "dst_idx": int(row["dst_idx"]),
+                        "src_label": int(row["src_label"]),
+                        "dst_label": int(row["dst_label"]),
+                        "similarity": float(row["sim"]),
+                        "distance": float(row["dist"]),
+                        "src_file": row["src_file"],
+                        "dst_file": row["dst_file"],
+                    }
+                )
+
     # Load neighbors (top-K similar images per image)
     neighbors = {}
     neighbors_file = output_path / "neighbors.jsonl"
     if neighbors_file.exists():
-        with open(neighbors_file, 'r') as f:
+        with open(neighbors_file) as f:
             for line in f:
                 data = json.loads(line.strip())
-                neighbors[data['filename']] = data
-    
+                neighbors[data["filename"]] = data
+
     return nodes, edges, neighbors
+
 
 def similarity_sort_images(images, neighbors_data):
     """Sort images within a directory by similarity to create visual neighborhoods."""
     if len(images) <= 1:
         return images
-    
+
     # Build similarity graph for this set of images
     image_set = set(images)
     similarity_graph = {}
-    
+
     for img in images:
         similarity_graph[img] = []
         if img in neighbors_data:
             # Only include neighbors that are also in this directory
-            for neighbor in neighbors_data[img]['neighbors']:
-                if neighbor['filename'] in image_set:
-                    similarity_graph[img].append({
-                        'filename': neighbor['filename'],
-                        'similarity': neighbor['sim']
-                    })
+            for neighbor in neighbors_data[img]["neighbors"]:
+                if neighbor["filename"] in image_set:
+                    similarity_graph[img].append(
+                        {
+                            "filename": neighbor["filename"],
+                            "similarity": neighbor["sim"],
+                        }
+                    )
             # Sort neighbors by similarity (highest first)
-            similarity_graph[img].sort(key=lambda x: x['similarity'], reverse=True)
-    
+            similarity_graph[img].sort(key=lambda x: x["similarity"], reverse=True)
+
     # Use a greedy approach to create spatial neighborhoods
     sorted_images = []
     used = set()
-    
+
     # Start with the image that has the most high-similarity connections
-    start_img = max(images, key=lambda img: len([n for n in similarity_graph[img] if n['similarity'] > 0.5]))
-    
+    start_img = max(
+        images,
+        key=lambda img: len(
+            [n for n in similarity_graph[img] if n["similarity"] > 0.5]
+        ),
+    )
+
     current = start_img
     sorted_images.append(current)
     used.add(current)
-    
+
     # Greedily add the most similar unused neighbor
     while len(sorted_images) < len(images):
         best_next = None
         best_similarity = -1
-        
+
         # Look for the best unused neighbor of the current image
         for neighbor in similarity_graph[current]:
-            if neighbor['filename'] not in used and neighbor['similarity'] > best_similarity:
-                best_next = neighbor['filename']
-                best_similarity = neighbor['similarity']
-        
+            if (
+                neighbor["filename"] not in used
+                and neighbor["similarity"] > best_similarity
+            ):
+                best_next = neighbor["filename"]
+                best_similarity = neighbor["similarity"]
+
         # If no good neighbor found, jump to the unused image with most connections
         if best_next is None:
             remaining = [img for img in images if img not in used]
             if remaining:
                 best_next = max(remaining, key=lambda img: len(similarity_graph[img]))
-        
+
         if best_next:
             sorted_images.append(best_next)
             used.add(best_next)
@@ -154,8 +167,9 @@ def similarity_sort_images(images, neighbors_data):
             if remaining:
                 sorted_images.extend(remaining)
             break
-    
+
     return sorted_images
+
 
 def find_image_directories(output_dir):
     """Find all subdirectories containing images."""
@@ -164,25 +178,30 @@ def find_image_directories(output_dir):
         output_path = Path(__file__).parent.parent / output_dir
     else:
         output_path = Path(output_dir)
-    
+
     if not output_path.exists():
         print(f"❌ Directory not found: {output_path}")
         return []
-    
+
     directories = []
     for subdir in sorted(output_path.iterdir()):
         if subdir.is_dir():
             # Find PNG files in this directory
             images = list(subdir.glob("*.png"))
             if images:
-                directories.append({
-                    'name': subdir.name,
-                    'path': subdir,
-                    'images': sorted([img.name for img in images]),  # Will be re-sorted by similarity later
-                    'count': len(images)
-                })
-    
+                directories.append(
+                    {
+                        "name": subdir.name,
+                        "path": subdir,
+                        "images": sorted(
+                            [img.name for img in images]
+                        ),  # Will be re-sorted by similarity later
+                        "count": len(images),
+                    }
+                )
+
     return directories
+
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -566,115 +585,135 @@ HTML_TEMPLATE = """
 </html>
 """
 
+
 def create_app(output_dir):
     app = Flask(__name__)
-    
-    # Convert to absolute path from script's parent directory  
+
+    # Convert to absolute path from script's parent directory
     if not Path(output_dir).is_absolute():
         output_path = Path(__file__).parent.parent / output_dir
     else:
         output_path = Path(output_dir)
-    
+
     # Load similarity data
     nodes, edges, neighbors = load_similarity_data(output_dir)
-    
+
     # Find all directories with images
     directories = find_image_directories(output_dir)
-    
+
     # Sort images within each directory by similarity
     print("🔄 Applying similarity-based spatial layout...")
     for directory in directories:
-        original_order = directory['images'].copy()
-        directory['images'] = similarity_sort_images(directory['images'], neighbors)
-        
+        original_order = directory["images"].copy()
+        directory["images"] = similarity_sort_images(directory["images"], neighbors)
+
         # Count how many images moved positions
-        moved_count = sum(1 for i, img in enumerate(directory['images']) if i >= len(original_order) or img != original_order[i])
-        print(f"   • {directory['name']}: {moved_count}/{directory['count']} images repositioned")
-    
-    total_images = sum(d['count'] for d in directories)
-    
+        moved_count = sum(
+            1
+            for i, img in enumerate(directory["images"])
+            if i >= len(original_order) or img != original_order[i]
+        )
+        print(
+            f"   • {directory['name']}: {moved_count}/{directory['count']} images repositioned"
+        )
+
+    total_images = sum(d["count"] for d in directories)
+
     print(f"📁 Found {len(directories)} directories with {total_images} total images")
-    print(f"📊 Loaded similarity data: {len(nodes)} nodes, {len(edges)} edges, {len(neighbors)} neighbor sets")
+    print(
+        f"📊 Loaded similarity data: {len(nodes)} nodes, {len(edges)} edges, {len(neighbors)} neighbor sets"
+    )
     for d in directories:
         print(f"   • {d['name']}: {d['count']} images")
-    
-    @app.route('/')
+
+    @app.route("/")
     def index():
         return render_template_string(
             HTML_TEMPLATE,
             directories=directories,
             total_directories=len(directories),
             total_images=total_images,
-            output_dir=output_dir
+            output_dir=output_dir,
         )
-    
-    @app.route('/similarity-data')
+
+    @app.route("/similarity-data")
     def similarity_data():
         """Serve similarity data as JSON for the frontend."""
-        return jsonify({
-            'nodes': nodes,
-            'edges': edges,
-            'neighbors': neighbors
-        })
-    
-    @app.route('/image/<directory>/<filename>')
+        return jsonify({"nodes": nodes, "edges": edges, "neighbors": neighbors})
+
+    @app.route("/image/<directory>/<filename>")
     def serve_image(directory, filename):
         """Serve images from the directories."""
         from flask import send_file
+
         image_path = output_path / directory / filename
         if image_path.exists():
             return send_file(str(image_path))
-        else:
-            return "Image not found", 404
-    
+        return "Image not found", 404
+
     return app
+
 
 def open_browser(url):
     """Open browser after a short delay."""
     # Extract host and port from URL for shared function
     from urllib.parse import urlparse
+
     parsed = urlparse(url)
     host = parsed.hostname or "localhost"
     port = parsed.port or 5000
     launch_browser(host, port, delay=1.5)
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Similarity-enhanced image viewer for clustering analysis")
-    parser.add_argument("output_dir", help="Directory containing clustered images and similarity maps")
-    parser.add_argument("--port", type=int, default=5006, help="Port to run the server on (default: 5006)")
-    parser.add_argument("--no-browser", action="store_true", help="Don't automatically open browser")
-    
+    parser = argparse.ArgumentParser(
+        description="Similarity-enhanced image viewer for clustering analysis"
+    )
+    parser.add_argument(
+        "output_dir", help="Directory containing clustered images and similarity maps"
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=5006,
+        help="Port to run the server on (default: 5006)",
+    )
+    parser.add_argument(
+        "--no-browser", action="store_true", help="Don't automatically open browser"
+    )
+
     args = parser.parse_args()
-    
+
     if not Path(args.output_dir).exists():
         print(f"❌ Error: Directory '{args.output_dir}' not found")
         sys.exit(1)
-    
+
     # Check for similarity map files
     output_path = Path(args.output_dir)
-    required_files = ['nodes.csv', 'edges.csv', 'neighbors.jsonl']
+    required_files = ["nodes.csv", "edges.csv", "neighbors.jsonl"]
     missing_files = [f for f in required_files if not (output_path / f).exists()]
-    
+
     if missing_files:
         print(f"❌ Missing similarity map files: {missing_files}")
         print("   Run hybrid_grouper.py with --emit-map to generate these files")
         sys.exit(1)
-    
+
     print("🚀 Starting Similarity-Enhanced Image Viewer...")
     print(f"📂 Analyzing: {args.output_dir}")
-    
+
     app = create_app(args.output_dir)
-    
+
     url = f"http://localhost:{args.port}"
     print(f"🌐 Server starting at: {url}")
-    
+
     if not args.no_browser:
         threading.Thread(target=open_browser, args=(url,), daemon=True).start()
-    
+
     try:
-        app.run(host='0.0.0.0', port=args.port, debug=False)
+        app.run(host="0.0.0.0", port=args.port, debug=False)
     except KeyboardInterrupt:
         print("\n👋 Server stopped")
+
 
 if __name__ == "__main__":
     main()

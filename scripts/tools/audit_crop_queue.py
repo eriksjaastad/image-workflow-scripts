@@ -22,16 +22,15 @@ import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
 
 
-def load_queue_entries(queue_file: Path) -> List[Dict]:
+def load_queue_entries(queue_file: Path) -> list[dict]:
     """Load all entries from queue file."""
     entries = []
     if not queue_file.exists():
         return entries
 
-    with open(queue_file, 'r') as f:
+    with open(queue_file) as f:
         for line_num, line in enumerate(f, 1):
             line = line.strip()
             if not line:
@@ -39,25 +38,27 @@ def load_queue_entries(queue_file: Path) -> List[Dict]:
 
             try:
                 batch = json.loads(line)
-                for crop in batch.get('crops', []):
+                for crop in batch.get("crops", []):
                     # Add batch metadata to each crop
-                    crop['batch_id'] = batch.get('batch_id')
-                    crop['batch_status'] = batch.get('status')
-                    crop['project_id'] = batch.get('project_id')
+                    crop["batch_id"] = batch.get("batch_id")
+                    crop["batch_status"] = batch.get("status")
+                    crop["project_id"] = batch.get("project_id")
                     entries.append(crop)
             except json.JSONDecodeError as e:
                 print(f"⚠️  Line {line_num}: Invalid JSON: {e}")
 
     return entries
 
-def scan_crop_queued_directory(crop_queued_dir: Path) -> Set[Path]:
+
+def scan_crop_queued_directory(crop_queued_dir: Path) -> set[Path]:
     """Scan __crop_queued/ directory for all image files."""
     if not crop_queued_dir.exists():
         return set()
 
-    return set(crop_queued_dir.glob('**/*.png'))
+    return set(crop_queued_dir.glob("**/*.png"))
 
-def check_db_record(project_id: str, group_id: str) -> Tuple[bool, str]:
+
+def check_db_record(project_id: str, group_id: str) -> tuple[bool, str]:
     """
     Check if DB record exists for group_id.
 
@@ -73,13 +74,17 @@ def check_db_record(project_id: str, group_id: str) -> Tuple[bool, str]:
 
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT id, final_crop_coords FROM ai_decisions WHERE group_id = ?", (group_id,))
+        cursor.execute(
+            "SELECT id, final_crop_coords FROM ai_decisions WHERE group_id = ?",
+            (group_id,),
+        )
         result = cursor.fetchone()
         conn.close()
 
         return result is not None, str(db_path)
     except Exception as e:
         return False, f"Error: {e}"
+
 
 def audit_queue(queue_file: Path, crop_queued_dir: Path, report_file: Path = None):
     """
@@ -103,11 +108,11 @@ def audit_queue(queue_file: Path, crop_queued_dir: Path, report_file: Path = Non
 
     # Track issues
     issues = {
-        'orphaned_queue_entries': [],
-        'orphaned_files': [],
-        'missing_decision_files': [],
-        'missing_db_records': [],
-        'invalid_crop_coords': []
+        "orphaned_queue_entries": [],
+        "orphaned_files": [],
+        "missing_decision_files": [],
+        "missing_db_records": [],
+        "invalid_crop_coords": [],
     }
 
     # Check 1: Orphaned queue entries (source file doesn't exist)
@@ -117,22 +122,28 @@ def audit_queue(queue_file: Path, crop_queued_dir: Path, report_file: Path = Non
 
     queue_source_paths = set()
     for entry in queue_entries:
-        source_path = Path(entry['source_path'])
+        source_path = Path(entry["source_path"])
         queue_source_paths.add(source_path)
 
         if not source_path.exists():
-            issues['orphaned_queue_entries'].append({
-                'batch_id': entry.get('batch_id'),
-                'source_path': str(source_path),
-                'dest_directory': entry.get('dest_directory'),
-                'status': entry.get('batch_status')
-            })
+            issues["orphaned_queue_entries"].append(
+                {
+                    "batch_id": entry.get("batch_id"),
+                    "source_path": str(source_path),
+                    "dest_directory": entry.get("dest_directory"),
+                    "status": entry.get("batch_status"),
+                }
+            )
 
-    if issues['orphaned_queue_entries']:
-        print(f"❌ Found {len(issues['orphaned_queue_entries'])} orphaned queue entries:")
-        for issue in issues['orphaned_queue_entries'][:5]:
-            print(f"   [{issue['batch_id']}] {Path(issue['source_path']).name} ({issue['status']})")
-        if len(issues['orphaned_queue_entries']) > 5:
+    if issues["orphaned_queue_entries"]:
+        print(
+            f"❌ Found {len(issues['orphaned_queue_entries'])} orphaned queue entries:"
+        )
+        for issue in issues["orphaned_queue_entries"][:5]:
+            print(
+                f"   [{issue['batch_id']}] {Path(issue['source_path']).name} ({issue['status']})"
+            )
+        if len(issues["orphaned_queue_entries"]) > 5:
             print(f"   ... and {len(issues['orphaned_queue_entries']) - 5} more")
     else:
         print("✅ No orphaned queue entries")
@@ -144,13 +155,13 @@ def audit_queue(queue_file: Path, crop_queued_dir: Path, report_file: Path = Non
 
     for file_path in filesystem_files:
         if file_path not in queue_source_paths:
-            issues['orphaned_files'].append(str(file_path))
+            issues["orphaned_files"].append(str(file_path))
 
-    if issues['orphaned_files']:
+    if issues["orphaned_files"]:
         print(f"❌ Found {len(issues['orphaned_files'])} orphaned files:")
-        for file_path in issues['orphaned_files'][:5]:
+        for file_path in issues["orphaned_files"][:5]:
             print(f"   {Path(file_path).name}")
-        if len(issues['orphaned_files']) > 5:
+        if len(issues["orphaned_files"]) > 5:
             print(f"   ... and {len(issues['orphaned_files']) - 5} more")
     else:
         print("✅ No orphaned files")
@@ -161,21 +172,25 @@ def audit_queue(queue_file: Path, crop_queued_dir: Path, report_file: Path = Non
     print(f"{'='*80}\n")
 
     for entry in queue_entries:
-        source_path = Path(entry['source_path'])
+        source_path = Path(entry["source_path"])
         if source_path.exists():
-            decision_path = source_path.with_suffix('.decision')
+            decision_path = source_path.with_suffix(".decision")
             if not decision_path.exists():
-                issues['missing_decision_files'].append({
-                    'batch_id': entry.get('batch_id'),
-                    'source_file': source_path.name,
-                    'expected_decision': str(decision_path)
-                })
+                issues["missing_decision_files"].append(
+                    {
+                        "batch_id": entry.get("batch_id"),
+                        "source_file": source_path.name,
+                        "expected_decision": str(decision_path),
+                    }
+                )
 
-    if issues['missing_decision_files']:
-        print(f"❌ Found {len(issues['missing_decision_files'])} missing .decision files:")
-        for issue in issues['missing_decision_files'][:5]:
+    if issues["missing_decision_files"]:
+        print(
+            f"❌ Found {len(issues['missing_decision_files'])} missing .decision files:"
+        )
+        for issue in issues["missing_decision_files"][:5]:
             print(f"   [{issue['batch_id']}] {issue['source_file']}")
-        if len(issues['missing_decision_files']) > 5:
+        if len(issues["missing_decision_files"]) > 5:
             print(f"   ... and {len(issues['missing_decision_files']) - 5} more")
     else:
         print("✅ All queued files have .decision files")
@@ -186,35 +201,41 @@ def audit_queue(queue_file: Path, crop_queued_dir: Path, report_file: Path = Non
     print(f"{'='*80}\n")
 
     for entry in queue_entries:
-        source_path = Path(entry['source_path'])
+        source_path = Path(entry["source_path"])
         if source_path.exists():
-            decision_path = source_path.with_suffix('.decision')
+            decision_path = source_path.with_suffix(".decision")
             if decision_path.exists():
                 try:
-                    with open(decision_path, 'r') as f:
+                    with open(decision_path) as f:
                         decision_data = json.load(f)
 
-                    group_id = decision_data.get('group_id')
-                    project_id = entry.get('project_id') or decision_data.get('project_id')
+                    group_id = decision_data.get("group_id")
+                    project_id = entry.get("project_id") or decision_data.get(
+                        "project_id"
+                    )
 
                     if group_id and project_id:
                         exists, db_info = check_db_record(project_id, group_id)
                         if not exists:
-                            issues['missing_db_records'].append({
-                                'batch_id': entry.get('batch_id'),
-                                'source_file': source_path.name,
-                                'group_id': group_id,
-                                'project_id': project_id,
-                                'db_path': db_info
-                            })
+                            issues["missing_db_records"].append(
+                                {
+                                    "batch_id": entry.get("batch_id"),
+                                    "source_file": source_path.name,
+                                    "group_id": group_id,
+                                    "project_id": project_id,
+                                    "db_path": db_info,
+                                }
+                            )
                 except Exception:
                     pass  # Already caught in missing decision files check
 
-    if issues['missing_db_records']:
+    if issues["missing_db_records"]:
         print(f"❌ Found {len(issues['missing_db_records'])} missing DB records:")
-        for issue in issues['missing_db_records'][:5]:
-            print(f"   [{issue['batch_id']}] {issue['source_file']} (group_id: {issue['group_id']})")
-        if len(issues['missing_db_records']) > 5:
+        for issue in issues["missing_db_records"][:5]:
+            print(
+                f"   [{issue['batch_id']}] {issue['source_file']} (group_id: {issue['group_id']})"
+            )
+        if len(issues["missing_db_records"]) > 5:
             print(f"   ... and {len(issues['missing_db_records']) - 5} more")
     else:
         print("✅ All queued crops have valid DB records")
@@ -225,49 +246,59 @@ def audit_queue(queue_file: Path, crop_queued_dir: Path, report_file: Path = Non
     print(f"{'='*80}\n")
 
     for entry in queue_entries:
-        crop_rect = entry.get('crop_rect', [])
-        crop_rect_normalized = entry.get('crop_rect_normalized', [])
+        crop_rect = entry.get("crop_rect", [])
+        crop_rect_normalized = entry.get("crop_rect_normalized", [])
 
         # Check pixel coords
         if len(crop_rect) != 4:
-            issues['invalid_crop_coords'].append({
-                'batch_id': entry.get('batch_id'),
-                'source_file': Path(entry['source_path']).name,
-                'issue': f"Invalid crop_rect length: {len(crop_rect)}"
-            })
+            issues["invalid_crop_coords"].append(
+                {
+                    "batch_id": entry.get("batch_id"),
+                    "source_file": Path(entry["source_path"]).name,
+                    "issue": f"Invalid crop_rect length: {len(crop_rect)}",
+                }
+            )
             continue
 
         x1, y1, x2, y2 = crop_rect
         if x1 >= x2 or y1 >= y2 or x1 < 0 or y1 < 0:
-            issues['invalid_crop_coords'].append({
-                'batch_id': entry.get('batch_id'),
-                'source_file': Path(entry['source_path']).name,
-                'issue': f"Invalid crop dimensions: {crop_rect}"
-            })
+            issues["invalid_crop_coords"].append(
+                {
+                    "batch_id": entry.get("batch_id"),
+                    "source_file": Path(entry["source_path"]).name,
+                    "issue": f"Invalid crop dimensions: {crop_rect}",
+                }
+            )
 
         # Check normalized coords
         if crop_rect_normalized:
             if len(crop_rect_normalized) != 4:
-                issues['invalid_crop_coords'].append({
-                    'batch_id': entry.get('batch_id'),
-                    'source_file': Path(entry['source_path']).name,
-                    'issue': f"Invalid normalized coords length: {len(crop_rect_normalized)}"
-                })
+                issues["invalid_crop_coords"].append(
+                    {
+                        "batch_id": entry.get("batch_id"),
+                        "source_file": Path(entry["source_path"]).name,
+                        "issue": f"Invalid normalized coords length: {len(crop_rect_normalized)}",
+                    }
+                )
                 continue
 
             nx1, ny1, nx2, ny2 = crop_rect_normalized
             if not all(0 <= v <= 1 for v in [nx1, ny1, nx2, ny2]):
-                issues['invalid_crop_coords'].append({
-                    'batch_id': entry.get('batch_id'),
-                    'source_file': Path(entry['source_path']).name,
-                    'issue': f"Normalized coords out of [0,1] range: {crop_rect_normalized}"
-                })
+                issues["invalid_crop_coords"].append(
+                    {
+                        "batch_id": entry.get("batch_id"),
+                        "source_file": Path(entry["source_path"]).name,
+                        "issue": f"Normalized coords out of [0,1] range: {crop_rect_normalized}",
+                    }
+                )
 
-    if issues['invalid_crop_coords']:
-        print(f"❌ Found {len(issues['invalid_crop_coords'])} invalid crop coordinates:")
-        for issue in issues['invalid_crop_coords'][:5]:
+    if issues["invalid_crop_coords"]:
+        print(
+            f"❌ Found {len(issues['invalid_crop_coords'])} invalid crop coordinates:"
+        )
+        for issue in issues["invalid_crop_coords"][:5]:
             print(f"   [{issue['batch_id']}] {issue['source_file']}: {issue['issue']}")
-        if len(issues['invalid_crop_coords']) > 5:
+        if len(issues["invalid_crop_coords"]) > 5:
             print(f"   ... and {len(issues['invalid_crop_coords']) - 5} more")
     else:
         print("✅ All crop coordinates are valid")
@@ -291,7 +322,7 @@ def audit_queue(queue_file: Path, crop_queued_dir: Path, report_file: Path = Non
     # Write detailed report if requested
     if report_file:
         print(f"Writing detailed report to {report_file}...")
-        with open(report_file, 'w') as f:
+        with open(report_file, "w") as f:
             f.write("Crop Queue Audit Report\n")
             f.write(f"{'='*80}\n\n")
             f.write(f"Generated: {datetime.now().isoformat()}\n")
@@ -305,7 +336,9 @@ def audit_queue(queue_file: Path, crop_queued_dir: Path, report_file: Path = Non
 
             for issue_type, issue_list in issues.items():
                 if issue_list:
-                    f.write(f"\n{issue_type.replace('_', ' ').title()}: {len(issue_list)}\n")
+                    f.write(
+                        f"\n{issue_type.replace('_', ' ').title()}: {len(issue_list)}\n"
+                    )
                     f.write(f"{'-'*80}\n")
                     for issue in issue_list:
                         f.write(f"{json.dumps(issue, indent=2)}\n")
@@ -314,28 +347,27 @@ def audit_queue(queue_file: Path, crop_queued_dir: Path, report_file: Path = Non
 
     return total_issues == 0
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Audit crop queue consistency (queue vs filesystem vs DB)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__
+        epilog=__doc__,
     )
     parser.add_argument(
-        '--queue',
+        "--queue",
         type=Path,
-        default=Path('data/ai_data/crop_queue/crop_queue.jsonl'),
-        help='Path to queue file (default: data/ai_data/crop_queue/crop_queue.jsonl)'
+        default=Path("data/ai_data/crop_queue/crop_queue.jsonl"),
+        help="Path to queue file (default: data/ai_data/crop_queue/crop_queue.jsonl)",
     )
     parser.add_argument(
-        '--crop-queued-dir',
+        "--crop-queued-dir",
         type=Path,
-        default=Path('__crop_queued'),
-        help='Path to crop queued directory (default: __crop_queued)'
+        default=Path("__crop_queued"),
+        help="Path to crop queued directory (default: __crop_queued)",
     )
     parser.add_argument(
-        '--report-file',
-        type=Path,
-        help='Write detailed report to file (optional)'
+        "--report-file", type=Path, help="Write detailed report to file (optional)"
     )
 
     args = parser.parse_args()
@@ -345,5 +377,6 @@ def main():
     # Exit code: 0 if clean, 1 if issues found
     exit(0 if is_clean else 1)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

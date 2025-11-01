@@ -67,7 +67,6 @@ import json
 import shutil
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 # Deps (install in your 3.11 venv):
 # pip install onnxruntime insightface torch torchvision torchreid scikit-learn hdbscan opencv-python-headless
@@ -104,14 +103,17 @@ except Exception:
 def exif_fix(img: Image.Image) -> Image.Image:
     return ImageOps.exif_transpose(img.convert("RGB"))
 
+
 def device_auto():
     if torch.backends.mps.is_available():
         return torch.device("mps")
     return torch.device("cpu")
 
+
 def set_seed(seed: int = 42):
     np.random.seed(seed)
     torch.manual_seed(seed)
+
 
 def top_center_crop(img: Image.Image, frac_w=0.9, frac_h=0.65) -> Image.Image:
     w, h = img.size
@@ -131,7 +133,13 @@ class HybridEmbedder:
       - If not accepted, fall back to OSNet reID embedding.
     All vectors are L2-normalized.
     """
-    def __init__(self, max_side: int = 1536, face_min_score: float = 0.65, use_reid_fallback: bool = True):
+
+    def __init__(
+        self,
+        max_side: int = 1536,
+        face_min_score: float = 0.65,
+        use_reid_fallback: bool = True,
+    ):
         self.max_side = max_side
         self.face_min_score = face_min_score
         self.use_reid_fallback = use_reid_fallback
@@ -139,27 +147,35 @@ class HybridEmbedder:
 
         # InsightFace (buffalo_l) providers
         available = ort.get_available_providers()
-        prov = [p for p in ("CoreMLExecutionProvider", "CPUExecutionProvider") if p in available]
+        prov = [
+            p
+            for p in ("CoreMLExecutionProvider", "CPUExecutionProvider")
+            if p in available
+        ]
         if not prov:
             prov = ["CPUExecutionProvider"]
         self.face_app = FaceAnalysis(name="buffalo_l", providers=prov)
         self.face_app.prepare(ctx_id=0, det_size=(640, 640))
 
         # Torchreid OSNet extractor (fallback)
-        self.reid_extractor = FeatureExtractor(
-            model_name="osnet_x1_0",
-            device="mps" if self.device.type == "mps" else "cpu"
-        ) if use_reid_fallback else None
+        self.reid_extractor = (
+            FeatureExtractor(
+                model_name="osnet_x1_0",
+                device="mps" if self.device.type == "mps" else "cpu",
+            )
+            if use_reid_fallback
+            else None
+        )
 
     def _prep_image(self, path: Path) -> Image.Image:
         img = exif_fix(Image.open(path))
         w, h = img.size
         scale = max(w, h) / float(self.max_side)
         if scale > 1.0:
-            img = img.resize((int(w/scale), int(h/scale)), Image.Resampling.LANCZOS)
+            img = img.resize((int(w / scale), int(h / scale)), Image.Resampling.LANCZOS)
         return img
 
-    def _face_embedding(self, img: Image.Image) -> Optional[np.ndarray]:
+    def _face_embedding(self, img: Image.Image) -> np.ndarray | None:
         bgr = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
         faces = self.face_app.get(bgr)
         if not faces:
@@ -174,7 +190,7 @@ class HybridEmbedder:
         v = normalize(v, norm="l2")[0]
         return v  # 512-D
 
-    def _reid_embedding(self, img: Image.Image) -> Optional[np.ndarray]:
+    def _reid_embedding(self, img: Image.Image) -> np.ndarray | None:
         if not self.reid_extractor:
             return None
         crop = top_center_crop(img, 0.9, 0.65)
@@ -186,6 +202,7 @@ class HybridEmbedder:
         # Accept torch.Tensor, np.ndarray, or list/tuple
         try:
             import torch as _torch
+
             if isinstance(vecs, _torch.Tensor):
                 v = vecs[0].detach().cpu().numpy()
             elif isinstance(vecs, np.ndarray):
@@ -205,7 +222,7 @@ class HybridEmbedder:
         v = normalize(v, norm="l2")[0]
         return v
 
-    def embed(self, path: Path) -> Optional[np.ndarray]:
+    def embed(self, path: Path) -> np.ndarray | None:
         try:
             img = self._prep_image(path)
         except Exception:
@@ -226,17 +243,22 @@ def post_filter_small_clusters(labels: np.ndarray, min_cluster_size: int) -> np.
     if labels.size == 0:
         return labels
     unique, counts = np.unique(labels, return_counts=True)
-    small = {int(u) for u, c in zip(unique, counts) if c < min_cluster_size}
+    small = {
+        int(u) for u, c in zip(unique, counts, strict=False) if c < min_cluster_size
+    }
     new_labels = labels.copy()
     for i, lab in enumerate(labels):
         new_labels[i] = -1 if int(lab) in small else lab
     # reindex to 1..K skipping -1
-    keep = sorted([int(u) for u, c in zip(unique, counts) if c >= min_cluster_size])
+    keep = sorted(
+        [int(u) for u, c in zip(unique, counts, strict=False) if c >= min_cluster_size]
+    )
     mapping = {lab: i for i, lab in enumerate(keep, start=1)}
     for i, lab in enumerate(new_labels):
         if lab != -1:
             new_labels[i] = mapping[int(lab)]
     return new_labels
+
 
 def _calculate_distance_band(X: np.ndarray) -> tuple[float, float]:
     """Calculate a reasonable cosine distance band from k-NN distances."""
@@ -247,10 +269,14 @@ def _calculate_distance_band(X: np.ndarray) -> tuple[float, float]:
     q10, q25, q50 = np.quantile(np.concatenate([nn3, nn4]), [0.10, 0.25, 0.50])
     return max(0.04, q10), min(0.60, q50)
 
-def cluster_with_backoff(X: np.ndarray, min_cluster_size: int,
-                         start_thresh: Optional[float] = None,
-                         min_thresh: Optional[float] = None,
-                         step: float = 0.01) -> tuple[np.ndarray, float]:
+
+def cluster_with_backoff(
+    X: np.ndarray,
+    min_cluster_size: int,
+    start_thresh: float | None = None,
+    min_thresh: float | None = None,
+    step: float = 0.01,
+) -> tuple[np.ndarray, float]:
     """
     Agglomerative (cosine, COMPLETE) with automatic threshold backoff.
     Success when >1 named clusters and largest <70% of data.
@@ -263,8 +289,7 @@ def cluster_with_backoff(X: np.ndarray, min_cluster_size: int,
 
     while thr >= floor:
         agg = AgglomerativeClustering(
-            n_clusters=None, distance_threshold=thr,
-            metric="cosine", linkage="complete"
+            n_clusters=None, distance_threshold=thr, metric="cosine", linkage="complete"
         )
         raw = agg.fit_predict(X)
         labels = post_filter_small_clusters(raw, min_cluster_size)
@@ -280,7 +305,10 @@ def cluster_with_backoff(X: np.ndarray, min_cluster_size: int,
         return best_labels, best_thr
     return np.full(N, -1, dtype=int), floor
 
-def merge_close_clusters(X: np.ndarray, labels: np.ndarray, dist_thresh: float = 0.18) -> np.ndarray:
+
+def merge_close_clusters(
+    X: np.ndarray, labels: np.ndarray, dist_thresh: float = 0.18
+) -> np.ndarray:
     """Merge clusters whose centroids are within cosine distance <= dist_thresh."""
     keep = [int(u) for u in np.unique(labels) if u != -1]
     if not keep:
@@ -293,15 +321,18 @@ def merge_close_clusters(X: np.ndarray, labels: np.ndarray, dist_thresh: float =
         cents[lab] = c / n
     labs = sorted(cents.keys())
     parent = {lab: lab for lab in labs}
+
     def find(a):
         while parent[a] != a:
             parent[a] = parent[parent[a]]
             a = parent[a]
         return a
+
     def union(a, b):
         ra, rb = find(a), find(b)
         if ra != rb:
             parent[rb] = ra
+
     for i in range(len(labs)):
         for j in range(i + 1, len(labs)):
             a, b = labs[i], labs[j]
@@ -321,7 +352,10 @@ def merge_close_clusters(X: np.ndarray, labels: np.ndarray, dist_thresh: float =
         new_labels[i] = root2new[r]
     return new_labels
 
-def assign_unknowns(X: np.ndarray, labels: np.ndarray, assign_threshold: float = 0.18) -> tuple[np.ndarray, int]:
+
+def assign_unknowns(
+    X: np.ndarray, labels: np.ndarray, assign_threshold: float = 0.18
+) -> tuple[np.ndarray, int]:
     """Assign -1 items to nearest centroid if cosine distance <= assign_threshold."""
     keep = [int(u) for u in np.unique(labels) if u != -1]
     if not keep:
@@ -341,7 +375,7 @@ def assign_unknowns(X: np.ndarray, labels: np.ndarray, assign_threshold: float =
     if len(unk_idx) == 0:
         return new_labels, 0
     # cos distance = 1 - dot(x, c)
-    sims = X[unk_idx] @ C.T   # (U, K)
+    sims = X[unk_idx] @ C.T  # (U, K)
     dists = 1.0 - sims
     mins = dists.min(axis=1)
     argmins = dists.argmin(axis=1)
@@ -351,15 +385,18 @@ def assign_unknowns(X: np.ndarray, labels: np.ndarray, assign_threshold: float =
             assigned += 1
     return new_labels, assigned
 
-def second_pass_unknowns(X: np.ndarray, labels: np.ndarray,
-                         min_cluster_size: int,
-                         start_thresh: float = 0.30) -> np.ndarray:
+
+def second_pass_unknowns(
+    X: np.ndarray, labels: np.ndarray, min_cluster_size: int, start_thresh: float = 0.30
+) -> np.ndarray:
     """Re-cluster the unknowns with a looser threshold; append new clusters."""
     unk_idx = np.where(labels == -1)[0]
     if len(unk_idx) < min_cluster_size:
         return labels
     Xu = X[unk_idx]
-    labs_u, used = cluster_with_backoff(Xu, min_cluster_size, start_thresh=start_thresh, min_thresh=0.06, step=0.01)
+    labs_u, used = cluster_with_backoff(
+        Xu, min_cluster_size, start_thresh=start_thresh, min_thresh=0.06, step=0.01
+    )
     keep_u = [u for u in np.unique(labs_u) if u != -1]
     if not keep_u:
         return labels
@@ -377,26 +414,32 @@ def second_pass_unknowns(X: np.ndarray, labels: np.ndarray,
 
 
 # ------------------------------ IO & grouping ------------------------------
-def discover_image_metadata_pairs(root: Path) -> Tuple[List[Path], List[str]]:
+def discover_image_metadata_pairs(root: Path) -> tuple[list[Path], list[str]]:
     image_exts = {".jpg", ".jpeg", ".png", ".webp"}
-    errors: List[str] = []
+    errors: list[str] = []
 
     all_files = list(root.rglob("*"))
     images = {p.stem: p for p in all_files if p.suffix.lower() in image_exts}
-    metadata  = {p.stem: p for p in all_files if p.suffix.lower() in [".yaml", ".caption"]}
+    metadata = {
+        p.stem: p for p in all_files if p.suffix.lower() in [".yaml", ".caption"]
+    }
 
     image_stems = set(images.keys())
     metadata_stems = set(metadata.keys())
     orphaned_images = image_stems - metadata_stems
-    orphaned_metadata  = metadata_stems - image_stems
-    valid_pairs     = image_stems & metadata_stems
+    orphaned_metadata = metadata_stems - image_stems
+    valid_pairs = image_stems & metadata_stems
 
     if orphaned_images:
-        errors.append(f"🚨 ALARM: {len(orphaned_images)} images without metadata files:")
+        errors.append(
+            f"🚨 ALARM: {len(orphaned_images)} images without metadata files:"
+        )
         for stem in sorted(orphaned_images):
             errors.append(f"   • {images[stem]}")
     if orphaned_metadata:
-        errors.append(f"🚨 ALARM: {len(orphaned_metadata)} metadata files without images:")
+        errors.append(
+            f"🚨 ALARM: {len(orphaned_metadata)} metadata files without images:"
+        )
         for stem in sorted(orphaned_metadata):
             errors.append(f"   • {metadata[stem]}")
 
@@ -412,11 +455,16 @@ def discover_image_metadata_pairs(root: Path) -> Tuple[List[Path], List[str]]:
     return valid_image_paths, errors
 
 
-def move_image_metadata_pairs(out_dir: Path, paths: List[Path], labels: np.ndarray,
-                          min_cluster_size: int = 20, tracker=None) -> Dict:
+def move_image_metadata_pairs(
+    out_dir: Path,
+    paths: list[Path],
+    labels: np.ndarray,
+    min_cluster_size: int = 20,
+    tracker=None,
+) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest = {"groups": [], "moved_pairs": 0, "errors": []}
-    by_label: Dict[int, List[int]] = {}
+    by_label: dict[int, list[int]] = {}
     for i, lab in enumerate(labels):
         by_label.setdefault(int(lab), []).append(i)
 
@@ -446,13 +494,17 @@ def move_image_metadata_pairs(out_dir: Path, paths: List[Path], labels: np.ndarr
                     moved_files.extend(moved)
                 else:
                     shutil.move(str(image_path), str(group_dir / image_path.name))
-                    shutil.move(str(yaml_path),  str(group_dir / yaml_path.name))
+                    shutil.move(str(yaml_path), str(group_dir / yaml_path.name))
                     moved_files.extend([image_path.name, yaml_path.name])
                 total_pairs += 1
                 if tracker:
-                    tracker.log_operation("move", source_dir=str(image_path.parent),
-                                          dest_dir=str(group_dir), file_count=2,
-                                          notes=f"Moved pair: {image_path.name}, {yaml_path.name}")
+                    tracker.log_operation(
+                        "move",
+                        source_dir=str(image_path.parent),
+                        dest_dir=str(group_dir),
+                        file_count=2,
+                        notes=f"Moved pair: {image_path.name}, {yaml_path.name}",
+                    )
             except Exception as e:
                 msg = f"🚨 MOVE FAILED: {image_path.name} - {e}"
                 print(msg)
@@ -461,24 +513,40 @@ def move_image_metadata_pairs(out_dir: Path, paths: List[Path], labels: np.ndarr
                 if tracker:
                     tracker.log_operation("error", notes=msg)
 
-        manifest["groups"].append({
-            "label": int(lab), "dir": group_dir.name,
-            "count": len(idxs), "moved_files": moved_files, "errors": group_errors
-        })
+        manifest["groups"].append(
+            {
+                "label": int(lab),
+                "dir": group_dir.name,
+                "count": len(idxs),
+                "moved_files": moved_files,
+                "errors": group_errors,
+            }
+        )
 
     manifest["moved_pairs"] = total_pairs
     manifest["total_groups"] = len([g for g in manifest["groups"] if g["label"] != -1])
     with open(out_dir / "manifest.json", "w") as f:
         json.dump(manifest, f, indent=2)
     if tracker:
-        tracker.log_operation("group_move",
+        tracker.log_operation(
+            "group_move",
             source_dir=str(paths[0].parent) if paths else "unknown",
-            dest_dir=str(out_dir), file_count=total_pairs * 2,
-            notes=f"Moved {total_pairs} image/metadata pairs into {manifest['total_groups']} groups + unknown")
+            dest_dir=str(out_dir),
+            file_count=total_pairs * 2,
+            notes=f"Moved {total_pairs} image/metadata pairs into {manifest['total_groups']} groups + unknown",
+        )
     return manifest
 
-def write_similarity_map(out_dir: Path, kept_paths: List[Path], labels: np.ndarray, X: np.ndarray,
-                         topk: int = 8, threshold: float = 0.20, scope: str = "cluster"):
+
+def write_similarity_map(
+    out_dir: Path,
+    kept_paths: list[Path],
+    labels: np.ndarray,
+    X: np.ndarray,
+    topk: int = 8,
+    threshold: float = 0.20,
+    scope: str = "cluster",
+):
     """
     Writes:
       - nodes.csv: index,label,filename
@@ -489,18 +557,19 @@ def write_similarity_map(out_dir: Path, kept_paths: List[Path], labels: np.ndarr
     out_dir.mkdir(parents=True, exist_ok=True)
     N = len(kept_paths)
     names = [p.name for p in kept_paths]
-    labs  = labels.astype(int)
+    labs = labels.astype(int)
 
     # nodes.csv
     with (out_dir / "nodes.csv").open("w", newline="") as f:
         import csv
+
         w = csv.writer(f)
-        w.writerow(["index","label","filename"])
-        for i,(lab,name) in enumerate(zip(labs, names)):
+        w.writerow(["index", "label", "filename"])
+        for i, (lab, name) in enumerate(zip(labs, names, strict=False)):
             w.writerow([i, lab, name])
 
     # choose candidate sets (within cluster vs global)
-    clusters: Dict[int, List[int]] = {}
+    clusters: dict[int, list[int]] = {}
     if scope == "cluster":
         for i, lab in enumerate(labs):
             clusters.setdefault(lab, []).append(i)
@@ -512,36 +581,62 @@ def write_similarity_map(out_dir: Path, kept_paths: List[Path], labels: np.ndarr
     edges = []
     with (out_dir / "neighbors.jsonl").open("w") as jf:
         import json
+
         for key, idxs in clusters.items():
             if len(idxs) <= 1:
                 # still write self with empty neighbors
                 for i in idxs:
-                    jf.write(json.dumps({"index": i, "label": int(labs[i]), "filename": names[i], "neighbors": []}) + "\n")
+                    jf.write(
+                        json.dumps(
+                            {
+                                "index": i,
+                                "label": int(labs[i]),
+                                "filename": names[i],
+                                "neighbors": [],
+                            }
+                        )
+                        + "\n"
+                    )
                 continue
 
-            Xi = X[idxs]                            # (M, D)
-            sims = Xi @ Xi.T                        # cosine sim on L2-normalized
-            np.fill_diagonal(sims, -np.inf)         # exclude self
+            Xi = X[idxs]  # (M, D)
+            sims = Xi @ Xi.T  # cosine sim on L2-normalized
+            np.fill_diagonal(sims, -np.inf)  # exclude self
             dists = 1.0 - sims
 
             # for each local row, pick neighbors
             for loc, i in enumerate(idxs):
-                row_d = dists[loc]                  # distances to candidates
-                order = np.argsort(row_d)           # ascending (closest first)
+                row_d = dists[loc]  # distances to candidates
+                order = np.argsort(row_d)  # ascending (closest first)
                 neigh = []
                 for jloc in order:
                     if len(neigh) >= topk:
                         break
                     j = idxs[jloc]
                     dist = float(row_d[jloc])
-                    sim  = 1.0 - dist
+                    sim = 1.0 - dist
                     if dist <= threshold or len(neigh) < topk:
-                        neigh.append({"index": j, "label": int(labs[j]), "filename": names[j], "sim": sim, "dist": dist})
+                        neigh.append(
+                            {
+                                "index": j,
+                                "label": int(labs[j]),
+                                "filename": names[j],
+                                "sim": sim,
+                                "dist": dist,
+                            }
+                        )
 
-                jf.write(json.dumps({
-                    "index": i, "label": int(labs[i]), "filename": names[i],
-                    "neighbors": neigh
-                }) + "\n")
+                jf.write(
+                    json.dumps(
+                        {
+                            "index": i,
+                            "label": int(labs[i]),
+                            "filename": names[i],
+                            "neighbors": neigh,
+                        }
+                    )
+                    + "\n"
+                )
 
                 # collect edges (undirected, dedupe with sorted (i,j))
                 for n in neigh:
@@ -549,54 +644,134 @@ def write_similarity_map(out_dir: Path, kept_paths: List[Path], labels: np.ndarr
                     key = (a, b)
                     if a != b and key not in edge_set:
                         edge_set.add(key)
-                        edges.append((a, b, int(labs[a]), int(labs[b]),
-                                      float(1.0 - float(dists[idxs.index(a)][idxs.index(b)]) if scope=="cluster" else 1.0 - float(X[a] @ X[b])),
-                                      float(1.0 - (X[a] @ X[b])),  # dist (recompute safely)
-                                      names[a], names[b]))
+                        edges.append(
+                            (
+                                a,
+                                b,
+                                int(labs[a]),
+                                int(labs[b]),
+                                float(
+                                    1.0 - float(dists[idxs.index(a)][idxs.index(b)])
+                                    if scope == "cluster"
+                                    else 1.0 - float(X[a] @ X[b])
+                                ),
+                                float(1.0 - (X[a] @ X[b])),  # dist (recompute safely)
+                                names[a],
+                                names[b],
+                            )
+                        )
 
     # edges.csv
     with (out_dir / "edges.csv").open("w", newline="") as f:
         import csv
-        w = csv.writer(f)
-        w.writerow(["src_idx","dst_idx","src_label","dst_label","sim","dist","src_file","dst_file"])
-        # recompute sim/dist cleanly (above may mix scope paths)
-        for a,b,la,lb,_,_,sa,sb in edges:
-            sim  = float(X[a] @ X[b])
-            dist = float(1.0 - sim)
-            w.writerow([a,b,la,lb,sim,dist,sa,sb])
 
+        w = csv.writer(f)
+        w.writerow(
+            [
+                "src_idx",
+                "dst_idx",
+                "src_label",
+                "dst_label",
+                "sim",
+                "dist",
+                "src_file",
+                "dst_file",
+            ]
+        )
+        # recompute sim/dist cleanly (above may mix scope paths)
+        for a, b, la, lb, _, _, sa, sb in edges:
+            sim = float(X[a] @ X[b])
+            dist = float(1.0 - sim)
+            w.writerow([a, b, la, lb, sim, dist, sa, sb])
 
 
 # ------------------------------ main ------------------------------
 def main():
-    ap = argparse.ArgumentParser(description="Hybrid face-first grouper with YAML-pair moves")
-    ap.add_argument("--images", required=True, help="Input dir containing image/metadata pairs (.yaml or .caption)")
+    ap = argparse.ArgumentParser(
+        description="Hybrid face-first grouper with YAML-pair moves"
+    )
+    ap.add_argument(
+        "--images",
+        required=True,
+        help="Input dir containing image/metadata pairs (.yaml or .caption)",
+    )
     ap.add_argument("--out", default="./face_groups", help="Output directory")
-    ap.add_argument("--min-cluster-size", type=int, default=20,
-                    help="Minimum items to form a named group; smaller clusters go to 'unknown'")
-    ap.add_argument("--max-side", type=int, default=1536, help="Resize longest side before embedding")
-    ap.add_argument("--start-threshold", type=float, default=None,
-                    help="Initial cosine distance threshold for agglomerative (auto if omitted)")
-    ap.add_argument("--face-min-score", type=float, default=0.65,
-                    help="Minimum InsightFace det_score to accept as a real face")
-    ap.add_argument("--merge-dist", type=float, default=0.18,
-                    help="Merge clusters with centroid cosine distance <= this")
-    ap.add_argument("--assign-threshold", type=float, default=0.18,
-                    help="Assign unknowns to nearest centroid if distance <= this")
-    ap.add_argument("--second-pass-start", type=float, default=0.30,
-                    help="Start threshold for second-pass clustering on unknowns")
-    ap.add_argument("--dry-run", action="store_true",
-                    help="Preview clusters (write preview.csv) but do not move files")
-    ap.add_argument("--kmeans", type=int, default=None,
-                help="If set, force exactly K clusters with KMeans (skips agglomerative)")
-    ap.add_argument("--emit-map", action="store_true",
-                help="Write similarity map files (nodes.csv, edges.csv, neighbors.jsonl). No renames.")
-    ap.add_argument("--map-topk", type=int, default=8,
-                    help="Neighbors per image to include in the map.")
-    ap.add_argument("--map-threshold", type=float, default=0.20,
-                    help="Max cosine distance to include an edge (lower=closer).")
-    ap.add_argument("--map-scope", choices=["cluster","all"], default="cluster",
-                    help="Limit neighbors to same cluster or across all images.")
+    ap.add_argument(
+        "--min-cluster-size",
+        type=int,
+        default=20,
+        help="Minimum items to form a named group; smaller clusters go to 'unknown'",
+    )
+    ap.add_argument(
+        "--max-side",
+        type=int,
+        default=1536,
+        help="Resize longest side before embedding",
+    )
+    ap.add_argument(
+        "--start-threshold",
+        type=float,
+        default=None,
+        help="Initial cosine distance threshold for agglomerative (auto if omitted)",
+    )
+    ap.add_argument(
+        "--face-min-score",
+        type=float,
+        default=0.65,
+        help="Minimum InsightFace det_score to accept as a real face",
+    )
+    ap.add_argument(
+        "--merge-dist",
+        type=float,
+        default=0.18,
+        help="Merge clusters with centroid cosine distance <= this",
+    )
+    ap.add_argument(
+        "--assign-threshold",
+        type=float,
+        default=0.18,
+        help="Assign unknowns to nearest centroid if distance <= this",
+    )
+    ap.add_argument(
+        "--second-pass-start",
+        type=float,
+        default=0.30,
+        help="Start threshold for second-pass clustering on unknowns",
+    )
+    ap.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview clusters (write preview.csv) but do not move files",
+    )
+    ap.add_argument(
+        "--kmeans",
+        type=int,
+        default=None,
+        help="If set, force exactly K clusters with KMeans (skips agglomerative)",
+    )
+    ap.add_argument(
+        "--emit-map",
+        action="store_true",
+        help="Write similarity map files (nodes.csv, edges.csv, neighbors.jsonl). No renames.",
+    )
+    ap.add_argument(
+        "--map-topk",
+        type=int,
+        default=8,
+        help="Neighbors per image to include in the map.",
+    )
+    ap.add_argument(
+        "--map-threshold",
+        type=float,
+        default=0.20,
+        help="Max cosine distance to include an edge (lower=closer).",
+    )
+    ap.add_argument(
+        "--map-scope",
+        choices=["cluster", "all"],
+        default="cluster",
+        help="Limit neighbors to same cluster or across all images.",
+    )
     args = ap.parse_args()
 
     set_seed(42)
@@ -616,14 +791,20 @@ def main():
         if not paths:
             print("❌ No valid image/metadata pairs found. Exiting.")
             sys.exit(1)
-        print(f"\n⚠️  Continuing with {len(paths)} valid pairs, ignoring orphaned files.")
+        print(
+            f"\n⚠️  Continuing with {len(paths)} valid pairs, ignoring orphaned files."
+        )
 
     print("\n🤖 Initializing embedders…")
-    embedder = HybridEmbedder(max_side=args.max_side, face_min_score=args.face_min_score, use_reid_fallback=True)
+    embedder = HybridEmbedder(
+        max_side=args.max_side,
+        face_min_score=args.face_min_score,
+        use_reid_fallback=True,
+    )
     print(f"Device (Torch): {'mps' if torch.backends.mps.is_available() else 'cpu'}")
 
-    embs: List[np.ndarray] = []
-    kept_paths: List[Path] = []
+    embs: list[np.ndarray] = []
+    kept_paths: list[Path] = []
     failed = used_face = used_reid = used_none = 0
 
     print(f"\n🎯 Embedding {len(paths)} images…")
@@ -633,7 +814,9 @@ def main():
             failed += 1
             used_none += 1
             if FileTracker:
-                tracker and tracker.log_operation("error", notes=f"Failed to embed: {p}")
+                tracker and tracker.log_operation(
+                    "error", notes=f"Failed to embed: {p}"
+                )
             continue
         # quick attribution
         img = embedder._prep_image(p)
@@ -659,23 +842,32 @@ def main():
         kept = np.unique(labels)
         print(f"   • KMeans: produced {len(kept)} groups")
         if args.emit_map:
-            write_similarity_map(out_dir, kept_paths, labels, X,
-                                topk=args.map_topk, threshold=args.map_threshold, scope=args.map_scope)
+            write_similarity_map(
+                out_dir,
+                kept_paths,
+                labels,
+                X,
+                topk=args.map_topk,
+                threshold=args.map_threshold,
+                scope=args.map_scope,
+            )
 
         # write preview.csv and (if not --dry-run) move files just like before
         from csv import writer
+
         out_dir.mkdir(parents=True, exist_ok=True)
         with open(out_dir / "preview.csv", "w", newline="") as f:
             w = writer(f)
-            w.writerow(["label","filename"])
-            for p, lab in zip(kept_paths, labels):
+            w.writerow(["label", "filename"])
+            for p, lab in zip(kept_paths, labels, strict=False):
                 w.writerow([int(lab), p.name])
         print(f"📝 wrote preview: {out_dir/'preview.csv'}")
 
         if not args.dry_run:
             print("\n📁 Moving image/metadata pairs to groups…")
-            manifest = move_image_metadata_pairs(out_dir, kept_paths, labels,
-                                            min_cluster_size=1, tracker=tracker)  # no filtering
+            manifest = move_image_metadata_pairs(
+                out_dir, kept_paths, labels, min_cluster_size=1, tracker=tracker
+            )  # no filtering
             print("\n✅ COMPLETE!")
             print(f"   • Embedded: {len(embs)} / {len(paths)}")
             print(f"   • Named groups: {manifest['total_groups']}")
@@ -689,54 +881,83 @@ def main():
 
     print(f"\n🔗 Clustering {X.shape[0]} embeddings (Agglomerative, cosine)…")
     labels, used_thr = cluster_with_backoff(
-        X, min_cluster_size=args.min_cluster_size,
-        start_thresh=args.start_threshold, min_thresh=0.04, step=0.01
+        X,
+        min_cluster_size=args.min_cluster_size,
+        start_thresh=args.start_threshold,
+        min_thresh=0.04,
+        step=0.01,
     )
     print(f"   • used distance_threshold: {used_thr:.2f}")
     # Merge near-duplicates
     labels = merge_close_clusters(X, labels, dist_thresh=args.merge_dist)
     # Second pass: pull more identities out of unknowns
-    labels = second_pass_unknowns(X, labels, min_cluster_size=args.min_cluster_size,
-                                  start_thresh=args.second_pass_start)
+    labels = second_pass_unknowns(
+        X,
+        labels,
+        min_cluster_size=args.min_cluster_size,
+        start_thresh=args.second_pass_start,
+    )
     # Assign remaining unknowns near existing centroids
-    labels, assigned = assign_unknowns(X, labels, assign_threshold=args.assign_threshold)
+    labels, assigned = assign_unknowns(
+        X, labels, assign_threshold=args.assign_threshold
+    )
 
     kept = [u for u in np.unique(labels) if u != -1]
-    print(f"   • clusters (named): {len(kept)}  • assigned from unknown: {assigned}  • unknown left: {(labels==-1).sum()}")
+    print(
+        f"   • clusters (named): {len(kept)}  • assigned from unknown: {assigned}  • unknown left: {(labels==-1).sum()}"
+    )
 
     if args.emit_map:
-        write_similarity_map(out_dir, kept_paths, labels, X,
-                            topk=args.map_topk, threshold=args.map_threshold, scope=args.map_scope)
-
+        write_similarity_map(
+            out_dir,
+            kept_paths,
+            labels,
+            X,
+            topk=args.map_topk,
+            threshold=args.map_threshold,
+            scope=args.map_scope,
+        )
 
     # Preview CSV
     from csv import writer
+
     with open(out_dir / "preview.csv", "w", newline="") as f:
         w = writer(f)
-        w.writerow(["label","filename"])
-        for p, lab in zip(kept_paths, labels):
+        w.writerow(["label", "filename"])
+        for p, lab in zip(kept_paths, labels, strict=False):
             w.writerow([int(lab), p.name])
     print(f"📝 wrote preview: {out_dir/'preview.csv'}")
 
     if not args.dry_run:
         print("\n📁 Moving image/metadata pairs to groups…")
-        manifest = move_image_metadata_pairs(out_dir, kept_paths, labels,
-                                         min_cluster_size=args.min_cluster_size, tracker=tracker)
-        
+        manifest = move_image_metadata_pairs(
+            out_dir,
+            kept_paths,
+            labels,
+            min_cluster_size=args.min_cluster_size,
+            tracker=tracker,
+        )
+
         # Count images in each face group directory
         print("\n✅ COMPLETE!")
         print(f"   • Embedded: {len(embs)} / {len(paths)} (failed: {failed})")
         print(f"   • Named groups: {manifest['total_groups']}  (+ unknown)")
         print(f"   • Moved pairs: {manifest['moved_pairs']}")
         print(f"   • Output: {out_dir}")
-        
+
         # Display image counts per face group
         print("\n📊 Face Group Image Counts:")
         total_images = 0
         group_dirs = sorted([d for d in out_dir.iterdir() if d.is_dir()])
         for group_dir in group_dirs:
-            image_count = len([f for f in group_dir.iterdir() 
-                             if f.suffix.lower() in {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}])
+            image_count = len(
+                [
+                    f
+                    for f in group_dir.iterdir()
+                    if f.suffix.lower()
+                    in {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}
+                ]
+            )
             total_images += image_count
             print(f"   • {group_dir.name}: {image_count} images")
         print(f"   • Total: {total_images} images across {len(group_dirs)} groups")

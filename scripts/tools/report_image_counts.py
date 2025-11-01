@@ -32,7 +32,6 @@ import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 
@@ -51,9 +50,9 @@ class DirectoryCounts:
 @dataclass
 class FileOperationSummary:
     total_entries: int
-    by_operation: Dict[str, int]
+    by_operation: dict[str, int]
     recent_entries: int
-    recent_by_operation: Dict[str, int]
+    recent_by_operation: dict[str, int]
 
 
 def is_image_file(path: Path) -> bool:
@@ -124,15 +123,15 @@ def scan_directory(dir_path: Path, recent_cutoff: datetime) -> DirectoryCounts:
     )
 
 
-def load_filetracker_summaries(log_dir: Path, days: int) -> Optional[FileOperationSummary]:
+def load_filetracker_summaries(log_dir: Path, days: int) -> FileOperationSummary | None:
     if not log_dir.exists() or not log_dir.is_dir():
         return None
 
     cutoff = datetime.utcnow() - timedelta(days=days)
     total_entries = 0
-    by_operation: Dict[str, int] = {}
+    by_operation: dict[str, int] = {}
     recent_entries = 0
-    recent_by_operation: Dict[str, int] = {}
+    recent_by_operation: dict[str, int] = {}
 
     for log_path in sorted(log_dir.glob("*.log")):
         try:
@@ -147,7 +146,16 @@ def load_filetracker_summaries(log_dir: Path, days: int) -> Optional[FileOperati
                         continue
 
                     op_type = str(entry.get("type") or "").lower()
-                    if op_type not in {"file_operation", "session_start", "session_end", "batch_start", "batch_end", "user_action", "metric_mode_update", "directory_state"}:
+                    if op_type not in {
+                        "file_operation",
+                        "session_start",
+                        "session_end",
+                        "batch_start",
+                        "batch_end",
+                        "user_action",
+                        "metric_mode_update",
+                        "directory_state",
+                    }:
                         # Unknown or non-standard; still count by presence
                         pass
 
@@ -169,7 +177,9 @@ def load_filetracker_summaries(log_dir: Path, days: int) -> Optional[FileOperati
                             if dt >= cutoff:
                                 recent_entries += 1
                                 if operation:
-                                    recent_by_operation[operation] = recent_by_operation.get(operation, 0) + 1
+                                    recent_by_operation[operation] = (
+                                        recent_by_operation.get(operation, 0) + 1
+                                    )
                         except Exception:
                             pass
         except Exception:
@@ -183,7 +193,11 @@ def load_filetracker_summaries(log_dir: Path, days: int) -> Optional[FileOperati
     )
 
 
-def print_human_summary(dir_results: List[DirectoryCounts], op_summary: Optional[FileOperationSummary], days: int) -> None:
+def print_human_summary(
+    dir_results: list[DirectoryCounts],
+    op_summary: FileOperationSummary | None,
+    days: int,
+) -> None:
     print("\n" + "=" * 80)
     print("IMAGE COUNTS AND COMPANION INTEGRITY")
     print("=" * 80 + "\n")
@@ -205,17 +219,23 @@ def print_human_summary(dir_results: List[DirectoryCounts], op_summary: Optional
         print(f"  total entries:  {op_summary.total_entries:,}")
         if op_summary.by_operation:
             print("  by operation:")
-            for op, cnt in sorted(op_summary.by_operation.items(), key=lambda kv: (-kv[1], kv[0])):
+            for op, cnt in sorted(
+                op_summary.by_operation.items(), key=lambda kv: (-kv[1], kv[0])
+            ):
                 print(f"    - {op}: {cnt:,}")
         print(f"  recent ≤{days}d: {op_summary.recent_entries:,}")
         if op_summary.recent_by_operation:
             print("  recent by operation:")
-            for op, cnt in sorted(op_summary.recent_by_operation.items(), key=lambda kv: (-kv[1], kv[0])):
+            for op, cnt in sorted(
+                op_summary.recent_by_operation.items(), key=lambda kv: (-kv[1], kv[0])
+            ):
                 print(f"    - {op}: {cnt:,}")
         print()
 
 
-def write_json_report(dir_results: List[DirectoryCounts], op_summary: Optional[FileOperationSummary]) -> Path:
+def write_json_report(
+    dir_results: list[DirectoryCounts], op_summary: FileOperationSummary | None
+) -> Path:
     report = {
         "generated_at": datetime.utcnow().isoformat() + "Z",
         "directories": [asdict(d) for d in dir_results],
@@ -224,14 +244,18 @@ def write_json_report(dir_results: List[DirectoryCounts], op_summary: Optional[F
 
     out_dir = Path("data") / "daily_summaries"
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"image_counts_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+    out_path = (
+        out_dir / f"image_counts_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+    )
     with out_path.open("w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)
     return out_path
 
 
-def parse_args(argv: List[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Count images and validate companions; summarize recent file ops.")
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Count images and validate companions; summarize recent file ops."
+    )
     parser.add_argument(
         "--dirs",
         nargs="*",
@@ -251,7 +275,7 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def main(argv: List[str]) -> int:
+def main(argv: list[str]) -> int:
     args = parse_args(argv)
 
     default_dirs = [
@@ -265,12 +289,12 @@ def main(argv: List[str]) -> int:
         "__delete_staging",
     ]
     dir_strings = args.dirs if args.dirs else default_dirs
-    target_dirs: List[Path] = [Path(d).resolve() for d in dir_strings]
+    target_dirs: list[Path] = [Path(d).resolve() for d in dir_strings]
 
     recent_cutoff = datetime.utcnow() - timedelta(days=args.days)
 
     # Scan directories
-    dir_results: List[DirectoryCounts] = []
+    dir_results: list[DirectoryCounts] = []
     for d in target_dirs:
         try:
             dir_results.append(scan_directory(d, recent_cutoff))
@@ -304,5 +328,3 @@ def main(argv: List[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
-
-

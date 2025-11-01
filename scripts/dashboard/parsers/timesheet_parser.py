@@ -5,7 +5,7 @@ Timesheet Parser - Reads and aggregates timesheet CSV data for dashboard
 import csv
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 
 class TimesheetParser:
@@ -14,7 +14,7 @@ class TimesheetParser:
     def __init__(self, csv_path: Path):
         self.csv_path = csv_path
 
-    def parse(self) -> Dict[str, Any]:
+    def parse(self) -> dict[str, Any]:
         print(f"[TIMESHEET] Parsing CSV: {self.csv_path}")
         print(f"[TIMESHEET] File exists: {self.csv_path.exists()}")
         if self.csv_path.exists():
@@ -50,7 +50,7 @@ class TimesheetParser:
         current_project = None
 
         # Read CSV and auto-detect if header is missing
-        with open(self.csv_path, "r", encoding="utf-8") as f:
+        with open(self.csv_path, encoding="utf-8") as f:
             first_line = f.readline().strip()
             print(
                 f"[TIMESHEET] First line: {first_line[:100]}..."

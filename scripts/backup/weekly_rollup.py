@@ -8,6 +8,7 @@ into a single tar.zst with a manifest, then uploads via rclone to gbackup:weekly
 
 Local retention: keep last 12 weekly archives (older are removed locally only).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -15,16 +16,20 @@ import json
 import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 
-def run(cmd: List[str]) -> None:
+def run(cmd: list[str]) -> None:
     subprocess.check_call(cmd)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Create weekly rollup and upload via rclone")
-    parser.add_argument("--root", default=str(Path.home() / "project-data-archives" / "image-workflow"))
+    parser = argparse.ArgumentParser(
+        description="Create weekly rollup and upload via rclone"
+    )
+    parser.add_argument(
+        "--root", default=str(Path.home() / "project-data-archives" / "image-workflow")
+    )
     parser.add_argument("--remote", default="gbackup:weekly-rollups")
     parser.add_argument("--keep", type=int, default=12)
     args = parser.parse_args()
@@ -37,7 +42,7 @@ def main():
     # Determine week range (today back 6 days)
     end = datetime.now().date()
     start = end - timedelta(days=6)
-    days = [(start + timedelta(days=i)).strftime('%Y-%m-%d') for i in range(7)]
+    days = [(start + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(7)]
     existing_days = [d for d in days if (root / d).exists()]
     if not existing_days:
         print("No daily folders to roll up")
@@ -49,10 +54,10 @@ def main():
     tar_path = rollup_dir / f"weekly_{label}.tar.zst"
 
     # Build manifest
-    manifest: Dict[str, Any] = {
+    manifest: dict[str, Any] = {
         "range": {"start": days[0], "end": days[-1]},
         "included": [],
-        "created_at": datetime.now().isoformat()
+        "created_at": datetime.now().isoformat(),
     }
     total_files = 0
     total_bytes = 0
@@ -60,7 +65,7 @@ def main():
         folder = root / d
         count = 0
         size = 0
-        for p in folder.rglob('*'):
+        for p in folder.rglob("*"):
             if p.is_file():
                 count += 1
                 try:
@@ -74,14 +79,15 @@ def main():
 
     # Write manifest temp and create tar.zst
     tmp_manifest = rollup_dir / f"manifest_{label}.json"
-    tmp_manifest.write_text(json.dumps(manifest, indent=2), encoding='utf-8')
+    tmp_manifest.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     # Use python tarfile with zstd if available; else fallback to system tar + zstd
     try:
         import tarfile
-        tar = tarfile.open(tar_path, mode='w|')
+
+        tar = tarfile.open(tar_path, mode="w|")
         for d in existing_days:
             tar.add(str(root / d), arcname=d)
-        tar.add(str(tmp_manifest), arcname='manifest.json')
+        tar.add(str(tmp_manifest), arcname="manifest.json")
         tar.close()
         # post compress with zstd
         run(["zstd", "-f", str(tar_path)])
@@ -102,7 +108,7 @@ def main():
     # Local retention
     archives = sorted(rollup_dir.glob("weekly_*.tar.zst"))
     if len(archives) > args.keep:
-        for old in archives[:-args.keep]:
+        for old in archives[: -args.keep]:
             try:
                 old.unlink()
             except Exception:
@@ -113,5 +119,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

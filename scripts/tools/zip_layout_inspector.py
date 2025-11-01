@@ -28,7 +28,6 @@ import sys
 import zipfile
 from collections import Counter
 from pathlib import Path
-from typing import Dict, List
 
 # Ensure project root
 _ROOT = Path(__file__).resolve().parents[2]
@@ -44,8 +43,8 @@ from scripts.utils.companion_file_utils import (
 OUT_JSON = _ROOT / "data" / "daily_summaries" / "zip_layouts.json"
 
 
-def _gather(paths: List[str]) -> List[Path]:
-    found: List[Path] = []
+def _gather(paths: list[str]) -> list[Path]:
+    found: list[Path] = []
     for p in paths:
         path = Path(p)
         if path.is_file() and path.suffix.lower() == ".zip":
@@ -66,9 +65,9 @@ def _top_component(rel_path: str) -> str:
     return parts[0] if parts else ""
 
 
-def _infer_notes(top_counts: Dict[str, int]) -> List[str]:
-    notes: List[str] = []
-    keys = {k.lower() for k in top_counts.keys()}
+def _infer_notes(top_counts: dict[str, int]) -> list[str]:
+    notes: list[str] = []
+    keys = {k.lower() for k in top_counts}
     if any("selected" in k for k in keys):
         notes.append("contains selected/")
     if any("final" in k for k in keys):
@@ -80,14 +79,14 @@ def _infer_notes(top_counts: Dict[str, int]) -> List[str]:
     return notes
 
 
-def inspect_zip(zip_path: Path) -> Dict:
+def inspect_zip(zip_path: Path) -> dict:
     total_entries = 0
     total_files = 0
     png_files = 0
-    depth_hist: Dict[int, int] = Counter()
-    top_components: Dict[str, int] = Counter()
-    per_top_png: Dict[str, int] = Counter()
-    sample_paths: List[str] = []
+    depth_hist: dict[int, int] = Counter()
+    top_components: dict[str, int] = Counter()
+    per_top_png: dict[str, int] = Counter()
+    sample_paths: list[str] = []
 
     ts_hits = 0
     stage_hits = 0
@@ -151,7 +150,7 @@ def main() -> None:
     args = parser.parse_args()
 
     zips = _gather(args.paths)
-    results: List[Dict] = []
+    results: list[dict] = []
     totals = {
         "zip_count": 0,
         "png_files": 0,

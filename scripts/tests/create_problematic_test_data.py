@@ -6,7 +6,6 @@ from pathlib import Path
 
 def create_problematic_test_data():
     """Create test data with sequential timestamps but same stages (the problem pattern)"""
-
     # Use path relative to this script's location
     script_dir = Path(__file__).parent
     test_dir = script_dir / "data" / "problematic_sequential"

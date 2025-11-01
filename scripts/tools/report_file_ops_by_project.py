@@ -32,9 +32,8 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional
 
 PROJECTS_DIR = Path("data") / "projects"
 LOGS_DIR = Path("data") / "file_operations_logs"
@@ -45,13 +44,13 @@ SAFE_REPORTS_DIR = Path("data") / "daily_summaries"
 class ProjectWindow:
     project_id: str
     started_at: datetime
-    finished_at: Optional[datetime]  # None means active
+    finished_at: datetime | None  # None means active
 
 
 @dataclass
 class OpsSummary:
     total_entries: int
-    by_operation: Dict[str, int]
+    by_operation: dict[str, int]
     moves_to_delete_staging: int
     moves_to_cropped: int
     deletes: int
@@ -60,7 +59,7 @@ class OpsSummary:
     window_end: str
 
 
-def parse_iso(ts: str) -> Optional[datetime]:
+def parse_iso(ts: str) -> datetime | None:
     try:
         v = ts
         if isinstance(v, str) and v.endswith("Z"):
@@ -70,8 +69,8 @@ def parse_iso(ts: str) -> Optional[datetime]:
         return None
 
 
-def load_projects() -> List[ProjectWindow]:
-    projects: List[ProjectWindow] = []
+def load_projects() -> list[ProjectWindow]:
+    projects: list[ProjectWindow] = []
     if not PROJECTS_DIR.exists():
         return projects
 
@@ -81,16 +80,28 @@ def load_projects() -> List[ProjectWindow]:
         except Exception:
             continue
         pid = str(data.get("projectId") or "unknown")
-        started_at = parse_iso(str(data.get("startedAt") or "")) or parse_iso(str(data.get("createdAt") or ""))
-        finished_at = parse_iso(str(data.get("finishedAt") or "")) if data.get("finishedAt") else None
+        started_at = parse_iso(str(data.get("startedAt") or "")) or parse_iso(
+            str(data.get("createdAt") or "")
+        )
+        finished_at = (
+            parse_iso(str(data.get("finishedAt") or ""))
+            if data.get("finishedAt")
+            else None
+        )
         if not started_at:
             # Skip if no start
             continue
-        projects.append(ProjectWindow(project_id=pid, started_at=started_at, finished_at=finished_at))
+        projects.append(
+            ProjectWindow(
+                project_id=pid, started_at=started_at, finished_at=finished_at
+            )
+        )
     return projects
 
 
-def pick_project(projects: List[ProjectWindow], project_id: str) -> Optional[ProjectWindow]:
+def pick_project(
+    projects: list[ProjectWindow], project_id: str
+) -> ProjectWindow | None:
     for p in projects:
         if p.project_id == project_id:
             return p
@@ -99,14 +110,14 @@ def pick_project(projects: List[ProjectWindow], project_id: str) -> Optional[Pro
 
 def summarize_ops(window: ProjectWindow) -> OpsSummary:
     total_entries = 0
-    by_operation: Dict[str, int] = {}
+    by_operation: dict[str, int] = {}
     moves_to_delete_staging = 0
     moves_to_cropped = 0
     deletes = 0
     other_moves = 0
 
     start = window.started_at
-    end = window.finished_at or datetime.now(timezone.utc)
+    end = window.finished_at or datetime.now(UTC)
 
     if not LOGS_DIR.exists():
         return OpsSummary(
@@ -197,19 +208,30 @@ def write_report(window: ProjectWindow, summary: OpsSummary) -> Path:
             "end": summary.window_end,
         },
         "ops": asdict(summary),
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
     }
     SAFE_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    out_path = SAFE_REPORTS_DIR / f"file_ops_{window.project_id}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
+    out_path = (
+        SAFE_REPORTS_DIR
+        / f"file_ops_{window.project_id}_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.json"
+    )
     out_path.write_text(json.dumps(out, indent=2), encoding="utf-8")
     return out_path
 
 
-def main(argv: Optional[List[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description="Summarize FileTracker file operations by project window.")
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Summarize FileTracker file operations by project window."
+    )
     parser.add_argument("--project", help="Project ID to report (e.g., mojo3)")
-    parser.add_argument("--list-projects", action="store_true", help="List known projects and exit")
-    parser.add_argument("--write-report", action="store_true", help="Write JSON report to data/daily_summaries/")
+    parser.add_argument(
+        "--list-projects", action="store_true", help="List known projects and exit"
+    )
+    parser.add_argument(
+        "--write-report",
+        action="store_true",
+        help="Write JSON report to data/daily_summaries/",
+    )
     args = parser.parse_args(argv)
 
     projects = load_projects()
@@ -238,5 +260,3 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-

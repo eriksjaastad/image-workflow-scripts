@@ -75,7 +75,7 @@ import sys
 import time
 from collections import Counter
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 try:
     import yaml
@@ -129,7 +129,7 @@ except Exception:
 # ============================================================================
 
 
-def extract_ethnicity_from_prompt(prompt_lower: str) -> Optional[str]:
+def extract_ethnicity_from_prompt(prompt_lower: str) -> str | None:
     """
     Extract ethnicity using pure keyword search.
 
@@ -162,15 +162,14 @@ def extract_ethnicity_from_prompt(prompt_lower: str) -> Optional[str]:
             # Multi-word phrase: simple substring check
             if keyword in prompt_lower:
                 return keyword.replace(" ", "_")
-        else:
-            # Single word: use word boundaries to avoid false matches
-            if re.search(r"\b" + re.escape(keyword) + r"\b", prompt_lower):
-                return keyword.replace(" ", "_")
+        # Single word: use word boundaries to avoid false matches
+        elif re.search(r"\b" + re.escape(keyword) + r"\b", prompt_lower):
+            return keyword.replace(" ", "_")
 
     return None
 
 
-def extract_age_from_prompt(prompt_lower: str) -> Optional[str]:
+def extract_age_from_prompt(prompt_lower: str) -> str | None:
     """
     Extract age using regex patterns.
 
@@ -207,7 +206,7 @@ def extract_age_from_prompt(prompt_lower: str) -> Optional[str]:
     return None
 
 
-def extract_body_type_from_prompt(prompt_lower: str) -> Optional[str]:
+def extract_body_type_from_prompt(prompt_lower: str) -> str | None:
     """
     Extract body type using keyword search on entire prompt.
 
@@ -249,15 +248,14 @@ def extract_body_type_from_prompt(prompt_lower: str) -> Optional[str]:
             # Multi-word phrase: simple substring check
             if keyword in prompt_lower:
                 return keyword.replace(" ", "_")
-        else:
-            # Single word: use word boundaries to avoid false matches
-            if re.search(r"\b" + re.escape(keyword) + r"\b", prompt_lower):
-                return keyword
+        # Single word: use word boundaries to avoid false matches
+        elif re.search(r"\b" + re.escape(keyword) + r"\b", prompt_lower):
+            return keyword
 
     return None
 
 
-def extract_hair_color_from_prompt(prompt_lower: str) -> Optional[str]:
+def extract_hair_color_from_prompt(prompt_lower: str) -> str | None:
     """
     Extract hair color using keyword search on entire prompt.
 
@@ -295,10 +293,9 @@ def extract_hair_color_from_prompt(prompt_lower: str) -> Optional[str]:
             # Multi-word phrase: simple substring check
             if keyword in prompt_lower:
                 return keyword.replace(" ", "_")
-        else:
-            # Single word: use word boundaries to avoid false matches
-            if re.search(r"\b" + re.escape(keyword) + r"\b", prompt_lower):
-                return keyword
+        # Single word: use word boundaries to avoid false matches
+        elif re.search(r"\b" + re.escape(keyword) + r"\b", prompt_lower):
+            return keyword
 
     return None
 
@@ -327,7 +324,7 @@ def extract_character_name(lora_path: str) -> str:
     return name if name else "unknown"
 
 
-def extract_characters_from_prompt(prompt: str) -> List[str]:
+def extract_characters_from_prompt(prompt: str) -> list[str]:
     """Extract character names from prompt using @character syntax."""
     if not prompt:
         return []
@@ -339,7 +336,7 @@ def extract_characters_from_prompt(prompt: str) -> List[str]:
 
 def extract_descriptive_character_from_prompt(
     prompt: str, group_by: str = "character", stage: str = "unknown"
-) -> Optional[str]:
+) -> str | None:
     """
     Extract descriptive character information from prompt text as fallback.
 
@@ -378,16 +375,16 @@ def extract_descriptive_character_from_prompt(
             return None
         return ethnicity_value
 
-    elif group_by == "age":
+    if group_by == "age":
         return age_value
 
-    elif group_by == "body_type":
+    if group_by == "body_type":
         return body_type_value
 
-    elif group_by == "hair_color":
+    if group_by == "hair_color":
         return hair_color_value
 
-    elif group_by == "character":
+    if group_by == "character":
         # Original character mode: combine ethnicity + body + age
         found_descriptors = []
 
@@ -401,18 +398,17 @@ def extract_descriptive_character_from_prompt(
 
         return "_".join(found_descriptors) if found_descriptors else None
 
-    else:
-        # For age_group, use age extraction as fallback
-        if group_by == "age_group" and age_value:
-            return age_value
+    # For age_group, use age extraction as fallback
+    if group_by == "age_group" and age_value:
+        return age_value
 
-        # Unknown category
-        return None
+    # Unknown category
+    return None
 
 
 def analyze_prompts_for_characters(
-    character_mapping: Dict, min_threshold: int = 20, group_by: str = "character"
-) -> Dict[str, str]:
+    character_mapping: dict, min_threshold: int = 20, group_by: str = "character"
+) -> dict[str, str]:
     """
     Analyze prompts for files without character data and group by descriptive characteristics.
     Only creates character groups that meet the minimum threshold.
@@ -487,10 +483,10 @@ def analyze_prompts_for_characters(
     return final_assignments
 
 
-def parse_caption_file(caption_path: Path) -> Optional[Dict]:
+def parse_caption_file(caption_path: Path) -> dict | None:
     """Parse caption file and extract character information."""
     try:
-        with open(caption_path, "r", encoding="utf-8") as f:
+        with open(caption_path, encoding="utf-8") as f:
             prompt = f.read().strip()
 
         if not prompt:
@@ -527,7 +523,7 @@ def parse_caption_file(caption_path: Path) -> Optional[Dict]:
         raise RuntimeError(f"Caption parsing failed for {caption_path}") from e
 
 
-def parse_yaml_file(yaml_path: Path) -> Optional[Dict]:
+def parse_yaml_file(yaml_path: Path) -> dict | None:
     """Parse YAML file and extract character information."""
     try:
         # Custom YAML loader to handle Python-specific tags
@@ -550,7 +546,7 @@ def parse_yaml_file(yaml_path: Path) -> Optional[Dict]:
             "tag:yaml.org,2002:python/object", object_constructor
         )
 
-        with open(yaml_path, "r", encoding="utf-8") as f:
+        with open(yaml_path, encoding="utf-8") as f:
             data = yaml.load(f, Loader=CustomLoader)
 
         if not isinstance(data, dict):
@@ -622,20 +618,19 @@ def parse_yaml_file(yaml_path: Path) -> Optional[Dict]:
         raise RuntimeError(f"YAML parsing failed for {yaml_path}") from e
 
 
-def parse_metadata_file(metadata_path: Path) -> Optional[Dict]:
+def parse_metadata_file(metadata_path: Path) -> dict | None:
     """Parse metadata file (YAML or caption) and extract character information."""
     if metadata_path.suffix.lower() == ".yaml":
         return parse_yaml_file(metadata_path)
-    elif metadata_path.suffix.lower() == ".caption":
+    if metadata_path.suffix.lower() == ".caption":
         return parse_caption_file(metadata_path)
-    else:
-        print(f"[!] Unsupported metadata file type: {metadata_path}")
-        return None
+    print(f"[!] Unsupported metadata file type: {metadata_path}")
+    return None
 
 
 def analyze_yaml(
-    directory: str, output_file: Optional[str] = None, quiet: bool = False
-) -> Dict:
+    directory: str, output_file: str | None = None, quiet: bool = False
+) -> dict:
     """
     Stage 1: Analyze metadata files (YAML and caption) to extract character information.
 
@@ -751,7 +746,9 @@ def analyze_yaml(
                 json.dump(analysis_data, f, indent=2, ensure_ascii=False)
             # Verify file was written and is non-empty
             if not output_path.exists():
-                raise RuntimeError(f"Write verification failed: {output_path} does not exist")
+                raise RuntimeError(
+                    f"Write verification failed: {output_path} does not exist"
+                )
             if output_path.stat().st_size == 0:
                 raise RuntimeError(f"Write verification failed: {output_path} is empty")
             if not quiet:
@@ -798,8 +795,8 @@ def analyze_yaml(
 
 
 def find_sequential_neighbors(
-    target_file: str, all_files: List[str], window_size: int = 5
-) -> Tuple[List[str], List[str]]:
+    target_file: str, all_files: list[str], window_size: int = 5
+) -> tuple[list[str], list[str]]:
     """Find files before and after target file in sequential order."""
     # Sort files by timestamp
     timestamped_files = []
@@ -838,8 +835,8 @@ def find_sequential_neighbors(
 
 
 def infer_character_from_context(
-    target_file: str, character_mapping: Dict, all_files: List[str]
-) -> Optional[str]:
+    target_file: str, character_mapping: dict, all_files: list[str]
+) -> str | None:
     """Infer character for target file based on sequential neighbors."""
     before_files, after_files = find_sequential_neighbors(target_file, all_files)
 
@@ -873,7 +870,7 @@ def infer_character_from_context(
     return None
 
 
-def add_sequential_context(analysis_data: Dict, quiet: bool = False) -> Dict:
+def add_sequential_context(analysis_data: dict, quiet: bool = False) -> dict:
     """
     Stage 2: Add sequential context inference to analysis data.
 
@@ -961,7 +958,7 @@ def add_sequential_context(analysis_data: Dict, quiet: bool = False) -> Dict:
 
 
 def preview_grouping_plan(
-    character_mapping: Dict,
+    character_mapping: dict,
     source_directory: str,
     group_by: str = "character",
     auto_confirm: bool = False,
@@ -1106,8 +1103,8 @@ def move_file_pair(
 
 
 def create_character_directories(
-    source_dir: Path, characters: List[str], dry_run: bool = False
-) -> Dict[str, Path]:
+    source_dir: Path, characters: list[str], dry_run: bool = False
+) -> dict[str, Path]:
     """Prepare character directory mapping (lazy creation - only create when needed)."""
     char_dirs = {}
 
@@ -1123,12 +1120,12 @@ def create_character_directories(
 
 
 def group_by_category(
-    analysis_data: Dict,
+    analysis_data: dict,
     source_directory: str,
     dry_run: bool = False,
     quiet: bool = False,
     group_by: str = "character",
-) -> Dict:
+) -> dict:
     """
     Stage 3: Group files by specified category (character, ethnicity, age, etc.).
 
@@ -1233,15 +1230,14 @@ def group_by_category(
                     print(f"[DRY RUN] Would skip: {png_filename} (no character data)")
                 stats["skipped_unknown"] += 1
                 continue
-        else:
-            # Category grouping: skip if no inferred category found
-            if not character:
-                if not dry_run and not quiet:
-                    print(f"[*] Skipping {png_filename} (no {group_by} data)")
-                elif dry_run and not quiet:
-                    print(f"[DRY RUN] Would skip: {png_filename} (no {group_by} data)")
-                stats["skipped_unknown"] += 1
-                continue
+        # Category grouping: skip if no inferred category found
+        elif not character:
+            if not dry_run and not quiet:
+                print(f"[*] Skipping {png_filename} (no {group_by} data)")
+            elif dry_run and not quiet:
+                print(f"[DRY RUN] Would skip: {png_filename} (no {group_by} data)")
+            stats["skipped_unknown"] += 1
+            continue
 
         # Determine target directory
         # When grouping by category (not character), always use single category value
@@ -1388,7 +1384,7 @@ def process_directory(
     quiet: bool = False,
     group_by: str = "character",
     min_threshold: int = 20,
-) -> Dict:
+) -> dict:
     """
     Complete character processing pipeline.
 
@@ -1583,7 +1579,10 @@ def process_directory(
     # Preview and Confirmation (skip for dry-run since it already shows what would happen)
     if not dry_run and not quiet:
         if not preview_grouping_plan(
-            enhanced_data["character_mapping"], directory, group_by, auto_confirm=args.yes
+            enhanced_data["character_mapping"],
+            directory,
+            group_by,
+            auto_confirm=args.yes,
         ):
             if not quiet:
                 print("\n[!] Operation cancelled by user")
@@ -1749,7 +1748,7 @@ Examples:
 
         for yaml_file in yaml_files:
             try:
-                with open(yaml_file, "r", encoding="utf-8") as f:
+                with open(yaml_file, encoding="utf-8") as f:
                     data = yaml.safe_load(f)
 
                 if not data:
@@ -1768,7 +1767,7 @@ Examples:
                     caption_file = yaml_file.with_suffix(".caption")
                     if caption_file.exists():
                         try:
-                            with open(caption_file, "r", encoding="utf-8") as cf:
+                            with open(caption_file, encoding="utf-8") as cf:
                                 prompt = cf.read().strip()
                         except Exception:
                             pass

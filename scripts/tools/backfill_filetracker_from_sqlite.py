@@ -36,14 +36,14 @@ import sqlite3
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 # Add project root to path
 project_root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(project_root))
 
 
-def find_sqlite_databases(data_dir: Path) -> List[Path]:
+def find_sqlite_databases(data_dir: Path) -> list[Path]:
     """Find all SQLite training databases"""
     db_dir = data_dir / "training" / "ai_training_decisions"
     if not db_dir.exists():
@@ -51,7 +51,7 @@ def find_sqlite_databases(data_dir: Path) -> List[Path]:
     return list(db_dir.glob("*.db"))
 
 
-def extract_crops_from_sqlite(db_path: Path) -> List[Dict[str, Any]]:
+def extract_crops_from_sqlite(db_path: Path) -> list[dict[str, Any]]:
     """
     Extract crop operations from SQLite database.
 
@@ -92,19 +92,23 @@ def extract_crops_from_sqlite(db_path: Path) -> List[Dict[str, Any]]:
         except Exception:
             image_count = 1  # Fallback
 
-        crops.append({
-            "timestamp": row[0],
-            "project_id": row[1] or db_path.stem,  # Use filename if no project_id
-            "directory": row[2],
-            "images": images_list if 'images_list' in locals() else [],
-            "image_count": image_count,
-            "action": row[4]
-        })
+        crops.append(
+            {
+                "timestamp": row[0],
+                "project_id": row[1] or db_path.stem,  # Use filename if no project_id
+                "directory": row[2],
+                "images": images_list if "images_list" in locals() else [],
+                "image_count": image_count,
+                "action": row[4],
+            }
+        )
 
     return crops
 
 
-def group_crops_into_batches(crops: List[Dict], batch_window_minutes: int = 15) -> List[Dict]:
+def group_crops_into_batches(
+    crops: list[dict], batch_window_minutes: int = 15
+) -> list[dict]:
     """
     Group crops into batches based on time windows.
 
@@ -123,13 +127,15 @@ def group_crops_into_batches(crops: List[Dict], batch_window_minutes: int = 15) 
     current_batch = {
         "timestamp": crops[0]["timestamp"],
         "crops": [crops[0]],
-        "project_id": crops[0]["project_id"]
+        "project_id": crops[0]["project_id"],
     }
 
     for crop in crops[1:]:
         # Parse timestamps
         current_ts = datetime.fromisoformat(crop["timestamp"].replace("Z", "+00:00"))
-        batch_ts = datetime.fromisoformat(current_batch["timestamp"].replace("Z", "+00:00"))
+        batch_ts = datetime.fromisoformat(
+            current_batch["timestamp"].replace("Z", "+00:00")
+        )
 
         # If within window, add to current batch
         if (current_ts - batch_ts).total_seconds() / 60 <= batch_window_minutes:
@@ -138,24 +144,30 @@ def group_crops_into_batches(crops: List[Dict], batch_window_minutes: int = 15) 
             # Close current batch, start new one
             current_batch["crop_count"] = len(current_batch["crops"])
             # Sum up actual image counts (each group can have 2-4 images)
-            current_batch["image_count"] = sum(c.get("image_count", 1) for c in current_batch["crops"])
+            current_batch["image_count"] = sum(
+                c.get("image_count", 1) for c in current_batch["crops"]
+            )
             batches.append(current_batch)
 
             current_batch = {
                 "timestamp": crop["timestamp"],
                 "crops": [crop],
-                "project_id": crop["project_id"]
+                "project_id": crop["project_id"],
             }
 
     # Close final batch
     current_batch["crop_count"] = len(current_batch["crops"])
-    current_batch["image_count"] = sum(c.get("image_count", 1) for c in current_batch["crops"])
+    current_batch["image_count"] = sum(
+        c.get("image_count", 1) for c in current_batch["crops"]
+    )
     batches.append(current_batch)
 
     return batches
 
 
-def write_filetracker_entries(batches: List[Dict], log_file: Path, dry_run: bool = True):
+def write_filetracker_entries(
+    batches: list[dict], log_file: Path, dry_run: bool = True
+):
     """
     Write FileTracker log entries for each batch.
 
@@ -181,9 +193,11 @@ def write_filetracker_entries(batches: List[Dict], log_file: Path, dry_run: bool
             "timestamp": batch["timestamp"],
             "source_dir": "__crop_auto",
             "dest_dir": "__cropped",
-            "file_count": batch.get("image_count", batch["crop_count"]),  # Use actual image count
+            "file_count": batch.get(
+                "image_count", batch["crop_count"]
+            ),  # Use actual image count
             "notes": f"Backfilled from SQLite ({batch['project_id']}), {batch['crop_count']} groups",
-            "project_id": batch["project_id"]
+            "project_id": batch["project_id"],
         }
         entries.append(entry)
 
@@ -256,23 +270,19 @@ def main():
     parser.add_argument(
         "project",
         nargs="?",
-        help="Project name (e.g., mojo3) or --all for all projects"
+        help="Project name (e.g., mojo3) or --all for all projects",
     )
-    parser.add_argument(
-        "--all",
-        action="store_true",
-        help="Backfill all projects"
-    )
+    parser.add_argument("--all", action="store_true", help="Backfill all projects")
     parser.add_argument(
         "--dry-run",
         action="store_true",
         default=True,
-        help="Show what would be done without writing (default: True)"
+        help="Show what would be done without writing (default: True)",
     )
     parser.add_argument(
         "--execute",
         action="store_true",
-        help="Actually write the log entries (disables dry-run)"
+        help="Actually write the log entries (disables dry-run)",
     )
 
     args = parser.parse_args()
@@ -289,7 +299,7 @@ def main():
     else:
         print("⚠️  EXECUTE MODE - Will modify log files")
         response = input("Continue? [y/N]: ")
-        if response.lower() != 'y':
+        if response.lower() != "y":
             print("Aborted")
             return
         print()
@@ -305,9 +315,15 @@ def main():
     else:
         parser.print_help()
         print("\nExample usage:")
-        print("  python scripts/tools/backfill_filetracker_from_sqlite.py mojo3 --dry-run")
-        print("  python scripts/tools/backfill_filetracker_from_sqlite.py mojo3 --execute")
-        print("  python scripts/tools/backfill_filetracker_from_sqlite.py --all --execute")
+        print(
+            "  python scripts/tools/backfill_filetracker_from_sqlite.py mojo3 --dry-run"
+        )
+        print(
+            "  python scripts/tools/backfill_filetracker_from_sqlite.py mojo3 --execute"
+        )
+        print(
+            "  python scripts/tools/backfill_filetracker_from_sqlite.py --all --execute"
+        )
 
 
 if __name__ == "__main__":

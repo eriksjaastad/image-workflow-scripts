@@ -9,10 +9,10 @@ DuckDB can query JSONL files directly without importing to a database.
 Usage:
     # Interactive mode
     python scripts/query_snapshots_duckdb.py
-    
+
     # Execute query
     python scripts/query_snapshots_duckdb.py --query "SELECT script_id, COUNT(*) FROM events GROUP BY script_id"
-    
+
     # Export to CSV
     python scripts/query_snapshots_duckdb.py --query "..." --output results.csv
 
@@ -39,39 +39,46 @@ SNAPSHOT_DIR = PROJECT_ROOT / "snapshot"
 
 def create_views(con: duckdb.DuckDBPyConnection) -> None:
     """Create views for all snapshot datasets."""
-    
     # Operation events view
-    events_pattern = str(SNAPSHOT_DIR / "operation_events_v1" / "day=*" / "events.jsonl")
+    events_pattern = str(
+        SNAPSHOT_DIR / "operation_events_v1" / "day=*" / "events.jsonl"
+    )
     con.execute(f"""
         CREATE OR REPLACE VIEW events AS
         SELECT * FROM read_json_auto('{events_pattern}', union_by_name=true)
     """)
     print("  ✓ Created view: events")
-    
+
     # Derived sessions view
-    derived_sessions_pattern = str(SNAPSHOT_DIR / "derived_sessions_v1" / "day=*" / "sessions.jsonl")
+    derived_sessions_pattern = str(
+        SNAPSHOT_DIR / "derived_sessions_v1" / "day=*" / "sessions.jsonl"
+    )
     con.execute(f"""
         CREATE OR REPLACE VIEW derived_sessions AS
         SELECT * FROM read_json_auto('{derived_sessions_pattern}', union_by_name=true)
     """)
     print("  ✓ Created view: derived_sessions")
-    
+
     # Legacy timer sessions view
-    timer_sessions_pattern = str(SNAPSHOT_DIR / "timer_sessions_v1" / "day=*" / "sessions.jsonl")
+    timer_sessions_pattern = str(
+        SNAPSHOT_DIR / "timer_sessions_v1" / "day=*" / "sessions.jsonl"
+    )
     con.execute(f"""
         CREATE OR REPLACE VIEW timer_sessions AS
         SELECT * FROM read_json_auto('{timer_sessions_pattern}', union_by_name=true)
     """)
     print("  ✓ Created view: timer_sessions")
-    
+
     # Progress snapshots view
-    progress_pattern = str(SNAPSHOT_DIR / "progress_snapshots_v1" / "day=*" / "snapshots.jsonl")
+    progress_pattern = str(
+        SNAPSHOT_DIR / "progress_snapshots_v1" / "day=*" / "snapshots.jsonl"
+    )
     con.execute(f"""
         CREATE OR REPLACE VIEW progress_snapshots AS
         SELECT * FROM read_json_auto('{progress_pattern}', union_by_name=true)
     """)
     print("  ✓ Created view: progress_snapshots")
-    
+
     # Projects view
     projects_file = str(SNAPSHOT_DIR / "projects_v1" / "projects.jsonl")
     con.execute(f"""
@@ -79,9 +86,11 @@ def create_views(con: duckdb.DuckDBPyConnection) -> None:
         SELECT * FROM read_json_auto('{projects_file}', union_by_name=true)
     """)
     print("  ✓ Created view: projects")
-    
+
     # Daily aggregates view
-    aggregates_pattern = str(SNAPSHOT_DIR / "daily_aggregates_v1" / "day=*" / "aggregate.json")
+    aggregates_pattern = str(
+        SNAPSHOT_DIR / "daily_aggregates_v1" / "day=*" / "aggregate.json"
+    )
     con.execute(f"""
         CREATE OR REPLACE VIEW daily_aggregates AS
         SELECT * FROM read_json_auto('{aggregates_pattern}', union_by_name=true)
@@ -93,16 +102,16 @@ def show_schema(con: duckdb.DuckDBPyConnection) -> None:
     """Show available views and their schemas."""
     print("\n📊 Available Views:")
     print("=" * 70)
-    
+
     views = [
         "events",
         "derived_sessions",
         "timer_sessions",
         "progress_snapshots",
         "projects",
-        "daily_aggregates"
+        "daily_aggregates",
     ]
-    
+
     for view in views:
         try:
             result = con.execute(f"DESCRIBE {view}").fetchall()
@@ -113,11 +122,13 @@ def show_schema(con: duckdb.DuckDBPyConnection) -> None:
             print(f"\n{view}: ⚠️  Not available ({e})")
 
 
-def execute_query(con: duckdb.DuckDBPyConnection, query: str, output_file: str = None) -> None:
+def execute_query(
+    con: duckdb.DuckDBPyConnection, query: str, output_file: str = None
+) -> None:
     """Execute a SQL query and display/save results."""
     try:
         result = con.execute(query)
-        
+
         if output_file:
             # Export to CSV
             con.execute(f"COPY ({query}) TO '{output_file}' (HEADER, DELIMITER ',')")
@@ -126,18 +137,18 @@ def execute_query(con: duckdb.DuckDBPyConnection, query: str, output_file: str =
             # Display results
             rows = result.fetchall()
             columns = [desc[0] for desc in result.description]
-            
+
             print("\n" + "=" * 70)
             print("Query Results")
             print("=" * 70)
             print(" | ".join(columns))
             print("-" * 70)
-            
+
             for row in rows:
                 print(" | ".join(str(v) for v in row))
-            
+
             print(f"\n{len(rows)} rows")
-    
+
     except Exception as e:
         print(f"❌ Query error: {e}")
 
@@ -164,30 +175,30 @@ def interactive_mode(con: duckdb.DuckDBPyConnection) -> None:
     print("Enter SQL queries and press Enter to execute.")
     print("=" * 70)
     print()
-    
+
     while True:
         try:
             query = input("duckdb> ").strip()
-            
+
             if not query:
                 continue
-            
-            if query.lower() in ['.quit', 'exit', 'quit']:
+
+            if query.lower() in [".quit", "exit", "quit"]:
                 print("Goodbye!")
                 break
-            
-            if query.lower() == '.tables':
+
+            if query.lower() == ".tables":
                 result = con.execute("SHOW TABLES").fetchall()
                 print("\nViews:")
                 for row in result:
                     print(f"  - {row[0]}")
                 print()
                 continue
-            
-            if query.lower().startswith('.schema'):
+
+            if query.lower().startswith(".schema"):
                 parts = query.split()
                 view_name = parts[1] if len(parts) > 1 else None
-                
+
                 if view_name:
                     result = con.execute(f"DESCRIBE {view_name}").fetchall()
                     print(f"\nSchema for {view_name}:")
@@ -197,25 +208,25 @@ def interactive_mode(con: duckdb.DuckDBPyConnection) -> None:
                     show_schema(con)
                 print()
                 continue
-            
+
             # Execute query
             result = con.execute(query)
             rows = result.fetchall()
             columns = [desc[0] for desc in result.description]
-            
+
             print()
             print(" | ".join(columns))
             print("-" * 70)
-            
+
             for row in rows[:100]:  # Limit to first 100 rows
                 print(" | ".join(str(v) for v in row))
-            
+
             if len(rows) > 100:
                 print(f"... ({len(rows) - 100} more rows)")
-            
+
             print(f"\n{len(rows)} rows")
             print()
-        
+
         except KeyboardInterrupt:
             print("\nGoodbye!")
             break
@@ -254,29 +265,21 @@ Sample Queries:
   
   # Operations by type
   SELECT operation, COUNT(*) as count FROM events WHERE operation IS NOT NULL GROUP BY operation ORDER BY count DESC
-        """
+        """,
     )
-    
+
+    parser.add_argument("--query", help="SQL query to execute")
+    parser.add_argument("--output", help="Output CSV file")
     parser.add_argument(
-        '--query',
-        help='SQL query to execute'
+        "--show-schema", action="store_true", help="Show schema for all views"
     )
-    parser.add_argument(
-        '--output',
-        help='Output CSV file'
-    )
-    parser.add_argument(
-        '--show-schema',
-        action='store_true',
-        help='Show schema for all views'
-    )
-    
+
     args = parser.parse_args()
-    
+
     # Initialize DuckDB
     print("Initializing DuckDB...")
-    con = duckdb.connect(database=':memory:')
-    
+    con = duckdb.connect(database=":memory:")
+
     # Create views
     print("\nCreating views...")
     try:
@@ -284,7 +287,7 @@ Sample Queries:
     except Exception as e:
         print(f"❌ Error creating views: {e}")
         sys.exit(1)
-    
+
     # Execute based on arguments
     if args.show_schema:
         show_schema(con)
@@ -296,4 +299,3 @@ Sample Queries:
 
 if __name__ == "__main__":
     main()
-

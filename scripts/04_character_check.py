@@ -12,7 +12,7 @@ Usage
   # Scan single-underscore subdirs under the given directory
   python scripts/04_character_check.py mojo3 --fields hair,body
 
-Notes
+Notes:
   - Read-only. Does not move or modify any files.
   - Scans ONLY top-level directories whose names start with a single underscore
     (name.startswith("_") and not name.startswith("__")).
@@ -27,8 +27,8 @@ import importlib.util
 import logging
 import sys
 from collections import Counter
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
 
 # Ensure project imports resolve
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -63,7 +63,9 @@ def _load_character_processor_module():
                 msg = f"Found {path} but failed to load: {e}"
                 logger.error(msg)
                 raise ImportError(msg) from e
-    msg = f"Could not locate 02_character_processor.py in: {[str(c) for c in candidates]}"
+    msg = (
+        f"Could not locate 02_character_processor.py in: {[str(c) for c in candidates]}"
+    )
     raise ImportError(msg)
 
 
@@ -76,10 +78,10 @@ parse_yaml_file = _cp.parse_yaml_file
 
 
 def build_field_extractors(
-    fields: List[str],
-) -> Dict[str, Callable[[str], Optional[str]]]:
+    fields: list[str],
+) -> dict[str, Callable[[str], str | None]]:
     """Map field names to extraction functions operating on prompt_lower."""
-    mapping: Dict[str, Callable[[str], Optional[str]]] = {}
+    mapping: dict[str, Callable[[str], str | None]] = {}
     for f in fields:
         key = f.strip().lower()
         if key in {"ethnicity", "eth", "race"}:
@@ -109,10 +111,10 @@ def read_prompt_from_yaml(yaml_path: Path) -> str:
 
 
 def analyze_directory(
-    dir_path: Path, fields: Dict[str, Callable[[str], Optional[str]]]
-) -> Dict[str, Counter]:
+    dir_path: Path, fields: dict[str, Callable[[str], str | None]]
+) -> dict[str, Counter]:
     """Analyze one directory's images, returning a Counter per field."""
-    results: Dict[str, Counter] = {name: Counter() for name in fields.keys()}
+    results: dict[str, Counter] = {name: Counter() for name in fields}
     extraction_failures = Counter()
 
     for png in sorted(dir_path.glob("*.png")):
@@ -257,7 +259,7 @@ def main() -> None:
         sys.exit(1)
 
 
-def _self_test_extractors(field_extractors: Dict[str, Callable]) -> None:
+def _self_test_extractors(field_extractors: dict[str, Callable]) -> None:
     """Verify extractors are callable and return expected types."""
     test_prompt = "a 25 year old caucasian woman with blonde hair, athletic body"
     failures = []

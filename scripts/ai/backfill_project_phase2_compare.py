@@ -82,7 +82,9 @@ def coords_are_close(
             return False
 
         # Check each coordinate
-        return all(abs(c1 - c2) <= tolerance for c1, c2 in zip(coords1, coords2, strict=False))
+        return all(
+            abs(c1 - c2) <= tolerance for c1, c2 in zip(coords1, coords2, strict=False)
+        )
     except Exception:
         return False
 
@@ -279,7 +281,6 @@ def main():
     temp_db_path = Path(args.temp_db)
     real_db_path = Path(args.real_db)
 
-
     # Verify files exist
     if not temp_db_path.exists():
         return
@@ -290,11 +291,9 @@ def main():
     temp_records = get_all_records(temp_db_path)
     real_records = get_all_records(real_db_path)
 
-
     # Build image filename to group_id maps for matching
     temp_image_map = build_image_to_record_map(temp_records)
     real_image_map = build_image_to_record_map(real_records)
-
 
     # Find overlapping images (same filename in both databases)
     overlapping_images = set(temp_image_map.keys()) & set(real_image_map.keys())
@@ -354,7 +353,6 @@ def main():
     if args.dry_run:
         pass
     else:
-
         conn = sqlite3.connect(str(real_db_path))
         cursor = conn.cursor()
 
@@ -382,7 +380,6 @@ def main():
             raise
         finally:
             conn.close()
-
 
 
 if __name__ == "__main__":

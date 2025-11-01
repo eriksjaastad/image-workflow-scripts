@@ -23,7 +23,11 @@ def save_snapshot(root: Path, out_path: Path) -> None:
         for dirpath, dirnames, filenames in os.walk(root):
             rel_dir = Path(dirpath).resolve().relative_to(root)
             # Prune excluded directories from traversal
-            dirnames[:] = [d for d in dirnames if (Path(rel_dir, d).parts and not _should_exclude(Path(rel_dir, d)))]
+            dirnames[:] = [
+                d
+                for d in dirnames
+                if (Path(rel_dir, d).parts and not _should_exclude(Path(rel_dir, d)))
+            ]
 
             for filename in filenames:
                 rel_file = Path(rel_dir, filename)
@@ -76,11 +80,19 @@ def main() -> None:
 
     p_save = subparsers.add_parser("save", help="Save a snapshot to a tar archive")
     p_save.add_argument("--root", required=True, help="Root directory to snapshot")
-    p_save.add_argument("--out", required=True, help="Output tar path (e.g., .baseline.tar)")
+    p_save.add_argument(
+        "--out", required=True, help="Output tar path (e.g., .baseline.tar)"
+    )
 
-    p_restore = subparsers.add_parser("restore", help="Restore from a tar archive snapshot")
-    p_restore.add_argument("--root", required=True, help="Root directory to restore into")
-    p_restore.add_argument("--in", dest="in_path", required=True, help="Input tar path to restore from")
+    p_restore = subparsers.add_parser(
+        "restore", help="Restore from a tar archive snapshot"
+    )
+    p_restore.add_argument(
+        "--root", required=True, help="Root directory to restore into"
+    )
+    p_restore.add_argument(
+        "--in", dest="in_path", required=True, help="Input tar path to restore from"
+    )
 
     args = parser.parse_args()
 
@@ -172,7 +184,9 @@ def restore_baseline(root: Path, in_tar: Path) -> None:
 
 
 def parse_args(argv=None):
-    p = argparse.ArgumentParser(prog="snapshot", description="Sandbox snapshot save/restore")
+    p = argparse.ArgumentParser(
+        prog="snapshot", description="Sandbox snapshot save/restore"
+    )
     sub = p.add_subparsers(dest="command", required=True)
 
     sp_save = sub.add_parser("save", help="Create baseline tar")
@@ -199,5 +213,3 @@ def main(argv=None):
 
 if __name__ == "__main__":
     sys.exit(main())
-
-

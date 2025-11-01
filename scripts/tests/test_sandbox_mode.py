@@ -20,5 +20,3 @@ def test_filetracker_sandbox_suppresses_writes(tmp_path: Path):
 
     # No log file should have been created
     assert not log_file.exists(), "Sandbox mode must suppress log writes"
-
-

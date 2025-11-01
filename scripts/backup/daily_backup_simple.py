@@ -12,7 +12,6 @@ import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import List
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -56,7 +55,7 @@ def log(message, level="INFO"):
 # Removed alert_failure - it was a footgun that crashed scripts
 
 
-def find_database_files(root_dir: Path) -> List[Path]:
+def find_database_files(root_dir: Path) -> list[Path]:
     """Find all SQLite database files in the project."""
     db_files = []
 
@@ -146,11 +145,10 @@ def verify_backup(src, dst, name):
                         f"   Non-critical validation passed with warning."
                     )
                     return (True, True)  # Success with warning
-                else:
-                    monitor.validation_error(
-                        f"File count mismatch for {name}: {src_count} vs {dst_count} (diff: {diff})\n{diff_msg}"
-                    )
-                    return (False, False)
+                monitor.validation_error(
+                    f"File count mismatch for {name}: {src_count} vs {dst_count} (diff: {diff})\n{diff_msg}"
+                )
+                return (False, False)
 
         log(f"✅ Verified backup integrity for {name}")
         return (True, False)

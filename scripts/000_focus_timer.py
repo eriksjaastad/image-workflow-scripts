@@ -125,7 +125,7 @@ class FocusTimer:
 
     def alert(self):
         # macOS notification sound
-        subprocess.run(["afplay", "/System/Library/Sounds/Glass.aiff"])
+        subprocess.run(["afplay", "/System/Library/Sounds/Glass.aiff"], check=False)
 
         # Log completed session
         self.log_session()

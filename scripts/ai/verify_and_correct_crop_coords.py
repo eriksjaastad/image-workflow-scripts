@@ -106,7 +106,9 @@ def coords_match(
     if len(coords1) != 4 or len(coords2) != 4:
         return False
 
-    return all(abs(c1 - c2) <= tolerance for c1, c2 in zip(coords1, coords2, strict=False))
+    return all(
+        abs(c1 - c2) <= tolerance for c1, c2 in zip(coords1, coords2, strict=False)
+    )
 
 
 def format_coords(coords: list[float]) -> str:
@@ -254,7 +256,6 @@ class CropCoordinateValidator:
             if i % 100 == 0:
                 pass
 
-
             # Find cropped file (recursive search)
             cropped_matches = list(self.cropped_dir.glob(f"**/{filename}"))
             if not cropped_matches:
@@ -280,7 +281,6 @@ class CropCoordinateValidator:
 
             physical_coords, confidence = match_result
             db_coords = record["final_crop_coords"]
-
 
             # Compare coordinates
             if coords_match(physical_coords, db_coords):
@@ -344,7 +344,6 @@ class CropCoordinateValidator:
             pass
         else:
             pass
-
 
 
 def main():

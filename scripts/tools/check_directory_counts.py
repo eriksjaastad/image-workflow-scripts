@@ -123,7 +123,9 @@ def main():
     if total_remaining > 0 and total_done > 0:
         total = total_remaining + total_done
         pct = (total_done / total) * 100
-        print(f"   Progress:           {pct:.1f}% complete ({total_done:,} / {total:,})")
+        print(
+            f"   Progress:           {pct:.1f}% complete ({total_done:,} / {total:,})"
+        )
 
     # Estimate batches (assuming 3 images per batch)
     if total_remaining > 0:

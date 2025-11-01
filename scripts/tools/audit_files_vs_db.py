@@ -28,7 +28,6 @@ import sqlite3
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 
@@ -42,22 +41,24 @@ class ExpectedFile:
 @dataclass
 class FoundFile:
     filename: str
-    paths: List[str]
+    paths: list[str]
 
 
-def detect_artifact_candidates(images: List[str], paths: List[str]) -> List[str]:
+def detect_artifact_candidates(images: list[str], paths: list[str]) -> list[str]:
     """Heuristics to flag artifact candidates for a decision row.
     - duplicates across directories
     - mismatched base stems
     Returns list of reason strings
     """
-    reasons: List[str] = []
+    reasons: list[str] = []
     dirs = {str(Path(p).parent) for p in paths}
     if len(dirs) > 1:
         reasons.append("multi_directory")
+
     def base_stem(name: str) -> str:
-        parts = name.split('_stage')
+        parts = name.split("_stage")
         return parts[0] if parts else Path(name).stem
+
     stems = {base_stem(Path(n).name) for n in images if n}
     if len(stems) > 1:
         reasons.append("mismatched_stems")
@@ -68,7 +69,7 @@ def detect_artifact_candidates(images: List[str], paths: List[str]) -> List[str]
 class AuditSummary:
     project_id: str
     total_decisions: int
-    by_action: Dict[str, int]
+    by_action: dict[str, int]
     expected_kept_count: int
     kept_found: int
     kept_missing: int
@@ -83,7 +84,9 @@ def is_image_file(path: Path) -> bool:
         return False
 
 
-def load_expected_from_db(project_id: str, db_root: Path) -> Tuple[List[ExpectedFile], Dict[str, int]]:
+def load_expected_from_db(
+    project_id: str, db_root: Path
+) -> tuple[list[ExpectedFile], dict[str, int]]:
     db_path = db_root / f"{project_id}.db"
     if not db_path.exists():
         raise FileNotFoundError(f"Decisions DB not found: {db_path}")
@@ -99,8 +102,8 @@ def load_expected_from_db(project_id: str, db_root: Path) -> Tuple[List[Expected
     ).fetchall()
     conn.close()
 
-    expected: List[ExpectedFile] = []
-    by_action: Dict[str, int] = {}
+    expected: list[ExpectedFile] = []
+    by_action: dict[str, int] = {}
 
     for images_json, selected_idx, action in rows:
         try:
@@ -111,7 +114,7 @@ def load_expected_from_db(project_id: str, db_root: Path) -> Tuple[List[Expected
         by_action[action] = by_action.get(action, 0) + 1
 
         # Determine selected filename when available
-        filename: Optional[str] = None
+        filename: str | None = None
         if isinstance(selected_idx, int) and 0 <= selected_idx < len(imgs):
             # imgs may be strings or objects; support both
             v = imgs[selected_idx]
@@ -135,9 +138,9 @@ def load_expected_from_db(project_id: str, db_root: Path) -> Tuple[List[Expected
     return expected, by_action
 
 
-def index_disk(paths: List[Path]) -> Dict[str, List[str]]:
+def index_disk(paths: list[Path]) -> dict[str, list[str]]:
     """Build an index: filename -> list of absolute paths where it exists."""
-    idx: Dict[str, List[str]] = {}
+    idx: dict[str, list[str]] = {}
     for root in paths:
         if not root.exists() or not root.is_dir():
             continue
@@ -153,9 +156,9 @@ def index_disk(paths: List[Path]) -> Dict[str, List[str]]:
 
 def compute_audit(
     project_id: str,
-    expected: List[ExpectedFile],
-    disk_index: Dict[str, List[str]],
-) -> Tuple[AuditSummary, Dict[str, FoundFile], List[str]]:
+    expected: list[ExpectedFile],
+    disk_index: dict[str, list[str]],
+) -> tuple[AuditSummary, dict[str, FoundFile], list[str]]:
     expected_kept = [e for e in expected if e.action in ("approve", "crop")]
     expected_rejected = [e for e in expected if e.action == "reject"]
 
@@ -164,8 +167,8 @@ def compute_audit(
     rejects_found_anywhere = 0
     duplicates = 0
 
-    found_details: Dict[str, FoundFile] = {}
-    problems: List[str] = []
+    found_details: dict[str, FoundFile] = {}
+    problems: list[str] = []
 
     # Evaluate kept expectations
     for e in expected_kept:
@@ -188,7 +191,7 @@ def compute_audit(
             found_details[e.filename] = FoundFile(filename=e.filename, paths=paths)
 
     total_decisions = len(expected)
-    by_action: Dict[str, int] = {}
+    by_action: dict[str, int] = {}
     for e in expected:
         by_action[e.action] = by_action.get(e.action, 0) + 1
 
@@ -208,9 +211,9 @@ def compute_audit(
 
 def write_reports(
     summary: AuditSummary,
-    found: Dict[str, FoundFile],
-    problems: List[str],
-) -> Tuple[Path, Path]:
+    found: dict[str, FoundFile],
+    problems: list[str],
+) -> tuple[Path, Path]:
     out_dir = Path("data") / "daily_summaries"
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -224,13 +227,13 @@ def write_reports(
         "summary": asdict(summary),
         "found": {k: asdict(v) for k, v in found.items()},
         "problems": problems,
-        "artifact_candidates": []
+        "artifact_candidates": [],
     }
     json_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
     # Markdown (short)
     md_path = out_dir / f"{base}.md"
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append(f"# Audit Files vs DB — {summary.project_id}")
     lines.append("")
     s = summary
@@ -252,7 +255,9 @@ def write_reports(
         lines.append("")
     # Placeholder section for artifact candidates (decision-level when DB flagging is available)
     lines.append("## Artifact Candidates (scaffolding)")
-    lines.append("- Detected via multi-directory and mismatched-stem heuristics (to be expanded)")
+    lines.append(
+        "- Detected via multi-directory and mismatched-stem heuristics (to be expanded)"
+    )
     lines.append("")
     md_path.write_text("\n".join(lines), encoding="utf-8")
 
@@ -267,7 +272,9 @@ def parse_args() -> argparse.Namespace:
         nargs="*",
         help="Directories to scan; defaults to common workflow dirs",
     )
-    ap.add_argument("--write-report", action="store_true", help="Write JSON + MD report")
+    ap.add_argument(
+        "--write-report", action="store_true", help="Write JSON + MD report"
+    )
     return ap.parse_args()
 
 
@@ -323,5 +330,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-

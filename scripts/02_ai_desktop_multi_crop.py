@@ -86,10 +86,10 @@ except Exception:
 
 # Import the existing MultiCropTool and base behavior
 sys.path.insert(0, str(Path(__file__).parent))
-import importlib.util as _il_util  # noqa: E402
+import importlib.util as _il_util
 
-from utils.companion_file_utils import move_file_with_all_companions  # noqa: E402
-from utils.error_monitoring import (  # noqa: E402
+from utils.companion_file_utils import move_file_with_all_companions
+from utils.error_monitoring import (
     get_error_monitor,
     monitor_errors,
     validate_data_quality,
@@ -147,7 +147,9 @@ if _spec is None or _spec.loader is None:  # pragma: no cover
 _desktop_multi_crop = _il_util.module_from_spec(_spec)
 _spec.loader.exec_module(_desktop_multi_crop)  # type: ignore
 MultiCropTool = _desktop_multi_crop.MultiCropTool  # type: ignore
-from utils.ai_crop_utils import (  # type: ignore  # noqa: E402
+from datetime import UTC
+
+from utils.ai_crop_utils import (  # type: ignore
     decision_matches_image,
     normalize_and_clamp_rect,
 )
@@ -298,7 +300,7 @@ class AIMultiCropTool(MultiCropTool):
                 # Look for .decision file to get group_id
                 decision_path = png_path.with_suffix(".decision")
                 if decision_path.exists():
-                    with open(decision_path, "r") as f:
+                    with open(decision_path) as f:
                         decision_data = json.load(f)
 
                     group_id = decision_data.get("group_id")
@@ -356,9 +358,10 @@ class AIMultiCropTool(MultiCropTool):
         if cropped_size == 0:
             raise RuntimeError(f"Crop failed: output file is 0 bytes: {png_path}")
         # Verify dimensions changed unless full-image crop
-        if (
-            cropped_dimensions == original_dimensions
-            and (x1, y1, x2, y2) != (0, 0, *original_dimensions)
+        if cropped_dimensions == original_dimensions and (x1, y1, x2, y2) != (
+            0,
+            0,
+            *original_dimensions,
         ):
             raise RuntimeError(
                 f"Crop failed: dimensions unchanged despite crop coords: {png_path}"
@@ -392,7 +395,7 @@ class AIMultiCropTool(MultiCropTool):
 
             decision_path = png_path.with_suffix(".decision")
             if decision_path.exists():
-                with open(decision_path, "r") as f:
+                with open(decision_path) as f:
                     decision_data = json.load(f)
 
                 group_id = decision_data.get("group_id")
@@ -498,7 +501,7 @@ class AIMultiCropTool(MultiCropTool):
                 if not decision_path.exists():
                     continue
 
-                with open(decision_path, "r") as f:
+                with open(decision_path) as f:
                     data = json.load(f)
 
                 # Optional validation: ensure decision references this image when provided
@@ -576,13 +579,13 @@ class AIMultiCropTool(MultiCropTool):
                     crop_entry["index_in_batch"] = idx
 
                 # Get session/project info
-                from datetime import datetime, timezone
+                from datetime import datetime
 
                 session_id = getattr(
                     self,
                     "session_id",
                     # Use UTC to ensure consistent session IDs across timezones/DST
-                    f"crop_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}",
+                    f"crop_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
                 )
 
                 project_id = getattr(self, "project_id", "unknown")

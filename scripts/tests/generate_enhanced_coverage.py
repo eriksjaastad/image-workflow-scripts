@@ -4,7 +4,7 @@ Generate Enhanced Coverage Report with Selenium Test Results
 
 This script:
 1. Runs unit tests with coverage
-2. Runs Selenium tests separately 
+2. Runs Selenium tests separately
 3. Combines results into one beautiful HTML report
 4. Styles with dark theme from WEB_STYLE_GUIDE.md
 """
@@ -21,99 +21,127 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 def run_unit_tests_with_coverage():
     """Run unit tests (non-Selenium) with coverage."""
     print("📊 Running unit tests with coverage...")
-    
-    result = subprocess.run([
-        sys.executable, "-m", "coverage", "run",
-        "--source=scripts",
-        "-m", "unittest", "discover",
-        "scripts/tests",
-        "test_*.py",
-        "--pattern", "test_[!s]*.py"  # Exclude Selenium tests
-    ], capture_output=True, text=True)
-    
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "coverage",
+            "run",
+            "--source=scripts",
+            "-m",
+            "unittest",
+            "discover",
+            "scripts/tests",
+            "test_*.py",
+            "--pattern",
+            "test_[!s]*.py",  # Exclude Selenium tests
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
     # Generate HTML report
-    subprocess.run([
-        sys.executable, "-m", "coverage", "html",
-        "--directory=scripts/tests/htmlcov"
-    ])
-    
+    subprocess.run(
+        [sys.executable, "-m", "coverage", "html", "--directory=scripts/tests/htmlcov"],
+        check=False,
+    )
+
     # Generate JSON data for our custom report
-    subprocess.run([
-        sys.executable, "-m", "coverage", "json",
-        "--output-file=scripts/tests/htmlcov/coverage.json"
-    ], capture_output=True, text=True)
-    
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "coverage",
+            "json",
+            "--output-file=scripts/tests/htmlcov/coverage.json",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
     return result.returncode == 0
 
 
 def run_selenium_tests():
     """Run Selenium tests and collect results."""
     print("🔍 Running Selenium integration tests...")
-    
+
     # Run via subprocess to avoid import issues
-    result = subprocess.run([
-        sys.executable, "-m", "unittest",
-        "scripts.tests.test_selenium_simple",
-        "scripts.tests.test_web_tools_smoke",
-        "-v"
-    ], capture_output=True, text=True, cwd=Path.cwd())
-    
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "unittest",
+            "scripts.tests.test_selenium_simple",
+            "scripts.tests.test_web_tools_smoke",
+            "-v",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=Path.cwd(),
+        check=False,
+    )
+
     # Parse output
     output = result.stdout + result.stderr
-    
+
     # Count tests
     import re
-    ran_match = re.search(r'Ran (\d+) test', output)
+
+    ran_match = re.search(r"Ran (\d+) test", output)
     total = int(ran_match.group(1)) if ran_match else 0
-    
+
     # Check for failures/errors
-    failed = len(re.findall(r'FAIL:', output))
-    errors = len(re.findall(r'ERROR:', output))
+    failed = len(re.findall(r"FAIL:", output))
+    errors = len(re.findall(r"ERROR:", output))
     passed = total - failed - errors
-    
+
     # Mock result for compatibility
     class MockResult:
         def __init__(self):
             self.testsRun = total
             self.failures = []
             self.errors = []
-    
+
     MockResult()
-    
+
     # Parse results
     selenium_results = {
-        'total': total,
-        'passed': passed,
-        'failed': failed + errors,
-        'errors': errors,
-        'tests': []
+        "total": total,
+        "passed": passed,
+        "failed": failed + errors,
+        "errors": errors,
+        "tests": [],
     }
-    
+
     # Save results
-    with open('scripts/tests/htmlcov/selenium_results.json', 'w') as f:
+    with open("scripts/tests/htmlcov/selenium_results.json", "w") as f:
         json.dump(selenium_results, f, indent=2)
-    
+
     return selenium_results
 
 
 def enhance_coverage_html(selenium_results):
     """Inject Selenium results into coverage HTML."""
     print("🎨 Enhancing coverage report with Selenium results...")
-    
-    index_path = Path('scripts/tests/htmlcov/index.html')
+
+    index_path = Path("scripts/tests/htmlcov/index.html")
     if not index_path.exists():
         print("❌ Coverage HTML not found!")
         return
-    
+
     html = index_path.read_text()
-    
+
     # Calculate pass rate
-    total = selenium_results['total']
-    passed = selenium_results['passed']
+    total = selenium_results["total"]
+    passed = selenium_results["passed"]
     pass_rate = (passed / total * 100) if total > 0 else 0
-    
+
     # Create Selenium results section with dark theme
-    selenium_section = f'''
+    selenium_section = f"""
     <div id="selenium-results" style="
         background: #181821;
         border: 2px solid #1f1f2c;
@@ -220,22 +248,22 @@ def enhance_coverage_html(selenium_results):
             Coverage percentages only reflect unit tests (subprocess tests don't show in coverage).
         </div>
     </div>
-    '''
-    
+    """
+
     # Inject after the header, before the main content
     # Find the closing </header> tag or first <div> after header
-    insertion_point = html.find('</header>')
+    insertion_point = html.find("</header>")
     if insertion_point == -1:
         insertion_point = html.find('<div id="index">')
-    
+
     if insertion_point != -1:
         html = html[:insertion_point] + selenium_section + html[insertion_point:]
-    
+
     # Also update the page title and add our styles
-    html = html.replace('<title>', '<title>Enhanced ')
-    
+    html = html.replace("<title>", "<title>Enhanced ")
+
     # Add dark theme styles to the head
-    dark_theme_styles = '''
+    dark_theme_styles = """
     <style>
     body {
         background: #101014 !important;
@@ -246,10 +274,10 @@ def enhance_coverage_html(selenium_results):
         border-bottom: 1px solid rgba(255,255,255,0.1) !important;
     }
     </style>
-    '''
-    
-    html = html.replace('</head>', dark_theme_styles + '</head>')
-    
+    """
+
+    html = html.replace("</head>", dark_theme_styles + "</head>")
+
     # Write enhanced HTML
     index_path.write_text(html)
     print(f"✅ Enhanced coverage report saved to: {index_path}")
@@ -261,34 +289,35 @@ def main():
     print("🚀 Generating Enhanced Coverage Report")
     print("=" * 60)
     print()
-    
+
     # Run unit tests with coverage
     unit_success = run_unit_tests_with_coverage()
     print()
-    
+
     # Run Selenium tests
     selenium_results = run_selenium_tests()
     print()
-    
+
     # Enhance HTML report
     enhance_coverage_html(selenium_results)
     print()
-    
+
     # Summary
     print("=" * 60)
     print("✅ Enhanced Coverage Report Complete!")
     print("=" * 60)
     print()
     print(f"📊 Unit Tests: {'PASSED' if unit_success else 'SOME FAILURES'}")
-    print(f"🔍 Selenium Tests: {selenium_results['passed']}/{selenium_results['total']} passed")
+    print(
+        f"🔍 Selenium Tests: {selenium_results['passed']}/{selenium_results['total']} passed"
+    )
     print()
-    
+
     # Print clickable full path
-    report_path = Path('scripts/tests/htmlcov/index.html').resolve()
+    report_path = Path("scripts/tests/htmlcov/index.html").resolve()
     print(f"📁 View report: file://{report_path}")
     print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
-

@@ -55,7 +55,9 @@ def iter_ranker_samples(db_paths: Iterable[Path]) -> Iterable[tuple[str, int]]:
             continue
 
 
-def iter_crop_samples(db_paths: Iterable[Path]) -> Iterable[tuple[str, int, str, int, int]]:
+def iter_crop_samples(
+    db_paths: Iterable[Path],
+) -> Iterable[tuple[str, int, str, int, int]]:
     """Yield (images_json, user_selected_index, final_crop_coords_json, image_width, image_height)."""
     for db in db_paths:
         try:
@@ -87,5 +89,3 @@ def open_image_as_rgb(path: Path) -> Image.Image | None:
         return img
     except Exception:
         return None
-
-

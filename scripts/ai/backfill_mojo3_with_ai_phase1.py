@@ -147,20 +147,16 @@ def group_original_images(original_dir: Path) -> list[tuple[str, list[Path]]]:
     for pattern in patterns:
         all_images.extend(original_dir.glob(pattern))
 
-
     # Sort by timestamp and stage
     sorted_images = sort_image_files_by_timestamp_and_stage(all_images)
 
     # Group consecutive images
     groups = find_consecutive_stage_groups(sorted_images)
 
-
     return groups
 
 
-def find_selected_image(
-    group: list[Path], final_dir: Path
-) -> tuple[int, Path] | None:
+def find_selected_image(group: list[Path], final_dir: Path) -> tuple[int, Path] | None:
     """Find which image from the group exists in final directory."""
     for idx, img_path in enumerate(group):
         filename = img_path.name
@@ -301,9 +297,7 @@ def write_records_to_database(records: list[dict], db_path: Path):
     conn.close()
 
 
-
 def main():
-
     # Check directories exist
     if not ORIGINAL_DIR.exists():
         return
@@ -334,7 +328,6 @@ def main():
     write_records_to_database(records, TEMP_DB)
 
     # Print statistics
-
 
 
 if __name__ == "__main__":

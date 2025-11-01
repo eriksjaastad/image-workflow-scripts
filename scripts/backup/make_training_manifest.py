@@ -16,7 +16,7 @@ import hashlib
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 
 def compute_sha256(path: Path, buf_size: int = 1024 * 1024) -> str:
@@ -40,7 +40,7 @@ def csv_row_count(path: Path) -> int:
         return 0
 
 
-def build_manifest() -> Dict[str, Any]:
+def build_manifest() -> dict[str, Any]:
     training_dir = Path("data") / "training"
     manifests_dir = training_dir / "manifests"
     manifests_dir.mkdir(parents=True, exist_ok=True)
@@ -61,11 +61,13 @@ def build_manifest() -> Dict[str, Any]:
                     entry["row_count"] = csv_row_count(p)
                 files.append(entry)
             except Exception as exc:
-                files.append({
-                    "path": str(p.resolve()),
-                    "name": p.name,
-                    "error": str(exc),
-                })
+                files.append(
+                    {
+                        "path": str(p.resolve()),
+                        "name": p.name,
+                        "error": str(exc),
+                    }
+                )
 
     manifest = {
         "generated_at": datetime.utcnow().isoformat() + "Z",
@@ -83,5 +85,3 @@ def build_manifest() -> Dict[str, Any]:
 
 if __name__ == "__main__":
     build_manifest()
-
-

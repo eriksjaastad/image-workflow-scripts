@@ -325,7 +325,6 @@ def main():
     )
     args = parser.parse_args()
 
-
     # Find all databases (exclude backups and temps)
     db_files = sorted(
         [
@@ -337,7 +336,6 @@ def main():
 
     if not db_files:
         return 2
-
 
     # Validate each database
     all_reports = []

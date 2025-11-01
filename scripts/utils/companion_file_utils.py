@@ -13,11 +13,11 @@ import re
 import sys
 import time
 import webbrowser
-from datetime import datetime, timedelta
+from collections.abc import Iterable
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
 
 try:
     from PIL import Image
@@ -69,8 +69,7 @@ class Logger:
             color = self.COLORS[level]
             reset = self.COLORS["RESET"]
             return f"{color}{prefix}{reset} {message}"
-        else:
-            return f"{prefix} {message}"
+        return f"{prefix} {message}"
 
     def debug(self, message: str):
         """Log debug message."""
@@ -132,13 +131,13 @@ def _say(message: str) -> None:
 
 
 @lru_cache(maxsize=1024)
-def _build_stem_index_for_dir(dir_path: Path) -> Dict[str, List[Path]]:
+def _build_stem_index_for_dir(dir_path: Path) -> dict[str, list[Path]]:
     """
     Build a mapping of stem -> list of files for a directory.
     This is a best-effort acceleration for repeated companion lookups.
     Note: No invalidation; intended for read-mostly phases or dry-runs.
     """
-    index: Dict[str, List[Path]] = {}
+    index: dict[str, list[Path]] = {}
     try:
         for file_path in dir_path.iterdir():
             try:
@@ -154,7 +153,7 @@ def _build_stem_index_for_dir(dir_path: Path) -> Dict[str, List[Path]]:
     return index
 
 
-def find_all_companion_files(image_path: Path) -> List[Path]:
+def find_all_companion_files(image_path: Path) -> list[Path]:
     """
     Find ALL companion files with the same base name as the image (wildcard approach).
 
@@ -202,7 +201,7 @@ def find_all_companion_files(image_path: Path) -> List[Path]:
 
 def move_file_with_all_companions(
     src_path: Path, dst_dir: Path, dry_run: bool = False
-) -> List[str]:
+) -> list[str]:
     """
     Move image file and ALL its companion files, preserving original names.
 
@@ -289,7 +288,7 @@ def move_file_with_all_companions(
     return moved_files
 
 
-def safe_move_path(src_path: Path, dst_dir: Path, dry_run: bool = False) -> List[str]:
+def safe_move_path(src_path: Path, dst_dir: Path, dry_run: bool = False) -> list[str]:
     """
     Safely move a path:
       - If it's an image, move it WITH all same-name/group-stem companions
@@ -301,7 +300,7 @@ def safe_move_path(src_path: Path, dst_dir: Path, dry_run: bool = False) -> List
     if suffix in {".png", ".jpg", ".jpeg"}:
         return move_file_with_all_companions(src_path, dst_dir, dry_run=dry_run)
     # Non-image: single file move
-    moved: List[str] = []
+    moved: list[str] = []
     dst_path = dst_dir / src_path.name
     if not dry_run and not dst_path.exists():
         import shutil
@@ -316,8 +315,8 @@ def safe_move_path(src_path: Path, dst_dir: Path, dry_run: bool = False) -> List
 
 
 def scan_images(
-    folder: Path, extensions: List[str] = None, recursive: bool = True
-) -> List[Path]:
+    folder: Path, extensions: list[str] = None, recursive: bool = True
+) -> list[Path]:
     """
     Scan for image files in a directory.
 
@@ -349,7 +348,7 @@ def scan_images(
     return sorted(image_files)
 
 
-def find_all_image_files(source_dir: Path) -> List[Path]:
+def find_all_image_files(source_dir: Path) -> list[Path]:
     """
     Find all image files recursively in a directory.
 
@@ -376,14 +375,13 @@ def detect_stage(filename: str) -> str:
 
     if "stage1_generated" in filename_lower:
         return "stage1_generated"
-    elif "stage1.5_face_swapped" in filename_lower:
+    if "stage1.5_face_swapped" in filename_lower:
         return "stage1.5_face_swapped"
-    elif "stage2_upscaled" in filename_lower:
+    if "stage2_upscaled" in filename_lower:
         return "stage2_upscaled"
-    elif "stage3_enhanced" in filename_lower:
+    if "stage3_enhanced" in filename_lower:
         return "stage3_enhanced"
-    else:
-        return "unknown"
+    return "unknown"
 
 
 def extract_stage_name(filename: str) -> str:
@@ -406,7 +404,7 @@ def extract_stage_name(filename: str) -> str:
     return filename.rsplit(".", 1)[0]  # Fallback to filename without extension
 
 
-def sort_image_files_by_timestamp_and_stage(image_files: List[Path]) -> List[Path]:
+def sort_image_files_by_timestamp_and_stage(image_files: list[Path]) -> list[Path]:
     """
     Sort image files by timestamp first, then stage order, then filename.
 
@@ -420,7 +418,7 @@ def sort_image_files_by_timestamp_and_stage(image_files: List[Path]) -> List[Pat
         Sorted list of image file paths
     """
 
-    def sort_key(path: Path) -> Tuple[str, float, str]:
+    def sort_key(path: Path) -> tuple[str, float, str]:
         timestamp = extract_timestamp_from_filename(path.name) or "99999999_999999"
         stage = detect_stage(path.name)
         stage_num = get_stage_number(stage)
@@ -430,13 +428,13 @@ def sort_image_files_by_timestamp_and_stage(image_files: List[Path]) -> List[Pat
 
 
 def find_consecutive_stage_groups(
-    files: List[Path],
+    files: list[Path],
     stage_of=lambda p: float(get_stage_number(detect_stage(p.name))),
     dt_of=lambda p: extract_datetime_from_filename(p.name),
     min_group_size=2,
     time_gap_minutes=None,
     lookahead=50,
-) -> List[List[Path]]:
+) -> list[list[Path]]:
     """
     NEAREST-UP grouping:
       - Files MUST be pre-sorted by (timestamp, then stage).
@@ -532,17 +530,16 @@ def get_stage_number(stage: str) -> float:
 
     if "stage1_generated" in stage_lower:
         return 1.0
-    elif "stage1.5" in stage_lower:
+    if "stage1.5" in stage_lower:
         return 1.5
-    elif "stage2" in stage_lower:
+    if "stage2" in stage_lower:
         return 2.0
-    elif "stage3" in stage_lower:
+    if "stage3" in stage_lower:
         return 3.0
-    else:
-        return 0.0
+    return 0.0
 
 
-def find_mismatched_files(directory: Path) -> Dict[str, List[Path]]:
+def find_mismatched_files(directory: Path) -> dict[str, list[Path]]:
     """
     Find files that don't have matching companions in a directory.
 
@@ -586,7 +583,7 @@ def find_mismatched_files(directory: Path) -> Dict[str, List[Path]]:
 
 
 def move_multiple_files_with_companions(
-    image_files: List[Path], dest_dir: Path, dry_run: bool = False, tracker=None
+    image_files: list[Path], dest_dir: Path, dry_run: bool = False, tracker=None
 ) -> dict:
     """
     Move multiple image files and all their companions to destination directory.
@@ -658,7 +655,7 @@ def move_multiple_files_with_companions(
 
 def safe_delete_paths(
     paths: Iterable[Path], hard_delete: bool = False, tracker=None
-) -> List[Path]:
+) -> list[Path]:
     """
     Delete or send a list of file paths to Trash. Optionally logs via tracker.
 
@@ -670,7 +667,7 @@ def safe_delete_paths(
     Returns:
         List of deleted file names
     """
-    deleted: List[Path] = []
+    deleted: list[Path] = []
 
     if hard_delete:
         for p in paths:
@@ -717,7 +714,7 @@ def safe_delete_paths(
 
 def safe_delete_image_and_yaml(
     png_path: Path, hard_delete: bool = False, tracker=None
-) -> List[Path]:
+) -> list[Path]:
     """
     Delete an image and ALL its companion files (yaml, caption, etc.). Uses Trash by default.
 
@@ -730,7 +727,7 @@ def safe_delete_image_and_yaml(
         List of deleted file names
     """
     # Use wildcard logic to find ALL companion files
-    files: List[Path] = [png_path]
+    files: list[Path] = [png_path]
     companions = find_all_companion_files(png_path)
     files.extend(companions)
     return safe_delete_paths(files, hard_delete=hard_delete, tracker=tracker)
@@ -764,10 +761,10 @@ def _append_csv_row(csv_path: Path, header: list, row: dict) -> None:
 def log_crop_decision(
     project_id: str,
     filename: str,
-    crop_coords: Tuple[float, float, float, float],
+    crop_coords: tuple[float, float, float, float],
     width: int,
     height: int,
-    timestamp: Optional[str] = None,
+    timestamp: str | None = None,
 ) -> None:
     """
     Log a crop decision using the NEW MINIMAL SCHEMA (October 2025).
@@ -802,7 +799,7 @@ def log_crop_decision(
             f"{'=' * 70}\n"
             f"project_id cannot be empty.\n"
             f"Expected: 'mojo1', 'mojo2', 'mojo3', etc.\n"
-            f"Got: {repr(project_id)}\n"
+            f"Got: {project_id!r}\n"
             f"{'=' * 70}\n"
         )
 
@@ -813,7 +810,7 @@ def log_crop_decision(
             f"❌ TRAINING DATA ERROR - Empty filename!\n"
             f"{'=' * 70}\n"
             f"filename cannot be empty.\n"
-            f"Got: {repr(filename)}\n"
+            f"Got: {filename!r}\n"
             f"{'=' * 70}\n"
         )
 
@@ -917,7 +914,7 @@ def log_select_crop_entry(
     image_stages: list,
     image_sizes: list,
     chosen_index: int,
-    crop_norm: Optional[Tuple[float, float, float, float]],
+    crop_norm: tuple[float, float, float, float] | None,
 ) -> None:
     """
     LEGACY FUNCTION - Use log_crop_decision() for new code!
@@ -1225,7 +1222,7 @@ def format_image_display_name(
     return display_name
 
 
-def extract_timestamp_from_filename(filename: str) -> Optional[str]:
+def extract_timestamp_from_filename(filename: str) -> str | None:
     """
     Extract timestamp from filename (YYYYMMDD_HHMMSS format).
 
@@ -1239,7 +1236,7 @@ def extract_timestamp_from_filename(filename: str) -> Optional[str]:
     return match.group(1) if match else None
 
 
-def extract_datetime_from_filename(filename: str) -> Optional[datetime]:
+def extract_datetime_from_filename(filename: str) -> datetime | None:
     """
     Extract datetime object from filename (YYYYMMDD_HHMMSS format).
 
@@ -1259,7 +1256,7 @@ def extract_datetime_from_filename(filename: str) -> Optional[datetime]:
         return None
 
 
-def get_date_from_timestamp(timestamp_str: Optional[str]) -> Optional[str]:
+def get_date_from_timestamp(timestamp_str: str | None) -> str | None:
     """
     Extract date part from timestamp string.
 
@@ -1274,7 +1271,7 @@ def get_date_from_timestamp(timestamp_str: Optional[str]) -> Optional[str]:
     return timestamp_str.split("_")[0]
 
 
-def extract_base_timestamp(filename: str) -> Optional[str]:
+def extract_base_timestamp(filename: str) -> str | None:
     """
     Extract the base timestamp from a filename (without stage suffix).
     This is a compatibility function for scripts that need just the timestamp.
@@ -1289,7 +1286,7 @@ def extract_base_timestamp(filename: str) -> Optional[str]:
 
 
 def calculate_work_time_from_file_operations(
-    file_operations: List[Dict], break_threshold_minutes: int = 30
+    file_operations: list[dict], break_threshold_minutes: int = 30
 ) -> float:
     """
     Calculate work time using 15-minute bins with a 10-minute activity threshold.
@@ -1316,9 +1313,8 @@ def calculate_work_time_from_file_operations(
 
     # Extract and sort timestamps as UTC-aware datetimes
     from datetime import timedelta as _td
-    from datetime import timezone as _tz
 
-    stamps: List[datetime] = []
+    stamps: list[datetime] = []
     for op in file_operations:
         ts = op.get("timestamp") or op.get("timestamp_str") or ""
         if not ts or not isinstance(ts, str):
@@ -1327,9 +1323,9 @@ def calculate_work_time_from_file_operations(
             norm = ts.replace("Z", "+00:00")
             dt = datetime.fromisoformat(norm)
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=_tz.utc)
+                dt = dt.replace(tzinfo=UTC)
             else:
-                dt = dt.astimezone(_tz.utc)
+                dt = dt.astimezone(UTC)
             stamps.append(dt)
         except Exception:
             continue
@@ -1346,8 +1342,8 @@ def calculate_work_time_from_file_operations(
     def floor_to_bin(dt: datetime) -> datetime:
         return dt.replace(minute=(dt.minute // 15) * 15, second=0, microsecond=0)
 
-    bin_active: Dict[datetime, float] = {}
-    bin_files: Dict[datetime, int] = {}
+    bin_active: dict[datetime, float] = {}
+    bin_files: dict[datetime, int] = {}
 
     # First, record per-bin file counts to capture batchy work bursts
     for op in file_operations:
@@ -1358,9 +1354,7 @@ def calculate_work_time_from_file_operations(
             norm = ts.replace("Z", "+00:00")
             dt = datetime.fromisoformat(norm)
             if dt.tzinfo is None:
-                from datetime import timezone as _tz
-
-                dt = dt.replace(tzinfo=_tz.utc)
+                dt = dt.replace(tzinfo=UTC)
             bin_start = floor_to_bin(dt)
             fc = int(op.get("file_count") or 0)
             bin_files[bin_start] = bin_files.get(bin_start, 0) + fc
@@ -1401,7 +1395,7 @@ def calculate_work_time_from_file_operations(
     return float(qualified_bins * BIN_SECS)
 
 
-def get_file_operation_metrics(file_operations: List[Dict]) -> Dict[str, any]:
+def get_file_operation_metrics(file_operations: list[dict]) -> dict[str, any]:
     """
     Get comprehensive metrics from file operations for dashboard display.
 
@@ -1442,8 +1436,6 @@ def get_file_operation_metrics(file_operations: List[Dict]) -> Dict[str, any]:
     sorted_ops = sorted(file_operations, key=lambda x: x.get("timestamp", ""))
     if len(sorted_ops) >= 2:
         try:
-            from datetime import timezone as tz
-
             start_time = datetime.fromisoformat(
                 sorted_ops[0]["timestamp"].replace("Z", "+00:00")
             )
@@ -1452,9 +1444,9 @@ def get_file_operation_metrics(file_operations: List[Dict]) -> Dict[str, any]:
             )
             # Ensure both are timezone-aware
             if start_time.tzinfo is None:
-                start_time = start_time.replace(tzinfo=tz.utc)
+                start_time = start_time.replace(tzinfo=UTC)
             if end_time.tzinfo is None:
-                end_time = end_time.replace(tzinfo=tz.utc)
+                end_time = end_time.replace(tzinfo=UTC)
             session_duration = (end_time - start_time).total_seconds()
         except (ValueError, KeyError):
             session_duration = 0.0
@@ -1478,7 +1470,7 @@ def get_file_operation_metrics(file_operations: List[Dict]) -> Dict[str, any]:
     }
 
 
-def timestamp_to_minutes(timestamp_str: Optional[str]) -> Optional[float]:
+def timestamp_to_minutes(timestamp_str: str | None) -> float | None:
     """
     Convert timestamp string to minutes since midnight.
 
@@ -1523,13 +1515,13 @@ def launch_browser(host: str, port: int, delay: float = 1.2) -> None:
 
 
 # Legacy function names for backward compatibility
-def find_companion_files(image_path: Path) -> List[Path]:
+def find_companion_files(image_path: Path) -> list[Path]:
     """Legacy function name - use find_all_companion_files instead."""
     return find_all_companion_files(image_path)
 
 
 def move_file_with_companions(
     src_path: Path, dst_dir: Path, dry_run: bool = False
-) -> List[str]:
+) -> list[str]:
     """Legacy function name - use move_file_with_all_companions instead."""
     return move_file_with_all_companions(src_path, dst_dir, dry_run)

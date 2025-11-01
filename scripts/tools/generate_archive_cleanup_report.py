@@ -29,14 +29,17 @@ import argparse
 import datetime as dt
 import re
 from pathlib import Path
-from typing import Dict, List, Set
 
-RE_LAST_UPDATED = re.compile(r"^(?:\*\*Last Updated:\*\*|Last Updated:)\s*(\d{4}-\d{2}-\d{2})", re.IGNORECASE)
+RE_LAST_UPDATED = re.compile(
+    r"^(?:\*\*Last Updated:\*\*|Last Updated:)\s*(\d{4}-\d{2}-\d{2})", re.IGNORECASE
+)
 MD_LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate archive cleanup candidates report (no deletes)")
+    parser = argparse.ArgumentParser(
+        description="Generate archive cleanup candidates report (no deletes)"
+    )
     parser.add_argument(
         "--root",
         default=str(Path(__file__).resolve().parents[2] / "Documents"),
@@ -70,12 +73,12 @@ def read_last_updated(md_path: Path) -> dt.date | None:
     return None
 
 
-def collect_references(docs_root: Path) -> Set[Path]:
+def collect_references(docs_root: Path) -> set[Path]:
     """Return a set of absolute Paths referenced by non-archive docs.
     Resolves relative links against the source document directory.
     Ignores external links (http:// or https://) and anchors (#...).
     """
-    refs: Set[Path] = set()
+    refs: set[Path] = set()
     for md in docs_root.rglob("*.md"):
         # Skip archives when collecting inbound links
         try:
@@ -123,7 +126,7 @@ def main() -> None:
 
     inbound_refs = collect_references(docs_root)
 
-    candidates: List[Dict[str, str]] = []
+    candidates: list[dict[str, str]] = []
     scanned = 0
 
     for md in docs_root.rglob("*.md"):
@@ -157,7 +160,7 @@ def main() -> None:
     report_name = f"doc_cleanup_report_{today.strftime('%Y%m%d')}.md"
     report_path = out_dir / report_name
 
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append("# Documentation Archive Cleanup Candidates\n")
     lines.append(f"Generated: {today.isoformat()}\n")
     lines.append(f"Documents root: {docs_root}\n")
@@ -180,5 +183,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-

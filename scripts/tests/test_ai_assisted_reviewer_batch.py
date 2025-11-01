@@ -37,7 +37,7 @@ def create_dummy_png(path: Path, size: int = 10):
     # Minimal PNG header and IHDR chunk for a tiny image; content doesn't matter for moves
     # To avoid complexity, just write some bytes; downstream code treats as files, not images
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, 'wb') as f:
+    with open(path, "wb") as f:
         f.write(b"\x89PNG\r\n\x1a\n")
         f.write(b"testdata")
 
@@ -63,7 +63,9 @@ def build_test_groups(tmp: Path):
     ]
     for p in a_imgs:
         create_dummy_png(p)
-    groups.append(ImageGroup(group_id="20250101_000001", images=a_imgs, directory=ga_dir))
+    groups.append(
+        ImageGroup(group_id="20250101_000001", images=a_imgs, directory=ga_dir)
+    )
 
     # Group B: 2 images, will crop index 0 (keep 1 crop, delete 1)
     gb_dir = tmp / "groupB"
@@ -73,16 +75,18 @@ def build_test_groups(tmp: Path):
     ]
     for p in b_imgs:
         create_dummy_png(p)
-    groups.append(ImageGroup(group_id="20250101_000002", images=b_imgs, directory=gb_dir))
+    groups.append(
+        ImageGroup(group_id="20250101_000002", images=b_imgs, directory=gb_dir)
+    )
 
     # Group C: 4 images, unselected (delete all 4)
     gc_dir = tmp / "groupC"
-    c_imgs = [
-        gc_dir / f"20250101_000003_stage{i}_generated.png" for i in [1, 2, 3, 4]
-    ]
+    c_imgs = [gc_dir / f"20250101_000003_stage{i}_generated.png" for i in [1, 2, 3, 4]]
     for p in c_imgs:
         create_dummy_png(p)
-    groups.append(ImageGroup(group_id="20250101_000003", images=c_imgs, directory=gc_dir))
+    groups.append(
+        ImageGroup(group_id="20250101_000003", images=c_imgs, directory=gc_dir)
+    )
 
     return groups
 
@@ -137,8 +141,12 @@ def run_test_case():
             ]
         }
 
-        resp = client.post("/process-batch", data=json.dumps(payload), content_type="application/json")
-        assert resp.status_code == 200, f"Unexpected status: {resp.status_code}, body={resp.data!r}"
+        resp = client.post(
+            "/process-batch", data=json.dumps(payload), content_type="application/json"
+        )
+        assert (
+            resp.status_code == 200
+        ), f"Unexpected status: {resp.status_code}, body={resp.data!r}"
         data = resp.get_json()
         assert data["status"] == "ok"
 
@@ -159,5 +167,3 @@ if __name__ == "__main__":
     ok = run_test_case()
     print("AI-Assisted Reviewer batch counting test:", "PASS" if ok else "FAIL")
     sys.exit(0 if ok else 1)
-
-

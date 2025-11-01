@@ -94,7 +94,6 @@ import threading
 import time
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Optional
 
 # Configure logging
 logging.basicConfig(
@@ -137,9 +136,7 @@ try:
 except ImportError:
     logger.info("pillow-heif not available - HEIC/HEIF files will not be supported")
 except Exception as e:
-    logger.warning(
-        f"pillow-heif registration failed: {e} - HEIC/HEIF support disabled"
-    )
+    logger.warning(f"pillow-heif registration failed: {e} - HEIC/HEIF support disabled")
 
 _SEND2TRASH_AVAILABLE = False
 try:
@@ -254,7 +251,7 @@ class MultiDirectoryProgressTracker:
             )
             raise
 
-    def get_current_directory(self) -> Optional[Dict]:
+    def get_current_directory(self) -> dict | None:
         """Get current directory info."""
         if self.current_directory_index < len(self.directories):
             return self.directories[self.current_directory_index]
@@ -278,7 +275,7 @@ class MultiDirectoryProgressTracker:
                     return i
 
         # If no directory with images found from start_index, search from beginning
-        for i in range(0, start_index):
+        for i in range(start_index):
             dir_path = self.base_directory / self.directories[i]["name"]
             if dir_path.exists() and dir_path.is_dir():
                 image_files = (
@@ -333,7 +330,7 @@ class MultiDirectoryProgressTracker:
         """Check if there are more directories to process."""
         return self.current_directory_index < len(self.directories)
 
-    def get_progress_info(self) -> Dict:
+    def get_progress_info(self) -> dict:
         """Get current progress information for display."""
         current_dir = self.get_current_directory()
         if not current_dir:
@@ -383,17 +380,17 @@ def info(msg: str) -> None:
     print(f"[*] {msg}")
 
 
-def scan_images(folder: Path) -> List[Path]:
+def scan_images(folder: Path) -> list[Path]:
     """Scan directory for PNG files."""
     allowed = {"png", "jpg", "jpeg", "heic", "heif"}
-    results: List[Path] = []
+    results: list[Path] = []
     for entry in sorted(folder.iterdir()):
         if entry.is_file() and entry.suffix.lower().lstrip(".") in allowed:
             results.append(entry)
     return sort_image_files_by_timestamp_and_stage(results)
 
 
-def load_similarity_neighbors(similarity_map_dir: Path) -> Dict[str, Dict]:
+def load_similarity_neighbors(similarity_map_dir: Path) -> dict[str, dict]:
     """Load similarity neighbor data from face_groups/neighbors.jsonl"""
     neighbors = {}
     neighbors_file = similarity_map_dir / "neighbors.jsonl"
@@ -403,7 +400,7 @@ def load_similarity_neighbors(similarity_map_dir: Path) -> Dict[str, Dict]:
         return neighbors
 
     try:
-        with open(neighbors_file, "r") as f:
+        with open(neighbors_file) as f:
             for line in f:
                 data = json.loads(line.strip())
                 neighbors[data["filename"]] = data
@@ -415,8 +412,8 @@ def load_similarity_neighbors(similarity_map_dir: Path) -> Dict[str, Dict]:
 
 
 def similarity_sort_images(
-    images: List[Path], neighbors_data: Dict[str, Dict]
-) -> List[Path]:
+    images: list[Path], neighbors_data: dict[str, dict]
+) -> list[Path]:
     """Sort images by similarity to create visual neighborhoods."""
     if len(images) <= 1 or not neighbors_data:
         return images
@@ -554,7 +551,7 @@ def _generate_thumbnail(image_path: str, mtime_ns: int, size: int) -> bytes:
 
 
 def safe_delete(
-    png_path: Path, hard_delete: bool = False, tracker: Optional[FileTracker] = None
+    png_path: Path, hard_delete: bool = False, tracker: FileTracker | None = None
 ) -> None:
     """Delete image and ALL companion sidecars (yaml, caption, etc.) via shared utility."""
     # Delegate to shared companion-aware delete to ensure nothing is stranded
@@ -563,7 +560,7 @@ def safe_delete(
 
 def move_with_metadata(
     src_path: Path, dest_dir: Path, tracker: FileTracker, group_name: str
-) -> List[str]:
+) -> list[str]:
     """Move PNG and ALL corresponding companion files to destination directory."""
     # Verify source exists
     if not src_path.exists():
@@ -625,7 +622,7 @@ def detect_face_groups_context(folder: Path) -> dict:
     }
 
 
-def find_next_person_directory(face_groups_info: dict) -> Optional[Path]:
+def find_next_person_directory(face_groups_info: dict) -> Path | None:
     """Find the next person directory with images."""
     person_dirs = face_groups_info["person_dirs"]
     current_index = face_groups_info["current_index"]
@@ -653,7 +650,7 @@ def clean_similarity_maps(folder: Path, similarity_map_dir: Path) -> bool:
 
         # Clean neighbors.jsonl
         cleaned_entries = []
-        with open(neighbors_file, "r") as f:
+        with open(neighbors_file) as f:
             for line in f:
                 entry = json.loads(line)
                 filename = entry.get("filename", "")
@@ -685,8 +682,8 @@ def clean_similarity_maps(folder: Path, similarity_map_dir: Path) -> bool:
 def create_app(
     folder: Path,
     hard_delete: bool = False,
-    similarity_map_dir: Optional[Path] = None,
-    multi_directory_tracker: Optional[MultiDirectoryProgressTracker] = None,
+    similarity_map_dir: Path | None = None,
+    multi_directory_tracker: MultiDirectoryProgressTracker | None = None,
 ) -> Flask:
     """Create and configure the Flask app."""
     app = Flask(__name__)
@@ -826,8 +823,7 @@ def create_app(
                     print(f"DEBUG: Found next directory: {next_dir.name}")
                     # Direct redirect to next directory instead of showing countdown page
                     return redirect(f"/switch-directory/{next_dir.name}")
-                else:
-                    print("DEBUG: No next directory found, showing completion")
+                print("DEBUG: No next directory found, showing completion")
             else:
                 print("DEBUG: Single directory mode")
 
@@ -929,11 +925,11 @@ def create_app(
                 app.config["CURRENT_INDEX"] = current_idx - 1
             return jsonify({"status": "ok", "action": "back"})
 
-        elif action == "skip":
+        if action == "skip":
             app.config["CURRENT_INDEX"] = current_idx + 1
             return jsonify({"status": "ok", "action": "skip"})
 
-        elif action in ["group1", "group2", "group3"]:
+        if action in ["group1", "group2", "group3"]:
             target_dir = target_dirs[action]
             group_name = f"character_{action}"
 
@@ -1259,10 +1255,7 @@ def create_app(
             return jsonify(
                 {"status": "success", "message": "Layout refreshed successfully"}
             )
-        else:
-            return jsonify(
-                {"status": "error", "message": "Failed to refresh layout"}
-            ), 500
+        return jsonify({"status": "error", "message": "Failed to refresh layout"}), 500
 
     @app.route("/prev-directory", methods=["POST"])
     def prev_directory():
@@ -1326,10 +1319,7 @@ def create_app(
                     "total": face_groups_info["total"],
                 }
             )
-        else:
-            return jsonify(
-                {"status": "complete", "message": "All directories processed"}
-            )
+        return jsonify({"status": "complete", "message": "All directories processed"})
 
     @app.route("/switch-directory/<directory_name>")
     def switch_directory(directory_name):
@@ -1397,7 +1387,7 @@ def create_app(
             return redirect("/")
 
         # Handle face groups mode
-        elif app.config["IS_FACE_GROUPS_MODE"]:
+        if app.config["IS_FACE_GROUPS_MODE"]:
             if not app.config["FACE_GROUPS_INFO"]:
                 return jsonify(
                     {"status": "error", "message": "Not in face groups mode"}
@@ -1453,10 +1443,9 @@ def create_app(
             )
 
         # If we get here, neither multi-directory nor face groups mode is active
-        else:
-            return jsonify(
-                {"status": "error", "message": "No multi-directory mode active"}
-            ), 400
+        return jsonify(
+            {"status": "error", "message": "No multi-directory mode active"}
+        ), 400
 
     return app
 

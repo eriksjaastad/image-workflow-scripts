@@ -4,7 +4,6 @@ AI Crop Utilities - Helper functions for AI crop coordinate handling.
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 try:
     from PIL import Image
@@ -13,10 +12,8 @@ except ImportError:
 
 
 def normalize_and_clamp_rect(
-    rect: List[float],
-    width: int,
-    height: int
-) -> Optional[Tuple[int, int, int, int]]:
+    rect: list[float], width: int, height: int
+) -> tuple[int, int, int, int] | None:
     """
     Convert normalized [0,1] crop coordinates to pixel coordinates with validation.
 
@@ -33,7 +30,7 @@ def normalize_and_clamp_rect(
 
     try:
         # Convert to floats
-        x1_norm, y1_norm, x2_norm, y2_norm = [float(v) for v in rect]
+        x1_norm, y1_norm, x2_norm, y2_norm = (float(v) for v in rect)
 
         # Validate normalized values are in [0, 1] range
         if not all(0 <= v <= 1 for v in [x1_norm, y1_norm, x2_norm, y2_norm]):
@@ -71,7 +68,7 @@ def normalize_and_clamp_rect(
         return None
 
 
-def decision_matches_image(decision: Dict, filename: str) -> bool:
+def decision_matches_image(decision: dict, filename: str) -> bool:
     """
     Verify that a decision JSON references the target image.
 
@@ -86,26 +83,28 @@ def decision_matches_image(decision: Dict, filename: str) -> bool:
         return False
 
     # Check common fields that might contain the filename
-    decision_filename = decision.get('filename')
+    decision_filename = decision.get("filename")
     if decision_filename:
         return decision_filename == filename
 
     # Check if there's an image_path field
-    image_path = decision.get('image_path')
+    image_path = decision.get("image_path")
     if image_path:
         import os
+
         return os.path.basename(image_path) == filename
 
     # Check images array (for multi-image decisions)
-    images = decision.get('images')
+    images = decision.get("images")
     if isinstance(images, list):
         for img in images:
             if isinstance(img, dict):
-                img_filename = img.get('filename')
+                img_filename = img.get("filename")
                 if img_filename == filename:
                     return True
             elif isinstance(img, str):
                 import os
+
                 if os.path.basename(img) == filename:
                     return True
 
@@ -114,10 +113,8 @@ def decision_matches_image(decision: Dict, filename: str) -> bool:
 
 
 def headless_crop(
-    source_path: Path,
-    crop_rect: Tuple[int, int, int, int],
-    dest_directory: Path
-) -> List[Path]:
+    source_path: Path, crop_rect: tuple[int, int, int, int], dest_directory: Path
+) -> list[Path]:
     """
     Perform trusted crop operation without UI (headless mode).
 
@@ -173,6 +170,8 @@ def headless_crop(
     # Import here to avoid circular dependency
     from utils.companion_file_utils import move_file_with_all_companions
 
-    moved_files = move_file_with_all_companions(source_path, dest_directory, dry_run=False)
+    moved_files = move_file_with_all_companions(
+        source_path, dest_directory, dry_run=False
+    )
 
     return moved_files

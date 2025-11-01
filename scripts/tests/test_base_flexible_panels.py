@@ -7,14 +7,13 @@ the base tool can render exactly 1 panel when requested, and that the
 hide_unused_subplots logic respects the configured min/max bounds.
 """
 
-
 import matplotlib
 
 
 def test_base_tool_allows_single_panel(tmp_path):
     # Force a non-interactive backend regardless of environment
     try:
-        matplotlib.use('Agg', force=True)
+        matplotlib.use("Agg", force=True)
     except Exception:
         pass
 
@@ -39,14 +38,14 @@ def test_base_tool_allows_single_panel(tmp_path):
     # Reconfigure display down to a single panel
     tool.setup_display(1)
 
-    assert getattr(tool, 'current_num_images', None) == 1
+    assert getattr(tool, "current_num_images", None) == 1
     assert len(tool.axes) == 1
     assert tool.axes[0].get_visible() is True
 
 
 def test_hide_unused_respects_bounds(tmp_path):
     try:
-        matplotlib.use('Agg', force=True)
+        matplotlib.use("Agg", force=True)
     except Exception:
         pass
 
@@ -72,8 +71,6 @@ def test_hide_unused_respects_bounds(tmp_path):
 
     # Reduce to 1 via hide_unused_subplots
     tool.hide_unused_subplots(1)
-    assert getattr(tool, 'current_num_images', None) == 1
+    assert getattr(tool, "current_num_images", None) == 1
     assert len(tool.axes) == 1
     assert tool.axes[0].get_visible() is True
-
-

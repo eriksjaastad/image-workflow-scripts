@@ -259,7 +259,6 @@ def process_project(
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
         zip_ref.extractall(project_tmp)
 
-
     # Find image directory in extracted files
     image_files = (
         list(project_tmp.rglob("*.png"))
@@ -270,7 +269,6 @@ def process_project(
         shutil.rmtree(project_tmp)
         return False, 0
 
-
     if has_existing_db:
         # CASE 1: Database exists - read image groups from it
         conn = sqlite3.connect(existing_db)
@@ -278,7 +276,6 @@ def process_project(
         cursor.execute("SELECT group_id, images FROM ai_decisions")
         rows = cursor.fetchall()
         conn.close()
-
 
         if len(rows) == 0:
             shutil.rmtree(project_tmp)
@@ -352,11 +349,9 @@ def process_project(
             sort_image_files_by_timestamp_and_stage,
         )
 
-
         # Sort and group images
         sorted_images = sort_image_files_by_timestamp_and_stage(image_files)
         groups = find_consecutive_stage_groups(sorted_images)
-
 
         # Create temp database
         create_temp_database(temp_db, project_id)
@@ -414,7 +409,6 @@ def process_project(
     # Clean up extracted files
     shutil.rmtree(project_tmp)
 
-
     return True, processed
 
 
@@ -465,7 +459,6 @@ def main():
 
     # Note: mojo3 skipped (already has AI predictions from earlier backfill)
     # Note: 5 projects without existing DBs will use standard grouping logic
-
 
     # Load models
     ranker_path = MODELS_DIR / args.ranker_model
@@ -571,7 +564,6 @@ def main():
     int(elapsed // 3600)
     int((elapsed % 3600) // 60)
     int(elapsed % 60)
-
 
 
 if __name__ == "__main__":

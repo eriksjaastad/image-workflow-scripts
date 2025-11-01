@@ -12,7 +12,7 @@ WHAT IT DOES:
   - Moves are COMPANION-SAFE using the shared utilities (PNG + all sidecars).
   - Operations are logged via FileTracker. Conflicting filenames are skipped.
 
-NOTES:
+Notes:
   - Only immediate subdirectories are flattened (one level).
   - Use --dry-run to preview; use --yes to skip confirmation.
 """
@@ -20,7 +20,6 @@ NOTES:
 import argparse
 import sys
 from pathlib import Path
-from typing import List
 
 # Ensure project imports resolve
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -38,11 +37,11 @@ from scripts.file_tracker import FileTracker
 from scripts.utils.companion_file_utils import move_multiple_files_with_companions
 
 
-def _scan_immediate_subdirs(base_dir: Path) -> List[Path]:
+def _scan_immediate_subdirs(base_dir: Path) -> list[Path]:
     return sorted([p for p in base_dir.iterdir() if p.is_dir()])
 
 
-def _find_images(dir_path: Path) -> List[Path]:
+def _find_images(dir_path: Path) -> list[Path]:
     return (
         sorted([p for p in dir_path.glob("*.png")])
         + sorted([p for p in dir_path.glob("*.jpg")])

@@ -82,7 +82,9 @@ def coords_match(
     if len(coords1) != 4 or len(coords2) != 4:
         return False
 
-    return all(abs(c1 - c2) <= tolerance for c1, c2 in zip(coords1, coords2, strict=False))
+    return all(
+        abs(c1 - c2) <= tolerance for c1, c2 in zip(coords1, coords2, strict=False)
+    )
 
 
 def find_user_selected_image(
@@ -207,7 +209,6 @@ def process_records(
 
     samples = []  # Collect sample updates for dry-run
 
-
     for record in tqdm(records, desc="Backfilling" if not dry_run else "Analyzing"):
         try:
             group_id = record["group_id"]
@@ -322,7 +323,6 @@ def main():
     temp_db = Path(args.temp_db)
     final_dir = Path(args.final_dir)
 
-
     # Check database exists
     if not temp_db.exists():
         return
@@ -344,7 +344,6 @@ def main():
 
     if stats["crop_coords_extracted"] > 0:
         stats["crop_matches"] / stats["crop_coords_extracted"] * 100
-
 
     if args.dry_run and samples:
         for _i, sample in enumerate(samples, 1):

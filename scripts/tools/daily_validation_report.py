@@ -14,7 +14,6 @@ import subprocess
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -35,9 +34,8 @@ class DailyValidationReport:
             "summary": {},
         }
 
-    def run_all_checks(self) -> Dict:
+    def run_all_checks(self) -> dict:
         """Run all validation checks."""
-
         print("🔍 Starting Daily Validation Report")
         print("=" * 60)
 
@@ -159,7 +157,7 @@ class DailyValidationReport:
             try:
                 mtime = datetime.fromtimestamp(error_file.stat().st_mtime)
                 if mtime > datetime.now() - timedelta(days=1):
-                    with open(error_file, "r") as f:
+                    with open(error_file) as f:
                         lines = f.readlines()
                         if lines:
                             recent_errors.append(
@@ -202,6 +200,7 @@ class DailyValidationReport:
                 capture_output=True,
                 text=True,
                 cwd=PROJECT_ROOT,
+                check=False,
             )
 
             if result.returncode == 0:
@@ -237,7 +236,10 @@ class DailyValidationReport:
 
         try:
             result = subprocess.run(
-                ["df", "-h", str(PROJECT_ROOT)], capture_output=True, text=True
+                ["df", "-h", str(PROJECT_ROOT)],
+                capture_output=True,
+                text=True,
+                check=False,
             )
 
             if result.returncode == 0:
@@ -297,6 +299,7 @@ class DailyValidationReport:
                 capture_output=True,
                 text=True,
                 cwd=PROJECT_ROOT,
+                check=False,
             )
 
             if result.returncode == 0:

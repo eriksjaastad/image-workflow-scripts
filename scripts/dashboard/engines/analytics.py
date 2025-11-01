@@ -13,11 +13,15 @@ Key responsibilities:
 - Ensure deterministic label ordering (chronological)
 """
 
+import logging
 import sys
+import threading
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
+
+logger = logging.getLogger(__name__)
 
 # Add project root to path
 project_root = Path(__file__).resolve().parents[2]
@@ -29,6 +33,7 @@ from scripts.dashboard.engines.project_metrics_aggregator import (
 )
 from scripts.dashboard.parsers.queue_reader import QueueDataReader
 from scripts.dashboard.parsers.timesheet_parser import TimesheetParser
+from scripts.utils.datetime_utils import normalize_to_naive_utc
 
 # Centralized tool order - used across ALL charts, tables, and toggles
 # This ensures consistent ordering everywhere in the dashboard
@@ -56,12 +61,15 @@ class DashboardAnalytics:
         self._cached_file_ops_for_daily = None
         self._cache_timestamp = None
 
+        # Thread safety: Lock for cache invalidation to prevent race conditions
+        self._cache_lock = threading.RLock()
+
         # Track timesheet modification time for cache invalidation
         self._timesheet_mtime = None
 
     def generate_dashboard_response(
-        self, time_slice: str, lookback_days: int, project_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, time_slice: str, lookback_days: int, project_id: str | None = None
+    ) -> dict[str, Any]:
         """
         Generate complete dashboard response matching UI contract.
 
@@ -205,8 +213,8 @@ class DashboardAnalytics:
         return response
 
     def _build_daily_activity_window(
-        self, raw_data: Dict[str, Any], project_id: Optional[str], lookback_days: int
-    ) -> Dict[str, List[Any]]:
+        self, raw_data: dict[str, Any], project_id: str | None, lookback_days: int
+    ) -> dict[str, list[Any]]:
         """
         Compute earliest and latest file operation timestamps per day within the lookback window.
         Returns stacked-bar friendly data with an invisible offset and a duration.
@@ -218,7 +226,6 @@ class DashboardAnalytics:
         """
         import sqlite3
         from datetime import datetime, timedelta
-        from zoneinfo import ZoneInfo
 
         # Load raw operations (cached path in analytics if available)
         all_ops = (
@@ -236,7 +243,7 @@ class DashboardAnalytics:
         )
         root_hint = (project or {}).get("paths", {}).get("root") if project else None
 
-        def belongs(rec: Dict[str, Any]) -> bool:
+        def belongs(rec: dict[str, Any]) -> bool:
             if project is None:
                 return True
             # Prefer path hint when present
@@ -249,13 +256,10 @@ class DashboardAnalytics:
             try:
                 ts = rec.get("timestamp") or rec.get("timestamp_str")
                 if isinstance(ts, str):
-                    # If timestamp has timezone (Z or offset), convert to ET
+                    # Parse and normalize to naive UTC
                     if ts.endswith("Z") or "+" in ts:
                         dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-                        try:
-                            dt = dt.astimezone(ZoneInfo("America/New_York"))
-                        except Exception:
-                            dt = dt.replace(tzinfo=None)
+                        dt = normalize_to_naive_utc(dt)
                     else:
                         dt = datetime.fromisoformat(ts)
                 else:
@@ -280,20 +284,17 @@ class DashboardAnalytics:
         now = datetime.now()
         start_cutoff = (now - timedelta(days=lookback_days)).date()
 
-        buckets: Dict[str, List[datetime]] = {}
+        buckets: dict[str, list[datetime]] = {}
         for rec in all_ops:
             try:
                 ts = rec.get("timestamp") or rec.get("timestamp_str")
                 if isinstance(ts, str):
-                    # If timestamp has timezone information, convert to ET
+                    # Parse and normalize to naive UTC
                     if ts.endswith("Z") or "+" in ts:
                         dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-                        try:
-                            dt = dt.astimezone(ZoneInfo("America/New_York"))
-                        except Exception:
-                            dt = dt.replace(tzinfo=None)
+                        dt = normalize_to_naive_utc(dt)
                     else:
-                        # Treat naive timestamps as local ET (file ops are logged local)
+                        # Treat naive timestamps as already UTC
                         dt = datetime.fromisoformat(ts)
                 else:
                     dt = ts
@@ -332,10 +333,7 @@ class DashboardAnalytics:
                                     dt = datetime.fromisoformat(
                                         ts.replace("Z", "+00:00")
                                     )
-                                    try:
-                                        dt = dt.astimezone(ZoneInfo("America/New_York"))
-                                    except Exception:
-                                        dt = dt.replace(tzinfo=None)
+                                    dt = normalize_to_naive_utc(dt)
                                 else:
                                     dt = datetime.fromisoformat(ts)
                             else:
@@ -352,8 +350,8 @@ class DashboardAnalytics:
                 pass
 
         dates = sorted(buckets.keys())
-        offset_hours: List[float] = []
-        durations: List[float] = []
+        offset_hours: list[float] = []
+        durations: list[float] = []
         for d in dates:
             times = sorted(buckets[d])
             if not times:
@@ -371,7 +369,7 @@ class DashboardAnalytics:
 
         return {"dates": dates, "offset_hours": offset_hours, "durations": durations}
 
-    def _build_projects_list(self, raw_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _build_projects_list(self, raw_data: dict[str, Any]) -> list[dict[str, Any]]:
         """Extract projects list from raw data."""
         projects = raw_data.get("projects", [])
         return [
@@ -384,8 +382,8 @@ class DashboardAnalytics:
         ]
 
     def _build_charts(
-        self, raw_data: Dict[str, Any], baseline_labels: List[str], time_slice: str
-    ) -> Dict[str, Any]:
+        self, raw_data: dict[str, Any], baseline_labels: list[str], time_slice: str
+    ) -> dict[str, Any]:
         """
         Build charts data aligned to baseline labels.
 
@@ -434,12 +432,12 @@ class DashboardAnalytics:
 
     def _aggregate_to_baseline(
         self,
-        records: List[Dict[str, Any]],
-        baseline_labels: List[str],
+        records: list[dict[str, Any]],
+        baseline_labels: list[str],
         group_field: str,
         value_field: str,
         map_display_names: bool = False,
-    ) -> Dict[str, Dict[str, List]]:
+    ) -> dict[str, dict[str, list]]:
         """
         Aggregate records to baseline labels, filling gaps with zeros.
 
@@ -484,7 +482,7 @@ class DashboardAnalytics:
 
         return result
 
-    def _build_timing_data(self, raw_data: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    def _build_timing_data(self, raw_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
         """
         Build timing data per tool.
 
@@ -500,11 +498,11 @@ class DashboardAnalytics:
 
     def _build_project_comparisons(
         self,
-        project_metrics: Dict[str, Dict[str, Any]],
-        raw_data: Dict[str, Any],
+        project_metrics: dict[str, dict[str, Any]],
+        raw_data: dict[str, Any],
         time_slice: str,
         lookback_days: int,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Build project comparison data for bar charts with tool-level breakdowns.
 
@@ -591,10 +589,10 @@ class DashboardAnalytics:
 
     def _build_project_kpi(
         self,
-        project_id: Optional[str],
-        project_metrics: Dict[str, Dict[str, Any]],
-        raw_data: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        project_id: str | None,
+        project_metrics: dict[str, dict[str, Any]],
+        raw_data: dict[str, Any],
+    ) -> dict[str, Any]:
         """
         Build project KPI card data.
 
@@ -636,8 +634,8 @@ class DashboardAnalytics:
         }
 
     def _build_project_markers(
-        self, project_id: Optional[str], raw_data: Dict[str, Any]
-    ) -> Dict[str, Optional[str]]:
+        self, project_id: str | None, raw_data: dict[str, Any]
+    ) -> dict[str, str | None]:
         """
         Build project markers (start/finish timestamps).
 
@@ -663,8 +661,8 @@ class DashboardAnalytics:
         }
 
     def _build_productivity_overview_table(
-        self, detailed_table_data: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, detailed_table_data: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
         Build high-level productivity overview table (img/h metrics only).
 
@@ -735,11 +733,11 @@ class DashboardAnalytics:
 
     def _build_project_productivity_table(
         self,
-        raw_data: Dict[str, Any],
-        project_metrics: Dict[str, Dict[str, Any]],
+        raw_data: dict[str, Any],
+        project_metrics: dict[str, dict[str, Any]],
         time_slice: str,
         lookback_days: int,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Build detailed project productivity table data.
 
@@ -837,12 +835,12 @@ class DashboardAnalytics:
     def _build_tools_breakdown_for_project(
         self,
         project_id: str,
-        project: Dict[str, Any],
-        pm: Dict[str, Any],
-        raw_data: Dict[str, Any],
+        project: dict[str, Any],
+        pm: dict[str, Any],
+        raw_data: dict[str, Any],
         time_slice: str,
         lookback_days: int,
-    ) -> Dict[str, Dict[str, Any]]:
+    ) -> dict[str, dict[str, Any]]:
         """
         Build per-tool breakdown for a specific project.
 
@@ -870,7 +868,7 @@ class DashboardAnalytics:
         started_at = project.get("startedAt")
         finished_at = project.get("finishedAt")
 
-        def belongs(rec: Dict[str, Any]) -> bool:
+        def belongs(rec: dict[str, Any]) -> bool:
             """Filter file operations to this project's date range."""
             if not started_at:
                 return False  # Can't match without start date
@@ -881,27 +879,28 @@ class DashboardAnalytics:
                 return False
 
             try:
-                # Parse operation timestamp (naive local time - no timezone info)
+                # Parse operation timestamp and normalize to naive UTC
                 if isinstance(ts, str):
-                    # Remove Z if present, but DON'T add timezone offset
-                    ts = ts.replace("Z", "")
+                    ts = ts.replace("Z", "+00:00") if ts.endswith("Z") else ts
                     op_dt = datetime.fromisoformat(ts)
+                    op_dt = normalize_to_naive_utc(op_dt)
                 else:
-                    op_dt = ts  # Already datetime
+                    op_dt = normalize_to_naive_utc(ts) if hasattr(ts, "tzinfo") else ts
 
-                # Make sure op_dt is naive (no timezone)
-                if op_dt.tzinfo is not None:
-                    op_dt = op_dt.replace(tzinfo=None)
-
-                # Parse project dates and convert to naive datetime (drop timezone)
+                # Parse project dates and convert to naive UTC
                 start_str = (
-                    started_at.replace("Z", "")
+                    started_at.replace("Z", "+00:00")
+                    if started_at.endswith("Z")
+                    else started_at
                     if isinstance(started_at, str)
                     else started_at
                 )
-                start_dt = datetime.fromisoformat(start_str)
-                if start_dt.tzinfo is not None:
-                    start_dt = start_dt.replace(tzinfo=None)
+                start_dt = (
+                    datetime.fromisoformat(start_str)
+                    if isinstance(start_str, str)
+                    else start_str
+                )
+                start_dt = normalize_to_naive_utc(start_dt)
 
                 # Check if operation is after project start
                 if op_dt < start_dt:
@@ -910,13 +909,18 @@ class DashboardAnalytics:
                 # Check if operation is before project end (if project is finished)
                 if finished_at:
                     end_str = (
-                        finished_at.replace("Z", "")
+                        finished_at.replace("Z", "+00:00")
+                        if finished_at.endswith("Z")
+                        else finished_at
                         if isinstance(finished_at, str)
                         else finished_at
                     )
-                    end_dt = datetime.fromisoformat(end_str)
-                    if end_dt.tzinfo is not None:
-                        end_dt = end_dt.replace(tzinfo=None)
+                    end_dt = (
+                        datetime.fromisoformat(end_str)
+                        if isinstance(end_str, str)
+                        else end_str
+                    )
+                    end_dt = normalize_to_naive_utc(end_dt)
                     if op_dt > end_dt:
                         return False
 
@@ -927,7 +931,7 @@ class DashboardAnalytics:
         proj_ops = [r for r in window_ops if belongs(r)]
 
         # Group per tool (display)
-        grouped: Dict[str, List[Dict[str, Any]]] = {}
+        grouped: dict[str, list[dict[str, Any]]] = {}
         for r in proj_ops:
             display = self.engine.get_display_name(r.get("script") or "unknown")
             if display not in allowed_tools_order:
@@ -1058,8 +1062,7 @@ class DashboardAnalytics:
                             and is_cropped_dest(str(r.get("dest_dir") or ""))
                         )
                     )
-                    if extra_cropped > images:
-                        images = extra_cropped
+                    images = max(extra_cropped, images)
                 except Exception:
                     pass
 
@@ -1103,7 +1106,7 @@ class DashboardAnalytics:
         return tools_breakdown
 
     def _count_active_days_for_tool(
-        self, raw_data: Dict[str, Any], project_id: str, tool_name: str
+        self, raw_data: dict[str, Any], project_id: str, tool_name: str
     ) -> int:
         """
         Count unique calendar days where a tool was used for a project.
@@ -1121,6 +1124,40 @@ class DashboardAnalytics:
         if not started_at:
             return 0
 
+        # PERFORMANCE FIX: Parse project dates ONCE before loop (not inside loop)
+        try:
+            start_str = (
+                started_at.replace("Z", "+00:00")
+                if started_at.endswith("Z")
+                else started_at
+                if isinstance(started_at, str)
+                else started_at
+            )
+            start_dt = (
+                datetime.fromisoformat(start_str)
+                if isinstance(start_str, str)
+                else start_str
+            )
+            start_dt = normalize_to_naive_utc(start_dt)
+
+            end_dt = None
+            if finished_at:
+                end_str = (
+                    finished_at.replace("Z", "+00:00")
+                    if finished_at.endswith("Z")
+                    else finished_at
+                    if isinstance(finished_at, str)
+                    else finished_at
+                )
+                end_dt = (
+                    datetime.fromisoformat(end_str)
+                    if isinstance(end_str, str)
+                    else end_str
+                )
+                end_dt = normalize_to_naive_utc(end_dt)
+        except Exception:
+            return 0
+
         # PERFORMANCE FIX: Use cached file operations
         all_ops = (
             self._cached_file_ops
@@ -1128,14 +1165,16 @@ class DashboardAnalytics:
             else self.engine.load_file_operations()
         )
 
+        # Get display name once for tool matching
+        display_name = self.engine.get_display_name(tool_name)
+
         unique_dates = set()
 
+        # PERFORMANCE FIX: Single-pass filter with pre-computed project dates
         for rec in all_ops:
             # Match tool name
             rec_script = rec.get("script", "")
-            if self.engine.get_display_name(rec_script) != self.engine.get_display_name(
-                tool_name
-            ):
+            if self.engine.get_display_name(rec_script) != display_name:
                 continue
 
             # Filter by project date range
@@ -1144,45 +1183,21 @@ class DashboardAnalytics:
                 continue
 
             try:
-                # Parse operation timestamp (naive local time)
+                # Parse operation timestamp
                 if isinstance(ts, datetime):
                     op_dt = ts
                 elif isinstance(ts, str):
-                    ts = ts.replace("Z", "")
+                    ts = ts.replace("Z", "+00:00") if ts.endswith("Z") else ts
                     op_dt = datetime.fromisoformat(ts)
+                    op_dt = normalize_to_naive_utc(op_dt)
                 else:
                     continue
 
-                # Make sure op_dt is naive
-                if op_dt.tzinfo is not None:
-                    op_dt = op_dt.replace(tzinfo=None)
-
-                # Parse project dates and convert to naive datetime
-                start_str = (
-                    started_at.replace("Z", "")
-                    if isinstance(started_at, str)
-                    else started_at
-                )
-                start_dt = datetime.fromisoformat(start_str)
-                if start_dt.tzinfo is not None:
-                    start_dt = start_dt.replace(tzinfo=None)
-
-                # Check if operation is after project start
+                # Check if operation is in project date range (using pre-parsed dates)
                 if op_dt < start_dt:
                     continue
-
-                # Check if operation is before project end (if project is finished)
-                if finished_at:
-                    end_str = (
-                        finished_at.replace("Z", "")
-                        if isinstance(finished_at, str)
-                        else finished_at
-                    )
-                    end_dt = datetime.fromisoformat(end_str)
-                    if end_dt.tzinfo is not None:
-                        end_dt = end_dt.replace(tzinfo=None)
-                    if op_dt > end_dt:
-                        continue
+                if end_dt and op_dt > end_dt:
+                    continue
 
                 # Add the date (not datetime) to the set
                 unique_dates.add(op_dt.date().isoformat())
@@ -1192,8 +1207,8 @@ class DashboardAnalytics:
         return len(unique_dates)
 
     def _build_billed_vs_actual(
-        self, timesheet_data: Dict[str, Any], project_metrics: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, timesheet_data: dict[str, Any], project_metrics: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Compare billed hours (from timesheet) vs actual hours (from timer data).
 
@@ -1339,8 +1354,8 @@ class DashboardAnalytics:
         return {"projects": comparison}
 
     def _build_billed_vs_actual_timeseries(
-        self, timesheet_data: Dict[str, Any], project_metrics: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, timesheet_data: dict[str, Any], project_metrics: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Build daily breakdown of billed vs actual hours.
 
@@ -1404,7 +1419,7 @@ class DashboardAnalytics:
                 )
                 matched_project = None
 
-                for proj_id in project_metrics.keys():
+                for proj_id in project_metrics:
                     proj_normalized = (
                         proj_id.lower()
                         .replace(" ", "")
@@ -1416,7 +1431,7 @@ class DashboardAnalytics:
                     if ts_normalized == proj_normalized:
                         matched_project = proj_id
                         break
-                    elif proj_normalized in ts_normalized:
+                    if proj_normalized in ts_normalized:
                         idx = ts_normalized.find(proj_normalized)
                         if idx != -1:
                             before_ok = (idx == 0) or (
@@ -1628,7 +1643,7 @@ class DashboardAnalytics:
 
         return {"daily": {"projects": daily_data}}
 
-    def _load_timesheet_data(self) -> Dict[str, Any]:
+    def _load_timesheet_data(self) -> dict[str, Any]:
         """
         Load and parse timesheet CSV for billing/efficiency tracking.
         Checks modification time and invalidates analytics cache if timesheet changed.
@@ -1664,21 +1679,22 @@ class DashboardAnalytics:
                     "totals": {"total_hours": 0, "total_projects": 0},
                 }
 
-            # Check if timesheet was modified - invalidate caches if so
-            current_mtime = int(self.timesheet_parser.csv_path.stat().st_mtime)
-            if (
-                self._timesheet_mtime is not None
-                and self._timesheet_mtime != current_mtime
-            ):
-                print("[TIMESHEET CACHE] Timesheet modified - invalidating caches")
-                # Clear file ops cache
-                self._cached_file_ops = None
-                self._cached_file_ops_for_daily = None
-                # Clear project metrics cache
-                self.project_agg._cache_key = None
-                self.project_agg._cache_value = {}
+            # Check if timesheet was modified - invalidate caches if so (thread-safe)
+            with self._cache_lock:
+                current_mtime = int(self.timesheet_parser.csv_path.stat().st_mtime)
+                if (
+                    self._timesheet_mtime is not None
+                    and self._timesheet_mtime != current_mtime
+                ):
+                    print("[TIMESHEET CACHE] Timesheet modified - invalidating caches")
+                    # Clear file ops cache
+                    self._cached_file_ops = None
+                    self._cached_file_ops_for_daily = None
+                    # Clear project metrics cache
+                    self.project_agg._cache_key = None
+                    self.project_agg._cache_value = {}
 
-            self._timesheet_mtime = current_mtime
+                self._timesheet_mtime = current_mtime
 
             data = self.timesheet_parser.parse()
             print(
@@ -1695,7 +1711,7 @@ class DashboardAnalytics:
             print(f"[TIMESHEET ERROR] Traceback: {traceback.format_exc()}")
             return {"projects": [], "totals": {"total_hours": 0, "total_projects": 0}}
 
-    def _build_queue_stats(self, lookback_days: int) -> Dict[str, Any]:
+    def _build_queue_stats(self, lookback_days: int) -> dict[str, Any]:
         """
         Build queue statistics for dashboard.
 

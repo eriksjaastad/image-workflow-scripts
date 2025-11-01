@@ -18,11 +18,8 @@ Tabs:
 
 from __future__ import annotations
 
-import json
 import sys
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
 
 from flask import Flask, jsonify, render_template_string, request
 
@@ -35,6 +32,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from scripts.dashboard.engines.analytics import DashboardAnalytics
 from scripts.dashboard.engines.data_engine import DashboardDataEngine
 from scripts.dashboard.parsers.timesheet_parser import TimesheetParser
+from scripts.utils.api_response_utils import error_response
 
 
 class UnifiedDashboard:
@@ -109,7 +107,7 @@ class UnifiedDashboard:
                 print("ERROR in /api/productivity/data endpoint:")
                 traceback.print_exc()
                 print("=" * 70)
-                return jsonify({"error": str(e)}), 500
+                return error_response(str(e), 500)
 
         @self.app.route("/api/scripts")
         def get_scripts():
@@ -128,9 +126,8 @@ class UnifiedDashboard:
                     date=data.get("date"),
                 )
                 return jsonify({"status": "success"})
-            else:
-                updates = self.data_engine.load_script_updates()
-                return jsonify(updates.to_dict("records"))
+            updates = self.data_engine.load_script_updates()
+            return jsonify(updates.to_dict("records"))
 
         # ===== Current Project Tab API Endpoints =====
 
@@ -140,21 +137,21 @@ class UnifiedDashboard:
             try:
                 # Import current project logic
                 from scripts.dashboard.current_project_dashboard_v2 import (
-                    find_active_project,
-                    get_directory_status,
-                    load_timesheet_data,
-                    get_project_file_operations,
-                    match_timesheet_to_project,
-                    compute_phase_metrics,
+                    build_historical_baseline,
                     compute_phase_active_days,
                     compute_phase_hours_by_active_days,
-                    build_historical_baseline,
+                    compute_phase_metrics,
+                    find_active_project,
+                    get_directory_status,
+                    get_project_file_operations,
+                    load_timesheet_data,
+                    match_timesheet_to_project,
                 )
 
                 # Find active project
                 active_project = find_active_project()
                 if not active_project:
-                    return jsonify({"error": "No active project found"}), 404
+                    return error_response("No active project found", 404)
 
                 project_id = active_project.get("projectId")
                 title = active_project.get("title") or project_id
@@ -273,7 +270,7 @@ class UnifiedDashboard:
                 print("ERROR in /api/current-project/progress endpoint:")
                 traceback.print_exc()
                 print("=" * 70)
-                return jsonify({"error": str(e)}), 500
+                return error_response(str(e), 500)
 
         # ===== Debug Endpoint =====
 
@@ -287,7 +284,7 @@ class UnifiedDashboard:
                 )
                 return jsonify(raw_data)
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return error_response(str(e), 500)
 
     def _get_dashboard_template(self) -> str:
         """Return the HTML template for the tabbed dashboard."""
@@ -295,9 +292,8 @@ class UnifiedDashboard:
         template_path = Path(__file__).parent / "dashboard_tabbed_template.html"
         if template_path.exists():
             return template_path.read_text()
-        else:
-            # Fallback: create a basic tabbed template
-            return self._create_tabbed_template()
+        # Fallback: create a basic tabbed template
+        return self._create_tabbed_template()
 
     def _create_tabbed_template(self) -> str:
         """Create a basic tabbed dashboard template (fallback)."""

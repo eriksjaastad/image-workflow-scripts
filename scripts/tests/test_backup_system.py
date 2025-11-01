@@ -59,7 +59,7 @@ class TestBackupSystem:
             return False
 
         try:
-            with open(status_file, 'r') as f:
+            with open(status_file) as f:
                 status_data = json.load(f)
 
             required_fields = ["last_backup", "status", "total_files", "total_size_mb"]
@@ -86,11 +86,12 @@ class TestBackupSystem:
             yesterday_backup = self.backup_root / yesterday
 
             if yesterday_backup.exists():
-                self.log_warning("Today's backup not found, but yesterday's exists - cron may not have run yet")
+                self.log_warning(
+                    "Today's backup not found, but yesterday's exists - cron may not have run yet"
+                )
                 return True
-            else:
-                self.log_error("No recent backup directories found")
-                return False
+            self.log_error("No recent backup directories found")
+            return False
 
         # Check that backup has content
         manifest_file = today_backup / "manifest.json"
@@ -99,14 +100,16 @@ class TestBackupSystem:
             return False
 
         try:
-            with open(manifest_file, 'r') as f:
+            with open(manifest_file) as f:
                 manifest = json.load(f)
 
             if manifest.get("total_files", 0) == 0:
                 self.log_error("Backup contains no files")
                 return False
 
-            self.log_success(f"Recent backup valid: {manifest['total_files']} files, {manifest['total_size_mb']} MB")
+            self.log_success(
+                f"Recent backup valid: {manifest['total_files']} files, {manifest['total_size_mb']} MB"
+            )
             return True
 
         except Exception as e:
@@ -129,7 +132,9 @@ class TestBackupSystem:
                     missing_files.append(str(db_file))
 
             if missing_files:
-                self.log_error(f"Database files reported but don't exist: {missing_files}")
+                self.log_error(
+                    f"Database files reported but don't exist: {missing_files}"
+                )
                 return False
 
             self.log_success(f"Found {len(db_files)} database files")
@@ -143,13 +148,20 @@ class TestBackupSystem:
         """Test that backup script can be executed without errors."""
         try:
             # Run backup script with dry-run mode (if it exists)
-            result = subprocess.run([
-                sys.executable, "scripts/backup/daily_backup_simple.py"
-            ], capture_output=True, text=True, cwd=self.project_root, timeout=30)
+            result = subprocess.run(
+                [sys.executable, "scripts/backup/daily_backup_simple.py"],
+                capture_output=True,
+                text=True,
+                cwd=self.project_root,
+                timeout=30,
+                check=False,
+            )
 
             # Script should exit cleanly (0 for success, 1 for expected failure)
             if result.returncode not in [0, 1]:
-                self.log_error(f"Backup script failed with exit code {result.returncode}")
+                self.log_error(
+                    f"Backup script failed with exit code {result.returncode}"
+                )
                 if result.stderr:
                     self.log_error(f"Stderr: {result.stderr[:200]}...")
                 return False
@@ -167,16 +179,20 @@ class TestBackupSystem:
     def test_cron_job_configured(self):
         """Test that backup cron jobs are configured."""
         try:
-            result = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
+            result = subprocess.run(
+                ["crontab", "-l"], capture_output=True, text=True, check=False
+            )
 
             if result.returncode != 0:
                 self.log_error("Cannot read crontab")
                 return False
 
-            cron_lines = result.stdout.strip().split('\n')
+            cron_lines = result.stdout.strip().split("\n")
 
             # Check for daily backup
-            daily_backup_found = any("daily_backup_simple.py" in line for line in cron_lines)
+            daily_backup_found = any(
+                "daily_backup_simple.py" in line for line in cron_lines
+            )
             if not daily_backup_found:
                 self.log_warning("Daily backup cron job not found")
 
@@ -188,9 +204,8 @@ class TestBackupSystem:
             if daily_backup_found or weekly_backup_found:
                 self.log_success("Backup cron jobs are configured")
                 return True
-            else:
-                self.log_error("No backup cron jobs found")
-                return False
+            self.log_error("No backup cron jobs found")
+            return False
 
         except Exception as e:
             self.log_error(f"Cron job check failed: {e}")
@@ -217,9 +232,8 @@ class TestBackupSystem:
             if result:
                 self.log_success("Backup verification logic works")
                 return True
-            else:
-                self.log_error("Backup verification logic failed")
-                return False
+            self.log_error("Backup verification logic failed")
+            return False
 
         except Exception as e:
             self.log_error(f"Backup verification test failed: {e}")
@@ -270,7 +284,9 @@ class TestBackupSystem:
                 print(f"   • {warning}")
 
         success = len(self.errors) == 0
-        print(f"\n{'✅ ALL TESTS PASSED' if success else '❌ TESTS FAILED - BACKUP SYSTEM NEEDS ATTENTION'}")
+        print(
+            f"\n{'✅ ALL TESTS PASSED' if success else '❌ TESTS FAILED - BACKUP SYSTEM NEEDS ATTENTION'}"
+        )
 
         return success
 

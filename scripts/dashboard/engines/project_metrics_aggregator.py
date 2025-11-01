@@ -29,19 +29,23 @@ from __future__ import annotations
 
 import gzip
 import json
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from scripts.utils.companion_file_utils import get_file_operation_metrics
+from scripts.utils.datetime_utils import normalize_to_naive_utc
 
 
-def _parse_iso_naive(value: Optional[str]) -> Optional[datetime]:
-    """Parse ISO-8601-like strings into a naive datetime.
+def _parse_iso_naive(value: str | None) -> datetime | None:
+    """Parse ISO-8601-like strings into a naive UTC datetime.
 
     - Supports 'Z' by converting to '+00:00' first.
-    - If offset-aware, drops tzinfo to make it naive.
+    - If offset-aware, converts to UTC then drops tzinfo.
     - Returns None for falsy/invalid values.
     """
     if not value:
@@ -51,8 +55,8 @@ def _parse_iso_naive(value: Optional[str]) -> Optional[datetime]:
         if v.endswith("Z"):
             v = v[:-1] + "+00:00"
         dt = datetime.fromisoformat(v)
-        # Drop tzinfo if present (treat uniformly as naive)
-        return dt.replace(tzinfo=None)
+        # Convert to UTC, then drop tzinfo (proper timezone handling)
+        return normalize_to_naive_utc(dt)
     except Exception:
         return None
 
@@ -61,19 +65,19 @@ def _parse_iso_naive(value: Optional[str]) -> Optional[datetime]:
 class ProjectMetrics:
     project_id: str
     title: str
-    status: Optional[str]
-    started_at: Optional[str]
-    finished_at: Optional[str]
+    status: str | None
+    started_at: str | None
+    finished_at: str | None
     images_processed: int
-    operations_by_type: Dict[str, int]
-    operations_by_dest: Dict[str, Dict[str, int]]
+    operations_by_type: dict[str, int]
+    operations_by_dest: dict[str, dict[str, int]]
     images_per_hour: float
     work_minutes: float  # NEW: Store work time for billed vs actual comparison
-    timeseries_daily: List[Tuple[str, int]]  # (YYYY-MM-DD, count)
-    baseline: Dict[str, Any]
-    tools: Dict[str, Dict[str, Any]]
+    timeseries_daily: list[tuple[str, int]]  # (YYYY-MM-DD, count)
+    baseline: dict[str, Any]
+    tools: dict[str, dict[str, Any]]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "projectId": self.project_id,
             "title": self.title,
@@ -107,11 +111,11 @@ class ProjectMetricsAggregator:
         self.log_archives_dir = self.data_dir / "data" / "log_archives"
         self.summaries_dir = self.data_dir / "data" / "daily_summaries"
 
-        self._cache_key: Optional[Tuple[int, int, int, int]] = None
-        self._cache_value: Dict[str, Dict[str, Any]] = {}
+        self._cache_key: tuple[int, int, int, int] | None = None
+        self._cache_value: dict[str, dict[str, Any]] = {}
 
     # ---------------------------- Public API ----------------------------
-    def aggregate(self) -> Dict[str, Dict[str, Any]]:
+    def aggregate(self) -> dict[str, dict[str, Any]]:
         """Aggregate per-project metrics with mtime-based caching."""
         cache_key = self._compute_cache_key()
         if self._cache_key == cache_key and self._cache_value:
@@ -140,7 +144,7 @@ class ProjectMetricsAggregator:
             if day:
                 summary_days.add(day)
 
-        filtered_detailed: List[Dict[str, Any]] = []
+        filtered_detailed: list[dict[str, Any]] = []
         for rec in detailed_ops:
             ts = rec.get("timestamp") or rec.get("timestamp_str") or ""
             day = ""
@@ -158,7 +162,7 @@ class ProjectMetricsAggregator:
 
         file_ops = [*summary_ops, *filtered_detailed]
 
-        results: Dict[str, Dict[str, Any]] = {}
+        results: dict[str, dict[str, Any]] = {}
         for mf in manifests:
             project_id = mf.get("projectId") or ""
             if not project_id:
@@ -188,7 +192,7 @@ class ProjectMetricsAggregator:
             timeseries_daily = self._daily_counts(proj_ops)
             # Compute work time from file operations (same method as dashboard data engine)
             try:
-                ops_for_metrics: List[Dict[str, Any]] = []
+                ops_for_metrics: list[dict[str, Any]] = []
                 for op in proj_ops:
                     op_copy = dict(op)
                     ts = op_copy.get("timestamp")
@@ -236,7 +240,7 @@ class ProjectMetricsAggregator:
         return results
 
     # ---------------------------- Helpers ----------------------------
-    def _compute_cache_key(self) -> Tuple[int, int, int, int]:
+    def _compute_cache_key(self) -> tuple[int, int, int, int]:
         def latest_mtime(path: Path) -> int:
             latest = 0
             if path.exists():
@@ -254,12 +258,12 @@ class ProjectMetricsAggregator:
             max(latest_mtime(self.log_archives_dir), latest_mtime(self.summaries_dir)),
         )
 
-    def _load_manifests(self) -> List[Dict[str, Any]]:
-        manifests: List[Dict[str, Any]] = []
+    def _load_manifests(self) -> list[dict[str, Any]]:
+        manifests: list[dict[str, Any]] = []
         if self.projects_dir.exists():
             for mf in sorted(self.projects_dir.glob("*.project.json")):
                 try:
-                    with open(mf, "r") as f:
+                    with open(mf) as f:
                         pj = json.load(f)
                     # Ensure required surface keys exist
                     pj.setdefault("paths", {})
@@ -286,7 +290,7 @@ class ProjectMetricsAggregator:
                         if rec and rec.get("type") == "file_operation":
                             yield rec
             else:
-                with open(path, "r") as f:
+                with open(path) as f:
                     for line in f:
                         rec = self._safe_json(line)
                         if rec and rec.get("type") == "file_operation":
@@ -302,7 +306,7 @@ class ProjectMetricsAggregator:
             return
         for summary_file in self.summaries_dir.glob("daily_summary_*.json"):
             try:
-                with open(summary_file, "r") as f:
+                with open(summary_file) as f:
                     summary = json.load(f)
                 date_str = summary.get("date")  # YYYYMMDD
                 if not date_str or len(date_str) not in (8, 10):
@@ -338,7 +342,7 @@ class ProjectMetricsAggregator:
                 continue
 
     @staticmethod
-    def _safe_json(line: str) -> Optional[Dict[str, Any]]:
+    def _safe_json(line: str) -> dict[str, Any] | None:
         try:
             return json.loads(line)
         except Exception:
@@ -346,12 +350,12 @@ class ProjectMetricsAggregator:
 
     @staticmethod
     def _filter_ops_for_project(
-        file_ops: List[Dict[str, Any]], root_hint: str
-    ) -> List[Dict[str, Any]]:
+        file_ops: list[dict[str, Any]], root_hint: str
+    ) -> list[dict[str, Any]]:
         if not root_hint:
             return []
         root_hint = str(root_hint)
-        out: List[Dict[str, Any]] = []
+        out: list[dict[str, Any]] = []
         for r in file_ops:
             src = r.get("source_dir") or ""
             dst = r.get("dest_dir") or ""
@@ -361,7 +365,7 @@ class ProjectMetricsAggregator:
         return out
 
     @staticmethod
-    def _parse_op_timestamp(rec: Dict[str, Any]) -> Optional[datetime]:
+    def _parse_op_timestamp(rec: dict[str, Any]) -> datetime | None:
         ts = rec.get("timestamp") or rec.get("timestamp_str")
         if not ts:
             return None
@@ -370,21 +374,21 @@ class ProjectMetricsAggregator:
             if isinstance(v, str) and v.endswith("Z"):
                 v = v[:-1] + "+00:00"
             dt = datetime.fromisoformat(v)
-            return dt.replace(tzinfo=None)
+            return normalize_to_naive_utc(dt)
         except Exception:
             return None
 
     def _filter_ops_by_time_window(
         self,
-        file_ops: List[Dict[str, Any]],
-        started_at: Optional[str],
-        finished_at: Optional[str],
-    ) -> List[Dict[str, Any]]:
+        file_ops: list[dict[str, Any]],
+        started_at: str | None,
+        finished_at: str | None,
+    ) -> list[dict[str, Any]]:
         start_dt = _parse_iso_naive(started_at)
         end_dt = _parse_iso_naive(finished_at) or datetime.now()
         if not start_dt:
             return []
-        out: List[Dict[str, Any]] = []
+        out: list[dict[str, Any]] = []
         for r in file_ops:
             dt = self._parse_op_timestamp(r)
             if dt and start_dt <= dt <= end_dt:
@@ -393,11 +397,11 @@ class ProjectMetricsAggregator:
 
     @staticmethod
     def _sum_ops(
-        records: List[Dict[str, Any]],
-    ) -> Tuple[int, Dict[str, int], Dict[str, Dict[str, int]]]:
+        records: list[dict[str, Any]],
+    ) -> tuple[int, dict[str, int], dict[str, dict[str, int]]]:
         total = 0
-        by_type: Dict[str, int] = {}
-        by_dest: Dict[str, Dict[str, int]] = {}
+        by_type: dict[str, int] = {}
+        by_dest: dict[str, dict[str, int]] = {}
         for r in records:
             op = r.get("operation") or "unknown"
             count = int(r.get("file_count") or 0)
@@ -409,7 +413,7 @@ class ProjectMetricsAggregator:
                 g[dest] = g.get(dest, 0) + count
 
         # Count images processed using image-only signals and target destinations
-        def _is_png_only(rec: Dict[str, Any]) -> bool:
+        def _is_png_only(rec: dict[str, Any]) -> bool:
             n = rec.get("notes")
             notes = n if isinstance(n, str) else ""
             notes = notes.lower()
@@ -429,16 +433,19 @@ class ProjectMetricsAggregator:
             for rec in png_records:
                 op = str(rec.get("operation") or "").lower()
                 dest = str(rec.get("dest_dir") or "").lower()
-                if op == "move" and dest in {
-                    "selected",
-                    "__selected",
-                    "crop",
-                    "__crop",
-                    "__crop_auto",
-                    "crop_auto",
-                }:
-                    tmp += int(rec.get("file_count") or 0)
-                elif op == "crop":
+                if (
+                    op == "move"
+                    and dest
+                    in {
+                        "selected",
+                        "__selected",
+                        "crop",
+                        "__crop",
+                        "__crop_auto",
+                        "crop_auto",
+                    }
+                    or op == "crop"
+                ):
                     tmp += int(rec.get("file_count") or 0)
             total = tmp
         else:
@@ -448,14 +455,14 @@ class ProjectMetricsAggregator:
 
     def _per_tool_metrics(
         self,
-        records: List[Dict[str, Any]],
-        started_at: Optional[str],
-        finished_at: Optional[str],
-    ) -> Dict[str, Dict[str, Any]]:
+        records: list[dict[str, Any]],
+        started_at: str | None,
+        finished_at: str | None,
+    ) -> dict[str, dict[str, Any]]:
         """Compute per-tool totals and naive images/hour using the project window duration."""
-        tools: Dict[str, Dict[str, Any]] = {}
+        tools: dict[str, dict[str, Any]] = {}
         # Group counts by script, using same crop-priority rule
-        grouped: Dict[str, Dict[str, int]] = {}
+        grouped: dict[str, dict[str, int]] = {}
         for r in records:
             script = r.get("script") or "unknown"
             op = r.get("operation") or "unknown"
@@ -479,7 +486,7 @@ class ProjectMetricsAggregator:
         return tools
 
     def _apply_baselines(
-        self, results: Dict[str, Dict[str, Any]], last_n: int = 5
+        self, results: dict[str, dict[str, Any]], last_n: int = 5
     ) -> None:
         # Overall IPH baseline: mean of last N finished projects with non-zero IPH (light trim if many)
         finished = []
@@ -501,7 +508,7 @@ class ProjectMetricsAggregator:
         overall_baseline = round(sum(pool_use) / len(pool_use), 2) if pool_use else 0.0
 
         # Per-tool baselines: average per tool across last N finished projects
-        per_tool_vals: Dict[str, List[float]] = {}
+        per_tool_vals: dict[str, list[float]] = {}
         for _, _, pj in finished[-last_n:]:
             for tool, stats in (pj.get("tools") or {}).items():
                 v = float(stats.get("images_per_hour") or 0)
@@ -521,8 +528,8 @@ class ProjectMetricsAggregator:
             pj["baseline"] = base
 
     @staticmethod
-    def _daily_counts(records: List[Dict[str, Any]]) -> List[Tuple[str, int]]:
-        bucket: Dict[str, int] = {}
+    def _daily_counts(records: list[dict[str, Any]]) -> list[tuple[str, int]]:
+        bucket: dict[str, int] = {}
         for r in records:
             ts = r.get("timestamp") or r.get("timestamp_str") or ""
             day = "unknown"
@@ -531,7 +538,7 @@ class ProjectMetricsAggregator:
                 if isinstance(v, str) and v.endswith("Z"):
                     v = v[:-1] + "+00:00"
                 dt = datetime.fromisoformat(v)
-                dt = dt.replace(tzinfo=None)
+                dt = normalize_to_naive_utc(dt)
                 day = dt.date().isoformat()
             except Exception:
                 # leave as 'unknown' if parse fails
@@ -544,7 +551,7 @@ class ProjectMetricsAggregator:
 
     @staticmethod
     def _compute_images_per_hour(
-        started_at: Optional[str], finished_at: Optional[str], images_processed: int
+        started_at: str | None, finished_at: str | None, images_processed: int
     ) -> float:
         start_dt = _parse_iso_naive(started_at)
         end_dt = _parse_iso_naive(finished_at) or datetime.now()

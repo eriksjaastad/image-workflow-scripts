@@ -5,12 +5,12 @@ import os
 import signal
 import subprocess
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
 def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def kill_process_group(p: subprocess.Popen) -> None:
@@ -35,7 +35,9 @@ def tail_heartbeat(path: Path) -> float:
         return 0.0
 
 
-def run_with_watchdog(cmd: str, timeout_sec: float, heartbeat_file: Path, hb_threshold: float) -> dict:
+def run_with_watchdog(
+    cmd: str, timeout_sec: float, heartbeat_file: Path, hb_threshold: float
+) -> dict:
     started_at = time.time()
     started_iso = utc_now_iso()
     log_paths = {}
@@ -71,10 +73,9 @@ def run_with_watchdog(cmd: str, timeout_sec: float, heartbeat_file: Path, hb_thr
                     f_out.write(line)
                     f_out.flush()
                     time.time()
-                else:
-                    # No more stdout; break if process ended
-                    if p.poll() is not None:
-                        pass
+                # No more stdout; break if process ended
+                elif p.poll() is not None:
+                    pass
             if p.stderr:
                 line_err = p.stderr.readline()
                 if line_err:
@@ -127,7 +128,9 @@ def run_with_watchdog(cmd: str, timeout_sec: float, heartbeat_file: Path, hb_thr
     }
 
     # Write result.json alongside heartbeat
-    result_path = (heartbeat_file.parent if heartbeat_file else Path.cwd()) / "result.json"
+    result_path = (
+        heartbeat_file.parent if heartbeat_file else Path.cwd()
+    ) / "result.json"
     result_path.write_text(json.dumps(result, indent=2))
     print(json.dumps(result, indent=2))
     return result
@@ -137,7 +140,12 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Watchdog runner for long tasks")
     ap.add_argument("--cmd", required=True, help="Shell command to execute")
     ap.add_argument("--timeout", type=float, default=3600)
-    ap.add_argument("--heartbeat-file", required=False, default="", help="Path to heartbeat file to monitor")
+    ap.add_argument(
+        "--heartbeat-file",
+        required=False,
+        default="",
+        help="Path to heartbeat file to monitor",
+    )
     ap.add_argument("--hb-threshold", type=float, default=120.0)
     args = ap.parse_args()
 
@@ -155,5 +163,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-

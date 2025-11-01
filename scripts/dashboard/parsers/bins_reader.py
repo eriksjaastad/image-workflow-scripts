@@ -11,25 +11,25 @@ import json
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class BinsReader:
     """Reader for 15-minute aggregated bins."""
 
-    def __init__(self, data_dir: Path, config: Dict[str, Any]):
+    def __init__(self, data_dir: Path, config: dict[str, Any]):
         self.data_dir = data_dir
         self.config = config
         self.aggregates_dir = data_dir / "aggregates"
         self.daily_dir = self.aggregates_dir / "daily"
         self.overall_path = self.aggregates_dir / "overall" / "agg_15m_cumulative.jsonl"
 
-    def load_config(self) -> Dict[str, Any]:
+    def load_config(self) -> dict[str, Any]:
         """Load bins configuration."""
         config_path = self.data_dir.parent / "configs" / "bins_config.json"
         if config_path.exists():
             try:
-                with open(config_path, "r") as f:
+                with open(config_path) as f:
                     return json.load(f)
             except Exception:
                 pass
@@ -52,8 +52,8 @@ class BinsReader:
         return chart_name in bin_charts
 
     def load_bins_for_range(
-        self, start_date: datetime, end_date: datetime, project_id: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, start_date: datetime, end_date: datetime, project_id: str | None = None
+    ) -> list[dict[str, Any]]:
         """Load bins for a date range.
 
         Args:
@@ -74,7 +74,7 @@ class BinsReader:
 
             if bin_path.exists():
                 try:
-                    with open(bin_path, "r") as f:
+                    with open(bin_path) as f:
                         for line in f:
                             try:
                                 bin_record = json.loads(line)
@@ -97,8 +97,8 @@ class BinsReader:
         return bins
 
     def aggregate_bins_to_time_slice(
-        self, bins: List[Dict[str, Any]], time_slice: str, groupby: str
-    ) -> List[Dict[str, Any]]:
+        self, bins: list[dict[str, Any]], time_slice: str, groupby: str
+    ) -> list[dict[str, Any]]:
         """Aggregate bins to a specific time slice and grouping.
 
         Args:
@@ -164,8 +164,8 @@ class BinsReader:
         return output
 
     def _format_bins_for_output(
-        self, bins: List[Dict[str, Any]], groupby: str
-    ) -> List[Dict[str, Any]]:
+        self, bins: list[dict[str, Any]], groupby: str
+    ) -> list[dict[str, Any]]:
         """Format bins for output (15min granularity)."""
         output = []
         for bin_record in bins:
@@ -202,19 +202,19 @@ class BinsReader:
             aligned = dt.replace(minute=minute, second=0, microsecond=0)
             return aligned.isoformat()
 
-        elif time_slice == "1H":
+        if time_slice == "1H":
             aligned = dt.replace(minute=0, second=0, microsecond=0)
             return aligned.isoformat()
 
-        elif time_slice == "D":
+        if time_slice == "D":
             return dt.date().isoformat()
 
-        elif time_slice == "W":
+        if time_slice == "W":
             # Monday of the week
             monday = dt.date() - timedelta(days=dt.weekday())
             return monday.isoformat()
 
-        elif time_slice == "M":
+        if time_slice == "M":
             return dt.date().replace(day=1).isoformat()
 
         return ""
@@ -224,8 +224,8 @@ class BinsReader:
         start_date: datetime,
         end_date: datetime,
         time_slice: str,
-        project_id: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        project_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Load file operations by script from bins.
 
         Returns:
@@ -240,8 +240,8 @@ class BinsReader:
         start_date: datetime,
         end_date: datetime,
         time_slice: str,
-        project_id: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        project_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Load file operations by operation type from bins.
 
         Returns:
@@ -253,7 +253,7 @@ class BinsReader:
 
     def load_by_project(
         self, start_date: datetime, end_date: datetime, time_slice: str
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Load file operations by project from bins.
 
         Returns:
@@ -275,7 +275,7 @@ def main():
     # Load config
     config_path = project_root / "configs" / "bins_config.json"
     if config_path.exists():
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             config = json.load(f)
     else:
         print("Config not found")

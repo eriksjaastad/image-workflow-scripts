@@ -30,7 +30,7 @@ def main():
     """Run enhanced coverage with Selenium results."""
     # Get project root
     project_root = Path(__file__).parent.parent.parent
-    
+
     print("=" * 70)
     print("🚀 Enhanced Test Coverage Runner")
     print("=" * 70)
@@ -40,14 +40,16 @@ def main():
     print("  2. Run Selenium integration tests")
     print("  3. Generate beautiful combined HTML report")
     print()
-    
+
     # Run the enhanced coverage generator
-    enhanced_script = project_root / "scripts" / "tests" / "generate_enhanced_coverage.py"
-    
-    result = subprocess.run([
-        sys.executable, str(enhanced_script)
-    ], cwd=project_root)
-    
+    enhanced_script = (
+        project_root / "scripts" / "tests" / "generate_enhanced_coverage.py"
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(enhanced_script)], cwd=project_root, check=False
+    )
+
     return result.returncode
 
 

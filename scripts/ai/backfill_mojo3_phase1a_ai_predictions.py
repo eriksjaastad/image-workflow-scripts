@@ -298,7 +298,6 @@ def group_original_images(original_dir: Path) -> list[tuple[str, list[Path]]]:
     for pattern in patterns:
         all_images.extend(original_dir.glob(pattern))
 
-
     # Sort by timestamp and stage
     sorted_images = sort_image_files_by_timestamp_and_stage(all_images)
 
@@ -313,7 +312,6 @@ def group_original_images(original_dir: Path) -> list[tuple[str, list[Path]]]:
         timestamp = extract_timestamp_from_filename(first_img.name)
         group_id = f"{PROJECT_ID}_group_{timestamp}"
         groups_with_ids.append((group_id, group_images))
-
 
     return groups_with_ids
 
@@ -335,7 +333,6 @@ def process_groups_with_ai(
         "ai_predictions_success": 0,
         "ai_predictions_failed": 0,
     }
-
 
     for _i, (group_id, group_images) in enumerate(tqdm(groups, desc="Processing")):
         # Run AI predictions
@@ -430,9 +427,7 @@ def write_records_to_database(records: list[dict], db_path: Path):
     conn.close()
 
 
-
 def main():
-
     # Check directories exist
     if not ORIGINAL_DIR.exists():
         return
@@ -470,7 +465,6 @@ def main():
     write_records_to_database(records, TEMP_DB)
 
     # Print statistics
-
 
 
 if __name__ == "__main__":

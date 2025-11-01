@@ -57,5 +57,3 @@ def test_division_guards_baseline_and_rate():
     # Indirectly tested via simple compute; compute_phase_hours returns 0 if invalid
     ts_project = {"daily_hours": {}}
     assert compute_phase_hours(ts_project, None, None) == 0.0
-
-

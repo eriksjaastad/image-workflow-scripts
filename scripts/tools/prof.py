@@ -19,22 +19,24 @@ import threading
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 @dataclass
 class StageTiming:
     total_sec: float = 0.0
-    started_at: Optional[float] = None
+    started_at: float | None = None
 
 
 class Profiler:
-    def __init__(self, sandbox_root: Path, run_id: str, checkpoint_interval_sec: float = 300.0) -> None:
+    def __init__(
+        self, sandbox_root: Path, run_id: str, checkpoint_interval_sec: float = 300.0
+    ) -> None:
         self.sandbox_root = Path(sandbox_root)
         self.run_id = run_id
         self.checkpoint_interval_sec = max(5.0, float(checkpoint_interval_sec))
 
-        self._stages: Dict[str, StageTiming] = {
+        self._stages: dict[str, StageTiming] = {
             "scan": StageTiming(),
             "group": StageTiming(),
             "embed": StageTiming(),
@@ -42,7 +44,7 @@ class Profiler:
             "select": StageTiming(),
             "moves": StageTiming(),
         }
-        self._counters: Dict[str, float] = {
+        self._counters: dict[str, float] = {
             "n_files": 0,
             "n_groups_total": 0,
             "n_groups_shard": 0,
@@ -52,7 +54,7 @@ class Profiler:
         }
 
         self._stop_event = threading.Event()
-        self._checkpoint_thread: Optional[threading.Thread] = None
+        self._checkpoint_thread: threading.Thread | None = None
         (self.sandbox_root / "runs" / self.run_id).mkdir(parents=True, exist_ok=True)
 
     # ------------------------------ stages ------------------------------
@@ -86,8 +88,8 @@ class Profiler:
         self._counters[name] = float(self._counters.get(name, 0.0) + delta)
 
     # ------------------------------ checkpoints ------------------------------
-    def _checkpoint_payload(self, hb_snapshot: Optional[Any]) -> Dict[str, Any]:
-        payload: Dict[str, Any] = {
+    def _checkpoint_payload(self, hb_snapshot: Any | None) -> dict[str, Any]:
+        payload: dict[str, Any] = {
             "time": time.time(),
             "stages": {k: asdict(v) for k, v in self._stages.items()},
             "counters": dict(self._counters),
@@ -126,7 +128,9 @@ class Profiler:
                     # best-effort only; continue
                     pass
 
-        self._checkpoint_thread = threading.Thread(target=_loop, name="prof_checkpoints", daemon=True)
+        self._checkpoint_thread = threading.Thread(
+            target=_loop, name="prof_checkpoints", daemon=True
+        )
         self._checkpoint_thread.start()
 
     def stop_checkpoints(self) -> None:
@@ -138,15 +142,17 @@ class Profiler:
                 pass
 
     # ------------------------------ summary ------------------------------
-    def _throughput_estimates(self) -> Dict[str, Any]:
+    def _throughput_estimates(self) -> dict[str, Any]:
         # files/min: based on scan stage if available, fallback to total wall (sum of all stages)
         scan_s = self._stages.get("scan", StageTiming()).total_sec
         group_s = self._stages.get("group", StageTiming()).total_sec
         total_wall = sum(st.total_sec for st in self._stages.values())
         n_files = self._counters.get("n_files", 0.0)
         n_groups_shard = self._counters.get("n_groups_shard", 0.0)
+
         def rate(count: float, seconds: float) -> float:
             return (count / (seconds / 60.0)) if seconds and seconds > 0 else 0.0
+
         return {
             "files_per_min_scan": rate(n_files, scan_s),
             "groups_per_min_group": rate(n_groups_shard, group_s),
@@ -170,6 +176,3 @@ class Profiler:
         for name, st in self._stages.items():
             if st.started_at is not None:
                 self.end_stage(name)
-
-
-

@@ -278,9 +278,8 @@ class DesktopImageSelectorCropTest:
             if passed == total:
                 print("\n🎉 ALL DESKTOP IMAGE SELECTOR CROP TESTS PASSED")
                 return True
-            else:
-                print(f"\n⚠️  {total - passed} tests failed")
-                return False
+            print(f"\n⚠️  {total - passed} tests failed")
+            return False
 
         finally:
             self.cleanup()
