@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import logging
 import sys
 from collections import Counter
 from pathlib import Path
@@ -33,6 +34,10 @@ from typing import Callable, Dict, List, Optional
 PROJECT_ROOT = Path(__file__).parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+# Configure logging (overridable with --verbose)
+logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 # Import shared helpers from character_processor
 
@@ -45,14 +50,21 @@ def _load_character_processor_module():
     ]
     for path in candidates:
         if path.exists():
-            spec = importlib.util.spec_from_file_location(
-                "character_processor", str(path)
-            )
-            if spec and spec.loader:
-                mod = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(mod)  # type: ignore[attr-defined]
-                return mod
-    raise ImportError("Could not locate 02_character_processor.py to import helpers")
+            try:
+                spec = importlib.util.spec_from_file_location(
+                    "character_processor", str(path)
+                )
+                if spec and spec.loader:
+                    mod = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(mod)  # type: ignore[attr-defined]
+                    logger.debug(f"Loaded character_processor from {path}")
+                    return mod
+            except Exception as e:
+                msg = f"Found {path} but failed to load: {e}"
+                logger.error(msg)
+                raise ImportError(msg) from e
+    msg = f"Could not locate 02_character_processor.py in: {[str(c) for c in candidates]}"
+    raise ImportError(msg)
 
 
 _cp = _load_character_processor_module()
@@ -79,7 +91,8 @@ def build_field_extractors(
         elif key in {"body", "body_type"}:
             mapping["body"] = extract_body_type_from_prompt
         else:
-            raise ValueError(f"Unknown field: {f}")
+            msg = f"Unknown field: {f}"
+            raise ValueError(msg)
     return mapping
 
 
@@ -89,8 +102,9 @@ def read_prompt_from_yaml(yaml_path: Path) -> str:
         parsed = parse_yaml_file(yaml_path)
         if parsed and isinstance(parsed.get("prompt"), str):
             return parsed["prompt"]
-    except Exception:
-        pass
+        logger.debug(f"No prompt field in {yaml_path}")
+    except Exception as e:
+        logger.warning(f"Failed to parse {yaml_path}: {e}")
     return ""
 
 
@@ -99,11 +113,11 @@ def analyze_directory(
 ) -> Dict[str, Counter]:
     """Analyze one directory's images, returning a Counter per field."""
     results: Dict[str, Counter] = {name: Counter() for name in fields.keys()}
+    extraction_failures = Counter()
 
     for png in sorted(dir_path.glob("*.png")):
         yaml_path = png.with_suffix(".yaml")
         if not yaml_path.exists():
-            # Skip if no metadata; we don't guess from filename
             continue
         prompt_lower = read_prompt_from_yaml(yaml_path).lower()
         if not prompt_lower:
@@ -112,9 +126,16 @@ def analyze_directory(
         for field_name, extractor in fields.items():
             try:
                 value = extractor(prompt_lower)
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Extractor '{field_name}' failed on {png.name}: {e}")
+                extraction_failures[field_name] += 1
                 value = None
             results[field_name][value or "unknown"] += 1
+
+    if extraction_failures:
+        logger.error(
+            f"Extraction failures in {dir_path.name}: {dict(extraction_failures)}"
+        )
 
     return results
 
@@ -146,7 +167,20 @@ def main() -> None:
         required=True,
         help="Comma-separated fields to analyze (ethnicity,age,hair,body)",
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable DEBUG logging for troubleshooting",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit non-zero if sanity checks fail (e.g., excessive 'unknown')",
+    )
     args = parser.parse_args()
+
+    if args.verbose:
+        logger.setLevel(logging.DEBUG)
 
     base_path_str = args.directory if args.directory else (args.base or str(Path.cwd()))
     if args.base and args.directory and args.base != args.directory:
@@ -162,7 +196,15 @@ def main() -> None:
     try:
         field_extractors = build_field_extractors(raw_fields)
     except ValueError as e:
-        print(f"❌ {e}")
+        msg = f"❌ {e}"
+        print(msg)
+        sys.exit(1)
+
+    try:
+        _self_test_extractors(field_extractors)
+    except RuntimeError as e:
+        msg = f"❌ {e}"
+        print(msg)
         sys.exit(1)
 
     # Discover single-underscore bins
@@ -177,10 +219,15 @@ def main() -> None:
     print(f"Base: {base_dir}")
     print(f"Fields: {', '.join(field_extractors.keys())}\n")
 
+    total_bins = 0
+    total_images = 0
+    strict_failure = False
     for bin_dir in bins:
+        total_bins += 1
         pngs = list(bin_dir.glob("*.png"))
         if not pngs:
             continue
+        total_images += len(pngs)
         print(f"{bin_dir.name} — {len(pngs)} images")
 
         results = analyze_directory(bin_dir, field_extractors)
@@ -195,7 +242,38 @@ def main() -> None:
             print(f"  • {field_name}:")
             for k, v in top:
                 print(f"    - {k}: {v}")
+            unknown = counts.get("unknown", 0)
+            if total > 0 and unknown / total > 0.5:
+                logger.error(
+                    f"High unknown ratio for '{field_name}' in {bin_dir.name}: {unknown}/{total}"
+                )
+                if args.strict:
+                    strict_failure = True
         print()
+
+    print(f"✅ Analysis complete: processed {total_bins} bins, {total_images} images")
+    if args.strict and strict_failure:
+        print("❌ Strict mode failure due to excessive 'unknown' ratios")
+        sys.exit(1)
+
+
+def _self_test_extractors(field_extractors: Dict[str, Callable]) -> None:
+    """Verify extractors are callable and return expected types."""
+    test_prompt = "a 25 year old caucasian woman with blonde hair, athletic body"
+    failures = []
+    for field_name, extractor in field_extractors.items():
+        try:
+            result = extractor(test_prompt)
+            if not (result is None or isinstance(result, str)):
+                failures.append(
+                    f"{field_name} returned {type(result)}, expected str|None"
+                )
+        except Exception as e:
+            failures.append(f"{field_name} raised {e}")
+    if failures:
+        msg = f"Extractor self-test failed: {'; '.join(failures)}"
+        logger.error(msg)
+        raise RuntimeError(msg)
 
 
 if __name__ == "__main__":
