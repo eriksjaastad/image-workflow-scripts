@@ -48,8 +48,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.dashboard.data_engine import DashboardDataEngine
-from scripts.dashboard.timesheet_parser import TimesheetParser
+from scripts.dashboard.engines.data_engine import DashboardDataEngine
+from scripts.dashboard.parsers.timesheet_parser import TimesheetParser
 from scripts.utils.companion_file_utils import launch_browser
 
 DATA_DIR = PROJECT_ROOT / "data"
@@ -1019,9 +1019,11 @@ def create_app() -> Flask:
                 "projectId": project_id,
                 "title": title,
                 # Show current-phase total based on directory counts (more accurate for active work)
-                "totalImages": total_that_needs_processing
-                if total_that_needs_processing > 0
-                else total_images,
+                "totalImages": (
+                    total_that_needs_processing
+                    if total_that_needs_processing > 0
+                    else total_images
+                ),
                 "totalGroups": total_groups,
                 "processedImages": total_processed,
                 "percentComplete": percent_complete,

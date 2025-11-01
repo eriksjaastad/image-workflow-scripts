@@ -23,10 +23,12 @@ from typing import Any, Dict, List, Optional
 project_root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(project_root))
 
-from scripts.dashboard.data_engine import DashboardDataEngine
-from scripts.dashboard.project_metrics_aggregator import ProjectMetricsAggregator
-from scripts.dashboard.queue_reader import QueueDataReader
-from scripts.dashboard.timesheet_parser import TimesheetParser
+from scripts.dashboard.engines.data_engine import DashboardDataEngine
+from scripts.dashboard.engines.project_metrics_aggregator import (
+    ProjectMetricsAggregator,
+)
+from scripts.dashboard.parsers.queue_reader import QueueDataReader
+from scripts.dashboard.parsers.timesheet_parser import TimesheetParser
 
 # Centralized tool order - used across ALL charts, tables, and toggles
 # This ensures consistent ordering everywhere in the dashboard

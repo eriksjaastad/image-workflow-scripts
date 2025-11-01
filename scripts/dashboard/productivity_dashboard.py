@@ -17,8 +17,8 @@ from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
 
-from analytics import DashboardAnalytics
-from data_engine import DashboardDataEngine
+from engines.analytics import DashboardAnalytics
+from engines.data_engine import DashboardDataEngine
 from flask import Flask, jsonify, render_template, request
 
 
@@ -266,13 +266,15 @@ class ProductivityDashboard:
 
         try:
             conn = sqlite3.connect(str(db_path))
-            cursor = conn.execute("""
+            cursor = conn.execute(
+                """
                 SELECT 
                     COUNT(*) as total,
                     SUM(CASE WHEN user_action = 'crop' THEN 1 ELSE 0 END) as cropped,
                     SUM(CASE WHEN user_action = 'approve' THEN 1 ELSE 0 END) as approved
                 FROM ai_decisions
-            """)
+            """
+            )
             row = cursor.fetchone()
             conn.close()
 

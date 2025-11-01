@@ -26,8 +26,10 @@ sys.path.insert(0, str(project_root))
 
 from collections import defaultdict
 
-from scripts.dashboard.project_metrics_aggregator import ProjectMetricsAggregator
-from scripts.dashboard.snapshot_loader import SnapshotLoader
+from scripts.dashboard.engines.project_metrics_aggregator import (
+    ProjectMetricsAggregator,
+)
+from scripts.dashboard.parsers.snapshot_loader import SnapshotLoader
 
 
 class DashboardDataEngine:
@@ -451,9 +453,11 @@ class DashboardDataEngine:
                     "work_time_minutes": total_work_time / 60.0,
                     "total_operations": len(script_timer_data),
                     "files_processed": total_files,
-                    "efficiency_score": total_files / (total_work_time / 60.0)
-                    if total_work_time > 0
-                    else 0.0,
+                    "efficiency_score": (
+                        total_files / (total_work_time / 60.0)
+                        if total_work_time > 0
+                        else 0.0
+                    ),
                     "timing_method": "activity_timer",
                 }
             else:
@@ -1381,18 +1385,18 @@ class DashboardDataEngine:
                 "projects_found": [p.get("projectId") for p in projects],
                 "active_project": project_id,
                 "data_range": {
-                    "activity_start": min(activity_dates_clean)
-                    if activity_dates_clean
-                    else None,
-                    "activity_end": max(activity_dates_clean)
-                    if activity_dates_clean
-                    else None,
-                    "file_ops_start": min(file_ops_dates_clean)
-                    if file_ops_dates_clean
-                    else None,
-                    "file_ops_end": max(file_ops_dates_clean)
-                    if file_ops_dates_clean
-                    else None,
+                    "activity_start": (
+                        min(activity_dates_clean) if activity_dates_clean else None
+                    ),
+                    "activity_end": (
+                        max(activity_dates_clean) if activity_dates_clean else None
+                    ),
+                    "file_ops_start": (
+                        min(file_ops_dates_clean) if file_ops_dates_clean else None
+                    ),
+                    "file_ops_end": (
+                        max(file_ops_dates_clean) if file_ops_dates_clean else None
+                    ),
                 },
                 "baseline_labels": {
                     "15min": self.build_time_labels("15min", lookback_days),
@@ -1604,9 +1608,11 @@ class DashboardDataEngine:
                     "work_time_minutes": secs / 60.0,
                     "total_operations": 0,
                     "files_processed": int(vals["files_processed"]),
-                    "efficiency_score": (int(vals["files_processed"]) / (secs / 60.0))
-                    if secs > 0
-                    else 0.0,
+                    "efficiency_score": (
+                        (int(vals["files_processed"]) / (secs / 60.0))
+                        if secs > 0
+                        else 0.0
+                    ),
                     "timing_method": "activity_timer",
                 }
 
@@ -1632,7 +1638,7 @@ class DashboardDataEngine:
             # Best effort; do not break dashboard
             dashboard_data["backup_status"] = {
                 "status": "error",
-                "message": "Backup status unavailable"
+                "message": "Backup status unavailable",
             }
 
         overall_time = time_module.time() - overall_start
@@ -1656,7 +1662,7 @@ class DashboardDataEngine:
             "total_files": 0,
             "total_size_mb": 0,
             "failures": [],
-            "message": "Backup status unavailable"
+            "message": "Backup status unavailable",
         }
 
         try:
@@ -1665,27 +1671,37 @@ class DashboardDataEngine:
             status_file = backup_root / "backup_status.json"
 
             if status_file.exists():
-                with open(status_file, 'r') as f:
+                with open(status_file, "r") as f:
                     status_data = json.load(f)
 
                 backup_status.update(status_data)
 
                 # Determine status message
                 if backup_status["status"] == "success":
-                    backup_status["message"] = f"✅ Last backup successful: {backup_status['last_backup']} ({backup_status['total_files']} files, {backup_status['total_size_mb']} MB)"
+                    backup_status["message"] = (
+                        f"✅ Last backup successful: {backup_status['last_backup']} ({backup_status['total_files']} files, {backup_status['total_size_mb']} MB)"
+                    )
                 elif backup_status["status"] == "failed":
                     failures = backup_status.get("failures", [])
-                    backup_status["message"] = f"❌ Last backup failed: {backup_status['last_backup']} ({len(failures)} failures)"
+                    backup_status["message"] = (
+                        f"❌ Last backup failed: {backup_status['last_backup']} ({len(failures)} failures)"
+                    )
                 else:
                     backup_status["message"] = "⚠️ Backup status unknown"
 
                 # Check if backup is recent (within 48 hours)
                 if backup_status["last_backup_timestamp"]:
-                    last_backup_time = datetime.fromisoformat(backup_status["last_backup_timestamp"])
-                    hours_since_backup = (datetime.now() - last_backup_time).total_seconds() / 3600
+                    last_backup_time = datetime.fromisoformat(
+                        backup_status["last_backup_timestamp"]
+                    )
+                    hours_since_backup = (
+                        datetime.now() - last_backup_time
+                    ).total_seconds() / 3600
 
                     if hours_since_backup > 48:
-                        backup_status["message"] = f"⚠️ Backup overdue: Last successful backup {hours_since_backup:.1f} hours ago"
+                        backup_status["message"] = (
+                            f"⚠️ Backup overdue: Last successful backup {hours_since_backup:.1f} hours ago"
+                        )
                         backup_status["status"] = "overdue"
             else:
                 backup_status["message"] = "⚠️ No backup status file found"
