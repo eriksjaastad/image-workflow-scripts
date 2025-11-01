@@ -86,6 +86,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import signal
 import sys
@@ -94,6 +95,14 @@ import time
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Optional
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+logger = logging.getLogger(__name__)
 
 from file_tracker import FileTracker
 from utils.companion_file_utils import (
@@ -115,29 +124,51 @@ try:
         render_template_string,
         request,
     )
-except Exception:  # pragma: no cover - import guard for clearer error
+except ImportError:  # pragma: no cover - import guard for clearer error
     print("[!] Flask is required. Install with: pip install flask", file=sys.stderr)
-    raise
-
-try:
-    pass
-except Exception:
-    print("[!] Pillow is required. Install with: pip install pillow", file=sys.stderr)
+    logger.critical("Flask import failed - cannot run web interface", exc_info=True)
     raise
 
 try:
     from pillow_heif import register_heif_opener  # type: ignore
 
     register_heif_opener()
-    print("[*] HEIC/HEIF support enabled via pillow-heif.")
-except Exception:
-    pass
+    logger.info("HEIC/HEIF support enabled via pillow-heif")
+except ImportError:
+    logger.info("pillow-heif not available - HEIC/HEIF files will not be supported")
+except Exception as e:
+    logger.warning(
+        f"pillow-heif registration failed: {e} - HEIC/HEIF support disabled"
+    )
 
 _SEND2TRASH_AVAILABLE = False
 try:
+    from send2trash import send2trash
+
     _SEND2TRASH_AVAILABLE = True
-except Exception:
+    logger.info("send2trash available - safe deletion enabled")
+except ImportError:
     _SEND2TRASH_AVAILABLE = False
+    logger.warning("send2trash not available - will use hard delete behavior")
+
+# Graceful shutdown handling
+_shutdown_requested = False
+
+
+def _signal_handler(signum, frame):
+    global _shutdown_requested
+    if _shutdown_requested:
+        logger.warning("Forced shutdown - progress may be lost")
+        sys.exit(1)
+    _shutdown_requested = True
+    logger.info(f"Received signal {signum} - shutting down gracefully...")
+    print("\n[*] Shutting down gracefully - please wait for cleanup...")
+    print("[*] Shutdown complete. Progress has been saved.")
+    sys.exit(0)
+
+
+signal.signal(signal.SIGINT, _signal_handler)
+signal.signal(signal.SIGTERM, _signal_handler)
 
 THUMBNAIL_MAX_DIM = 800
 
@@ -218,7 +249,10 @@ class MultiDirectoryProgressTracker:
             with open(self.progress_file, "w") as f:
                 json.dump(self.session_data, f, indent=2)
         except Exception as e:
-            print(f"[!] Error saving progress: {e}")
+            logger.error(
+                f"Failed to save progress to {self.progress_file}: {e}", exc_info=True
+            )
+            raise
 
     def get_current_directory(self) -> Optional[Dict]:
         """Get current directory info."""
@@ -531,10 +565,28 @@ def move_with_metadata(
     src_path: Path, dest_dir: Path, tracker: FileTracker, group_name: str
 ) -> List[str]:
     """Move PNG and ALL corresponding companion files to destination directory."""
+    # Verify source exists
+    if not src_path.exists():
+        msg = f"Source file does not exist: {src_path}"
+        logger.error(msg)
+        raise FileNotFoundError(msg)
+
     dest_dir.mkdir(exist_ok=True)
 
     # Use wildcard logic to move PNG and ALL companion files
     moved_files = move_file_with_all_companions(src_path, dest_dir, dry_run=False)
+
+    # Verify move succeeded
+    if not moved_files:
+        msg = f"No files moved for {src_path.name} - operation may have failed silently"
+        logger.error(msg)
+        raise RuntimeError(msg)
+
+    dest_file = dest_dir / src_path.name
+    if not dest_file.exists():
+        msg = f"Move reported success but destination file missing: {dest_file}"
+        logger.error(msg)
+        raise RuntimeError(msg)
 
     # Log the operation
     tracker.log_operation(
@@ -1070,6 +1122,7 @@ def create_app(
                     ), 500
 
         if moved:
+            log_msg = f"orphan .decision staged ({len(moved)} total)"
             try:
                 tracker.log_operation(
                     operation="move",
@@ -1077,10 +1130,21 @@ def create_app(
                     dest_dir=str(staging.name),
                     file_count=len(moved),
                     files=moved[:10],
-                    notes=f"orphan .decision staged ({len(moved)} total)",
+                    notes=log_msg,
                 )
-            except Exception:
-                pass  # best-effort logging
+            except Exception as e:
+                print(
+                    f"[!!!] CRITICAL: FileTracker logging failed for .decision cleanup: {e}",
+                    file=sys.stderr,
+                )
+                print(
+                    f"[!!!] Audit trail incomplete! Manual verification required for: {moved}",
+                    file=sys.stderr,
+                )
+                logger.error(
+                    f"FileTracker logging failed for .decision cleanup: {e}",
+                    exc_info=True,
+                )
 
         return jsonify(
             {"status": "ok", "moved_count": len(moved), "staging": str(staging)}
