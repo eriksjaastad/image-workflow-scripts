@@ -25,7 +25,9 @@ _ROOT = _P(__file__).resolve().parents[3]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from scripts.dashboard.project_metrics_aggregator import ProjectMetricsAggregator
+from scripts.dashboard.engines.project_metrics_aggregator import (
+    ProjectMetricsAggregator,
+)
 from scripts.utils.companion_file_utils import get_file_operation_metrics
 
 

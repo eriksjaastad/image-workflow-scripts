@@ -4,40 +4,44 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 
-from scripts.dashboard.project_metrics_aggregator import ProjectMetricsAggregator
+from scripts.dashboard.engines.project_metrics_aggregator import (
+    ProjectMetricsAggregator,
+)
 
 
 def transform_for_charts_like(data):
     """Local minimal transform that builds project_comparisons without Flask import."""
-    pm = data.get('project_metrics', {}) or {}
+    pm = data.get("project_metrics", {}) or {}
     comparisons = []
     for pid, rec in pm.items():
-        title = rec.get('title') or pid
-        iph = float((rec.get('throughput') or {}).get('images_per_hour') or 0)
-        base = rec.get('baseline') or {}
-        overall_base = float(base.get('overall_iph_baseline') or 0)
-        per_tool_base = base.get('per_tool') or {}
+        title = rec.get("title") or pid
+        iph = float((rec.get("throughput") or {}).get("images_per_hour") or 0)
+        base = rec.get("baseline") or {}
+        overall_base = float(base.get("overall_iph_baseline") or 0)
+        per_tool_base = base.get("per_tool") or {}
         tools = {}
-        for tool, stats in (rec.get('tools') or {}).items():
+        for tool, stats in (rec.get("tools") or {}).items():
             tools[tool] = {
-                'iph': float(stats.get('images_per_hour') or 0),
-                'baseline': float(per_tool_base.get(tool) or 0)
+                "iph": float(stats.get("images_per_hour") or 0),
+                "baseline": float(per_tool_base.get(tool) or 0),
             }
-        comparisons.append({
-            'projectId': pid,
-            'title': title,
-            'iph': iph,
-            'baseline_overall': overall_base,
-            'tools': tools,
-            'startedAt': rec.get('startedAt'),
-            'finishedAt': rec.get('finishedAt')
-        })
-    return {'project_comparisons': comparisons}
+        comparisons.append(
+            {
+                "projectId": pid,
+                "title": title,
+                "iph": iph,
+                "baseline_overall": overall_base,
+                "tools": tools,
+                "startedAt": rec.get("startedAt"),
+                "finishedAt": rec.get("finishedAt"),
+            }
+        )
+    return {"project_comparisons": comparisons}
 
 
 def _write_jsonl(path: Path, records):
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, 'w') as f:
+    with open(path, "w") as f:
         for r in records:
             f.write(json.dumps(r) + "\n")
 
@@ -47,8 +51,8 @@ class TestProjectMetricsAggregator(unittest.TestCase):
         self.tmpdir = tempfile.TemporaryDirectory()
         self.root = Path(self.tmpdir.name)
         # Create directory layout
-        (self.root / 'data' / 'projects').mkdir(parents=True, exist_ok=True)
-        (self.root / 'data' / 'file_operations_logs').mkdir(parents=True, exist_ok=True)
+        (self.root / "data" / "projects").mkdir(parents=True, exist_ok=True)
+        (self.root / "data" / "file_operations_logs").mkdir(parents=True, exist_ok=True)
 
         # Two projects with known windows
         mojo1 = {
@@ -57,7 +61,7 @@ class TestProjectMetricsAggregator(unittest.TestCase):
             "status": "finished",
             "startedAt": "2025-10-05T00:00:00",
             "finishedAt": "2025-10-06T00:00:00",
-            "paths": {"root": "/abs/not/used"}
+            "paths": {"root": "/abs/not/used"},
         }
         mojo2 = {
             "projectId": "mojo2",
@@ -65,11 +69,11 @@ class TestProjectMetricsAggregator(unittest.TestCase):
             "status": "finished",
             "startedAt": "2025-10-10T00:00:00",
             "finishedAt": "2025-10-10T12:00:00",
-            "paths": {"root": "/abs/not/used"}
+            "paths": {"root": "/abs/not/used"},
         }
-        with open(self.root / 'data' / 'projects' / 'mojo1.project.json', 'w') as f:
+        with open(self.root / "data" / "projects" / "mojo1.project.json", "w") as f:
             json.dump(mojo1, f)
-        with open(self.root / 'data' / 'projects' / 'mojo2.project.json', 'w') as f:
+        with open(self.root / "data" / "projects" / "mojo2.project.json", "w") as f:
             json.dump(mojo2, f)
 
         # File operation logs (time-window filtering will be used)
@@ -91,7 +95,9 @@ class TestProjectMetricsAggregator(unittest.TestCase):
                 "file_count": 600,
             },
         ]
-        _write_jsonl(self.root / 'data' / 'file_operations_logs' / 'ops_202510.log', records)
+        _write_jsonl(
+            self.root / "data" / "file_operations_logs" / "ops_202510.log", records
+        )
 
     def tearDown(self):
         self.tmpdir.cleanup()
@@ -99,26 +105,31 @@ class TestProjectMetricsAggregator(unittest.TestCase):
     def test_aggregator_per_project_and_tools(self):
         agg = ProjectMetricsAggregator(self.root)
         data = agg.aggregate()
-        self.assertIn('mojo1', data)
-        self.assertIn('mojo2', data)
+        self.assertIn("mojo1", data)
+        self.assertIn("mojo2", data)
 
-        m1 = data['mojo1']
-        m2 = data['mojo2']
+        m1 = data["mojo1"]
+        m2 = data["mojo2"]
 
         # Overall images/hour
-        self.assertAlmostEqual(m1['throughput']['images_per_hour'], round(1000/24.0, 2))
-        self.assertAlmostEqual(m2['throughput']['images_per_hour'], round(600/12.0, 2))
+        self.assertAlmostEqual(
+            m1["throughput"]["images_per_hour"], round(1000 / 24.0, 2)
+        )
+        self.assertAlmostEqual(
+            m2["throughput"]["images_per_hour"], round(600 / 12.0, 2)
+        )
 
         # Per-tool metrics exist with same numbers here
-        self.assertIn('tools', m1)
-        self.assertIn('image_version_selector', m1['tools'])
+        self.assertIn("tools", m1)
+        self.assertIn("image_version_selector", m1["tools"])
         self.assertAlmostEqual(
-            m1['tools']['image_version_selector']['images_per_hour'], round(1000/24.0, 2)
+            m1["tools"]["image_version_selector"]["images_per_hour"],
+            round(1000 / 24.0, 2),
         )
 
         # Baseline should be present (based on finished projects)
-        self.assertIn('baseline', m1)
-        self.assertIn('overall_iph_baseline', m1['baseline'])
+        self.assertIn("baseline", m1)
+        self.assertIn("overall_iph_baseline", m1["baseline"])
 
     def test_transform_project_comparisons(self):
         # Synthesize minimal data package to go through transform
@@ -134,16 +145,14 @@ class TestProjectMetricsAggregator(unittest.TestCase):
             "project_markers": {},
             "project_metrics": project_metrics,
             "project_kpi": {},
-            "timing_data": {}
+            "timing_data": {},
         }
         out = transform_for_charts_like(raw)
-        comps = out.get('project_comparisons')
+        comps = out.get("project_comparisons")
         self.assertIsInstance(comps, list)
         self.assertGreaterEqual(len(comps), 2)
-        self.assertIn('iph', comps[0])
+        self.assertIn("iph", comps[0])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
-
-

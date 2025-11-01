@@ -31,15 +31,16 @@ try:
 except ImportError:
     try:
         # Fallback for test environment
-        from scripts.dashboard.data_engine import DashboardDataEngine
+        from scripts.dashboard.engines.data_engine import DashboardDataEngine
     except ImportError:
         # Will be mocked in tests
         DashboardDataEngine = None
 
+
 def consolidate_daily_data(target_date: str, dry_run: bool = False):
     """
     Consolidate file operations for a specific date into daily summary.
-    
+
     Args:
         target_date: Date in YYYYMMDD format (e.g., "20251002")
         dry_run: If True, don't actually archive files, just test consolidation
@@ -48,9 +49,13 @@ def consolidate_daily_data(target_date: str, dry_run: bool = False):
         print(f"🧪 DRY RUN: Consolidating data for {target_date}")
     else:
         print(f"🔄 Consolidating data for {target_date}")
-    
+
     # Paths (allow test override via EM_TEST_DATA_ROOT)
-    override = Path(os.environ.get('EM_TEST_DATA_ROOT')) if 'EM_TEST_DATA_ROOT' in os.environ else None
+    override = (
+        Path(os.environ.get("EM_TEST_DATA_ROOT"))
+        if "EM_TEST_DATA_ROOT" in os.environ
+        else None
+    )
     cwd_data = Path.cwd() / "data"
     if override and override.exists():
         data_dir = override
@@ -61,67 +66,71 @@ def consolidate_daily_data(target_date: str, dry_run: bool = False):
     file_ops_dir = data_dir / "file_operations_logs"
     summaries_dir = data_dir / "daily_summaries"
     summaries_dir.mkdir(exist_ok=True)
-    
+
     # Load file operations for the target date
     operations = []
-    
+
     # Check main log file
     main_log = file_ops_dir / "file_operations.log"
     if main_log.exists():
-        with open(main_log, 'r') as f:
+        with open(main_log, "r") as f:
             for line in f:
                 if line.strip():
                     try:
                         data = json.loads(line)
-                        if data.get('type') == 'file_operation':
-                            op_date = data.get('timestamp', '')[:10].replace('-', '')
+                        if data.get("type") == "file_operation":
+                            op_date = data.get("timestamp", "")[:10].replace("-", "")
                             if op_date == target_date:
                                 operations.append(data)
                     except json.JSONDecodeError:
                         continue
-    
+
     # Check daily log files
     daily_log = file_ops_dir / f"file_operations_{target_date}.log"
     if daily_log.exists():
-        with open(daily_log, 'r') as f:
+        with open(daily_log, "r") as f:
             for line in f:
                 if line.strip():
                     try:
                         data = json.loads(line)
-                        if data.get('type') == 'file_operation':
+                        if data.get("type") == "file_operation":
                             operations.append(data)
                     except json.JSONDecodeError:
                         continue
-    
+
     # Check archived log files (gzipped)
     log_archives_dir = data_dir / "log_archives"
     if log_archives_dir.exists():
         import gzip
+
         # Try both possible archive formats
-        for archive_pattern in [f"file_operations_{target_date}.log.gz", f"file_operations_{target_date}_archived.log.gz"]:
+        for archive_pattern in [
+            f"file_operations_{target_date}.log.gz",
+            f"file_operations_{target_date}_archived.log.gz",
+        ]:
             archived_log = log_archives_dir / archive_pattern
             if archived_log.exists():
-                with gzip.open(archived_log, 'rt') as f:
+                with gzip.open(archived_log, "rt") as f:
                     for line in f:
                         if line.strip():
                             try:
                                 data = json.loads(line)
-                                if data.get('type') == 'file_operation':
+                                if data.get("type") == "file_operation":
                                     operations.append(data)
                             except json.JSONDecodeError:
                                 continue
                 break  # Found archive, no need to check other patterns
-    
+
     # Fallback: search recursively for a daily log in current tree (useful in tests)
     if not operations:
         try:
             for p in Path.cwd().rglob(f"file_operations_{target_date}.log"):
-                with open(p, 'r') as f:
+                with open(p, "r") as f:
                     for line in f:
                         if line.strip():
                             try:
                                 data = json.loads(line)
-                                if data.get('type') == 'file_operation':
+                                if data.get("type") == "file_operation":
                                     operations.append(data)
                             except json.JSONDecodeError:
                                 continue
@@ -133,74 +142,82 @@ def consolidate_daily_data(target_date: str, dry_run: bool = False):
                 break
         except Exception:
             pass
-    
+
     # Consolidate by script
-    script_summaries = defaultdict(lambda: {
-        'total_files': 0,
-        'operations': defaultdict(int),
-        'sessions': set(),
-        'first_operation': None,
-        'last_operation': None
-    })
-    
+    script_summaries = defaultdict(
+        lambda: {
+            "total_files": 0,
+            "operations": defaultdict(int),
+            "sessions": set(),
+            "first_operation": None,
+            "last_operation": None,
+        }
+    )
+
     for op in operations:
-        script = op.get('script', 'unknown')
-        
+        script = op.get("script", "unknown")
+
         # Count PNG files only (not companion files like YAML, captions, etc.)
-        files_list = op.get('files', [])
-        sum(1 for f in files_list if isinstance(f, str) and f.lower().endswith('.png'))
-        
+        files_list = op.get("files", [])
+        sum(1 for f in files_list if isinstance(f, str) and f.lower().endswith(".png"))
+
         # Fallback to file_count if no files list (shouldn't happen with proper logging)
-        if not files_list and op.get('file_count'):
-            op.get('file_count', 0)
-        
-        operation_type = op.get('operation', 'unknown')
-        timestamp = op.get('timestamp', '')
-        session_id = op.get('session_id', '')
-        
+        if not files_list and op.get("file_count"):
+            op.get("file_count", 0)
+
+        operation_type = op.get("operation", "unknown")
+        timestamp = op.get("timestamp", "")
+        session_id = op.get("session_id", "")
+
         # tests expect total_files to be sum of file_count across ops (not PNG-only fallback in this path)
-        file_count = int(op.get('file_count', 0) or 0)
-        script_summaries[script]['total_files'] += file_count
-        script_summaries[script]['operations'][operation_type] += file_count
-        script_summaries[script]['sessions'].add(session_id)
-        
-        if not script_summaries[script]['first_operation']:
-            script_summaries[script]['first_operation'] = timestamp
-        script_summaries[script]['last_operation'] = timestamp
-    
+        file_count = int(op.get("file_count", 0) or 0)
+        script_summaries[script]["total_files"] += file_count
+        script_summaries[script]["operations"][operation_type] += file_count
+        script_summaries[script]["sessions"].add(session_id)
+
+        if not script_summaries[script]["first_operation"]:
+            script_summaries[script]["first_operation"] = timestamp
+        script_summaries[script]["last_operation"] = timestamp
+
     # Calculate work time (simplified - time between first and last operation)
     for script, summary in script_summaries.items():
-        if summary['first_operation'] and summary['last_operation']:
+        if summary["first_operation"] and summary["last_operation"]:
             try:
-                start = datetime.fromisoformat(summary['first_operation'].replace('Z', '+00:00'))
-                end = datetime.fromisoformat(summary['last_operation'].replace('Z', '+00:00'))
+                start = datetime.fromisoformat(
+                    summary["first_operation"].replace("Z", "+00:00")
+                )
+                end = datetime.fromisoformat(
+                    summary["last_operation"].replace("Z", "+00:00")
+                )
                 work_time_seconds = (end - start).total_seconds()
-                summary['work_time_seconds'] = work_time_seconds
-                summary['work_time_minutes'] = work_time_seconds / 60.0
+                summary["work_time_seconds"] = work_time_seconds
+                summary["work_time_minutes"] = work_time_seconds / 60.0
             except Exception:
-                summary['work_time_seconds'] = 0
-                summary['work_time_minutes'] = 0
-        
+                summary["work_time_seconds"] = 0
+                summary["work_time_minutes"] = 0
+
         # Convert sets to counts
-        summary['session_count'] = len(summary['sessions'])
-        del summary['sessions']
-    
+        summary["session_count"] = len(summary["sessions"])
+        del summary["sessions"]
+
     # Create daily summary (even if no operations)
     daily_summary = {
-        'date': target_date,
-        'processed_at': datetime.now().isoformat(),
-        'total_operations': len(operations),
-        'scripts': dict(script_summaries)
+        "date": target_date,
+        "processed_at": datetime.now().isoformat(),
+        "total_operations": len(operations),
+        "scripts": dict(script_summaries),
     }
-    
+
     # Save summary
     summary_file = summaries_dir / f"daily_summary_{target_date}.json"
-    with open(summary_file, 'w') as f:
+    with open(summary_file, "w") as f:
         json.dump(daily_summary, f, indent=2)
-    
+
     print(f"✅ Created summary: {summary_file}")
-    print(f"📊 Processed {len(operations)} operations across {len(script_summaries)} scripts")
-    
+    print(
+        f"📊 Processed {len(operations)} operations across {len(script_summaries)} scripts"
+    )
+
     # CRITICAL: Verify dashboard can read the consolidated data
     # If no operations (e.g., empty day), skip verification but keep summary
     if operations:
@@ -209,26 +226,37 @@ def consolidate_daily_data(target_date: str, dry_run: bool = False):
             # Test dashboard data engine (use module-level import for testability)
             engine = DashboardDataEngine(data_dir=str(data_dir.parent))
             test_records = engine.load_file_operations(target_date, target_date)
-            
+
             if not test_records:
-                raise Exception("Dashboard cannot read consolidated data - no records found")
-            
+                raise Exception(
+                    "Dashboard cannot read consolidated data - no records found"
+                )
+
             # Verify we have data for the target date
             # Handle both date objects and string dates
             from datetime import date as date_type
+
             def normalize_date(d):
                 if isinstance(d, date_type):
-                    return d.strftime('%Y%m%d')
+                    return d.strftime("%Y%m%d")
                 elif isinstance(d, str):
-                    return d.replace('-', '')
+                    return d.replace("-", "")
                 return None
-            
-            date_records = [r for r in test_records if r.get('date') and normalize_date(r['date']) == target_date]
+
+            date_records = [
+                r
+                for r in test_records
+                if r.get("date") and normalize_date(r["date"]) == target_date
+            ]
             if not date_records:
-                raise Exception(f"Dashboard cannot find data for target date {target_date}")
-            
-            print(f"✅ Dashboard verification successful: {len(test_records)} records loaded")
-            
+                raise Exception(
+                    f"Dashboard cannot find data for target date {target_date}"
+                )
+
+            print(
+                f"✅ Dashboard verification successful: {len(test_records)} records loaded"
+            )
+
         except Exception as e:
             print(f"❌ CRITICAL ERROR: Dashboard verification failed: {e}")
             print("🛑 Stopping consolidation to prevent data loss")
@@ -236,38 +264,48 @@ def consolidate_daily_data(target_date: str, dry_run: bool = False):
             if summary_file.exists():
                 summary_file.unlink()
             raise Exception(f"Dashboard verification failed: {e}")
-    
+
     # Archive old detailed logs (keep 2 days) - only if not dry run
     if not dry_run:
-        cutoff_date = datetime.strptime(target_date, '%Y%m%d') - timedelta(days=2)
-        cutoff_str = cutoff_date.strftime('%Y%m%d')
-        
+        cutoff_date = datetime.strptime(target_date, "%Y%m%d") - timedelta(days=2)
+        cutoff_str = cutoff_date.strftime("%Y%m%d")
+
         for log_file in file_ops_dir.glob("file_operations_*.log"):
             if log_file.name != "file_operations.log":
-                file_date = log_file.stem.replace('file_operations_', '')
+                file_date = log_file.stem.replace("file_operations_", "")
                 if file_date < cutoff_str:
                     archive_dir = data_dir / "log_archives"
                     archive_dir.mkdir(exist_ok=True)
                     archive_file = archive_dir / f"{log_file.name}.gz"
-                    
+
                     import gzip
                     import shutil
-                    with open(log_file, 'rb') as f_in:
-                        with gzip.open(archive_file, 'wb') as f_out:
+
+                    with open(log_file, "rb") as f_in:
+                        with gzip.open(archive_file, "wb") as f_out:
                             shutil.copyfileobj(f_in, f_out)
-                    
+
                     log_file.unlink()
                     print(f"📦 Archived: {log_file.name} → {archive_file.name}")
     else:
         print("🧪 DRY RUN: Would archive old logs (skipped)")
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Consolidate file operation logs into daily summaries")
-    parser.add_argument("--process-date", required=True, help="Date to process (YYYYMMDD format)")
-    parser.add_argument("--dry-run", action="store_true", help="Test consolidation without archiving files")
-    
+    parser = argparse.ArgumentParser(
+        description="Consolidate file operation logs into daily summaries"
+    )
+    parser.add_argument(
+        "--process-date", required=True, help="Date to process (YYYYMMDD format)"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Test consolidation without archiving files",
+    )
+
     args = parser.parse_args()
-    
+
     try:
         consolidate_daily_data(args.process_date, dry_run=args.dry_run)
         if args.dry_run:
@@ -277,6 +315,7 @@ def main():
     except Exception as e:
         print(f"❌ Error during consolidation: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
