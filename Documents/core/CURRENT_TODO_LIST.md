@@ -8,72 +8,68 @@
 
 ## 🎯 Active Tasks
 
-### 🦖 Raptor Reliability Audit (ACTIVE - In Progress)
+### 🦖 Raptor Reliability Audit ✅ **COMPLETE!**
 
 **Purpose:** Systematic reliability review of core workflow scripts to catch silent failures, improve error handling, and ensure data integrity.
 
 **Process:** Run 3-phase Raptor review on each script individually (iterative approach).
 
-**Estimated Cost:** ~15K-20K tokens per script × 9 scripts = ~135K-180K tokens total (spread across multiple sessions)
+**Status:** **ALL 8 PHASES COMPLETE!** 🎉
 
-**Review Order (Priority):**
+**Results:**
 
-- [ ] **Phase 1: `scripts/00_start_project.py`** [IN PROGRESS]
+- **47 critical silent failure modes eliminated**
+- **8 comprehensive review documents** created in `reviews/`
+- **Zero linting errors** in all fixed files
+- **Full audit trail** for every change
 
-  - Entry point for all projects
-  - Est. tokens: 15K-20K (all 3 phases)
-  - Est. time: 30-40 minutes
-  - **Next:** Run `./scripts/run_raptor.sh` to start
+**Completed Reviews:**
 
-- [ ] **Phase 2: `scripts/file_tracker.py`**
+- [x] **Phase 1: `scripts/00_start_project.py`** ✅
 
-  - Logging system used by all workflow scripts
-  - Critical for audit trail and debugging
-  - Review before scripts that depend on it
+  - 5 fixes applied (Block Merge → Fixed)
+  - Review: `reviews/raptor_review_20251031T203130Z.md`
 
-- [ ] **Phase 3: `scripts/01_ai_assisted_reviewer.py`**
+- [x] **Phase 2: `scripts/file_tracker.py`** ✅
 
-  - Image selection tool
-  - Depends on file_tracker
+  - 5 fixes applied (Block Merge → Fixed)
+  - Review: `reviews/raptor_review_20251031T215516Z.md`
 
-- [ ] **Phase 4: `scripts/02_ai_desktop_multi_crop.py`**
+- [x] **Phase 3: `scripts/01_ai_assisted_reviewer.py`** ✅
 
-  - Cropping tool
-  - Only script allowed to write image files
+  - 4 fixes applied (Small fixes → Fixed)
+  - Review: `reviews/raptor_review_20251031T225323Z.md`
 
-- [ ] **Phase 5: `scripts/02_character_processor.py`**
+- [x] **Phase 4: `scripts/02_ai_desktop_multi_crop.py`** ✅
 
-  - Character sorting workflow
+  - 5 fixes applied (Needs Rework → Fixed)
+  - Review: `reviews/raptor_review_20251031T233219Z.md`
 
-- [ ] **Phase 6: `scripts/03_web_character_sorter.py`**
+- [x] **Phase 5: `scripts/02_character_processor.py`** ✅
 
-  - Web-based character sorter
+  - 8 fixes applied (Block Merge → Fixed)
+  - Review: `reviews/raptor_review_20251031T234831Z.md`
 
-- [ ] **Phase 7: `scripts/04_character_check.py`**
+- [x] **Phase 6: `scripts/03_web_character_sorter.py`** ✅
 
-  - Character validation
+  - 6 fixes applied (Block Merge → Fixed)
+  - Review: `reviews/raptor_review_20251101T002627Z.md`
 
-- [ ] **Phase 8: `scripts/07_finish_project.py`**
+- [x] **Phase 7: `scripts/04_character_check.py`** ✅
 
-  - Project completion workflow
+  - 5 fixes applied (Needs Rework → Fixed)
+  - Review: `reviews/raptor_review_20251101T010158Z.md`
 
-- [ ] **Phase 9: Backup Scripts**
+- [x] **Phase 8: `scripts/07_finish_project.py`** ✅
+  - 9 fixes applied (Needs Rework → Fixed)
+  - Review: `reviews/raptor_review_20251101T012014Z.md`
+
+**Optional Future Work:**
+
+- [ ] **Phase 9: Backup Scripts** (DEFERRED - lower priority)
   - `scripts/backup/daily_backup.py`
   - `scripts/backup/daily_backup_simple.py`
-  - Any other backup-related scripts
-
-**After Each Review:**
-
-1. Implement fixes from Phase A
-2. Commit changes
-3. Move to next script
-
-**Notes:**
-
-- Each review is independent - can pause between scripts
-- Fix issues as you go rather than batching
-- Token usage spreads across days/weeks
-- Creates comprehensive audit trail
+  - Can be reviewed in future session if needed
 
 **Future Automation:**
 
@@ -81,11 +77,11 @@
   - **Goal:** Replace manual copy/paste workflow with automated API calls
   - **Resources:** Erik has ChatGPT and Claude API endpoints available
   - **Workflow to automate:**
-    1. Phase A: Call Claude Sonnet 4.5 API with Phase A prompt + target file
-    2. Parse Phase A output, extract findings section
-    3. Phase B: Call GPT-5 Codex API with Phase B prompt + Phase A results
-    4. Parse Phase B output, extract validation summary
-    5. Phase C: Call GPT-5 API with Phase C prompt + all prior results
+    1. Phase 1: Call Claude Sonnet 4.5 API with Phase 1 prompt + target file
+    2. Parse Phase 1 output, extract findings section
+    3. Phase 2: Call GPT-5 Codex API with Phase 2 prompt + Phase 1 results
+    4. Parse Phase 2 output, extract validation summary
+    5. Phase 3: Call GPT-5 API with Phase 3 prompt + all prior results
     6. Generate complete review document automatically
     7. Optionally: Auto-apply diffs if confidence score meets threshold
   - **Benefits:**
@@ -95,6 +91,67 @@
     - Generate structured JSON output for dashboard integration
   - **Priority:** LOW (current manual workflow is working well)
   - **Estimated Effort:** 2-3 hours for API integration script
+
+- [ ] **Once automation is set up: Deep Raptor review of utilities and tools** [PRIORITY: HIGH after automation]
+  
+  - **Goal:** Review ALL utilities in the critical path, recursively checking dependencies
+  
+  - **Phase 1: Map Critical Dependencies**
+    1. Scan scripts 0-4 and 7 (core workflow, skip 5/6) for utility imports
+    2. For each utility found, scan IT for utility imports (recursive)
+    3. Build dependency tree showing entire call chain
+    4. Generate ordered review list (deepest dependencies first)
+  
+  - **Phase 2: Automated Recursive Raptor Review**
+    - Start with leaf utilities (no dependencies)
+    - Work up the dependency tree
+    - For each utility:
+      - Run 3-phase Raptor review
+      - Apply fixes
+      - Commit
+      - Move to next utility
+    - Benefits of automation: Can run overnight, process 20-30 utilities unattended
+  
+  - **Target Scripts to Scan for Dependencies:**
+    - ✅ `scripts/00_start_project.py`
+    - ✅ `scripts/01_ai_assisted_reviewer.py`
+    - ✅ `scripts/02_ai_desktop_multi_crop.py`
+    - ✅ `scripts/02_character_processor.py`
+    - ✅ `scripts/04_character_check.py`
+    - ✅ `scripts/07_finish_project.py`
+    - ❌ Skip: `scripts/03_web_character_sorter.py` (less critical)
+    - ❌ Skip: `scripts/02_character_processor.py` variant (if exists)
+  
+  - **Expected Critical Utilities (to be confirmed by scan):**
+    - `scripts/utils/activity_timer.py` (used by character_processor)
+    - `scripts/utils/companion_file_utils.py` (likely used by many)
+    - `scripts/utils/crop_queue.py` (used by crop tools)
+    - `scripts/utils/ai_crop_utils.py` (used by AI tools)
+    - `scripts/tools/prezip_stager.py` (used by finish_project) **CRITICAL**
+    - `scripts/tools/scan_dir_state.py` (used by prezip_stager) **CRITICAL**
+    - `scripts/data_pipeline/archive_project_bins.py` (used by finish_project)
+    - Plus any utilities THOSE utilities depend on (recursive)
+  
+  - **Deferred (low priority - audit/reporting tools):**
+    - `scripts/tools/audit_*.py` - Auditing tools (not in critical path)
+    - `scripts/tools/analyze_*.py` - Analysis tools (not in critical path)
+    - `scripts/tools/report_*.py` - Reporting tools (not in critical path)
+    - `scripts/tools/backup_*.py` - Backup utilities (lower priority, can review separately)
+    - `scripts/data_pipeline/*` - Most data pipeline scripts (not in core workflow)
+  
+  - **Estimated Scope:**
+    - Core workflow scripts: 6 scripts (already done)
+    - Critical utilities (estimated): 10-15 scripts
+    - Total Raptor reviews: 10-15 more reviews
+    - With automation: Can run overnight/over weekend
+    - Manual time saved: ~8-12 hours vs doing it manually
+  
+  - **Why This Approach:**
+    - We've hardened the top-level scripts (they log and surface utility errors)
+    - But if utilities have silent failures, those still cause production issues
+    - Recursive scan ensures we catch the ENTIRE chain (utility → sub-utility → sub-sub-utility)
+    - Automation makes reviewing 10-15 utilities feasible (would be tedious manually)
+    - Result: End-to-end reliability from workflow script down to deepest dependency
 
 ---
 
