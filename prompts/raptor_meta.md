@@ -5,19 +5,19 @@ GOAL: rebuild confidence after silent failures by running a full reliability rev
 
 SEQUENCE
 ──────────────────────────────────────────────
-[1] **Phase A — Claude Sonnet 4.5 (Max Mode)**  
+[1] **Phase 1 — Claude Sonnet 4.5 (Max Mode)**  
 → Deep reliability reasoning  
 → Identify silent failures, broad/bare excepts, missing logging, weak tests.  
 → Output: FINDINGS, DIFFS (max 5), TESTS, CHECKLIST.  
 Prompt used: “Deep Reliability Review” (see stored template).
 
-[2] **Phase B — GPT-5 Codex**  
+[2] **Phase 2 — GPT-5 Codex**  
 → Verify each diff logically and syntactically.  
 → Check Ruff/MyPy/pytest compliance and test validity.  
 → Output: VALIDATION SUMMARY, SUGGESTED ADDITIONS, TEST RECOMMENDATIONS, CONFIDENCE REPORT.  
 Prompt used: “Verification + Test Integrity Pass”.
 
-[3] **Phase C — Human Safety Check (any model)**  
+[3] **Phase 3 — Human Safety Check (any model)**  
 → Act as skeptical senior reviewer before merge.  
 → Evaluate visibility, logging clarity, rollback safety, edge cases, test sufficiency.  
 → Output: MERGE SAFETY REVIEW + Confidence Score.
@@ -65,4 +65,4 @@ INVOKE
    - Set agent = Sonnet 4.5 Max → execute Phase A
    - Set agent = GPT-5 Codex → execute Phase B
    - Set agent = your preferred model → execute Phase C
-3. Review the combined output; only merge to main when **Phase C = ✅ Merge Safe (≥ 8/10)**.
+3. Review the combined output; only merge to main when **Phase 3 = ✅ Merge Safe (≥ 8/10)**.

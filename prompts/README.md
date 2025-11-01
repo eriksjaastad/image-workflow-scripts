@@ -10,9 +10,9 @@ Quick run
 Console
 ./scripts/run_raptor.sh
 
-## Phase A - AI window Sonnet 4.5 Max mode
+## Phase 1 - AI window Sonnet 4.5 Max mode
 
-prompts/raptor_phase_a_sonnet.md
+prompts/raptor_phase_a_Claude_sonnet_MAX.md
 
 ## TARGET FILE FOR THIS REVIEW
 
@@ -20,27 +20,27 @@ prompts/raptor_phase_a_sonnet.md
 
 paste results in reviews doc
 
-## Phase B - AI window ChatGPT-5 Codex
+## Phase 2 - AI window ChatGPT-5 Codex
 
-prompts/raptor_phase_b_codex.md
-
-## TARGET FILE FOR THIS REVIEW
-
-[[file for review]]
-
-## Phase A Output (to verify)
-
-## Phase C - AI window ChatGPT-5 Max mode
-
-prompts/raptor_phase_c_safety.md
+prompts/raptor_phase_b_ChatGPT5_codex.md
 
 ## TARGET FILE FOR THIS REVIEW
 
 [[file for review]]
 
-## Phase A Output (to verify)
+## Phase 1 Output (to verify)
 
-## Phase B Output (to verify)
+## Phase 3 - AI window ChatGPT-5 Max mode
+
+prompts/raptor_phase_c_ChatGPT5_MAX.md
+
+## TARGET FILE FOR THIS REVIEW
+
+[[file for review]]
+
+## Phase 1 Output (to verify)
+
+## Phase 2 Output (to verify)
 
 ## 🧩 1. First-Time Setup
 
@@ -85,19 +85,19 @@ From the repo root, run:
 
 **All phases happen in Cursor.** Each phase uses a different AI model in a separate Cursor chat window for independent verification.
 
-### 📋 Phase Assignment Table
+### 📋 Phase 1ssignment Table
 
 | Phase | Cursor Model                             | Max Mode?  | Prompt File                        | What It Does                                                                                                                                  |
 | :---: | :--------------------------------------- | :--------: | :--------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------- |
-| **A** | **Claude Sonnet 4.5**                    | ✅ **YES** | `prompts/raptor_phase_a_sonnet.md` | 🔍 **Deep Reliability Review**<br>• Find silent failures<br>• Identify bare excepts<br>• Check for missing logging<br>• Suggest up to 5 fixes |
-| **B** | **GPT-5 Codex**                          | ❌ **NO**  | `prompts/raptor_phase_b_codex.md`  | ✅ **Code Verification**<br>• Validate Phase A diffs<br>• Check syntax/logic<br>• Verify test quality<br>• Confirm Ruff/MyPy compliance       |
-| **C** | **GPT-5**<br>(NOT Codex - regular GPT-5) | ✅ **YES** | `prompts/raptor_phase_c_safety.md` | 🛡️ **Human Safety Check**<br>• Pre-merge review<br>• Check edge cases<br>• Verify logging clarity<br>• Assess rollback safety                 |
+| **A** | **Claude Sonnet 4.5**                    | ✅ **YES** | `prompts/raptor_phase_a_Claude_sonnet_MAX.md` | 🔍 **Deep Reliability Review**<br>• Find silent failures<br>• Identify bare excepts<br>• Check for missing logging<br>• Suggest up to 5 fixes |
+| **B** | **GPT-5 Codex**                          | ❌ **NO**  | `prompts/raptor_phase_b_ChatGPT5_codex.md`  | ✅ **Code Verification**<br>• Validate Phase 1 diffs<br>• Check syntax/logic<br>• Verify test quality<br>• Confirm Ruff/MyPy compliance       |
+| **C** | **GPT-5**<br>(NOT Codex - regular GPT-5) | ✅ **YES** | `prompts/raptor_phase_c_ChatGPT5_MAX.md` | 🛡️ **Human Safety Check**<br>• Pre-merge review<br>• Check edge cases<br>• Verify logging clarity<br>• Assess rollback safety                 |
 
 **Why these specific models?**
 
-- **Phase A (Sonnet 4.5 Max):** Best at deep pattern recognition and finding subtle bugs
-- **Phase B (GPT-5 Codex):** Specialized for code verification and syntax checking
-- **Phase C (GPT-5 Max):** Different perspective from Sonnet, strong reasoning for safety
+- **Phase 1 (Sonnet 4.5 Max):** Best at deep pattern recognition and finding subtle bugs
+- **Phase 2 (GPT-5 Codex):** Specialized for code verification and syntax checking
+- **Phase 3 (GPT-5 Max):** Different perspective from Sonnet, strong reasoning for safety
 
 **Why Max Mode for A & C but not B?**
 
@@ -138,7 +138,7 @@ Based on a typical review session (assuming ~20 files changed, medium complexity
   ./scripts/run_raptor.sh      # Review will focus on staged changes
   ```
 - **Batch reviews:** Instead of reviewing every commit, batch up a week's worth of changes into one review
-- **Skip Phase B for trivial changes:** If Phase A only finds 1-2 typos or minor formatting issues, you can skip B & C and just fix them
+- **Skip Phase 2 for trivial changes:** If Phase 1 only finds 1-2 typos or minor formatting issues, you can skip B & C and just fix them
 - **Dashboard work is cheaper:** HTML/data view changes use fewer tokens than complex Python logic reviews
 
 **Given your 22% usage 4 days in:** You have plenty of room for 2-3 full Raptor reviews this month (each ~50K-70K tokens). Since you're shifting to dashboard work (lighter on tokens), you should be fine!
@@ -147,57 +147,57 @@ Based on a typical review session (assuming ~20 files changed, medium complexity
 
 ## 📝 4. Detailed Phase Instructions
 
-### Phase A: Deep Reliability Review
+### Phase 1: Deep Reliability Review
 
 1. **Open a NEW Cursor chat window** (⌘+L or Ctrl+L)
 2. **Enable Max Mode:**
    - Click the model selector dropdown
    - Select **"Claude Sonnet 4.5"**
    - Toggle **"Max Mode"** ON (you'll see a Max badge)
-3. **Open file:** `prompts/raptor_phase_a_sonnet.md`
+3. **Open file:** `prompts/raptor_phase_a_Claude_sonnet_MAX.md`
 4. **Copy entire contents** of the prompt file
 5. **Paste into Cursor chat** and press Enter
 6. **Wait for output** (may take 3-7 minutes in Max Mode)
-7. **Review the output** - Phase A will provide up to 5 diffs (prioritized by severity)
+7. **Review the output** - Phase 1 will provide up to 5 diffs (prioritized by severity)
 8. **Copy the output** (everything from "=== FINDINGS ===" onward)
 9. **Open your review file:** `reviews/raptor_review_TIMESTAMP.md`
-10. **Paste output** under "## Phase A – Claude Sonnet 4.5 (Max Mode)" section
+10. **Paste output** under "## Phase 1 – Claude Sonnet 4.5 (Max Mode)" section
 11. **Save the file**
 
-**📌 Important:** If Phase A finds more than 5 issues, it will prioritize the top 5 most critical. After implementing those fixes and committing, run another Raptor review to catch the next batch.
+**📌 Important:** If Phase 1 finds more than 5 issues, it will prioritize the top 5 most critical. After implementing those fixes and committing, run another Raptor review to catch the next batch.
 
-### Phase B: Code Verification
+### Phase 2: Code Verification
 
-1. **Open a NEW Cursor chat window** (separate from Phase A)
+1. **Open a NEW Cursor chat window** (separate from Phase 1)
 2. **Select model:**
    - Click the model selector dropdown
    - Select **"GPT-5 Codex"**
    - **Do NOT enable Max Mode** (keep it off)
-3. **Open file:** `prompts/raptor_phase_b_codex.md`
+3. **Open file:** `prompts/raptor_phase_b_ChatGPT5_codex.md`
 4. **Copy entire contents** of the prompt file
 5. **Paste into Cursor chat** with Codex
-6. **Important:** Codex will read Phase A's output from your review file
+6. **Important:** Codex will read Phase 1's output from your review file
 7. **Wait for validation** (may take 2-4 minutes)
 8. **Copy the output** (everything from "=== VALIDATION SUMMARY ===" onward)
 9. **Open your review file** again
-10. **Paste output** under "## Phase B – GPT-5 Codex Verification" section
+10. **Paste output** under "## Phase 2 – GPT-5 Codex Verification" section
 11. **Save the file**
 
-### Phase C: Human Safety Check
+### Phase 3: Human Safety Check
 
 1. **Open a NEW Cursor chat window** (separate from Phases A & B)
 2. **Enable Max Mode:**
    - Click the model selector dropdown
    - Select **"GPT-5"** (NOT "GPT-5 Codex" - select regular GPT-5)
    - Toggle **"Max Mode"** ON
-3. **Open file:** `prompts/raptor_phase_c_safety.md`
+3. **Open file:** `prompts/raptor_phase_c_ChatGPT5_MAX.md`
 4. **Copy entire contents** of the prompt file
 5. **Paste into Cursor chat** with GPT-5 Max
-6. **Important:** GPT-5 will read Phase A and B outputs from your review file
+6. **Important:** GPT-5 will read Phase 1 and B outputs from your review file
 7. **Wait for safety analysis** (may take 4-8 minutes in Max Mode)
 8. **Copy the output** (everything from "=== MERGE SAFETY REVIEW ===" onward)
 9. **Open your review file** again
-10. **Paste output** under "## Phase C – Human Safety Check" section
+10. **Paste output** under "## Phase 3 – Human Safety Check" section
 11. **Save the file**
 
 ---
@@ -206,7 +206,7 @@ Based on a typical review session (assuming ~20 files changed, medium complexity
 
 After all three phases are complete:
 
-1. **Review the Phase C verdict:**
+1. **Review the Phase 3 verdict:**
 
    - ✅ **Merge Safe (8-10/10):** Safe to merge
    - ⚠️ **Needs Rework (5-7/10):** Fix issues first
@@ -229,17 +229,17 @@ After all three phases are complete:
 
 Each model brings a different perspective, and running them in separate Cursor chat windows ensures independence:
 
-- **Phase A - Sonnet 4.5 Max:** Excellent at deep code analysis and pattern recognition. Finds the problems.
-- **Phase B - GPT-5 Codex (no Max):** Specialized in code verification and syntax checking. Verifies the fixes.
-- **Phase C - GPT-5 Max:** Different perspective from Sonnet, strong reasoning for safety concerns. Final check before merge.
+- **Phase 1 - Sonnet 4.5 Max:** Excellent at deep code analysis and pattern recognition. Finds the problems.
+- **Phase 2 - GPT-5 Codex (no Max):** Specialized in code verification and syntax checking. Verifies the fixes.
+- **Phase 3 - GPT-5 Max:** Different perspective from Sonnet, strong reasoning for safety concerns. Final check before merge.
 
 Using three models prevents any single AI from missing issues. It's like having three experienced developers review your code.
 
 **Phase order matters:**
 
-- Phase A finds problems and suggests fixes
-- Phase B verifies those fixes are correct
-- Phase C checks if it's safe to merge
+- Phase 1 finds problems and suggests fixes
+- Phase 2 verifies those fixes are correct
+- Phase 3 checks if it's safe to merge
 
 **Don't skip phases** - each builds on the previous one!
 
@@ -253,7 +253,7 @@ Running each phase in a fresh Cursor chat window ensures:
 
 **What about the "max 5 diffs" limit?**
 
-Phase A limits output to 5 diffs to keep the review focused and actionable. This is intentional:
+Phase 1 limits output to 5 diffs to keep the review focused and actionable. This is intentional:
 
 - Prevents overwhelming you with too many changes
 - Focuses on the most critical issues first

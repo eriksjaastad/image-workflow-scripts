@@ -29,16 +29,16 @@ cat > "$REVIEW_FILE" <<EOF
 # Meta-Prompt Raptor Review
 _Date:_ $(date -u +"%Y-%m-%d %H:%M:%SZ") UTC
 
-## Phase A – Claude Sonnet 4.5 (Max Mode)
-Prompt file: $PROMPTS_DIR/raptor_phase_a_sonnet.md  
+## Phase 1 – Claude Sonnet 4.5 (Max Mode)
+Prompt file: $PROMPTS_DIR/raptor_phase_a_Claude_sonnet_MAX.md  
 Paste output here.
 
-## Phase B – GPT-5 Codex Verification
-Prompt file: $PROMPTS_DIR/raptor_phase_b_codex.md  
+## Phase 2 – GPT-5 Codex Verification
+Prompt file: $PROMPTS_DIR/raptor_phase_b_ChatGPT5_codex.md  
 Paste output here.
 
-## Phase C – Human Safety Check
-Prompt file: $PROMPTS_DIR/raptor_phase_c_safety.md  
+## Phase 3 – Human Safety Check
+Prompt file: $PROMPTS_DIR/raptor_phase_c_ChatGPT5_MAX.md  
 Paste output here.
 
 EOF
@@ -48,7 +48,7 @@ echo "    $REVIEW_FILE"
 echo ""
 echo "🧭  Next steps:"
 echo "1. Open $PROMPTS_DIR/raptor_meta.md in your AI workspace."
-echo "2. Run Phase A → Phase B → Phase C using their prompt files."
+echo "2. Run Phase 1 → Phase 2 → Phase 3 using their prompt files."
 echo "3. Paste results into $REVIEW_FILE."
 echo "4. Commit and push the finished review for your audit log."
 echo ""
