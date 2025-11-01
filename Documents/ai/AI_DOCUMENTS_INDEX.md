@@ -33,9 +33,13 @@ version: 2025-10-26
 9. **AI_TRAINING_REFERENCE.md** — Technical reference; tags: [ai, training, reference]
 10. **AI_ASSISTED_REVIEWER.md** — Reviewer overview, routing, usage; tags: [ai, reviewer]
 11. **../testing/TESTS_GUIDE.md** — How to run quick safety tests and the full suite; tags: [tests, ci]
+12. **../guides/BACKFILL_QUICK_START.md** — 3-phase backfill process (Phase 1A/1B/2); tags: [backfill, training]
+13. **../guides/ZIP_DATABASE_MAPPING.md** — Project mapping table for batch operations; tags: [mapping, batch]
+14. **../guides/AI_PREDICTIONS_BATCH_PLAN.md** — Batch AI predictions across all projects; tags: [batch, predictions]
 
 ### Reference Documents:
 - Historical AI docs have been archived to keep the core set lean. See: `../archives/ai/`
+- **../reference/MAPPING_TABLE_BEST_PRACTICE.md** — Best practice for batch operation mapping tables; tags: [best-practice, mapping]
 
 ---
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 Backfill Phase 2: Compare and Merge Databases
 
 This script compares the temporary backfill database with the real database
@@ -19,14 +19,13 @@ Usage:
 import argparse
 import json
 import sqlite3
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
-def get_all_records(db_path: Path) -> Dict[str, Dict[str, Any]]:
+def get_all_records(db_path: Path) -> dict[str, dict[str, Any]]:
     """Load all records from database, keyed by group_id."""
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
@@ -43,7 +42,7 @@ def get_all_records(db_path: Path) -> Dict[str, Dict[str, Any]]:
     return records
 
 
-def build_image_to_record_map(records: Dict[str, Dict[str, Any]]) -> Dict[str, str]:
+def build_image_to_record_map(records: dict[str, dict[str, Any]]) -> dict[str, str]:
     """Build a map from image filename to group_id for finding matches."""
     image_map = {}
     for group_id, record in records.items():
@@ -59,7 +58,7 @@ def build_image_to_record_map(records: Dict[str, Dict[str, Any]]) -> Dict[str, s
 
 
 def coords_are_close(
-    coords1_json: Optional[str], coords2_json: Optional[str], tolerance: float = 0.01
+    coords1_json: str | None, coords2_json: str | None, tolerance: float = 0.01
 ) -> bool:
     """
     Check if two crop coordinate sets are within tolerance (1% default).
@@ -83,18 +82,14 @@ def coords_are_close(
             return False
 
         # Check each coordinate
-        for c1, c2 in zip(coords1, coords2):
-            if abs(c1 - c2) > tolerance:
-                return False
-
-        return True
+        return all(abs(c1 - c2) <= tolerance for c1, c2 in zip(coords1, coords2, strict=False))
     except Exception:
         return False
 
 
 def compare_records(
-    temp_record: Dict[str, Any], real_record: Optional[Dict[str, Any]]
-) -> Tuple[str, Dict[str, Any]]:
+    temp_record: dict[str, Any], real_record: dict[str, Any] | None
+) -> tuple[str, dict[str, Any]]:
     """
     Compare temp and real records and determine merge action.
 
@@ -153,14 +148,14 @@ def compare_records(
     ):
         fields_to_update["ai_confidence"] = temp_record["ai_confidence"]
 
-    # Match fields - only fill if NULL in real DB
+    # Match fields - only fill if NULL in real DB and exists in temp DB
     if (
         real_record["selection_match"] is None
-        and temp_record["selection_match"] is not None
+        and temp_record.get("selection_match") is not None
     ):
         fields_to_update["selection_match"] = temp_record["selection_match"]
 
-    if real_record["crop_match"] is None and temp_record["crop_match"] is not None:
+    if real_record["crop_match"] is None and temp_record.get("crop_match") is not None:
         fields_to_update["crop_match"] = temp_record["crop_match"]
 
     # User action - only fill if NULL or empty in real DB
@@ -187,16 +182,15 @@ def compare_records(
                     "old_coords": real_coords,
                 },
             )
-        else:
-            return (
-                "fill_nulls",
-                {"group_id": real_record["group_id"], "updates": fields_to_update},
-            )
+        return (
+            "fill_nulls",
+            {"group_id": real_record["group_id"], "updates": fields_to_update},
+        )
 
     return ("skip", {})
 
 
-def add_record(cursor: sqlite3.Cursor, record: Dict[str, Any], dry_run: bool = True):
+def add_record(cursor: sqlite3.Cursor, record: dict[str, Any], dry_run: bool = True):
     """Add a new record to the real database."""
     if dry_run:
         return
@@ -234,7 +228,7 @@ def add_record(cursor: sqlite3.Cursor, record: Dict[str, Any], dry_run: bool = T
 
 
 def fill_null_fields(
-    cursor: sqlite3.Cursor, group_id: str, updates: Dict[str, Any], dry_run: bool = True
+    cursor: sqlite3.Cursor, group_id: str, updates: dict[str, Any], dry_run: bool = True
 ):
     """
     Update NULL fields in existing record.
@@ -285,49 +279,27 @@ def main():
     temp_db_path = Path(args.temp_db)
     real_db_path = Path(args.real_db)
 
-    print("=" * 80)
-    print("PHASE 2: DATABASE COMPARISON & MERGE")
-    print("=" * 80)
-    print(f"Temp DB: {temp_db_path}")
-    print(f"Real DB: {real_db_path}")
-    print(
-        f"Mode: {'DRY RUN (no changes)' if args.dry_run else 'LIVE (will modify database)'}"
-    )
-    print()
 
     # Verify files exist
     if not temp_db_path.exists():
-        print(f"❌ ERROR: Temp database not found: {temp_db_path}")
         return
 
     if not real_db_path.exists():
-        print(f"❌ ERROR: Real database not found: {real_db_path}")
         return
 
-    print("Loading databases...")
     temp_records = get_all_records(temp_db_path)
     real_records = get_all_records(real_db_path)
 
-    print(f"  Temp DB: {len(temp_records):,} records")
-    print(f"  Real DB: {len(real_records):,} records")
-    print()
 
     # Build image filename to group_id maps for matching
-    print("Building image filename maps...")
     temp_image_map = build_image_to_record_map(temp_records)
     real_image_map = build_image_to_record_map(real_records)
 
-    print(f"  Temp DB: {len(temp_image_map):,} unique images")
-    print(f"  Real DB: {len(real_image_map):,} unique images")
-    print()
 
     # Find overlapping images (same filename in both databases)
     overlapping_images = set(temp_image_map.keys()) & set(real_image_map.keys())
-    print(f"  Overlapping images: {len(overlapping_images):,}")
-    print()
 
     # Compare all records
-    print("Comparing records...")
     actions = {"add": [], "fill_nulls": [], "update_coords": [], "skip": []}
 
     # Track which temp records matched with real records
@@ -351,145 +323,66 @@ def main():
             actions["add"].append((temp_group_id, temp_record))
 
     # Display summary
-    print()
-    print("=" * 80)
-    print("COMPARISON RESULTS")
-    print("=" * 80)
-    print(f"Records to ADD:       {len(actions['add']):,}")
-    print(f"Records to UPDATE:    {len(actions['fill_nulls']):,}")
-    print(
-        f"Coords to CORRECT:    {len(actions['update_coords']):,} ⚠️  (temp is source of truth)"
-    )
-    print(f"Records to SKIP:      {len(actions['skip']):,}")
-    print()
 
     # Show sample actions
     if actions["add"]:
-        print("Sample records to ADD (first 5):")
-        for i, (group_id, record) in enumerate(actions["add"][:5]):
-            print(f"  {i+1}. {group_id}")
-            print(
-                f"     - AI: index={record['ai_selected_index']}, confidence={record['ai_confidence']:.2f}"
-            )
-            print(
-                f"     - User: action={record['user_action']}, coords={record['final_crop_coords'][:50] if record['final_crop_coords'] else None}"
-            )
+        for _i, (_group_id, record) in enumerate(actions["add"][:5]):
+            pass
         if len(actions["add"]) > 5:
-            print(f"  ... and {len(actions['add']) - 5:,} more")
-        print()
+            pass
 
     if actions["update_coords"]:
-        print("⚠️  Sample COORDINATE CORRECTIONS (first 5):")
-        print(
-            "    (Temp coordinates extracted from physical images are source of truth)"
-        )
-        for i, (group_id, data) in enumerate(actions["update_coords"][:5]):
-            print(f"  {i+1}. {group_id}")
-            print(f"     - OLD: {data['old_coords'][:60]}...")
-            new_coords = data["updates"]["final_crop_coords"]
-            print(f"     - NEW: {new_coords[:60]}...")
+        for _i, (_group_id, data) in enumerate(actions["update_coords"][:5]):
+            data["updates"]["final_crop_coords"]
         if len(actions["update_coords"]) > 5:
-            print(f"  ... and {len(actions['update_coords']) - 5:,} more")
-        print()
+            pass
 
     if actions["fill_nulls"]:
-        print("Sample records to UPDATE (first 5):")
-        for i, (group_id, data) in enumerate(actions["fill_nulls"][:5]):
-            print(f"  {i+1}. {group_id}")
-            for field, value in data["updates"].items():
+        for _i, (_group_id, data) in enumerate(actions["fill_nulls"][:5]):
+            for _field, value in data["updates"].items():
                 if isinstance(value, str) and len(value) > 50:
                     value = value[:50] + "..."
-                print(f"     - Fill {field}: {value}")
         if len(actions["fill_nulls"]) > 5:
-            print(f"  ... and {len(actions['fill_nulls']) - 5:,} more")
-        print()
+            pass
 
     # Check for records in real DB but not in temp (shouldn't happen, just informational)
     real_only = set(real_records.keys()) - set(temp_records.keys())
     if real_only:
-        print(f"Records in real DB but NOT in temp: {len(real_only):,}")
-        print("  (These will be left unchanged - this is expected)")
-        print()
+        pass
 
     # Execute changes
     if args.dry_run:
-        print("=" * 80)
-        print("🔍 DRY RUN COMPLETE - No changes made")
-        print("=" * 80)
-        print()
-        print("To actually merge the data, run without --dry-run:")
-        print("  python scripts/ai/backfill_project_phase2_compare.py \\")
-        print(f"    --temp-db {temp_db_path} \\")
-        print(f"    --real-db {real_db_path}")
-        print()
-        print("⚠️  RECOMMENDATION: Review the samples above before proceeding!")
+        pass
     else:
-        print("=" * 80)
-        print("⚠️  APPLYING CHANGES TO REAL DATABASE")
-        print("=" * 80)
 
         conn = sqlite3.connect(str(real_db_path))
         cursor = conn.cursor()
 
         try:
             # Add new records
-            print(f"Adding {len(actions['add']):,} new records...")
-            for group_id, record in actions["add"]:
+            for _group_id, record in actions["add"]:
                 add_record(cursor, record, dry_run=False)
 
             # Update existing records (fill NULLs)
-            print(
-                f"Updating {len(actions['fill_nulls']):,} existing records (filling NULLs)..."
-            )
-            for group_id, data in actions["fill_nulls"]:
+            for _group_id, data in actions["fill_nulls"]:
                 fill_null_fields(
                     cursor, data["group_id"], data["updates"], dry_run=False
                 )
 
             # Correct coordinates
-            print(
-                f"Correcting {len(actions['update_coords']):,} crop coordinates (temp is source of truth)..."
-            )
-            for group_id, data in actions["update_coords"]:
+            for _group_id, data in actions["update_coords"]:
                 fill_null_fields(
                     cursor, data["group_id"], data["updates"], dry_run=False
                 )
 
             conn.commit()
-            print()
-            print("✅ MERGE COMPLETE!")
-            print()
-            print("Summary:")
-            print(f"  - Added: {len(actions['add']):,} records")
-            print(f"  - Updated: {len(actions['fill_nulls']):,} records (filled NULLs)")
-            print(
-                f"  - Corrected: {len(actions['update_coords']):,} records (fixed coordinates)"
-            )
-            print(f"  - Skipped: {len(actions['skip']):,} records (already complete)")
-            print(
-                f"  - Total in real DB: {len(real_records) + len(actions['add']):,} records"
-            )
 
-        except Exception as e:
-            print(f"❌ ERROR during merge: {e}")
+        except Exception:
             conn.rollback()
             raise
         finally:
             conn.close()
 
-        print()
-        print("=" * 80)
-        print("🎉 BACKFILL COMPLETE!")
-        print("=" * 80)
-        print()
-        print("Next steps:")
-        print("  1. Validate the merged data:")
-        print("     python scripts/ai/validate_training_data.py <project_id>")
-        print("  2. Check AI performance stats:")
-        print(f"     sqlite3 {real_db_path}")
-        print(
-            "     SELECT COUNT(*), AVG(selection_match), AVG(crop_match) FROM ai_decisions;"
-        )
 
 
 if __name__ == "__main__":

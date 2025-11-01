@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 Phase 1A: Create Temp Database with AI Predictions
 
 This script:
@@ -23,13 +23,12 @@ import sqlite3
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import open_clip
 import torch
-import torch.nn as nn
 from PIL import Image
+from torch import nn
 from tqdm import tqdm
 
 # Add project root to path
@@ -43,9 +42,10 @@ from scripts.utils.companion_file_utils import (
     sort_image_files_by_timestamp_and_stage,
 )
 
-# Model paths (these are standard)
-RANKER_MODEL_PATH = WORKSPACE / "data" / "ai_data" / "models" / "ranker_v3_w10.pt"
-CROP_MODEL_PATH = WORKSPACE / "data" / "ai_data" / "models" / "crop_proposer_v2.pt"
+# Default model paths (can be overridden via CLI args)
+DEFAULT_RANKER_MODEL = "ranker_v4.pt"  # Latest ranker
+DEFAULT_CROP_MODEL = "crop_proposer_v3.pt"  # Latest crop proposer (v3)
+MODELS_DIR = WORKSPACE / "data" / "ai_data" / "models"
 EMBEDDINGS_CACHE = WORKSPACE / "data" / "ai_data" / "cache" / "processed_images.jsonl"
 EMBEDDINGS_DIR = WORKSPACE / "data" / "ai_data" / "embeddings"
 
@@ -91,11 +91,11 @@ class CropProposer(nn.Module):
         return self.net(x)
 
 
-def load_embedding_cache() -> Dict[str, np.ndarray]:
+def load_embedding_cache() -> dict[str, np.ndarray]:
     """Load pre-computed CLIP embeddings from cache."""
     embeddings = {}
     if EMBEDDINGS_CACHE.exists():
-        with open(EMBEDDINGS_CACHE, "r") as f:
+        with open(EMBEDDINGS_CACHE) as f:
             for line in f:
                 entry = json.loads(line)
                 filename = Path(entry["filename"]).name
@@ -112,12 +112,11 @@ def compute_clip_embedding(image_path: Path, clip_model, preprocess) -> np.ndarr
             embedding = clip_model.encode_image(image_tensor)
             embedding = embedding / embedding.norm(dim=-1, keepdim=True)
         return embedding.cpu().numpy().flatten()
-    except Exception as e:
-        print(f"    ⚠️  Failed to compute embedding for {image_path.name}: {e}")
+    except Exception:
         return None
 
 
-def group_original_images(original_dir: Path) -> List[Tuple[str, List[Path]]]:
+def group_original_images(original_dir: Path) -> list[tuple[str, list[Path]]]:
     """
     Group original images using the standard grouping logic.
 
@@ -131,10 +130,8 @@ def group_original_images(original_dir: Path) -> List[Tuple[str, List[Path]]]:
         all_images.extend(original_dir.rglob(f"*{ext}"))
 
     if not all_images:
-        print(f"❌ No images found in {original_dir}")
         return []
 
-    print(f"Found {len(all_images)} images")
 
     # Sort by timestamp and stage
     sorted_images = sort_image_files_by_timestamp_and_stage(all_images)
@@ -148,7 +145,6 @@ def group_original_images(original_dir: Path) -> List[Tuple[str, List[Path]]]:
         first_img = group_images[0]
         timestamp = extract_timestamp_from_filename(first_img.name)
         if not timestamp:
-            print(f"  ⚠️  Skipping group starting with {first_img.name} (no timestamp)")
             continue
 
         group_id = f"{first_img.parent.name}_group_{timestamp}"
@@ -158,13 +154,13 @@ def group_original_images(original_dir: Path) -> List[Tuple[str, List[Path]]]:
 
 
 def run_ai_predictions(
-    group: List[Path],
+    group: list[Path],
     ranker: nn.Module,
     cropper: nn.Module,
-    embedding_cache: Dict[str, np.ndarray],
+    embedding_cache: dict[str, np.ndarray],
     clip_model,
     preprocess,
-) -> Tuple[int, Optional[List[float]], float]:
+) -> tuple[int, list[float] | None, float]:
     """
     Run AI models on a group of images.
 
@@ -191,7 +187,6 @@ def run_ai_predictions(
         valid_indices.append(i)
 
     if not embeddings:
-        print("    ⚠️  No valid embeddings for group")
         return (0, None, 0.0)
 
     # Run ranker
@@ -236,8 +231,7 @@ def run_ai_predictions(
 
         return ai_selected_index, crop_coords, confidence
 
-    except Exception as e:
-        print(f"    ⚠️  Crop prediction failed: {e}")
+    except Exception:
         return ai_selected_index, None, confidence
 
 
@@ -272,7 +266,6 @@ def create_temp_database(db_path: Path, project_id: str):
 
     conn.commit()
     conn.close()
-    print(f"✅ Created temp database: {db_path}")
 
 
 def insert_ai_prediction(
@@ -280,9 +273,9 @@ def insert_ai_prediction(
     group_id: str,
     project_id: str,
     directory: str,
-    images: List[Path],
+    images: list[Path],
     ai_selected_index: int,
-    ai_crop_coords: Optional[List[float]],
+    ai_crop_coords: list[float] | None,
     ai_confidence: float,
 ):
     """Insert AI prediction into temp database."""
@@ -342,86 +335,74 @@ def main():
     parser.add_argument(
         "--output-db", required=True, help="Path to output temp database"
     )
+    parser.add_argument(
+        "--ranker-model",
+        default=DEFAULT_RANKER_MODEL,
+        help=f"Ranker model filename (default: {DEFAULT_RANKER_MODEL})",
+    )
+    parser.add_argument(
+        "--crop-model",
+        default=DEFAULT_CROP_MODEL,
+        help=f"Crop proposer model filename (default: {DEFAULT_CROP_MODEL})",
+    )
     args = parser.parse_args()
 
     original_dir = Path(args.original_dir)
     output_db = Path(args.output_db)
     project_id = args.project_id
 
-    print("=" * 80)
-    print("PHASE 1A: AI PREDICTIONS")
-    print("=" * 80)
-    print(f"Project ID: {project_id}")
-    print(f"Original images: {original_dir}")
-    print(f"Output database: {output_db}")
-    print()
+    # Resolve model paths
+    ranker_model_path = MODELS_DIR / args.ranker_model
+    crop_model_path = MODELS_DIR / args.crop_model
+
 
     # Verify paths
     if not original_dir.exists():
-        print(f"❌ ERROR: Original directory not found: {original_dir}")
         return
 
-    if not RANKER_MODEL_PATH.exists():
-        print(f"❌ ERROR: Ranker model not found: {RANKER_MODEL_PATH}")
+    if not ranker_model_path.exists():
         return
 
-    if not CROP_MODEL_PATH.exists():
-        print(f"❌ ERROR: Crop proposer model not found: {CROP_MODEL_PATH}")
+    if not crop_model_path.exists():
         return
 
     # Load models
-    print("Loading AI models...")
     ranker = RankingModel().to(device)
-    ranker.load_state_dict(torch.load(RANKER_MODEL_PATH, map_location=device))
+    ranker.load_state_dict(torch.load(ranker_model_path, map_location=device))
     ranker.eval()
-    print(f"  ✅ Loaded ranker: {RANKER_MODEL_PATH.name}")
 
     cropper = CropProposer().to(device)
-    cropper.load_state_dict(torch.load(CROP_MODEL_PATH, map_location=device))
+    cropper.load_state_dict(torch.load(crop_model_path, map_location=device))
     cropper.eval()
-    print(f"  ✅ Loaded crop proposer: {CROP_MODEL_PATH.name}")
 
     # Load CLIP model for on-the-fly embeddings
-    print("Loading CLIP model...")
     clip_model, _, preprocess = open_clip.create_model_and_transforms(
         "ViT-B-32", pretrained="openai"
     )
     clip_model = clip_model.to(device)
     clip_model.eval()
-    print("  ✅ Loaded CLIP model")
 
     # Load embedding cache
-    print("Loading embedding cache...")
     embedding_cache = load_embedding_cache()
-    print(f"  ✅ Loaded {len(embedding_cache):,} cached embeddings")
-    print()
 
     # Group original images
-    print(f"Grouping images from {original_dir}...")
     groups = group_original_images(original_dir)
 
     if not groups:
-        print("❌ No groups found. Exiting.")
         return
 
-    print(f"  ✅ Found {len(groups):,} groups")
-    print()
 
     # Create temp database
     if output_db.exists():
-        print(f"⚠️  Output database already exists: {output_db}")
         response = input("Overwrite? (y/n): ")
         if response.lower() != "y":
-            print("Aborted.")
             return
         output_db.unlink()
 
     output_db.parent.mkdir(parents=True, exist_ok=True)
     create_temp_database(output_db, project_id)
-    print()
 
     # Process all groups
-    print(f"🔄 Running AI predictions on {len(groups):,} groups...")
 
     for group_id, group_images in tqdm(groups, desc="Processing"):
         ai_selected_index, ai_crop_coords, ai_confidence = run_ai_predictions(
@@ -439,17 +420,6 @@ def main():
             ai_confidence,
         )
 
-    print()
-    print("=" * 80)
-    print("✅ PHASE 1A COMPLETE!")
-    print("=" * 80)
-    print(f"Database: {output_db}")
-    print(f"Records: {len(groups):,} groups with AI predictions")
-    print()
-    print("Next step: Run Phase 1B to add user ground truth")
-    print("  python scripts/ai/backfill_project_phase1b_user_data.py \\")
-    print(f"    --temp-db {output_db} \\")
-    print("    --final-dir <final_images_directory>")
 
 
 if __name__ == "__main__":

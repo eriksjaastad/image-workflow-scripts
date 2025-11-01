@@ -4,9 +4,110 @@
 **Audience:** Developers
 **Policy:** This is the single authoritative TODO list. Do not create separate TODO docs; add sections here instead.
 
+## 📊 Token Cost Guidelines
+
+When adding tasks, include estimated token cost and recommended AI agent:
+
+**Token Cost Tiers:**
+- 🟢 **LOW:** < 2k tokens (simple edits, documentation, config changes)
+- 🟡 **MEDIUM:** 2k-10k tokens (feature implementation, moderate complexity)
+- 🔴 **HIGH:** 10k+ tokens (complex features, multi-file changes, reviews)
+
+**Agent Recommendations:**
+- **Claude Sonnet 4.5** (you) - Complex tasks, architecture, deep thinking, critical fixes
+- **Claude Sonnet 4.5 (regular)** - Moderate complexity, most development work
+- **GPT-5 Codex** - Code-focused tasks, verification, syntax checking
+- **GPT-4** - Documentation, simple edits, low-complexity work
+- **Cursor Composer** - Multi-file edits, refactoring (when available)
+
+**Cost Management:**
+- Prioritize LOW/MEDIUM cost tasks when approaching monthly limits
+- Save HIGH cost tasks for early in billing cycle
+- Use non-Max mode for routine work
+
 ---
 
-## 🎯 Active Tasks
+## 🎯 Active Tasks (Ordered by Token Cost)
+
+### 📊 Dashboard Enhancements 🟢 **LOW-MEDIUM TOKEN COST**
+
+**Recommended Agent:** Claude Sonnet 4.5 (regular) or GPT-4  
+**Estimated Cost:** 3-5k tokens per feature
+
+**High Priority:**
+- [ ] **Integrate AI training statistics into dashboard**
+  - Show crop proposer v3 accuracy metrics
+  - Display training dataset size and composition
+  - Show model version and training date
+  - Link to detailed training reports
+  
+- [ ] **Clean up graphs with missing/lost data**
+  - Identify which graphs have no data
+  - Either fix data pipeline or remove useless graphs
+  - Add "No data available" states with explanations
+  - Document what data each graph needs
+
+- [ ] **Add AI predictions batch processing status view**
+  - Show which projects have AI predictions
+  - Display prediction counts and accuracy
+  - Link to temp database merge tools
+
+**Medium Priority:**
+- [ ] **Improve dashboard performance**
+  - Profile slow queries
+  - Add caching where appropriate
+  - Optimize database queries
+
+---
+
+### 🔄 gbackup Delivery Automation 🟡 **MEDIUM TOKEN COST**
+
+**Recommended Agent:** Claude Sonnet 4.5 (regular)  
+**Estimated Cost:** 5-8k tokens
+
+**Goal:** Auto-upload finished project zips to Google Drive after `finish_project --commit`
+
+**Implementation:**
+- Hook: After successful finish with `--commit`
+- Target: `gbackup:deliveries/<projectId>/`
+- Flow: copy → check → (optional) delete local zip
+- Reuse rclone remote `gbackup` and daily cron log
+
+**Benefits:**
+- One less manual step after project completion
+- Deliveries automatically backed up to cloud
+- Consistent delivery location
+
+**Files to Modify:**
+- `scripts/07_finish_project.py`
+- Test with dry-run first
+
+---
+
+### 🤖 Raptor Automation 🔴 **HIGH TOKEN COST**
+
+**Recommended Agent:** Claude Sonnet 4.5 Max (for initial setup), then automated  
+**Estimated Cost:** 15-25k tokens for setup + API costs per review  
+**⚠️ DEFER until later in billing cycle**
+
+**Goal:** Replace manual copy/paste workflow with automated API calls
+
+**Phase 1: API Integration Script** (15-20k tokens)
+1. Build script that calls Claude/GPT APIs
+2. Implement 3-phase workflow:
+   - Phase 1: Claude Sonnet 4.5 API → deep analysis
+   - Phase 2: GPT-5 Codex API → verification
+   - Phase 3: GPT-5 API → safety check
+3. Parse outputs and generate review documents
+4. Handle errors and rate limits
+
+**Phase 2: Batch Processing** (5-10k tokens per utility)
+- After automation works: Review 10-15 critical utilities
+- Can run overnight/unattended
+- Estimated: 50-150k tokens for full utility review
+
+**Priority:** LOW until automation is built, then HIGH  
+**When to do:** Early November after token reset (Oct 23 → Nov 23)
 
 ### 🦖 Raptor Reliability Audit ✅ **COMPLETE!**
 
@@ -1045,6 +1146,29 @@ Timeline
   - Target: `gbackup:deliveries/<projectId>/`
   - Flow: copy → check → (optional) delete local zip
   - Reuse rclone remote `gbackup` and daily cron log
+
+---
+
+## 💡 Future Enhancements (Backlog)
+
+### AI Predictions for Single Images
+
+**Context:** Some projects (e.g., mixed-0919, 1102) don't use standard naming conventions or don't group into consecutive stages. The batch prediction script currently skips these.
+
+**Enhancement:** Add fallback mode for ungrouped images:
+- When grouping finds 0 groups, treat each image as a single-image "group"
+- Skip the ranker (no selection needed - only 1 image)
+- Run crop proposer directly on each individual image
+- Store predictions with group_id = filename or similar
+
+**Benefits:**
+- Get crop predictions for projects with non-standard naming
+- More complete training dataset
+- Better coverage across all projects
+
+**Priority:** Low (nice-to-have, not critical)
+
+**Related:** `scripts/ai/batch_add_ai_predictions.py`
 
 ---
 
