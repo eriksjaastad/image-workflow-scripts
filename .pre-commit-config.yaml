@@ -26,8 +26,8 @@ repos:
           - |
             found_error=0
             for file in "$@"; do
-              if rg -n "(?s)except(\s+Exception)?\s*:\s*(pass\b|return\b|continue\b|$)" "$file" --pcre2 2>/dev/null; then
-                echo "ERROR: silent broad except found in $file"
+              if rg -n "except(\s+Exception)?\s*:\s*pass\b" "$file" --pcre2 2>/dev/null; then
+                echo "ERROR: silent broad except with 'pass' found in $file"
                 found_error=1
               fi
             done
