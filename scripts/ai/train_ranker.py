@@ -30,19 +30,17 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
 
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.optim as optim
+from torch import nn, optim
 from torch.utils.data import DataLoader, Dataset
 
 
 class ImageRankingDataset(Dataset):
     """Dataset for pairwise ranking: winner vs losers."""
     
-    def __init__(self, examples: List[Dict]):
+    def __init__(self, examples: list[dict]):
         """
         examples: List of dicts with:
           - winner_emb: np.array (512,)
@@ -67,7 +65,9 @@ class ImageRankingDataset(Dataset):
 class RankingModel(nn.Module):
     """MLP that scores images (higher = better)."""
     
-    def __init__(self, input_dim=512, hidden_dims=[256, 64]):
+    def __init__(self, input_dim=512, hidden_dims=None):
+        if hidden_dims is None:
+            hidden_dims = [256, 64]
         super().__init__()
         
         layers = []
@@ -92,16 +92,14 @@ class RankingModel(nn.Module):
         return self.net(x)
 
 
-def load_embeddings_cache(cache_file: Path) -> Dict[str, np.ndarray]:
+def load_embeddings_cache(cache_file: Path) -> dict[str, np.ndarray]:
     """Load embedding cache mapping image_path -> embedding."""
     cache = {}
     
     if not cache_file.exists():
-        print(f"[!] Cache file not found: {cache_file}")
         return cache
     
-    print(f"[*] Loading embeddings cache from {cache_file}...")
-    with open(cache_file, 'r') as f:
+    with open(cache_file) as f:
         for line in f:
             data = json.loads(line)
             img_path = data['image_path']
@@ -110,11 +108,10 @@ def load_embeddings_cache(cache_file: Path) -> Dict[str, np.ndarray]:
             if emb_file.exists():
                 cache[img_path] = np.load(emb_file)
     
-    print(f"[*] Loaded {len(cache)} embeddings")
     return cache
 
 
-def load_training_data(log_file: Path, embeddings: Dict[str, np.ndarray]) -> List[Dict]:
+def load_training_data(log_file: Path, embeddings: dict[str, np.ndarray]) -> list[dict]:
     """
     Load selection decisions and pair with embeddings.
     
@@ -129,9 +126,8 @@ def load_training_data(log_file: Path, embeddings: Dict[str, np.ndarray]) -> Lis
     skipped = 0
     skipped_reasons = {'missing_winner': 0, 'missing_losers': 0, 'parse_error': 0}
     
-    print(f"[*] Loading training data from {log_file}...")
     
-    with open(log_file, 'r') as f:
+    with open(log_file) as f:
         reader = csv.DictReader(f)
         
         for row in reader:
@@ -187,8 +183,6 @@ def load_training_data(log_file: Path, embeddings: Dict[str, np.ndarray]) -> Lis
                 'group_id': row.get('set_id', f"group_{len(examples)}")
             })
     
-    print(f"[*] Loaded {len(examples)} training examples ({skipped} skipped)")
-    print(f"    Skipped reasons: {skipped_reasons}")
     return examples
 
 
@@ -266,15 +260,6 @@ def main():
     else:
         device = torch.device(args.device)
     
-    print(f"\n{'='*60}")
-    print("🤖 Training Image Ranking Model")
-    print(f"{'='*60}\n")
-    print(f"Device: {device}")
-    print(f"Epochs: {args.epochs}")
-    print(f"Batch size: {args.batch_size}")
-    print(f"Learning rate: {args.lr}")
-    print(f"Validation split: {args.val_split}")
-    print()
     
     # Paths
     data_dir = Path("data")
@@ -288,7 +273,6 @@ def main():
     examples = load_training_data(log_file, embeddings)
     
     if len(examples) == 0:
-        print("[!] No training examples found. Check paths and embeddings.")
         sys.exit(1)
     
     # Train/val split
@@ -297,8 +281,6 @@ def main():
     train_examples = examples[:split_idx]
     val_examples = examples[split_idx:]
     
-    print(f"[*] Train: {len(train_examples)}, Val: {len(val_examples)}")
-    print()
     
     # Create datasets
     train_dataset = ImageRankingDataset(train_examples)
@@ -312,25 +294,16 @@ def main():
     criterion = nn.MarginRankingLoss(margin=0.5)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     
-    print(f"[*] Model: {sum(p.numel() for p in model.parameters())} parameters")
-    print()
     
     # Training loop
     best_val_acc = 0
     best_epoch = 0
     
-    print(f"{'='*60}")
-    print("Starting training...")
-    print(f"{'='*60}\n")
     
     for epoch in range(args.epochs):
-        train_loss = train_epoch(model, train_loader, optimizer, criterion, device)
+        train_epoch(model, train_loader, optimizer, criterion, device)
         val_loss, val_acc = evaluate(model, val_loader, criterion, device)
         
-        print(f"Epoch {epoch+1:3d}/{args.epochs} | "
-              f"Train Loss: {train_loss:.4f} | "
-              f"Val Loss: {val_loss:.4f} | "
-              f"Val Acc: {val_acc:.2%}")
         
         # Save best model
         if val_acc > best_val_acc:
@@ -348,13 +321,7 @@ def main():
                 'val_examples': len(val_examples),
             }, model_path)
             
-            print(f"  ✓ Saved best model (acc: {val_acc:.2%})")
     
-    print(f"\n{'='*60}")
-    print("✅ Training Complete!")
-    print(f"{'='*60}\n")
-    print(f"Best validation accuracy: {best_val_acc:.2%} (epoch {best_epoch})")
-    print(f"Model saved to: {model_dir / 'ranker_v1.pt'}")
     
     # Save metadata
     metadata = {
@@ -378,8 +345,6 @@ def main():
     with open(metadata_path, 'w') as f:
         json.dump(metadata, f, indent=2)
     
-    print(f"Metadata saved to: {metadata_path}")
-    print()
 
 
 if __name__ == "__main__":

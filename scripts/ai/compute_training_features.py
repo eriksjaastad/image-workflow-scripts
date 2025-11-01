@@ -20,7 +20,6 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import numpy as np
 from PIL import Image
@@ -36,17 +35,13 @@ try:
     HAS_AI_DEPS = True
 except ImportError:
     HAS_AI_DEPS = False
-    print("⚠️  AI dependencies not found. Install with:")
-    print("   pip install torch open_clip_torch")
     sys.exit(1)
 
 # Verify MPS (Apple GPU) availability
 if not torch.backends.mps.is_available():
-    print("⚠️  Apple GPU (MPS) not available. Using CPU (slower).")
     DEVICE = "cpu"
 else:
     DEVICE = "mps"
-    print("✅ Using Apple GPU (MPS) for acceleration")
 
 
 class FeatureExtractor:
@@ -63,24 +58,22 @@ class FeatureExtractor:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         
         # Load CLIP model
-        print("📦 Loading CLIP model...")
         self.model, _, self.preprocess = open_clip.create_model_and_transforms(
             'ViT-B-32',
             pretrained='openai'
         )
         self.model = self.model.to(self.device)
         self.model.eval()
-        print(f"✅ CLIP model loaded on {self.device}")
         
         # Load cache of already-processed files
         self.cache_file = self.cache_dir / "processed_files.jsonl"
         self.processed = self._load_cache()
     
-    def _load_cache(self) -> Dict[str, str]:
+    def _load_cache(self) -> dict[str, str]:
         """Load cache of already-processed files"""
         cache = {}
         if self.cache_file.exists():
-            with open(self.cache_file, 'r') as f:
+            with open(self.cache_file) as f:
                 for line in f:
                     if line.strip():
                         entry = json.loads(line)
@@ -105,7 +98,7 @@ class FeatureExtractor:
         hash_input = f"{image_path.name}_{stat.st_size}_{stat.st_mtime_ns}"
         return hashlib.md5(hash_input.encode()).hexdigest()
     
-    def _extract_embedding(self, image_path: Path) -> Optional[np.ndarray]:
+    def _extract_embedding(self, image_path: Path) -> np.ndarray | None:
         """Extract CLIP embedding (read-only operation)"""
         try:
             # Read image (NO modifications)
@@ -123,8 +116,7 @@ class FeatureExtractor:
             embedding = features.cpu().numpy()[0]
             return embedding
             
-        except Exception as e:
-            print(f"❌ Error processing {image_path.name}: {e}")
+        except Exception:
             return None
     
     def process_image(self, image_path: Path, force: bool = False) -> bool:
@@ -158,7 +150,7 @@ class FeatureExtractor:
         
         return True
     
-    def find_training_images_from_csv(self, training_dir: Path) -> List[Path]:
+    def find_training_images_from_csv(self, training_dir: Path) -> list[Path]:
         """Find all images referenced in training CSV logs (read-only)"""
         import csv
         
@@ -168,7 +160,7 @@ class FeatureExtractor:
         # Read select_crop_log.csv
         select_crop_log = training_dir / "select_crop_log.csv"
         if select_crop_log.exists():
-            with open(select_crop_log, 'r') as f:
+            with open(select_crop_log) as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     # Get chosen path
@@ -190,7 +182,7 @@ class FeatureExtractor:
         # Read selection_only_log.csv
         selection_log = training_dir / "selection_only_log.csv"
         if selection_log.exists():
-            with open(selection_log, 'r') as f:
+            with open(selection_log) as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     # Get chosen path
@@ -213,7 +205,7 @@ class FeatureExtractor:
                         except Exception:
                             pass
         
-        return sorted(list(unique_images))
+        return sorted(unique_images)
 
 
 def main():
@@ -232,22 +224,15 @@ def main():
     extractor = FeatureExtractor(output_dir, device=DEVICE)
     
     # Find training images from CSV logs (read-only)
-    print(f"\n🔍 Reading training logs from {args.training_dir}...")
     training_images = extractor.find_training_images_from_csv(args.training_dir)
     
     if not training_images:
-        print(f"❌ No training images found in {args.training_dir}")
-        print("   Expected: select_crop_log.csv and selection_only_log.csv")
         return
     
     # Limit if requested
     if args.max_images:
         training_images = training_images[:args.max_images]
     
-    print(f"📊 Found {len(training_images)} training images")
-    print(f"🎯 Already processed: {len(extractor.processed)} (will skip)")
-    print(f"⚙️  Device: {DEVICE}")
-    print()
     
     # Process images
     start_time = time.time()
@@ -259,8 +244,7 @@ def main():
         # Show progress
         if i % 50 == 0 or i == 1:
             elapsed = time.time() - start_time
-            rate = i / elapsed if elapsed > 0 else 0
-            print(f"⏳ Processing {i}/{len(training_images)} ({rate:.1f} img/sec)")
+            i / elapsed if elapsed > 0 else 0
         
         # Process (read-only)
         success = extractor.process_image(image_path, force=args.force)
@@ -275,22 +259,7 @@ def main():
             error_count += 1
     
     # Final stats
-    total_time = time.time() - start_time
-    print()
-    print("=" * 60)
-    print("✅ Feature extraction complete!")
-    print("=" * 60)
-    print(f"  Total images: {len(training_images)}")
-    print(f"  Newly processed: {processed_count}")
-    print(f"  Skipped (cached): {skipped_count}")
-    print(f"  Errors: {error_count}")
-    print(f"  Total time: {total_time/60:.1f} minutes")
-    print(f"  Rate: {len(training_images)/total_time:.1f} images/sec")
-    print()
-    print(f"📁 Embeddings saved to: {extractor.embeddings_dir}")
-    print(f"📋 Cache file: {extractor.cache_file}")
-    print()
-    print("🔒 SAFETY: No source files were modified (read-only operation)")
+    time.time() - start_time
 
 
 if __name__ == '__main__':

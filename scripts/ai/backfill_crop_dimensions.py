@@ -57,23 +57,18 @@ def get_image_dimensions(image_path: Path) -> tuple:
     try:
         with Image.open(image_path) as img:
             return img.size  # (width, height)
-    except Exception as e:
-        print(f"   Error reading {image_path}: {e}")
+    except Exception:
         return (0, 0)
 
 
 def backfill_dimensions(dry_run=True):
     """Backfill missing dimensions in the crop log."""
-    
-    print(f"\n📂 Reading crop log: {CROP_LOG}")
-    
     rows = []
     with CROP_LOG.open('r') as f:
         reader = csv.DictReader(f)
         fieldnames = reader.fieldnames
         rows = list(reader)
     
-    print(f"   Total rows: {len(rows):,}")
     
     # Find rows with zero dimensions
     zero_dim_rows = []
@@ -89,10 +84,8 @@ def backfill_dimensions(dry_run=True):
         except Exception:
             pass
     
-    print(f"   Rows with zero dimensions: {len(zero_dim_rows):,}")
     
     if len(zero_dim_rows) == 0:
-        print("✅ No rows need backfilling!")
         return
     
     # Process each row that needs backfilling
@@ -100,7 +93,6 @@ def backfill_dimensions(dry_run=True):
     not_found = 0
     updated_rows = []
     
-    print("\n🔍 Searching for original images...")
     
     for i in zero_dim_rows:
         row = rows[i]
@@ -131,41 +123,26 @@ def backfill_dimensions(dry_run=True):
                 updated_rows.append((i, chosen_path, width, height))
                 
                 if found % 100 == 0:
-                    print(f"   Progress: {found:,} / {len(zero_dim_rows):,} found")
+                    pass
             else:
                 not_found += 1
         else:
             not_found += 1
     
-    print("\n📊 Results:")
-    print(f"   ✅ Found and updated: {found:,} images")
-    print(f"   ❌ Not found: {not_found:,} images")
-    print(f"   📈 Success rate: {found*100/(found+not_found):.1f}%")
     
     if dry_run:
-        print("\n⚠️  DRY RUN - No changes made")
-        print("   Sample updates (first 10):")
-        for i, path, w, h in updated_rows[:10]:
-            print(f"      Row {i}: {Path(path).name} → {w}x{h}")
-        print("\n   Run without --dry-run to actually update the CSV")
+        for i, _path, _w, _h in updated_rows[:10]:
+            pass
     else:
         # Backup original file
-        print("\n💾 Backing up original CSV to:")
-        print(f"   {BACKUP_LOG}")
         shutil.copy(CROP_LOG, BACKUP_LOG)
         
         # Write updated CSV
-        print("\n✍️  Writing updated CSV...")
         with CROP_LOG.open('w', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(rows)
         
-        print(f"✅ DONE! Updated {found:,} rows")
-        print("\n📋 Next steps:")
-        print("   1. Verify the updated data looks correct")
-        print("   2. Retrain Crop Proposer v3 with the expanded dataset")
-        print("   3. Test the new model")
 
 
 def main():

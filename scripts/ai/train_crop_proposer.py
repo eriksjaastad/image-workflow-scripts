@@ -16,12 +16,10 @@ import csv
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List
 
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.optim as optim
+from torch import nn, optim
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
@@ -42,7 +40,7 @@ class CropExample:
 class CropDataset(Dataset):
     """Dataset for crop coordinate prediction."""
     
-    def __init__(self, examples: List[CropExample]):
+    def __init__(self, examples: list[CropExample]):
         self.examples = examples
     
     def __len__(self):
@@ -70,7 +68,9 @@ class CropDataset(Dataset):
 class CropProposerModel(nn.Module):
     """MLP model to predict crop coordinates."""
     
-    def __init__(self, input_dim=514, hidden_dims=[512, 256, 128]):
+    def __init__(self, input_dim=514, hidden_dims=None):
+        if hidden_dims is None:
+            hidden_dims = [512, 256, 128]
         super().__init__()
         
         layers = []
@@ -94,12 +94,11 @@ class CropProposerModel(nn.Module):
         return self.model(x)
 
 
-def load_embeddings(cache_file: Path) -> Dict[str, np.ndarray]:
+def load_embeddings(cache_file: Path) -> dict[str, np.ndarray]:
     """Load all embeddings from cache."""
     embeddings = {}
-    print(f"[*] Loading embeddings from {cache_file}...")
     
-    with open(cache_file, 'r') as f:
+    with open(cache_file) as f:
         for line in f:
             data = json.loads(line)
             img_path = data['image_path']
@@ -108,18 +107,16 @@ def load_embeddings(cache_file: Path) -> Dict[str, np.ndarray]:
             if emb_file.exists():
                 embeddings[img_path] = np.load(emb_file)
     
-    print(f"[*] Loaded {len(embeddings)} embeddings")
     return embeddings
 
 
-def load_crop_training_data(log_file: Path, embeddings: Dict[str, np.ndarray]) -> List[CropExample]:
+def load_crop_training_data(log_file: Path, embeddings: dict[str, np.ndarray]) -> list[CropExample]:
     """Load crop training data from CSV log."""
     examples = []
     skipped = 0
     
-    print(f"[*] Loading crop training data from {log_file}...")
     
-    with open(log_file, 'r') as f:
+    with open(log_file) as f:
         reader = csv.DictReader(f)
         
         for row in reader:
@@ -178,7 +175,6 @@ def load_crop_training_data(log_file: Path, embeddings: Dict[str, np.ndarray]) -
                 skipped += 1
                 continue
     
-    print(f"[*] Loaded {len(examples)} crop examples ({skipped} skipped)")
     return examples
 
 
@@ -234,14 +230,12 @@ def main():
     
     # Device
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-    print(f"[*] Using device: {device}")
     
     # Load data
     embeddings = load_embeddings(cache_file)
     examples = load_crop_training_data(log_file, embeddings)
     
     if len(examples) == 0:
-        print("[!] No training examples found!")
         return
     
     # Split train/val
@@ -252,8 +246,6 @@ def main():
     train_examples = examples[val_size:]
     val_examples = examples[:val_size]
     
-    print(f"[*] Train: {len(train_examples)} examples")
-    print(f"[*] Val: {len(val_examples)} examples")
     
     # Create datasets
     train_dataset = CropDataset(train_examples)
@@ -271,13 +263,11 @@ def main():
     best_val_loss = float('inf')
     best_epoch = 0
     
-    print(f"\n[*] Starting training for {epochs} epochs...\n")
     
     for epoch in range(epochs):
         train_loss = train_epoch(model, train_loader, criterion, optimizer, device)
         val_loss = validate_epoch(model, val_loader, criterion, device)
         
-        print(f"Epoch {epoch+1}/{epochs} - Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}")
         
         # Save best model
         if val_loss < best_val_loss:
@@ -292,9 +282,6 @@ def main():
                 'val_loss': val_loss,
             }, model_dir / "crop_proposer_v1.pt")
     
-    print("\n[*] Training complete!")
-    print(f"[*] Best epoch: {best_epoch}")
-    print(f"[*] Best val loss: {best_val_loss:.6f}")
     
     # Save metadata
     metadata = {
@@ -316,8 +303,6 @@ def main():
     with open(model_dir / "crop_proposer_v1_metadata.json", 'w') as f:
         json.dump(metadata, f, indent=2)
     
-    print(f"[*] Model saved to: {model_dir / 'crop_proposer_v1.pt'}")
-    print(f"[*] Metadata saved to: {model_dir / 'crop_proposer_v1_metadata.json'}")
 
 
 if __name__ == '__main__':

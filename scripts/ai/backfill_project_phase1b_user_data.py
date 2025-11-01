@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 Phase 1B: Backfill User Ground Truth into Temp Database
 
 This script:
@@ -24,11 +24,8 @@ import sqlite3
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 import cv2
-import numpy as np
-from PIL import Image
 from tqdm import tqdm
 
 # Add project root to path
@@ -38,7 +35,7 @@ sys.path.insert(0, str(WORKSPACE))
 
 def extract_crop_coordinates(
     original_path: Path, cropped_path: Path, confidence_threshold: float = 0.8
-) -> Optional[Tuple[List[float], float]]:
+) -> tuple[list[float], float] | None:
     """Extract crop coordinates using template matching."""
     try:
         original = cv2.imread(str(original_path))
@@ -57,7 +54,7 @@ def extract_crop_coordinates(
         cropped_gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
 
         result = cv2.matchTemplate(original_gray, cropped_gray, cv2.TM_CCOEFF_NORMED)
-        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+        _min_val, max_val, _min_loc, max_loc = cv2.minMaxLoc(result)
 
         confidence = max_val
         if confidence < confidence_threshold:
@@ -76,7 +73,7 @@ def extract_crop_coordinates(
 
 
 def coords_match(
-    coords1: List[float], coords2: List[float], tolerance: float = 0.05
+    coords1: list[float], coords2: list[float], tolerance: float = 0.05
 ) -> bool:
     """Check if two coordinate sets match within tolerance."""
     if not coords1 or not coords2:
@@ -85,16 +82,12 @@ def coords_match(
     if len(coords1) != 4 or len(coords2) != 4:
         return False
 
-    for c1, c2 in zip(coords1, coords2):
-        if abs(c1 - c2) > tolerance:
-            return False
-
-    return True
+    return all(abs(c1 - c2) <= tolerance for c1, c2 in zip(coords1, coords2, strict=False))
 
 
 def find_user_selected_image(
-    group_images: List[str], group_directory: str, final_dir: Path
-) -> Optional[Tuple[int, Path]]:
+    group_images: list[str], group_directory: str, final_dir: Path
+) -> tuple[int, Path] | None:
     """Find which image from the group exists in final directory."""
     # Try each image in the group
     for idx, filename in enumerate(group_images):
@@ -106,7 +99,7 @@ def find_user_selected_image(
     return None
 
 
-def get_all_records_from_db(db_path: Path) -> List[Dict]:
+def get_all_records_from_db(db_path: Path) -> list[dict]:
     """Read all records from database."""
     conn = sqlite3.connect(str(db_path))
     cursor = conn.cursor()
@@ -145,8 +138,7 @@ def get_all_records_from_db(db_path: Path) -> List[Dict]:
                     "ai_crop_coords": ai_crop_coords,
                 }
             )
-        except Exception as e:
-            print(f"  ⚠️  Error parsing record {group_id}: {e}")
+        except Exception:
             continue
 
     return records
@@ -157,9 +149,9 @@ def update_record_with_user_data(
     group_id: str,
     user_selected_index: int,
     user_action: str,
-    final_crop_coords: Optional[List[float]],
+    final_crop_coords: list[float] | None,
     selection_match: bool,
-    crop_match: Optional[bool],
+    crop_match: bool | None,
     dry_run: bool = False,
 ):
     """Update database record with user ground truth."""
@@ -199,7 +191,7 @@ def update_record_with_user_data(
 
 
 def process_records(
-    records: List[Dict], final_dir: Path, db_path: Path, dry_run: bool = False
+    records: list[dict], final_dir: Path, db_path: Path, dry_run: bool = False
 ):
     """Process all records and backfill user data."""
     stats = {
@@ -215,7 +207,6 @@ def process_records(
 
     samples = []  # Collect sample updates for dry-run
 
-    print(f"\n🔄 Processing {len(records)} records...")
 
     for record in tqdm(records, desc="Backfilling" if not dry_run else "Analyzing"):
         try:
@@ -261,7 +252,7 @@ def process_records(
             crop_result = extract_crop_coordinates(original_path, final_image_path)
 
             if crop_result:
-                final_crop_coords, confidence = crop_result
+                final_crop_coords, _confidence = crop_result
                 stats["crop_coords_extracted"] += 1
 
                 # Calculate crop match
@@ -301,8 +292,7 @@ def process_records(
                 dry_run=dry_run,
             )
 
-        except Exception as e:
-            print(f"  ⚠️  Error processing {record.get('group_id', 'unknown')}: {e}")
+        except Exception:
             stats["errors"] += 1
 
     return stats, samples
@@ -332,79 +322,36 @@ def main():
     temp_db = Path(args.temp_db)
     final_dir = Path(args.final_dir)
 
-    print("=" * 80)
-    print("PHASE 1B: Backfill User Ground Truth")
-    print("=" * 80)
-    print(f"Mode: {'DRY RUN' if args.dry_run else 'LIVE'}")
-    print(f"Final images: {final_dir}")
-    print(f"Database: {temp_db}")
 
     # Check database exists
     if not temp_db.exists():
-        print(f"\n❌ ERROR: Temp database not found: {temp_db}")
-        print("   Run Phase 1A first to create it.")
         return
 
     # Check final directory exists
     if not final_dir.exists():
-        print(f"\n❌ ERROR: Final directory not found: {final_dir}")
         return
 
     # Read all records
     records = get_all_records_from_db(temp_db)
-    print(f"\nFound {len(records)} records to process")
 
     # Process records
     stats, samples = process_records(records, final_dir, temp_db, dry_run=args.dry_run)
 
     # Print statistics
-    print(f"\n{'=' * 80}")
-    print("STATISTICS")
-    print(f"{'=' * 80}")
-    print(f"Total records:             {stats['total_records']:,}")
-    print(f"Found in final:            {stats['found_in_final']:,}")
-    print(f"Not in final (skipped):    {stats['not_in_final']:,}")
-    print(f"Crop coords extracted:     {stats['crop_coords_extracted']:,}")
-    print(f"Crop coords failed:        {stats['crop_coords_failed']:,}")
-    print("")
 
     if stats["found_in_final"] > 0:
-        sel_pct = stats["selection_matches"] / stats["found_in_final"] * 100
-        print(
-            f"Selection matches:         {stats['selection_matches']:,} / {stats['found_in_final']:,} ({sel_pct:.1f}%)"
-        )
+        stats["selection_matches"] / stats["found_in_final"] * 100
 
     if stats["crop_coords_extracted"] > 0:
-        crop_pct = stats["crop_matches"] / stats["crop_coords_extracted"] * 100
-        print(
-            f"Crop matches:              {stats['crop_matches']:,} / {stats['crop_coords_extracted']:,} ({crop_pct:.1f}%)"
-        )
+        stats["crop_matches"] / stats["crop_coords_extracted"] * 100
 
-    print(f"Errors:                    {stats['errors']:,}")
 
     if args.dry_run and samples:
-        print("\n📋 SAMPLE UPDATES (first 10):")
-        for i, sample in enumerate(samples, 1):
-            match_str = "✅ MATCH" if sample["selection_match"] else "❌ MISMATCH"
-            print(f"  {i}. {sample['group_id']}")
-            print(
-                f"     AI selected: {sample['ai_selected']}, User selected: {sample['user_selected']} - {match_str}"
-            )
+        for _i, sample in enumerate(samples, 1):
+            "✅ MATCH" if sample["selection_match"] else "❌ MISMATCH"
 
-    if args.dry_run:
-        print("\n💡 DRY RUN - No changes made to database")
-        print("   Run without --dry-run to apply changes")
-    else:
-        print("\n✅ PHASE 1B COMPLETE!")
-        print("\nDatabase now contains:")
-        print(f"  - AI predictions for {len(records):,} groups")
-        print(f"  - User ground truth for {stats['found_in_final']:,} groups")
-        if stats["found_in_final"] > 0:
-            print(f"  - Selection accuracy: {sel_pct:.1f}%")
-        print("\nNext step: Run Phase 2 to compare with real database")
-        print("  python scripts/ai/backfill_project_phase2_compare.py \\")
-        print(f"    --temp-db {temp_db} \\")
-        print("    --real-db <path_to_real_database>")
+    if args.dry_run or stats["found_in_final"] > 0:
+        pass
 
 
 if __name__ == "__main__":

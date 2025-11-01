@@ -27,7 +27,7 @@ model.eval()
 embeddings = {}
 cache_file = Path("data/ai_data/cache/processed_images.jsonl")
 print("[*] Loading embeddings...")
-with open(cache_file, 'r') as f:
+with open(cache_file) as f:
     for line in f:
         data = json.loads(line)
         img_path = data['image_path']
@@ -45,7 +45,7 @@ anomaly_cases = []
 
 print("[*] Finding cases where you chose a LOWER stage...\n")
 
-with open(log_file, 'r') as f:
+with open(log_file) as f:
     reader = csv.DictReader(f)
     
     for row in reader:
@@ -64,11 +64,11 @@ with open(log_file, 'r') as f:
         def get_stage_num(filename):
             if 'stage3' in filename:
                 return 3
-            elif 'stage2' in filename:
+            if 'stage2' in filename:
                 return 2
-            elif 'stage1.5' in filename:
+            if 'stage1.5' in filename:
                 return 1.5
-            elif 'stage1' in filename:
+            if 'stage1' in filename:
                 return 1
             return 0
         

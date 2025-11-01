@@ -1,18 +1,15 @@
 #!/usr/bin/env python3
-"""
-Check which images in the final directory are missing from the database.
-"""
+"""Check which images in the final directory are missing from the database."""
 
 import json
 import sqlite3
 from pathlib import Path
-from typing import Set
 
 # Paths
 WORKSPACE = Path(__file__).resolve().parents[2]
 
 
-def get_all_images_from_directory(dir_path: Path) -> Set[str]:
+def get_all_images_from_directory(dir_path: Path) -> set[str]:
     """Get all image filenames from directory recursively."""
     patterns = ["**/*.png", "**/*.jpg", "**/*.jpeg"]
     images = set()
@@ -22,7 +19,7 @@ def get_all_images_from_directory(dir_path: Path) -> Set[str]:
     return images
 
 
-def get_all_images_from_database(db_path: Path) -> Set[str]:
+def get_all_images_from_database(db_path: Path) -> set[str]:
     """Get all image filenames referenced in the database."""
     conn = sqlite3.connect(str(db_path))
     cursor = conn.cursor()
@@ -57,13 +54,9 @@ def main():
     image_dir = Path(args.image_dir)
     db_path = Path(args.database)
 
-    print(f"Scanning images in: {image_dir}")
     dir_images = get_all_images_from_directory(image_dir)
-    print(f"Found {len(dir_images)} images in directory")
 
-    print(f"\nQuerying database: {db_path}")
     db_images = get_all_images_from_database(db_path)
-    print(f"Found {len(db_images)} unique images in database")
 
     # Find images in directory but not in database
     missing_from_db = dir_images - db_images
@@ -71,26 +64,16 @@ def main():
     # Find images in database but not in directory
     missing_from_dir = db_images - dir_images
 
-    print(f"\n{'=' * 80}")
-    print("RESULTS")
-    print(f"{'=' * 80}")
-    print(f"Images in directory:        {len(dir_images):,}")
-    print(f"Images in database:         {len(db_images):,}")
-    print(f"In directory but NOT in DB: {len(missing_from_db):,} ⚠️")
-    print(f"In database but NOT in dir: {len(missing_from_dir):,}")
 
     if missing_from_db:
-        print(f"\n⚠️  {len(missing_from_db):,} IMAGES IN DIRECTORY ARE NOT IN DATABASE!")
-        print("\nSample missing images (first 20):")
-        for i, img in enumerate(sorted(missing_from_db)[:20], 1):
-            print(f"  {i}. {img}")
+        for _i, _img in enumerate(sorted(missing_from_db)[:20], 1):
+            pass
 
         if len(missing_from_db) > 20:
-            print(f"  ... and {len(missing_from_db) - 20:,} more")
+            pass
 
     if missing_from_dir:
-        print(f"\n⚠️  {len(missing_from_dir):,} images in database are NOT in directory")
-        print("(These may have been deleted or moved)")
+        pass
 
 
 if __name__ == "__main__":

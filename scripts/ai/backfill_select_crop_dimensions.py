@@ -53,12 +53,10 @@ def get_project_from_timestamp(timestamp_str: str) -> str:
         
         if MOJO1_START <= ts_date <= MOJO1_END:
             return "mojo1"
-        elif MOJO2_START <= ts_date <= MOJO2_END:
+        if MOJO2_START <= ts_date <= MOJO2_END:
             return "mojo2"
-        else:
-            return "unknown"
-    except Exception as e:
-        print(f"   ⚠️  Error parsing timestamp '{timestamp_str}': {e}")
+        return "unknown"
+    except Exception:
         return "unknown"
 
 
@@ -96,8 +94,7 @@ def get_image_dimensions(image_path: Path) -> tuple[int, int] | None:
     try:
         with Image.open(image_path) as img:
             return img.size  # Returns (width, height)
-    except Exception as e:
-        print(f"   ⚠️  Error reading {image_path.name}: {e}")
+    except Exception:
         return None
 
 
@@ -110,27 +107,16 @@ def backfill_dimensions(dry_run: bool = True, test_mode: bool = False, test_coun
         test_mode: If True, only process test_count rows
         test_count: Number of rows to process in test mode (default 20)
     """
-    
     if not CROP_LOG.exists():
-        print(f"❌ Error: {CROP_LOG} not found!")
         return
     
-    print(f"\n{'='*70}")
-    print("BACKFILL SELECT_CROP_LOG.CSV DIMENSIONS")
-    print(f"{'='*70}")
-    print(f"Mode: {'DRY RUN' if dry_run else 'LIVE'} | {'TEST (' + str(test_count) + ' rows)' if test_mode else 'FULL'}")
-    print(f"Log file: {CROP_LOG}")
-    print(f"Mojo1 dir: {MOJO1_DIR} {'✅' if MOJO1_DIR.exists() else '❌ NOT FOUND'}")
-    print(f"Mojo2 dir: {MOJO2_DIR} {'✅' if MOJO2_DIR.exists() else '❌ NOT FOUND'}")
     
     # Read existing CSV
-    print("\n📖 Reading CSV...")
     with CROP_LOG.open('r') as f:
         reader = csv.DictReader(f)
         fieldnames = reader.fieldnames
         rows = list(reader)
     
-    print(f"   Total rows: {len(rows)}")
     
     # Identify rows with missing dimensions
     rows_to_process = []
@@ -159,12 +145,12 @@ def backfill_dimensions(dry_run: bool = True, test_mode: bool = False, test_coun
         h1 = row.get('height_1')
         
         # Check if w0/h0 are valid (not None, not empty, not '0')
-        w0_valid = w0 is not None and w0 != '' and w0 != '0'
-        h0_valid = h0 is not None and h0 != '' and h0 != '0'
+        w0_valid = w0 is not None and w0 not in {'', '0'}
+        h0_valid = h0 is not None and h0 not in {'', '0'}
         
         # Check if w1/h1 are valid (not None, not empty, not '0')
-        w1_valid = w1 is not None and w1 != '' and w1 != '0'
-        h1_valid = h1 is not None and h1 != '' and h1 != '0'
+        w1_valid = w1 is not None and w1 not in {'', '0'}
+        h1_valid = h1 is not None and h1 not in {'', '0'}
         
         # Has dims if EITHER (w0 and h0 are valid) OR (w1 and h1 are valid)
         has_dims = ((w0_valid and h0_valid) or (w1_valid and h1_valid))
@@ -178,14 +164,11 @@ def backfill_dimensions(dry_run: bool = True, test_mode: bool = False, test_coun
             if test_mode and len(rows_to_process) >= test_count:
                 break
     
-    print(f"   Rows with missing dimensions: {len(rows_to_process)}")
     
     if not rows_to_process:
-        print("✅ Nothing to backfill!")
         return
     
     # Process rows
-    print("\n🔍 Processing rows...")
     success_count = 0
     fail_count = 0
     project_counts = {"mojo1": 0, "mojo2": 0, "unknown": 0}
@@ -199,7 +182,6 @@ def backfill_dimensions(dry_run: bool = True, test_mode: bool = False, test_coun
         # Extract filename from chosen_path
         chosen_path = row.get('chosen_path', '')
         if not chosen_path:
-            print(f"   ⚠️  Row {row_idx+2}: No chosen_path")
             fail_count += 1
             continue
         
@@ -210,7 +192,7 @@ def backfill_dimensions(dry_run: bool = True, test_mode: bool = False, test_coun
         
         if not img_path:
             if idx <= 5:  # Only print first 5 failures
-                print(f"   ❌ Row {row_idx+2}: {filename} not found in {project}/")
+                pass
             fail_count += 1
             continue
         
@@ -236,32 +218,24 @@ def backfill_dimensions(dry_run: bool = True, test_mode: bool = False, test_coun
         
         # Print progress for first 20
         if idx <= 20:
-            print(f"   ✅ Row {row_idx+2}: {filename} → {width}x{height} (from {project}/)")
+            pass
     
-    print("\n📊 Summary:")
-    print(f"   ✅ Success: {success_count}")
-    print(f"   ❌ Failed:  {fail_count}")
-    print(f"   📁 Projects: mojo1={project_counts['mojo1']}, mojo2={project_counts['mojo2']}, unknown={project_counts['unknown']}")
     
     # Write updated CSV
     if not dry_run:
         if not test_mode:
             # Create backup
             backup_path = CROP_LOG.with_name(f"{CROP_LOG.stem}_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
-            print(f"\n💾 Creating backup: {backup_path.name}")
             shutil.copy(CROP_LOG, backup_path)
             
             # Verify backup
             backup_size = backup_path.stat().st_size
             original_size = CROP_LOG.stat().st_size
             if backup_size != original_size:
-                print(f"❌ ERROR: Backup size mismatch! {backup_size} != {original_size}")
                 return
-            print(f"   ✅ Backup verified ({backup_size:,} bytes)")
         
         # Write to temp file first
         temp_path = CROP_LOG.with_suffix('.csv.tmp')
-        print(f"\n✍️  Writing to temp file: {temp_path.name}")
         
         with temp_path.open('w', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -270,24 +244,18 @@ def backfill_dimensions(dry_run: bool = True, test_mode: bool = False, test_coun
         
         # Verify temp file
         if not temp_path.exists():
-            print("❌ ERROR: Temp file not created!")
             return
         
-        temp_size = temp_path.stat().st_size
-        print(f"   ✅ Temp file created ({temp_size:,} bytes)")
+        temp_path.stat().st_size
         
         if not test_mode:
             # Replace original with temp
-            print("\n🔄 Replacing original with temp file...")
             temp_path.replace(CROP_LOG)
-            print(f"   ✅ Done! {CROP_LOG.name} updated")
         else:
-            print(f"\n⚠️  TEST MODE: Temp file saved as {temp_path.name}")
-            print(f"   Review it, then manually rename to {CROP_LOG.name} if good")
+            pass
     else:
-        print(f"\n⚠️  DRY RUN - No changes made to {CROP_LOG.name}")
+        pass
     
-    print(f"\n{'='*70}\n")
 
 
 if __name__ == '__main__':

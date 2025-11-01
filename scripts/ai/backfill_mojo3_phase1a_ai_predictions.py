@@ -19,13 +19,12 @@ import sqlite3
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import open_clip
 import torch
-import torch.nn as nn
 from PIL import Image
+from torch import nn
 from tqdm import tqdm
 
 # Add project root to path
@@ -97,17 +96,15 @@ class CropProposer(nn.Module):
         return self.net(x)
 
 
-def load_embeddings_cache() -> Tuple[Dict, Dict]:
+def load_embeddings_cache() -> tuple[dict, dict]:
     """Load embeddings cache and create filename lookup."""
     cache = {}
     filename_cache = {}
 
     if not EMBEDDINGS_CACHE.exists():
-        print(f"⚠️  Embeddings cache not found: {EMBEDDINGS_CACHE}")
         return cache, filename_cache
 
-    print("Loading embeddings cache...")
-    with open(EMBEDDINGS_CACHE, "r") as f:
+    with open(EMBEDDINGS_CACHE) as f:
         for line in f:
             data = json.loads(line)
             img_path = data["image_path"]
@@ -123,41 +120,32 @@ def load_embeddings_cache() -> Tuple[Dict, Dict]:
                     filename_cache[filename] = []
                 filename_cache[filename].append((img_path, emb))
 
-    print(f"Loaded {len(cache)} embeddings")
-    print(f"Unique filenames: {len(filename_cache)}")
     return cache, filename_cache
 
 
 def load_ai_models():
     """Load trained AI models."""
-    print(f"\n🤖 Loading AI models on device: {device}")
-
     if not RANKER_MODEL_PATH.exists():
-        print(f"❌ Ranker model not found: {RANKER_MODEL_PATH}")
         return None, None
 
     if not CROP_MODEL_PATH.exists():
-        print(f"❌ Crop model not found: {CROP_MODEL_PATH}")
         return None, None
 
     # Load ranker
     ranker = RankingModel().to(device)
     ranker.load_state_dict(torch.load(RANKER_MODEL_PATH, map_location=device))
     ranker.eval()
-    print(f"✅ Loaded ranker: {RANKER_MODEL_PATH.name}")
 
     # Load crop proposer
     cropper = CropProposer().to(device)
     cropper.load_state_dict(torch.load(CROP_MODEL_PATH, map_location=device))
     cropper.eval()
-    print(f"✅ Loaded crop proposer: {CROP_MODEL_PATH.name}")
 
     return ranker, cropper
 
 
 def load_clip_model():
     """Load CLIP model for computing embeddings on the fly."""
-    print(f"Loading OpenCLIP model on {device}...")
     model, _, preprocess = open_clip.create_model_and_transforms(
         "ViT-B-32", pretrained="openai"
     )
@@ -168,11 +156,11 @@ def load_clip_model():
 
 def get_embedding(
     image_path: Path,
-    cache: Dict,
-    filename_cache: Dict,
+    cache: dict,
+    filename_cache: dict,
     clip_model=None,
     clip_preprocess=None,
-) -> Optional[np.ndarray]:
+) -> np.ndarray | None:
     """Get embedding for image, from cache or compute on the fly."""
     # Try exact path match
     if str(image_path) in cache:
@@ -195,22 +183,21 @@ def get_embedding(
                 embedding = embedding / embedding.norm(dim=-1, keepdim=True)
 
             return embedding.cpu().numpy().squeeze()
-        except Exception as e:
-            print(f"    ⚠️  Could not compute embedding for {filename}: {e}")
+        except Exception:
             return None
 
     return None
 
 
 def run_ai_predictions(
-    group: List[Path],
+    group: list[Path],
     ranker,
     cropper,
-    cache: Dict,
-    filename_cache: Dict,
+    cache: dict,
+    filename_cache: dict,
     clip_model=None,
     clip_preprocess=None,
-) -> Tuple[Optional[int], Optional[List[float]], Optional[float]]:
+) -> tuple[int | None, list[float] | None, float | None]:
     """Run AI models on a group to get selection and crop predictions."""
     # Get embeddings for all images in group
     embeddings = []
@@ -265,8 +252,7 @@ def run_ai_predictions(
 
         return ai_selected_index, crop_coords, confidence
 
-    except Exception as e:
-        print(f"    ⚠️  Crop prediction failed: {e}")
+    except Exception:
         return ai_selected_index, None, confidence
 
 
@@ -302,20 +288,16 @@ def create_temp_database(db_path: Path):
 
     conn.commit()
     conn.close()
-    print(f"✅ Created temporary database: {db_path}")
 
 
-def group_original_images(original_dir: Path) -> List[Tuple[str, List[Path]]]:
+def group_original_images(original_dir: Path) -> list[tuple[str, list[Path]]]:
     """Group original images using the grouping logic."""
-    print(f"\n📁 Scanning original images in: {original_dir}")
-
     # Get all image files
     patterns = ["**/*.png", "**/*.jpg", "**/*.jpeg"]
     all_images = []
     for pattern in patterns:
         all_images.extend(original_dir.glob(pattern))
 
-    print(f"Found {len(all_images)} images")
 
     # Sort by timestamp and stage
     sorted_images = sort_image_files_by_timestamp_and_stage(all_images)
@@ -332,17 +314,16 @@ def group_original_images(original_dir: Path) -> List[Tuple[str, List[Path]]]:
         group_id = f"{PROJECT_ID}_group_{timestamp}"
         groups_with_ids.append((group_id, group_images))
 
-    print(f"Created {len(groups_with_ids)} groups")
 
     return groups_with_ids
 
 
 def process_groups_with_ai(
-    groups: List[Tuple[str, List[Path]]],
+    groups: list[tuple[str, list[Path]]],
     ranker,
     cropper,
-    cache: Dict,
-    filename_cache: Dict,
+    cache: dict,
+    filename_cache: dict,
     clip_model=None,
     clip_preprocess=None,
 ):
@@ -355,9 +336,8 @@ def process_groups_with_ai(
         "ai_predictions_failed": 0,
     }
 
-    print(f"\n🤖 Running AI predictions on {len(groups)} groups...")
 
-    for i, (group_id, group_images) in enumerate(tqdm(groups, desc="Processing")):
+    for _i, (group_id, group_images) in enumerate(tqdm(groups, desc="Processing")):
         # Run AI predictions
         ai_selected_index, ai_crop_coords, ai_confidence = run_ai_predictions(
             group_images,
@@ -380,7 +360,6 @@ def process_groups_with_ai(
             with Image.open(group_images[0]) as img:
                 image_width, image_height = img.size
         except Exception:
-            print(f"    ⚠️  Could not read image dimensions for {group_id}")
             continue
 
         # Create record with AI predictions, user fields NULL
@@ -410,7 +389,7 @@ def process_groups_with_ai(
     return records, stats
 
 
-def write_records_to_database(records: List[Dict], db_path: Path):
+def write_records_to_database(records: list[dict], db_path: Path):
     """Write records to temporary database."""
     conn = sqlite3.connect(str(db_path))
     cursor = conn.cursor()
@@ -450,20 +429,12 @@ def write_records_to_database(records: List[Dict], db_path: Path):
     conn.commit()
     conn.close()
 
-    print(f"✅ Wrote {len(records)} records to database")
 
 
 def main():
-    print("=" * 80)
-    print("PHASE 1A: Create Temp Database with AI Predictions")
-    print("=" * 80)
-    print(f"\nOriginal images: {ORIGINAL_DIR}")
-    print(f"Output database: {TEMP_DB}")
-    print(f"Device: {device}")
 
     # Check directories exist
     if not ORIGINAL_DIR.exists():
-        print(f"\n❌ ERROR: Original directory not found: {ORIGINAL_DIR}")
         return
 
     # Load embeddings cache
@@ -472,7 +443,6 @@ def main():
     # Load AI models
     ranker, cropper = load_ai_models()
     if ranker is None or cropper is None:
-        print("\n❌ ERROR: Could not load AI models")
         return
 
     # Load CLIP model for computing missing embeddings
@@ -480,10 +450,8 @@ def main():
 
     # Create temporary database
     if TEMP_DB.exists():
-        print(f"\n⚠️  Temporary database already exists: {TEMP_DB}")
         response = input("Delete and recreate? (yes/no): ")
         if response.lower() != "yes":
-            print("Aborted.")
             return
         TEMP_DB.unlink()
 
@@ -494,29 +462,15 @@ def main():
     groups = group_original_images(ORIGINAL_DIR)
 
     # Process groups with AI
-    records, stats = process_groups_with_ai(
+    records, _stats = process_groups_with_ai(
         groups, ranker, cropper, cache, filename_cache, clip_model, clip_preprocess
     )
 
     # Write to database
-    print("\n💾 Writing to database...")
     write_records_to_database(records, TEMP_DB)
 
     # Print statistics
-    print(f"\n{'=' * 80}")
-    print("STATISTICS")
-    print(f"{'=' * 80}")
-    print(f"Total groups:              {stats['total_groups']:,}")
-    print(f"AI predictions success:    {stats['ai_predictions_success']:,}")
-    print(f"AI predictions failed:     {stats['ai_predictions_failed']:,}")
-    print(f"Records in database:       {len(records):,}")
 
-    print("\n✅ PHASE 1A COMPLETE!")
-    print(f"\nTemporary database created: {TEMP_DB}")
-    print(f"  - Contains AI predictions for {len(records):,} groups")
-    print("  - User fields are NULL (will be filled in Phase 1B)")
-    print("\nNext step: Run Phase 1B to backfill user ground truth")
-    print("  python scripts/ai/backfill_mojo3_phase1b_user_data.py")
 
 
 if __name__ == "__main__":

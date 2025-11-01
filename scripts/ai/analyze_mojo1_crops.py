@@ -12,13 +12,12 @@ import re
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional
 
 RAW_DIR = Path("/Users/eriksjaastad/projects/Eros Mate/training data/mojo1")
 FINAL_DIR = Path("/Users/eriksjaastad/projects/Eros Mate/training data/mojo1_final")
 
 
-def parse_filename(filename: str) -> Optional[Dict]:
+def parse_filename(filename: str) -> dict | None:
     """Extract timestamp and stage from filename."""
     pattern = r'(\d{8}_\d{6})_stage(\d+(?:\.\d+)?)'
     match = re.match(pattern, filename)
@@ -33,27 +32,18 @@ def parse_filename(filename: str) -> Optional[Dict]:
 
 
 def main():
-    print("=" * 80)
-    print("MOJO 1 CROP ANALYSIS - FILE MODIFICATION TIME COMPARISON")
-    print("=" * 80)
-    print()
     
     # Build index of raw files by filename
-    print("📂 Scanning raw directory...")
     raw_files = {}  # filename -> (path, mtime)
     
     for img_path in RAW_DIR.rglob("*.png"):
         mtime = img_path.stat().st_mtime
         raw_files[img_path.name] = (img_path, mtime)
     
-    print(f"   Found {len(raw_files)} raw images")
     
     # Scan final files and compare mtimes
-    print("\n📂 Scanning final directory...")
     final_files = list(FINAL_DIR.rglob("*.png"))
-    print(f"   Found {len(final_files)} final images")
     
-    print("\n🔍 Comparing file modification times...")
     
     not_cropped = []  # Same mtime
     cropped = []      # Different mtime
@@ -98,49 +88,23 @@ def main():
             })
     
     # Results
-    total = len(not_cropped) + len(cropped)
+    len(not_cropped) + len(cropped)
     
-    print()
-    print("=" * 80)
-    print("RESULTS")
-    print("=" * 80)
-    print(f"Total selections analyzed: {total}")
-    print(f"NOT cropped (mtime match): {len(not_cropped)} ({len(not_cropped)/total*100:.1f}%)")
-    print(f"CROPPED (mtime differs): {len(cropped)} ({len(cropped)/total*100:.1f}%)")
     if not_in_raw:
-        print(f"Not found in raw: {len(not_in_raw)}")
-    print()
+        pass
     
     # Show examples of NOT cropped
     if not_cropped:
-        print("=" * 80)
-        print("EXAMPLES - NOT CROPPED (first 10)")
-        print("=" * 80)
-        for i, case in enumerate(not_cropped[:10], 1):
-            print(f"{i}. {case['filename']}")
-            print(f"   Raw mtime:   {case['raw_mtime']}")
-            print(f"   Final mtime: {case['final_mtime']}")
-            print(f"   Diff: {case['time_diff']:.3f} seconds")
-            print()
+        for _i, case in enumerate(not_cropped[:10], 1):
+            pass
     
     # Show examples of CROPPED
     if cropped:
-        print("=" * 80)
-        print("EXAMPLES - CROPPED (first 10)")
-        print("=" * 80)
-        for i, case in enumerate(cropped[:10], 1):
-            print(f"{i}. {case['filename']}")
-            print(f"   Raw mtime:   {case['raw_mtime']}")
-            print(f"   Final mtime: {case['final_mtime']}")
-            print(f"   Diff: {case['days_diff']:.1f} days ({case['time_diff']/3600:.1f} hours)")
-            print("   ✂️  File was modified = cropped and saved")
-            print()
+        for _i, case in enumerate(cropped[:10], 1):
+            pass
     
     # Analyze crop timing distribution
     if cropped:
-        print("=" * 80)
-        print("CROP TIMING ANALYSIS")
-        print("=" * 80)
         
         # Group by days difference
         day_buckets = defaultdict(int)
@@ -155,23 +119,10 @@ def main():
             else:
                 day_buckets['90+ days'] += 1
         
-        for bucket, count in sorted(day_buckets.items()):
-            print(f"  {bucket:15s}: {count:5d} crops ({count/len(cropped)*100:.1f}%)")
-        print()
+        for _bucket, _count in sorted(day_buckets.items()):
+            pass
     
     # Summary for training
-    print("=" * 80)
-    print("TRAINING DATA SUMMARY")
-    print("=" * 80)
-    print(f"Total selections: {total}")
-    print(f"  - Selected without cropping: {len(not_cropped)}")
-    print(f"  - Selected AND cropped: {len(cropped)}")
-    print()
-    print(f"💡 Crop rate: {len(cropped)/total*100:.1f}%")
-    print()
-    print(f"The {len(cropped)} cropped images are valuable training data")
-    print("for the crop proposer model.")
-    print()
 
 
 if __name__ == "__main__":

@@ -26,13 +26,12 @@ import csv
 import json
 import random
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
-import torch.nn as nn
+from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
@@ -43,7 +42,6 @@ MODEL_DIR = Path("/Users/eriksjaastad/projects/Eros Mate/data/ai_data/models")
 
 # Device
 device = "mps" if torch.backends.mps.is_available() else "cpu"
-print(f"Using device: {device}")
 
 
 def get_project_id(path: str) -> str:
@@ -65,12 +63,12 @@ def get_project_id(path: str) -> str:
             return part
         if part in ['eleni', 'aiko', 'dalia', 'kiara', 'mixed-0919', 'tattersail-0918']:
             return part
-        if part.endswith('_raw') or part.endswith('_final'):
+        if part.endswith(('_raw', '_final')):
             return part.replace('_raw', '').replace('_final', '')
     return 'unknown'
 
 
-def validate_set_integrity(chosen_path: str, neg_paths: List[str]) -> None:
+def validate_set_integrity(chosen_path: str, neg_paths: list[str]) -> None:
     """
     Verify all paths in a set are from the same project.
     
@@ -85,7 +83,7 @@ def validate_set_integrity(chosen_path: str, neg_paths: List[str]) -> None:
     for neg_path in neg_paths:
         neg_project = get_project_id(neg_path)
         if neg_project != chosen_project:
-            raise ValueError(
+            msg = (
                 f"🚨 MIXED PROJECTS DETECTED - TRAINING ABORTED\n"
                 f"  Winner: {chosen_path}\n"
                 f"    Project: {chosen_project}\n"
@@ -94,9 +92,12 @@ def validate_set_integrity(chosen_path: str, neg_paths: List[str]) -> None:
                 f"\nThis violates project boundary rules. Each project is a different character.\n"
                 f"See Documents/AI_TRAINING_DATA_STRUCTURE.md for details."
             )
+            raise ValueError(
+                msg
+            )
 
 
-def extract_stage(filename: str) -> Optional[float]:
+def extract_stage(filename: str) -> float | None:
     """Extract stage number from filename."""
     match = re.search(r'stage(\d+(?:\.\d+)?)', filename)
     if match:
@@ -104,14 +105,13 @@ def extract_stage(filename: str) -> Optional[float]:
     return None
 
 
-def load_embeddings_cache() -> Dict[str, str]:
+def load_embeddings_cache() -> dict[str, str]:
     """
     Load embeddings cache mapping image paths to embedding file hashes.
     
     Returns:
         Dict mapping absolute image path -> embedding hash
     """
-    print("📂 Loading embeddings cache...")
     cache = {}
     
     with EMBEDDINGS_CACHE.open('r') as f:
@@ -119,7 +119,6 @@ def load_embeddings_cache() -> Dict[str, str]:
             entry = json.loads(line)
             cache[entry['image_path']] = entry['hash']
     
-    print(f"   Loaded {len(cache)} cached embeddings")
     return cache
 
 
@@ -153,7 +152,7 @@ def normalize_path(path: str) -> str:
     return path_str
 
 
-def load_training_data(embeddings_cache: Dict) -> Tuple[List[Dict], List[Dict]]:
+def load_training_data(embeddings_cache: dict) -> tuple[list[dict], list[dict]]:
     """
     Load selection log and split into normal vs anomaly cases.
     
@@ -162,8 +161,6 @@ def load_training_data(embeddings_cache: Dict) -> Tuple[List[Dict], List[Dict]]:
     Returns:
         (normal_cases, anomaly_cases)
     """
-    print(f"\n📂 Loading training data: {SELECTION_LOG}")
-    
     normal_cases = []
     anomaly_cases = []
     skipped = 0
@@ -187,8 +184,7 @@ def load_training_data(embeddings_cache: Dict) -> Tuple[List[Dict], List[Dict]]:
             # 🚨 CRITICAL: Validate project boundaries
             try:
                 validate_set_integrity(chosen_path, neg_paths)
-            except ValueError as e:
-                print(f"\n{e}")
+            except ValueError:
                 raise  # Abort training if mixed projects detected
             
             # Track project
@@ -230,7 +226,7 @@ def load_training_data(embeddings_cache: Dict) -> Tuple[List[Dict], List[Dict]]:
                 continue
             
             # Determine if this is an anomaly
-            all_stages = [chosen_stage] + neg_stages
+            all_stages = [chosen_stage, *neg_stages]
             max_stage = max(all_stages)
             is_anomaly = chosen_stage < max_stage
             
@@ -247,28 +243,23 @@ def load_training_data(embeddings_cache: Dict) -> Tuple[List[Dict], List[Dict]]:
             else:
                 normal_cases.append(case)
     
-    print(f"   Normal cases: {len(normal_cases)}")
-    print(f"   Anomaly cases: {len(anomaly_cases)}", end="")
     if normal_cases or anomaly_cases:
-        print(f" ({len(anomaly_cases)/(len(normal_cases)+len(anomaly_cases))*100:.1f}%)")
+        pass
     else:
-        print(" (no valid data loaded)")
-    print(f"   Skipped (missing embeddings or invalid): {skipped}")
+        pass
     
     # Report training examples per project
     if project_counts:
-        print("\n📊 Training examples per project:")
         for project_id in sorted(project_counts.keys()):
-            count = project_counts[project_id]
-            print(f"     {project_id}: {count:,} examples")
+            project_counts[project_id]
     
     if missing_embeddings and skipped > 0:
-        print("\n⚠️  Sample missing paths (first 5):")
-        for path in missing_embeddings[:5]:
-            print(f"     {path}")
+        for _path in missing_embeddings[:5]:
+            pass
     
     if not normal_cases and not anomaly_cases:
-        raise ValueError("No training data loaded! Check path formats.")
+        msg = "No training data loaded! Check path formats."
+        raise ValueError(msg)
     
     return normal_cases, anomaly_cases
 
@@ -281,8 +272,8 @@ class RankingDataset(Dataset):
     Oversamples anomaly cases to balance the dataset.
     """
     
-    def __init__(self, normal_cases: List[Dict], anomaly_cases: List[Dict], 
-                 embeddings_cache: Dict, anomaly_oversample_factor: int = 10):
+    def __init__(self, normal_cases: list[dict], anomaly_cases: list[dict], 
+                 embeddings_cache: dict, anomaly_oversample_factor: int = 10):
         self.embeddings_cache = embeddings_cache
         self.embeddings_dir = Path("/Users/eriksjaastad/projects/Eros Mate/data/ai_data/cache/embeddings")
         
@@ -308,10 +299,6 @@ class RankingDataset(Dataset):
                         'is_anomaly': True
                     })
         
-        print("\n📊 Dataset created:")
-        print(f"   Normal pairs: {sum(1 for p in self.pairs if not p['is_anomaly'])}")
-        print(f"   Anomaly pairs (oversampled {anomaly_oversample_factor}x): {sum(1 for p in self.pairs if p['is_anomaly'])}")
-        print(f"   Total pairs: {len(self.pairs)}")
     
     def load_embedding(self, image_path: str) -> np.ndarray:
         """Load embedding from cache."""
@@ -357,9 +344,7 @@ class RankingModel(nn.Module):
 
 
 class WeightedMarginRankingLoss(nn.Module):
-    """
-    Margin ranking loss with higher weight for anomaly cases.
-    """
+    """Margin ranking loss with higher weight for anomaly cases."""
     
     def __init__(self, margin=0.5, anomaly_weight=10.0):
         super().__init__()
@@ -463,11 +448,6 @@ def validate(model, dataloader, criterion, device):
 
 
 def main():
-    print("=" * 70)
-    print("RANKING MODEL V2 TRAINING - ANOMALY OVERSAMPLING")
-    print("=" * 70)
-    print(f"Device: {device}")
-    print()
     
     # Load data
     embeddings_cache = load_embeddings_cache()
@@ -485,9 +465,6 @@ def main():
     normal_train = normal_cases[normal_val_size:]
     normal_val = normal_cases[:normal_val_size]
     
-    print("\n📊 Train/Val split:")
-    print(f"   Train: {len(normal_train)} normal + {len(anomaly_train)} anomalies")
-    print(f"   Val: {len(normal_val)} normal + {len(anomaly_val)} anomalies")
     
     # Create datasets with oversampling
     train_dataset = RankingDataset(normal_train, anomaly_train, embeddings_cache, anomaly_oversample_factor=10)
@@ -503,22 +480,15 @@ def main():
     criterion = WeightedMarginRankingLoss(margin=0.5, anomaly_weight=10.0)
     
     # Training loop
-    print("\n🚀 Starting training...")
-    print()
     
     best_anomaly_acc = 0
     best_epoch = 0
     epochs = 30
     
     for epoch in range(epochs):
-        train_loss, train_acc = train_epoch(model, train_loader, optimizer, criterion, device)
+        _train_loss, _train_acc = train_epoch(model, train_loader, optimizer, criterion, device)
         val_metrics = validate(model, val_loader, criterion, device)
         
-        print(f"Epoch {epoch+1}/{epochs}")
-        print(f"  Train: loss={train_loss:.4f}, acc={train_acc:.4f}")
-        print(f"  Val: loss={val_metrics['loss']:.4f}, overall={val_metrics['overall_acc']:.4f}")
-        print(f"       normal_acc={val_metrics['normal_acc']:.4f} ({val_metrics['normal_total']} cases)")
-        print(f"       anomaly_acc={val_metrics['anomaly_acc']:.4f} ({val_metrics['anomaly_total']} cases) ⭐")
         
         # Save best model based on anomaly accuracy
         if val_metrics['anomaly_acc'] > best_anomaly_acc:
@@ -532,7 +502,7 @@ def main():
             # Save metadata
             metadata = {
                 'model_version': 'v2',
-                'created': datetime.now(timezone.utc).isoformat(),
+                'created': datetime.now(UTC).isoformat(),
                 'training_examples': len(normal_train) + len(anomaly_train),
                 'validation_examples': len(normal_val) + len(anomaly_val),
                 'anomaly_oversample_factor': 10,
@@ -554,25 +524,8 @@ def main():
             with (MODEL_DIR / "ranker_v2_metadata.json").open('w') as f:
                 json.dump(metadata, f, indent=2)
             
-            print(f"  ✅ Saved best model (anomaly_acc={best_anomaly_acc:.4f})")
         
-        print()
     
-    print("=" * 70)
-    print("TRAINING COMPLETE")
-    print("=" * 70)
-    print(f"Best epoch: {best_epoch}")
-    print(f"Best anomaly accuracy: {best_anomaly_acc:.4f}")
-    print()
-    print("📁 Model saved:")
-    print(f"   {MODEL_DIR / 'ranker_v2.pt'}")
-    print(f"   {MODEL_DIR / 'ranker_v2_metadata.json'}")
-    print()
-    print("🎯 Next steps:")
-    print("   1. Test model on held-out anomaly cases")
-    print("   2. Compare v2 vs v1 performance")
-    print("   3. Integrate into AI-assisted reviewer")
-    print("=" * 70)
 
 
 if __name__ == "__main__":

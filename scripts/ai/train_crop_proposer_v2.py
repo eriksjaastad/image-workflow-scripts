@@ -21,14 +21,13 @@ Output:
 import argparse
 import csv
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, Tuple
 
 import numpy as np
 import torch
-import torch.nn as nn
 from PIL import Image
+from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
@@ -43,9 +42,8 @@ MODEL_DIR = PROJECT_ROOT / "data/ai_data/models"
 device = "mps" if torch.backends.mps.is_available() else "cpu"
 
 
-def load_embeddings_cache() -> Tuple[Dict[str, str], Dict[str, str]]:
+def load_embeddings_cache() -> tuple[dict[str, str], dict[str, str]]:
     """Load embeddings cache with path and filename lookup."""
-    print("📂 Loading embeddings cache...")
     cache = {}
     filename_cache = {}
     
@@ -58,13 +56,9 @@ def load_embeddings_cache() -> Tuple[Dict[str, str], Dict[str, str]]:
             cache[path] = hash_val
             
             filename = Path(path).name
-            if filename not in filename_cache:
-                filename_cache[filename] = hash_val
-            elif 'training data' not in path:
+            if filename not in filename_cache or 'training data' not in path:
                 filename_cache[filename] = hash_val
     
-    print(f"   Loaded {len(cache):,} cached embeddings")
-    print(f"   Filename index: {len(filename_cache):,} unique filenames")
     
     return cache, filename_cache
 
@@ -100,20 +94,19 @@ def find_image_in_training_data(filename: str) -> Path:
     return None
 
 
-def load_image_dimensions(filename: str) -> Tuple[int, int]:
+def load_image_dimensions(filename: str) -> tuple[int, int]:
     """Load actual image dimensions from disk."""
     img_path = find_image_in_training_data(filename)
     if not img_path:
-        raise FileNotFoundError(f"Image not found: {filename}")
+        msg = f"Image not found: {filename}"
+        raise FileNotFoundError(msg)
     
     with Image.open(img_path) as img:
         return img.size  # Returns (width, height)
 
 
-def load_crop_data(cache: Dict, filename_cache: Dict):
+def load_crop_data(cache: dict, filename_cache: dict):
     """Load crop training data, matching by filename and loading image dimensions."""
-    print(f"\n📂 Loading crop data: {CROP_LOG}")
-    
     crops = []
     skipped = 0
     skipped_no_embed = 0
@@ -204,17 +197,10 @@ def load_crop_data(cache: Dict, filename_cache: Dict):
                 skipped += 1
                 continue
     
-    print(f"   ✅ Loaded: {len(crops):,} crop examples")
-    print("   📊 Dimensions:")
-    print(f"      • From CSV: {loaded_dims_from_csv:,}")
-    print(f"      • From disk: {loaded_dims_from_disk:,}")
-    print(f"   ⏭️  Skipped: {skipped:,} total")
-    print(f"      • No embedding: {skipped_no_embed:,}")
-    print(f"      • No image file: {skipped_no_image:,}")
-    print(f"      • Invalid crop coords: {skipped_invalid_crop:,}")
     
     if not crops:
-        raise ValueError("No crop data loaded!")
+        msg = "No crop data loaded!"
+        raise ValueError(msg)
     
     return crops
 
@@ -230,13 +216,15 @@ class CropDataset(Dataset):
     def load_embedding(self, filename: str) -> np.ndarray:
         """Load embedding by filename."""
         if filename not in self.filename_cache:
-            raise ValueError(f"No embedding for filename: {filename}")
+            msg = f"No embedding for filename: {filename}"
+            raise ValueError(msg)
         
         hash_val = self.filename_cache[filename]
         emb_file = EMBEDDINGS_DIR / f"{hash_val}.npy"
         
         if not emb_file.exists():
-            raise ValueError(f"Embedding file missing: {emb_file}")
+            msg = f"Embedding file missing: {emb_file}"
+            raise ValueError(msg)
         
         return np.load(emb_file)
     
@@ -386,12 +374,6 @@ def main():
                        help='Learning rate (default: 0.001)')
     args = parser.parse_args()
     
-    print("=" * 70)
-    print("CROP PROPOSER V2 TRAINING")
-    print("=" * 70)
-    print(f"Device: {device}")
-    print(f"Epochs: {args.epochs}")
-    print()
     
     # Load data
     cache, filename_cache = load_embeddings_cache()
@@ -402,9 +384,6 @@ def main():
     train_crops = crops[val_size:]
     val_crops = crops[:val_size]
     
-    print("\n📊 Train/Val split:")
-    print(f"   Train: {len(train_crops):,} crops")
-    print(f"   Val:   {len(val_crops):,} crops")
     
     # Create datasets
     train_dataset = CropDataset(train_crops, cache, filename_cache)
@@ -420,21 +399,15 @@ def main():
     criterion = nn.SmoothL1Loss()  # Less sensitive to outliers than MSE
     
     # Training loop
-    print("\n🚀 Starting training...")
-    print()
     
     best_iou = 0
     best_epoch = 0
     
     for epoch in range(args.epochs):
-        train_loss = train_epoch(model, train_loader, optimizer, criterion, device)
+        train_epoch(model, train_loader, optimizer, criterion, device)
         val_loss = validate(model, val_loader, criterion, device)
         val_iou = evaluate_iou(model, val_loader, device)
         
-        print(f"Epoch {epoch+1}/{args.epochs}")
-        print(f"  Train loss: {train_loss:.4f}")
-        print(f"  Val loss:   {val_loss:.4f}")
-        print(f"  Val IoU:    {val_iou:.4f} ⭐")
         
         # Save best model based on IoU
         if val_iou > best_iou:
@@ -448,7 +421,7 @@ def main():
             # Save metadata
             metadata = {
                 'model_version': 'v2',
-                'created': datetime.now(timezone.utc).isoformat(),
+                'created': datetime.now(UTC).isoformat(),
                 'training_examples': len(train_crops),
                 'validation_examples': len(val_crops),
                 'best_epoch': best_epoch,
@@ -467,20 +440,8 @@ def main():
             with (MODEL_DIR / "crop_proposer_v2_metadata.json").open('w') as f:
                 json.dump(metadata, f, indent=2)
             
-            print(f"  ✅ Saved best model (IoU={best_iou:.4f})")
         
-        print()
     
-    print("=" * 70)
-    print("TRAINING COMPLETE")
-    print("=" * 70)
-    print(f"Best epoch: {best_epoch}")
-    print(f"Best IoU: {best_iou:.4f}")
-    print()
-    print("📁 Model saved:")
-    print(f"   {MODEL_DIR / 'crop_proposer_v2.pt'}")
-    print(f"   {MODEL_DIR / 'crop_proposer_v2_metadata.json'}")
-    print("=" * 70)
 
 
 if __name__ == "__main__":

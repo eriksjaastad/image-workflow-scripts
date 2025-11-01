@@ -26,9 +26,8 @@ import csv
 import json
 import re
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 # Base directory
 BASE_DIR = Path("/Users/eriksjaastad/projects/Eros Mate")
@@ -46,12 +45,11 @@ PROJECTS = [
 ]
 
 # Since we don't know the exact directory structure, let's scan for likely candidates
-def discover_projects() -> List[Tuple[str, Path, Path]]:
+def discover_projects() -> list[tuple[str, Path, Path]]:
     """
     Discover project directories by looking for patterns.
     Returns list of (project_name, raw_dir, final_dir) tuples.
     """
-    print("🔍 Discovering projects in training data directory...")
     projects = []
     
     # Look for directories that might be raw vs final pairs
@@ -75,12 +73,11 @@ def discover_projects() -> List[Tuple[str, Path, Path]]:
                     
                     if raw_pngs and final_pngs:
                         projects.append((dir_name, raw_dir, final_dir))
-                        print(f"   Found: {dir_name} ({len(raw_pngs)} raw → {len(final_pngs)} final)")
     
     return projects
 
 
-def parse_filename(filename: str) -> Optional[Dict]:
+def parse_filename(filename: str) -> dict | None:
     """Extract timestamp and stage from filename."""
     pattern = r'(\d{8}_\d{6})_stage(\d+(?:\.\d+)?)'
     match = re.match(pattern, filename)
@@ -93,19 +90,13 @@ def parse_filename(filename: str) -> Optional[Dict]:
     return None
 
 
-def process_project(project_name: str, raw_dir: Path, final_dir: Path) -> Dict:
+def process_project(project_name: str, raw_dir: Path, final_dir: Path) -> dict:
     """
     Process a single project and extract training data.
     
     Returns:
         Dict with selection_entries, crop_entries, and statistics
     """
-    print(f"\n{'='*80}")
-    print(f"Processing: {project_name}")
-    print(f"{'='*80}")
-    print(f"Raw dir: {raw_dir}")
-    print(f"Final dir: {final_dir}")
-    
     # Group raw images by timestamp
     raw_groups = defaultdict(list)
     raw_files = {}  # filename -> (path, mtime)
@@ -120,7 +111,6 @@ def process_project(project_name: str, raw_dir: Path, final_dir: Path) -> Dict:
             })
         raw_files[img_path.name] = (img_path, img_path.stat().st_mtime)
     
-    print(f"   Raw: {len(raw_groups)} groups, {len(raw_files)} total images")
     
     # Find selections and crops
     selection_entries = []
@@ -151,7 +141,7 @@ def process_project(project_name: str, raw_dir: Path, final_dir: Path) -> Dict:
                         loser_stages.append(img['stage'])
                 
                 if losers:
-                    all_stages = [chosen_stage] + loser_stages
+                    all_stages = [chosen_stage, *loser_stages]
                     is_anomaly = chosen_stage < max(all_stages)
                     
                     selection_entries.append({
@@ -167,7 +157,7 @@ def process_project(project_name: str, raw_dir: Path, final_dir: Path) -> Dict:
             
             # Check if image was cropped (mtime differs)
             if final_path.name in raw_files:
-                raw_path, raw_mtime = raw_files[final_path.name]
+                _raw_path, raw_mtime = raw_files[final_path.name]
                 time_diff = abs(final_mtime - raw_mtime)
                 
                 if time_diff > 1:  # More than 1 second difference = cropped
@@ -179,14 +169,12 @@ def process_project(project_name: str, raw_dir: Path, final_dir: Path) -> Dict:
                         'chosen_stage': parsed['stage'],
                         'timestamp': timestamp,
                         'time_diff_days': time_diff / 86400,
-                        'raw_mtime': datetime.fromtimestamp(raw_mtime, tz=timezone.utc).isoformat(),
-                        'final_mtime': datetime.fromtimestamp(final_mtime, tz=timezone.utc).isoformat()
+                        'raw_mtime': datetime.fromtimestamp(raw_mtime, tz=UTC).isoformat(),
+                        'final_mtime': datetime.fromtimestamp(final_mtime, tz=UTC).isoformat()
                     })
     
     anomaly_count = sum(1 for e in selection_entries if e['is_anomaly'])
     
-    print(f"   ✅ Selections: {len(selection_entries)} ({anomaly_count} anomalies)")
-    print(f"   ✅ Crops: {len(crop_entries)}")
     
     return {
         'project': project_name,
@@ -204,27 +192,13 @@ def process_project(project_name: str, raw_dir: Path, final_dir: Path) -> Dict:
 
 
 def main():
-    print("=" * 80)
-    print("HISTORICAL PROJECT TRAINING DATA EXTRACTION")
-    print("=" * 80)
-    print()
     
     # Discover projects
     projects = discover_projects()
     
     if not projects:
-        print("⚠️  No projects found!")
-        print()
-        print("Expected directory structure:")
-        print("  training data/")
-        print("    project_name/          (raw images)")
-        print("    project_name_final/    (selected images)")
-        print()
-        print("Please verify your directory structure and try again.")
         return
     
-    print(f"\n📊 Found {len(projects)} projects to process")
-    print()
     
     # Process all projects
     all_results = []
@@ -242,7 +216,6 @@ def main():
     
     # Selection log
     selection_path = OUTPUT_DIR / "historical_selection_log.csv"
-    print(f"\n📝 Writing selection log: {selection_path}")
     
     with selection_path.open('w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=[
@@ -259,11 +232,9 @@ def main():
                 'timestamp': entry['timestamp']
             })
     
-    print(f"   Wrote {len(all_selections)} selection decisions")
     
     # Crop log
     crop_path = OUTPUT_DIR / "historical_crop_log.csv"
-    print(f"\n📝 Writing crop log: {crop_path}")
     
     with crop_path.open('w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=[
@@ -273,16 +244,14 @@ def main():
         writer.writeheader()
         writer.writerows(all_crops)
     
-    print(f"   Wrote {len(all_crops)} crop decisions")
     
     # Generate report
     report_path = OUTPUT_DIR / "historical_extraction_report.json"
-    print(f"\n📝 Writing report: {report_path}")
     
     total_anomalies = sum(r['stats']['anomalies'] for r in all_results)
     
     report = {
-        'extraction_date': datetime.now(timezone.utc).isoformat(),
+        'extraction_date': datetime.now(UTC).isoformat(),
         'projects_processed': len(all_results),
         'total_selections': len(all_selections),
         'total_crops': len(all_crops),
@@ -295,36 +264,11 @@ def main():
         json.dump(report, f, indent=2)
     
     # Summary
-    print()
-    print("=" * 80)
-    print("EXTRACTION COMPLETE")
-    print("=" * 80)
-    print(f"Projects processed: {len(all_results)}")
-    print(f"✅ Selection decisions: {len(all_selections)}")
-    print(f"✅ Crop decisions: {len(all_crops)}")
-    print(f"⚠️  Anomaly cases: {total_anomalies} ({total_anomalies/len(all_selections)*100:.1f}%)")
-    print()
-    print("📁 Files created:")
-    print(f"   - {selection_path}")
-    print(f"   - {crop_path}")
-    print(f"   - {report_path}")
-    print()
-    print("🎯 Next step: Merge with existing selection_only_log.csv and retrain!")
-    print("=" * 80)
 
 
 if __name__ == "__main__":
     try:
         main()
-        print("\n" + "="*60)
-        print("✅ SCRIPT COMPLETED SUCCESSFULLY")
-        print(f"Timestamp: {datetime.now().isoformat()}")
-        print("="*60)
-    except Exception as e:
-        print("\n" + "="*60)
-        print("❌ SCRIPT FAILED")
-        print(f"Error: {e}")
-        print(f"Timestamp: {datetime.now().isoformat()}")
-        print("="*60)
+    except Exception:
         raise
 

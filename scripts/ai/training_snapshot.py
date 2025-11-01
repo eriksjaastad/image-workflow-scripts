@@ -28,7 +28,7 @@ import shutil
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 # Single thread pool for all async operations (reused across calls)
 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="ai_snapshot")
@@ -48,9 +48,9 @@ def _get_image_id(image_path: Path) -> str:
 
 def _save_snapshot_async(
     image_path: Path,
-    crop_coords: Optional[Tuple[float, float, float, float]],
+    crop_coords: tuple[float, float, float, float] | None,
     action: str,
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 ) -> None:
     """Background task to save snapshot (non-blocking)"""
     try:
@@ -92,10 +92,10 @@ def _save_snapshot_async(
 
 def capture_crop_decision(
     image_path: Path,
-    crop_coords: Optional[Tuple[float, float, float, float]],
+    crop_coords: tuple[float, float, float, float] | None,
     action: str = "cropped",
-    image_size: Optional[Tuple[int, int]] = None,
-    session_id: Optional[str] = None,
+    image_size: tuple[int, int] | None = None,
+    session_id: str | None = None,
     tool: str = "multi_crop_tool"
 ) -> None:
     """
@@ -165,6 +165,5 @@ def cleanup_snapshots_older_than_days(days: int = 30) -> int:
 
 if __name__ == '__main__':
     # Test/demo
-    print(f"📁 Snapshot directory: {SNAPSHOT_DIR}")
-    print(f"📊 Current snapshots: {get_snapshot_count()}")
+    pass
 
