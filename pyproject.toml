@@ -85,10 +85,16 @@ ignore = [
 # CLI tools and workflow scripts can print (user-facing)
 "scripts/tools/**" = ["T201"]          # CLI tools
 "scripts/dashboard/**" = ["T201"]      # Dashboard app
-"scripts/[0-9][0-9]*_*.py" = ["T201"]  # Numbered workflow scripts (00_*, 01_*, etc.)
-
-# Note: scripts/utils/** is NOT listed here
-# This enforces "no prints" in shared utilities/library code
+"scripts/[0-9][0-9]*_*.py" = [
+  "T201",    # Prints OK in user-facing workflow scripts
+  # Legacy mechanical violations - fix incrementally (see CODE_CONVENTIONS.md)
+  "PTH123",  # open() vs Path.open()
+  "DTZ003", "DTZ005",  # timezone-aware datetimes
+  "G004",    # lazy logging format
+  "PLC0415", # imports at top
+  "BLE001",  # broad exception (often intentional)
+  "S110", "S112",  # try-except-pass/continue
+]
 
 # Test files have different requirements
 "**/tests/**" = [
@@ -97,6 +103,16 @@ ignore = [
   "PT027",   # pytest.raises without match OK
   "S101",    # assert allowed (required for pytest)
   "PLR2004", # Magic values OK in tests
+]
+
+# Library/utility code - legacy violations, fix when touching files
+"scripts/utils/**" = [
+  "PTH123",  # open() vs Path.open()
+  "DTZ003", "DTZ005",  # timezone-aware datetimes
+  "G004",    # lazy logging format
+  "PLC0415", # imports at top
+  "BLE001",  # broad exception (often intentional)
+  "S110", "S112",  # try-except-pass/continue
 ]
 
 [tool.ruff.lint.flake8-bugbear]
