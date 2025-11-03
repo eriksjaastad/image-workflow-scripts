@@ -5,6 +5,9 @@ Safely removes sandbox directories used for testing without affecting
 production data. Requires explicit confirmation unless --force is used.
 
 Usage:
+    # List sandbox directories and their sizes
+    python scripts/tools/cleanup_sandbox.py --list
+
     # Interactive cleanup (asks for confirmation)
     python scripts/tools/cleanup_sandbox.py
 
@@ -27,6 +30,63 @@ from pathlib import Path
 # Add project root to path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from scripts.utils.sandbox_mode import SandboxConfig
+
+
+def list_sandboxes() -> int:
+    """List all sandbox directories and their sizes.
+
+    Returns:
+        Exit code (0 for success)
+    """
+    # Find project root (2 levels up from this script)
+    project_root = Path(__file__).resolve().parents[2]
+
+    # Define sandbox directories to check
+    sandbox_dirs = [
+        project_root / "data" / "projects" / "sandbox",
+        project_root / "data" / "file_operations_logs" / "sandbox",
+        project_root / "data" / "test_runs",
+    ]
+
+    # Filter to only existing directories
+    existing_dirs = [d for d in sandbox_dirs if d.exists()]
+
+    if not existing_dirs:
+        print("✓ No sandbox directories found")
+        return 0
+
+    print("📋 Sandbox Directories:")
+    print()
+
+    total_size = 0
+    total_files = 0
+
+    for dir_path in existing_dirs:
+        try:
+            # Calculate size and file count
+            size = sum(f.stat().st_size for f in dir_path.rglob("*") if f.is_file())
+            total_size += size
+            size_mb = size / (1024 * 1024)
+            file_count = len(list(dir_path.rglob("*")))
+            total_files += file_count
+
+            # Check for marker file
+            has_marker = SandboxConfig.has_marker_file(dir_path)
+            marker_status = "✅ Marked" if has_marker else "⚠️  No marker"
+
+            print(f"📁 {dir_path}")
+            print(f"   Files: {file_count}")
+            print(f"   Size: {size_mb:.2f} MB")
+            print(f"   Status: {marker_status}")
+            print()
+
+        except (OSError, PermissionError) as e:
+            print(f"📁 {dir_path}")
+            print(f"   ⚠️  Could not read: {e}")
+            print()
+
+    print(f"Total: {total_files} files, {total_size / (1024 * 1024):.2f} MB")
+    return 0
 
 
 def cleanup_sandbox(confirm: bool = True, dry_run: bool = False) -> int:
@@ -141,7 +201,17 @@ def main() -> int:
         action="store_true",
         help="Show what would be deleted without actually deleting"
     )
+    parser.add_argument(
+        "--list",
+        "-l",
+        action="store_true",
+        help="List all sandbox directories and their sizes"
+    )
     args = parser.parse_args()
+
+    # Handle --list mode
+    if args.list:
+        return list_sandboxes()
 
     return cleanup_sandbox(confirm=not args.force, dry_run=args.dry_run)
 
