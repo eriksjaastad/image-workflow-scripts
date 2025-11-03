@@ -1,4 +1,31 @@
-# scripts/utils/sandbox.py
+"""Sandbox mode for safe testing without polluting production data.
+
+Enables test mode that redirects file writes to timestamped sandbox directories
+under data/test_runs/<timestamp> instead of production directories. This allows
+testing workflow scripts with real operations without risk of corrupting:
+- Project manifests (data/projects/)
+- Operation logs (data/file_operations_logs/)
+- Production image files
+
+Usage:
+    from scripts.utils.sandbox_mode import test_sandbox, in_test_mode
+
+    # Context manager approach
+    with test_sandbox(enabled=True, cleanup=False) as sandbox_root:
+        # All writes should check in_test_mode() and use rebase_path()
+        if in_test_mode():
+            print(f"Running in sandbox: {sandbox_root}")
+
+    # Check if currently in test mode
+    if in_test_mode():
+        # Adjust file paths accordingly
+        pass
+
+Note:
+    This is a simple implementation using environment variables. Scripts must
+    explicitly check in_test_mode() and use rebase_path() to redirect writes.
+    Future enhancement: Integrate with FileTracker for automatic redirection.
+"""
 from __future__ import annotations
 
 import os
