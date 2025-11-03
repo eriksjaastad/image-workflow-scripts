@@ -191,46 +191,6 @@ class CropCoordinateValidator:
                 continue
 
         return records
-        """Get database record for an image filename."""
-        conn = sqlite3.connect(str(self.database_path))
-        cursor = conn.cursor()
-
-        # Search for record containing this filename in images JSON array
-        cursor.execute(
-            """
-            SELECT group_id, images, user_selected_index, final_crop_coords, user_action
-            FROM ai_decisions
-            WHERE images LIKE ?
-        """,
-            (f"%{filename}%",),
-        )
-
-        results = cursor.fetchall()
-        conn.close()
-
-        # Find exact match in images array
-        for group_id, images_json, user_idx, final_coords, user_action in results:
-            try:
-                images = json.loads(images_json)
-                if filename in images:
-                    selected_filename = (
-                        images[user_idx] if user_idx < len(images) else None
-                    )
-                    coords = json.loads(final_coords) if final_coords else None
-
-                    return {
-                        "group_id": group_id,
-                        "images": images,
-                        "user_selected_index": user_idx,
-                        "selected_filename": selected_filename,
-                        "final_crop_coords": coords,
-                        "user_action": user_action,
-                        "is_selected": (selected_filename == filename),
-                    }
-            except Exception:
-                continue
-
-        return None
 
     def validate_and_correct(self) -> dict:
         """Validate all cropped images and report/correct mismatches."""

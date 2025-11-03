@@ -143,6 +143,16 @@ from utils.companion_file_utils import (
 
 # Flask import deferred until needed (after argument parsing)
 flask_available = False
+try:
+    from flask import Flask, Response, jsonify, render_template_string, request
+
+    flask_available = True
+except ImportError:
+    Flask = None
+    Response = None
+    jsonify = None
+    render_template_string = None
+    request = None
 
 try:
     from PIL import Image

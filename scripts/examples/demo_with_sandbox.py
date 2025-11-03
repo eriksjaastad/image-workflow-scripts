@@ -14,6 +14,7 @@ Key Features Demonstrated:
 Usage:
     python scripts/examples/demo_with_sandbox.py
 """
+
 import sys
 from pathlib import Path
 
@@ -35,12 +36,12 @@ def demo_sandbox_basics():
     sandbox.print_banner()
 
     # Show configured paths
-    print(f"\nConfigured paths:")
+    print("\nConfigured paths:")
     print(f"  Projects: {sandbox.projects_dir}")
     print(f"  Logs: {sandbox.logs_dir}")
 
     # Demonstrate project ID validation
-    print(f"\nProject ID validation:")
+    print("\nProject ID validation:")
     test_ids = ["TEST-demo", "production-project", "test-lowercase"]
     for pid in test_ids:
         is_valid = sandbox.validate_project_id(pid)
@@ -48,9 +49,11 @@ def demo_sandbox_basics():
         print(f"  {pid}: {status}")
 
     # Demonstrate project ID formatting
-    print(f"\nProject ID formatting:")
+    print("\nProject ID formatting:")
     print(f"  format_project_id('demo') → {sandbox.format_project_id('demo')}")
-    print(f"  format_project_id('TEST-demo') → {sandbox.format_project_id('TEST-demo')}")
+    print(
+        f"  format_project_id('TEST-demo') → {sandbox.format_project_id('TEST-demo')}"
+    )
 
 
 def demo_file_operations():
@@ -65,23 +68,24 @@ def demo_file_operations():
     project_id = "TEST-demo-example"
     manifest_path = sandbox.projects_dir / f"{project_id}.project.json"
 
-    print(f"\nCreating test manifest:")
+    print("\nCreating test manifest:")
     print(f"  Path: {manifest_path}")
 
     # Write a simple test manifest
     test_manifest = {
         "projectId": project_id,
         "status": "test",
-        "note": "This is sandbox test data - safe to delete"
+        "note": "This is sandbox test data - safe to delete",
     }
 
     import json
+
     manifest_path.write_text(json.dumps(test_manifest, indent=2), encoding="utf-8")
     print(f"  ✅ Created: {manifest_path.name}")
 
     # Verify marker file exists
     marker_exists = SandboxConfig.has_marker_file(sandbox.projects_dir)
-    print(f"\nSandbox marker file:")
+    print("\nSandbox marker file:")
     print(f"  Exists: {marker_exists}")
     if marker_exists:
         marker_path = sandbox.projects_dir / ".sandbox_marker"
@@ -97,12 +101,9 @@ def demo_filetracker_integration():
     sandbox = SandboxConfig(enabled=True)
 
     # Create FileTracker with sandbox configuration
-    tracker = FileTracker(
-        script_name="demo_sandbox",
-        sandbox_config=sandbox
-    )
+    tracker = FileTracker(script_name="demo_sandbox", sandbox_config=sandbox)
 
-    print(f"\nFileTracker configured:")
+    print("\nFileTracker configured:")
     print(f"  Log file: {tracker.log_file}")
     print(f"  Sandbox mode: {tracker.sandbox}")
 
@@ -112,10 +113,10 @@ def demo_filetracker_integration():
         source_dir="demo_source",
         dest_dir="demo_dest",
         file_count=5,
-        notes="This is a sandbox test operation"
+        notes="This is a sandbox test operation",
     )
 
-    print(f"\n✅ Logged test operation to sandbox logs")
+    print("\n✅ Logged test operation to sandbox logs")
 
 
 def demo_cleanup():
@@ -159,6 +160,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Demo failed: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         return 1
 
