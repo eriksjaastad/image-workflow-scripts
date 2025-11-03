@@ -91,6 +91,7 @@ This knowledge base documents the end-to-end image workflow automation system: t
 ### Testing
 
 - `testing/TESTS_GUIDE.md`
+- `testing/SANDBOX_MODE_GUIDE.md` ← NEW: Safe testing with sandbox mode
 
 ### Reviews
 
