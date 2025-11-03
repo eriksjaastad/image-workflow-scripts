@@ -267,7 +267,7 @@ class DashboardDataEngine:
                             )
                         records.append(record)
             except Exception as e:
-                logger.warning(f"Malformed daily snapshot file {snap}: {e}")
+                logger.warning(f"Malformed daily snapshot file {daily_file}: {e}")
                 continue
 
         return records
@@ -309,7 +309,7 @@ class DashboardDataEngine:
                     }
                     records.append(record)
                 except Exception as e:
-                    logger.warning(f"Malformed session record in {session_file}: {e}")
+                    logger.warning(f"Malformed session record: {e}")
                     continue
             return records
         # Fall back to legacy timer data

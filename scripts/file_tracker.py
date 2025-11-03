@@ -38,7 +38,9 @@ class FileTracker:
         sandbox_config: Optional["SandboxConfig"] = None,
     ):
         self.script_name = script_name
-        self.sandbox = sandbox or (sandbox_config is not None and sandbox_config.enabled)
+        self.sandbox = sandbox or (
+            sandbox_config is not None and sandbox_config.enabled
+        )
         self.logger = logging.getLogger(f"file_tracker.{script_name}")
 
         # Determine log directory (sandbox-aware)
@@ -361,7 +363,7 @@ def print_recent_activity(hours: int = 24):
     now = datetime.now(UTC)
     cutoff = now - timedelta(hours=hours)
 
-    print(f"\n=== File Activity (Last {hours} hours) ===")  # noqa: T201
+    print(f"\n=== File Activity (Last {hours} hours) ===")
 
     for entry in entries:
         try:
@@ -378,30 +380,30 @@ def print_recent_activity(hours: int = 24):
                 count = entry.get("file_count", "?")
 
                 if op == "move":
-                    print(  # noqa: T201
+                    print(
                         f"{time_str} [{entry['script']}] MOVED {count} files: {source} → {dest}"
                     )
                 elif op == "delete":
-                    print(  # noqa: T201
+                    print(
                         f"{time_str} [{entry['script']}] DELETED {count} files from {source}"
                     )
                 elif op == "copy":
-                    print(  # noqa: T201
+                    print(
                         f"{time_str} [{entry['script']}] COPIED {count} files: {source} → {dest}"
                     )
 
             elif entry["type"] == "batch_start":
-                print(  # noqa: T201
+                print(
                     f"{time_str} [{entry['script']}] BATCH START: {entry['batch_name']}"
                 )
 
             elif entry["type"] == "session_start":
-                print(f"{time_str} [{entry['script']}] SESSION START")  # noqa: T201
+                print(f"{time_str} [{entry['script']}] SESSION START")
 
         except (KeyError, ValueError):  # Specific exceptions for timestamp parsing
             continue
 
-    print("=" * 50)  # noqa: T201
+    print("=" * 50)
 
 
 if __name__ == "__main__":

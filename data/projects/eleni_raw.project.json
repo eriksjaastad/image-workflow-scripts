@@ -2,9 +2,9 @@
   "projectId": "eleni_raw",
   "title": "Eleni_raw",
   "status": "archived",
-  "createdAt": "2025-08-30T13:00:00Z",
-  "startedAt": "2025-08-30T13:00:00Z",
-  "finishedAt": "2025-08-31T21:00:00Z",
+  "createdAt": "2025-08-30T00:00:00Z",
+  "startedAt": "2025-08-30T00:00:00Z",
+  "finishedAt": "2025-08-31T00:00:00Z",
   "paths": {
     "root": "PROJECT_ROOT/content/Eleni_raw",
     "selectedDir": "PROJECT_ROOT/content/Eleni_raw/selected",

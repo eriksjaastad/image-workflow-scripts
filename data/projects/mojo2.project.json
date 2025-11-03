@@ -3,9 +3,9 @@
   "projectId": "mojo2",
   "title": "Mojo2",
   "status": "finished",
-  "createdAt": "2025-10-12T21:31:18Z",
+  "createdAt": "2025-10-12T00:00:00Z",
   "startedAt": "2025-10-12T00:00:00Z",
-  "finishedAt": "2025-10-20T15:17:49Z",
+  "finishedAt": "2025-10-20T00:00:00Z",
   "removeFileOnFinish": true,
   "paths": {
     "root": "../../mojo2",

@@ -99,7 +99,7 @@ class DashboardTest:
         try:
             # Skip if Flask is not installed in the environment
             try:
-                import flask  # noqa: F401
+                pass
             except Exception:
                 print("  ⚠️ Flask not installed; skipping dashboard server startup test")
                 return True

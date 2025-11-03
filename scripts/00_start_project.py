@@ -291,7 +291,11 @@ def create_project_manifest(
     # Validate project ID against sandbox mode
     if sandbox_config and not sandbox_config.validate_project_id(project_id):
         mode = "sandbox" if sandbox_config.enabled else "production"
-        prefix_msg = "must start with TEST-" if sandbox_config.enabled else "must NOT start with TEST-"
+        prefix_msg = (
+            "must start with TEST-"
+            if sandbox_config.enabled
+            else "must NOT start with TEST-"
+        )
         return {
             "status": "error",
             "message": f"Invalid project ID for {mode} mode: {project_id} {prefix_msg}",
@@ -349,7 +353,7 @@ def create_project_manifest(
         try:
             shutil.copy2(manifest_path, backup_path)
             print(f"✅ Created backup: {backup_path}")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             return {"status": "error", "message": f"Failed to create backup: {e}"}
 
     # Generate timestamp
@@ -359,7 +363,7 @@ def create_project_manifest(
     try:
         Path.cwd()
         relative_content = Path("../../" + content_dir.name)
-    except Exception:  # noqa: BLE001
+    except Exception:
         relative_content = content_dir
 
     # Generate manifest
@@ -498,7 +502,7 @@ def create_project_manifest(
             logger.error(msg)
             # Return error immediately - don't let user think setup succeeded
             return {"status": "error", "message": msg}
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return {"status": "error", "message": f"Failed to write manifest: {e}"}
 
     return {
@@ -547,7 +551,7 @@ def interactive_mode():
                 content_dir.mkdir(parents=True, exist_ok=True)
                 print(f"✅ Created directory: {content_dir}")
                 break
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 print(f"❌ Failed to create directory: {e}")
 
     # Get optional title

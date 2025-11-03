@@ -37,6 +37,7 @@ Note:
     Scripts must explicitly use sandbox paths. FileTracker integration
     for automatic redirection is planned for Phase 4.
 """
+
 from __future__ import annotations
 
 import os
@@ -114,7 +115,7 @@ class SandboxConfig:
                 f"# Created: {datetime.now(UTC).isoformat()}\n"
                 f"# This directory contains TEST DATA ONLY\n"
                 f"# Safe to delete via cleanup_sandbox.py\n",
-                encoding="utf-8"
+                encoding="utf-8",
             )
 
     @staticmethod
@@ -175,14 +176,15 @@ class SandboxConfig:
         test data will be stored. Only prints if sandbox is enabled.
         """
         if self.enabled:
-            print("=" * 60)  # noqa: T201
-            print("🧪 SANDBOX MODE - Test data will be isolated")  # noqa: T201
-            print(f"   Projects: {self.projects_dir}")  # noqa: T201
-            print(f"   Logs: {self.logs_dir}")  # noqa: T201
-            print("=" * 60)  # noqa: T201
+            print("=" * 60)
+            print("🧪 SANDBOX MODE - Test data will be isolated")
+            print(f"   Projects: {self.projects_dir}")
+            print(f"   Logs: {self.logs_dir}")
+            print("=" * 60)
 
 
 # -------------------- Legacy Functions (Backward Compatibility) --------------------
+
 
 def sandbox_root() -> Path:
     """Generate timestamped sandbox root path.
@@ -197,7 +199,7 @@ def sandbox_root() -> Path:
 
 
 @contextmanager
-def test_sandbox(enabled: bool, cleanup: bool = False):  # noqa: PT028
+def test_sandbox(enabled: bool, cleanup: bool = False):
     """Context manager for sandbox mode using environment variables.
 
     Legacy function. New code should use SandboxConfig instead.
@@ -220,12 +222,12 @@ def test_sandbox(enabled: bool, cleanup: bool = False):  # noqa: PT028
             os.environ["APP_MODE"] = "TEST"
             root = sandbox_root()
             root.mkdir(parents=True, exist_ok=True)
-            print(f"🧪 TEST MODE — sandbox: {root}")  # noqa: T201
+            print(f"🧪 TEST MODE — sandbox: {root}")
         yield root  # may be None if disabled
     finally:
         if enabled and cleanup and root and root.exists():
             shutil.rmtree(root, ignore_errors=True)
-            print(f"🧹 cleaned up sandbox: {root}")  # noqa: T201
+            print(f"🧹 cleaned up sandbox: {root}")
 
 
 def in_test_mode() -> bool:
@@ -272,8 +274,8 @@ def safe_write_text(
     """
     target = rebase_path(path, sandbox_base)
     if dry_run:
-        print(f"[DRY-RUN] would write: {target} ({len(content)} bytes)")  # noqa: T201
+        print(f"[DRY-RUN] would write: {target} ({len(content)} bytes)")
         return
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(content, encoding="utf-8")
-    print(f"📝 wrote: {target}")  # noqa: T201
+    print(f"📝 wrote: {target}")

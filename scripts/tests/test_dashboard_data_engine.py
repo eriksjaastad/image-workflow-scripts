@@ -23,8 +23,6 @@ from scripts.dashboard.engines.project_metrics_aggregator import (
 
 # Optional Flask presence for integration tests
 try:
-    import flask  # noqa: F401
-
     HAS_FLASK = True
 except Exception:
     HAS_FLASK = False

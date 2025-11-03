@@ -374,7 +374,7 @@ def finish_project(project_id: str, dry_run: bool = True, force: bool = False) -
                             )
                     else:
                         print(f"⚠️  Project {project_id} not found in .gitignore")
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.warning(f"Failed to update .gitignore: {e}")
                 print(f"⚠️  Failed to update .gitignore: {e}")
         except Exception as e:

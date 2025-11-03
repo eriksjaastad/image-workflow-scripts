@@ -1582,7 +1582,7 @@ def process_directory(
             enhanced_data["character_mapping"],
             directory,
             group_by,
-            auto_confirm=args.yes,
+            auto_confirm=False,  # Always ask for confirmation in pipeline mode
         ):
             if not quiet:
                 print("\n[!] Operation cancelled by user")

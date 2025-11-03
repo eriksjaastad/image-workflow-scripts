@@ -13,6 +13,151 @@
 
 ---
 
+## 🔍 CODE QUALITY & LINTING RULES
+
+**These rules are enforced by Ruff and pre-commit hooks. All AI code must follow them.**
+
+### **1. Never Use Silent Broad Exceptions**
+
+❌ **FORBIDDEN:**
+
+```python
+try:
+    risky_operation()
+except:  # Bare except - catches everything
+    pass
+
+try:
+    risky_operation()
+except Exception:  # Silent exception - hides bugs
+    pass
+```
+
+✅ **REQUIRED:**
+
+```python
+try:
+    risky_operation()
+except FileNotFoundError as e:
+    logger.error(f"File not found: {e}")
+    raise
+
+try:
+    risky_operation()
+except SpecificException as e:
+    logger.error(f"Error: {e}")
+    raise  # Re-raise after logging
+```
+
+**Why:** Silent failures hide bugs. Always log the error and re-raise or handle with a specific exception.
+
+### **2. Prints in Library Code vs CLI Scripts**
+
+❌ **FORBIDDEN in library code:**
+
+```python
+# scripts/utils/helper.py - NO PRINTS!
+def process_data(data):
+    print("Processing...")  # Use logging instead
+    return data
+```
+
+✅ **ALLOWED in CLI scripts only:**
+
+```python
+# scripts/00_start_project.py - Prints OK here!
+print("Starting project...")
+
+# scripts/utils/helper.py - Use logging!
+import logging
+logger = logging.getLogger(__name__)
+logger.info("Processing data...")
+```
+
+**Exempted files (prints allowed):**
+
+- `scripts/[0-9][0-9]_*.py` (numbered workflow scripts like `00_start_project.py`)
+- `scripts/tools/**` (CLI tools)
+- `scripts/**/run_*.py` (run scripts)
+- `scripts/dashboard/**` (dashboard outputs)
+- `scripts/**/test_*.py` (tests)
+
+**All other files:** Use `logging` instead of `print()`
+
+### **3. Timezone-Aware Datetimes**
+
+❌ **DANGEROUS - timezone-naive:**
+
+```python
+from datetime import datetime
+now = datetime.now()  # Which timezone?
+```
+
+✅ **SAFE - timezone-aware:**
+
+```python
+from datetime import datetime, timezone
+now = datetime.now(timezone.utc)  # Explicit UTC
+
+# Or with UTC constant (Python 3.11+)
+from datetime import UTC, datetime
+now = datetime.now(UTC)
+```
+
+### **4. Separate Error Message Construction**
+
+❌ **BAD - f-string in exception:**
+
+```python
+raise ValueError(f"Invalid value: {value}")
+```
+
+✅ **GOOD - separate message construction:**
+
+```python
+msg = f"Invalid value: {value}"
+raise ValueError(msg)
+```
+
+**Why:** Makes error messages easier to test and maintain.
+
+### **5. Remove Unused Imports**
+
+❌ **FORBIDDEN:**
+
+```python
+import os
+import sys  # Never used
+import unused_module
+```
+
+✅ **REQUIRED:**
+
+```python
+import os  # Only import what you use
+```
+
+### **6. No Debugger Statements**
+
+❌ **FORBIDDEN:**
+
+```python
+import pdb; pdb.set_trace()  # Remove before committing
+breakpoint()  # Remove before committing
+```
+
+### **Quick Reference for Code Generation**
+
+Before writing code, ask yourself:
+
+1. **Is this library code or a CLI script?** → Determines print vs logging
+2. **Am I catching exceptions?** → Log + re-raise or catch specific exceptions
+3. **Am I using datetime?** → Must use `timezone.utc`
+4. **Did I import everything I'm using?** → Remove unused imports
+5. **Are error messages constructed separately?** → For testability
+
+---
+
 ## 🚨 CRITICAL FILE SAFETY RULES - NEVER VIOLATE
 
 ### **Rule #1: NO FILE CONTENT MODIFICATIONS**
