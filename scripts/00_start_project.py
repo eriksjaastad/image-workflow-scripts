@@ -39,9 +39,11 @@ logging.basicConfig(
 try:
     from scripts.file_tracker import FileTracker
     from scripts.utils.companion_file_utils import extract_timestamp_from_filename
+    from scripts.utils.sandbox_mode import SandboxConfig
 except ImportError as e:
-    logger.warning("FileTracker import failed (audit logging disabled): %s", e)
+    logger.warning("Import failed (some features disabled): %s", e)
     FileTracker = None  # type: ignore
+    SandboxConfig = None  # type: ignore
 
     def extract_timestamp_from_filename(filename: str):  # type: ignore
         import re as _re
@@ -261,7 +263,11 @@ def update_gitignore(
 
 
 def create_project_manifest(
-    project_id: str, content_dir: Path, title: str | None = None, force: bool = False
+    project_id: str,
+    content_dir: Path,
+    title: str | None = None,
+    force: bool = False,
+    sandbox_config: "SandboxConfig | None" = None,
 ) -> dict:
     """Create a new project manifest.
 
@@ -270,6 +276,7 @@ def create_project_manifest(
         content_dir: Path to project content directory
         title: Human-readable project title (defaults to capitalized project_id)
         force: Overwrite existing manifest without prompting
+        sandbox_config: Optional sandbox configuration for isolated testing
 
     Returns:
         Dictionary with status and manifest path
@@ -279,6 +286,15 @@ def create_project_manifest(
         return {
             "status": "error",
             "message": f"Invalid project ID: {project_id}. Use alphanumeric, underscore, or hyphen only.",
+        }
+
+    # Validate project ID against sandbox mode
+    if sandbox_config and not sandbox_config.validate_project_id(project_id):
+        mode = "sandbox" if sandbox_config.enabled else "production"
+        prefix_msg = "must start with TEST-" if sandbox_config.enabled else "must NOT start with TEST-"
+        return {
+            "status": "error",
+            "message": f"Invalid project ID for {mode} mode: {project_id} {prefix_msg}",
         }
 
     # Resolve content directory
@@ -310,9 +326,13 @@ def create_project_manifest(
     if not title:
         title = project_id.capitalize()
 
-    # Check if manifest already exists
-    manifest_dir = Path("data/projects")
-    manifest_dir.mkdir(parents=True, exist_ok=True)
+    # Determine manifest directory (sandbox-aware)
+    if sandbox_config:
+        manifest_dir = sandbox_config.projects_dir
+    else:
+        manifest_dir = Path("data/projects")
+        manifest_dir.mkdir(parents=True, exist_ok=True)
+
     manifest_path = manifest_dir / f"{project_id}.project.json"
 
     if manifest_path.exists() and not force:
@@ -612,8 +632,18 @@ Examples:
         action="store_true",
         help="Overwrite existing manifest without prompting",
     )
+    parser.add_argument(
+        "--sandbox",
+        action="store_true",
+        help="Run in sandbox mode (test data isolated, requires TEST- prefix)",
+    )
 
     args = parser.parse_args()
+
+    # Initialize sandbox configuration
+    sandbox = SandboxConfig(enabled=args.sandbox) if SandboxConfig else None
+    if sandbox and sandbox.enabled:
+        sandbox.print_banner()
 
     # If no arguments provided, run in interactive mode
     if not args.project_id or not args.content_dir:
@@ -635,6 +665,7 @@ Examples:
         content_dir=content_dir,
         title=args.title,
         force=args.force,
+        sandbox_config=sandbox,
     )
 
     # Print result as JSON for scripting

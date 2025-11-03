@@ -20,7 +20,13 @@ import json
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
+
+# Import SandboxConfig for type hints
+try:
+    from scripts.utils.sandbox_mode import SandboxConfig
+except ImportError:
+    SandboxConfig = None  # type: ignore
 
 
 class FileTracker:
@@ -29,14 +35,21 @@ class FileTracker:
         script_name: str,
         log_file: str = "file_operations.log",
         sandbox: bool = False,
+        sandbox_config: Optional["SandboxConfig"] = None,
     ):
         self.script_name = script_name
-        self.sandbox = sandbox
+        self.sandbox = sandbox or (sandbox_config is not None and sandbox_config.enabled)
         self.logger = logging.getLogger(f"file_tracker.{script_name}")
 
-        # Create file_operations_logs directory if it doesn't exist
-        log_dir = Path(__file__).parent.parent / "data" / "file_operations_logs"
-        log_dir.mkdir(exist_ok=True)
+        # Determine log directory (sandbox-aware)
+        if sandbox_config is not None:
+            # Use SandboxConfig's log directory
+            log_dir = sandbox_config.logs_dir
+        else:
+            # Legacy: hardcoded path
+            log_dir = Path(__file__).parent.parent / "data" / "file_operations_logs"
+
+        log_dir.mkdir(parents=True, exist_ok=True)
         self.log_file = log_dir / log_file
         self.session_id = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         self.current_batch = None

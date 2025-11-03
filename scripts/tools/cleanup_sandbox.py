@@ -24,6 +24,10 @@ import shutil
 import sys
 from pathlib import Path
 
+# Add project root to path for imports
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from scripts.utils.sandbox_mode import SandboxConfig
+
 
 def cleanup_sandbox(confirm: bool = True, dry_run: bool = False) -> int:
     """Remove all sandbox test data.
@@ -51,6 +55,23 @@ def cleanup_sandbox(confirm: bool = True, dry_run: bool = False) -> int:
     if not existing_dirs:
         print("✓ No sandbox directories found - nothing to clean")
         return 0
+
+    # Verify all directories have sandbox markers (safety check)
+    dirs_without_markers = [d for d in existing_dirs if not SandboxConfig.has_marker_file(d)]
+
+    if dirs_without_markers:
+        print("⚠️  ERROR: Some directories are missing .sandbox_marker files:", file=sys.stderr)
+        for d in dirs_without_markers:
+            print(f"   - {d}", file=sys.stderr)
+        print("\nThese directories will NOT be deleted (safety check).", file=sys.stderr)
+        print("If you're sure these are sandbox directories, add .sandbox_marker files manually.", file=sys.stderr)
+
+        # Remove unmarked directories from the list
+        existing_dirs = [d for d in existing_dirs if SandboxConfig.has_marker_file(d)]
+
+        if not existing_dirs:
+            print("\n✗ No safe-to-delete sandbox directories found", file=sys.stderr)
+            return 1
 
     # Show what will be deleted
     print("⚠️  The following sandbox directories will be DELETED:")
