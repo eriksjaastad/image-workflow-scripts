@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Token-Lean To-Do -> Model Planner
 
@@ -16,21 +15,21 @@ Notes:
 - Heuristics are adjustable in the CONFIG section below.
 - Estimator aims for "cheap by default"; it prefers Haiku/Grok unless cues demand Sonnet.
 """
+
 import argparse
 import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Tuple
 
 # -------------------- CONFIG (edit freely) --------------------
 COSTS = {
     # very rough prompt+completion token estimates per single-shot ask
-    "tiny": 250,          # e.g., regex, docstring, rename
-    "small": 600,         # small function edits
-    "medium": 1200,       # multi-function within one file
-    "large": 2500,        # multi-file / design notes
-    "xl": 4800,           # deep refactor / architectural pass
+    "tiny": 250,  # e.g., regex, docstring, rename
+    "small": 600,  # small function edits
+    "medium": 1200,  # multi-function within one file
+    "large": 2500,  # multi-file / design notes
+    "xl": 4800,  # deep refactor / architectural pass
 }
 
 # Model name constants
@@ -62,15 +61,31 @@ MAX_INPUT_FILE_SIZE = 10 * 1024 * 1024
 # These will be pre-compiled at module initialization
 RULES_RAW = [
     # Low-cost tasks
-    (r"\b(docstring|comment|rename|typo|regex|sed|one[- ]liner)\b", 1, "Low-impact edit"),
-    (r"\b(log|logging|warn|error|print -> logger|ruff|black|lint)\b", 1, "Mechanical/logging fix"),
+    (
+        r"\b(docstring|comment|rename|typo|regex|sed|one[- ]liner)\b",
+        1,
+        "Low-impact edit",
+    ),
+    (
+        r"\b(log|logging|warn|error|print -> logger|ruff|black|lint)\b",
+        1,
+        "Mechanical/logging fix",
+    ),
     (r"\b(csv|yaml|json)\b", 1, "Data formatting"),
     (r"\b(readme|docs?|markdown)\b", 1, "Documentation"),
     # Code changes
     (r"\b(refactor|rewrite|restructure)\b", 3, "Refactor"),
-    (r"\b(multi[- ]file|cross[- ]module|architecture|design)\b", 4, "Cross-module/Design"),
+    (
+        r"\b(multi[- ]file|cross[- ]module|architecture|design)\b",
+        4,
+        "Cross-module/Design",
+    ),
     (r"\b(async|thread|concurrenc|multiprocess)\b", 3, "Concurrency complexity"),
-    (r"\b(opencv|cv2|pandas|flask|pil|matplotlib|sqlite|filesystem)\b", 2, "Library nuance"),
+    (
+        r"\b(opencv|cv2|pandas|flask|pil|matplotlib|sqlite|filesystem)\b",
+        2,
+        "Library nuance",
+    ),
     (r"\b(test|pytest|coverage|fixture)\b", 2, "Testing work"),
     (r"\b(scanner|rglob|walk|io[- ]heavy|batch)\b", 2, "File I/O heavy"),
     (r"\b(state|race|deadlock)\b", 3, "Stateful/race condition"),
@@ -81,12 +96,14 @@ RULES_RAW = [
 ]
 
 # Pre-compile regex patterns for performance
-COMPILED_RULES: List[Tuple[re.Pattern, int, str]] = [
+COMPILED_RULES: list[tuple[re.Pattern, int, str]] = [
     (re.compile(pat, re.I), bump, note) for pat, bump, note in RULES_RAW
 ]
 
 # Cursor Plan recommendation cues (pre-compiled)
-PLAN_CUES = re.compile(r"\b(plan|design|spec|architecture|breakdown|milestone|roadmap)\b", re.I)
+PLAN_CUES = re.compile(
+    r"\b(plan|design|spec|architecture|breakdown|milestone|roadmap)\b", re.I
+)
 
 
 def classify_size(tokens: int) -> str:
@@ -113,9 +130,10 @@ def classify_size(tokens: int) -> str:
 @dataclass
 class TaskAssessment:
     """Assessment of a single task including complexity, cost, and recommendations."""
+
     text: str
     score: int
-    reasons: List[str] = field(default_factory=list)
+    reasons: list[str] = field(default_factory=list)
     tokens_estimate: int = 0
     size_label: str = "small"
     model: str = MODEL_HAIKU
@@ -135,11 +153,15 @@ def estimate_tokens(task: str, base: int) -> int:
     """
     # Base on size of text and presence of code-ish cues
     length_factor = max(1.0, min(MAX_LENGTH_FACTOR, len(task) / TASK_LENGTH_BASELINE))
-    code_bias = CODE_PATTERN_MULTIPLIER if re.search(r"\b(def |class |import |for |if )", task) else 1.0
+    code_bias = (
+        CODE_PATTERN_MULTIPLIER
+        if re.search(r"\b(def |class |import |for |if )", task)
+        else 1.0
+    )
     return int(base * length_factor * code_bias)
 
 
-def score_task(task: str) -> Tuple[int, List[str]]:
+def score_task(task: str) -> tuple[int, list[str]]:
     """
     Score a task's complexity based on keyword patterns.
 
@@ -204,7 +226,7 @@ def base_tokens_from_score(score: int) -> int:
     return COSTS["xl"]
 
 
-def parse_tasks(md: str) -> List[str]:
+def parse_tasks(md: str) -> list[str]:
     """
     Extract task items from markdown text.
 
@@ -224,8 +246,8 @@ def parse_tasks(md: str) -> List[str]:
 
     for ln in lines:
         m1 = re.match(r"^\s*[-*]\s+\[.\]\s+(.*)$", ln)  # - [ ] task
-        m2 = re.match(r"^\s*[-*]\s+(.*)$", ln)          # - task
-        m3 = re.match(r"^\s*\d+\.\s+(.*)$", ln)         # 1. task
+        m2 = re.match(r"^\s*[-*]\s+(.*)$", ln)  # - task
+        m3 = re.match(r"^\s*\d+\.\s+(.*)$", ln)  # 1. task
 
         if m1:
             tasks.append(m1.group(1).strip())
@@ -238,7 +260,7 @@ def parse_tasks(md: str) -> List[str]:
     return list(dict.fromkeys(tasks))
 
 
-def assess_tasks(tasks: List[str]) -> List[TaskAssessment]:
+def assess_tasks(tasks: list[str]) -> list[TaskAssessment]:
     """
     Assess all tasks for complexity, tokens, and model recommendations.
 
@@ -256,18 +278,22 @@ def assess_tasks(tasks: List[str]) -> List[TaskAssessment]:
         model = choose_model(sc)
 
         # Recommend Cursor Plan if task mentions planning keywords or is complex
-        use_plan = bool(PLAN_CUES.search(t)) or (sc >= 7 and any("design" in r.lower() for r in reasons))
+        use_plan = bool(PLAN_CUES.search(t)) or (
+            sc >= 7 and any("design" in r.lower() for r in reasons)
+        )
         size_label = classify_size(toks)
 
-        out.append(TaskAssessment(
-            text=t,
-            score=sc,
-            reasons=reasons,
-            tokens_estimate=toks,
-            size_label=size_label,
-            model=model,
-            use_plan=use_plan
-        ))
+        out.append(
+            TaskAssessment(
+                text=t,
+                score=sc,
+                reasons=reasons,
+                tokens_estimate=toks,
+                size_label=size_label,
+                model=model,
+                use_plan=use_plan,
+            )
+        )
     return out
 
 
@@ -290,7 +316,7 @@ def sanitize_markdown_table_cell(text: str) -> str:
     return text.strip()
 
 
-def render_report(tasks: List[TaskAssessment], src_name: str) -> str:
+def render_report(tasks: list[TaskAssessment], src_name: str) -> str:
     """
     Generate markdown report from task assessments.
 
@@ -315,7 +341,9 @@ def render_report(tasks: List[TaskAssessment], src_name: str) -> str:
     lines.append(f"- **Tasks analyzed:** {len(tasks)}")
     lines.append(f"- **Estimated total tokens (single-shot each):** ~{total_tokens:,}")
     lines.append(f"- **Cheap-route coverage:** {cheap_pct:.0f}% (No-LLM/Grok/Haiku)")
-    lines.append(f"- **{MODEL_SONNET}:** {sonnet_count}  |  **{MODEL_CODEX}:** {codex_count}  |  **Suggest Cursor Plan:** {plan_recs}")
+    lines.append(
+        f"- **{MODEL_SONNET}:** {sonnet_count}  |  **{MODEL_CODEX}:** {codex_count}  |  **Suggest Cursor Plan:** {plan_recs}"
+    )
     lines.append("")
     lines.append("## Per-Task Recommendations")
     lines.append("")
@@ -333,11 +361,19 @@ def render_report(tasks: List[TaskAssessment], src_name: str) -> str:
 
     lines.append("")
     lines.append("## Notes")
-    lines.append("- Estimates assume **one single-shot** per task using the recommended model.")
-    lines.append("- If a task fails locally for trivial reasons, fix locally first; only re-prompt if logic is unclear.")
-    lines.append(f"- Prefer **{MODEL_HAIKU}** unless the task clearly needs cross-module reasoning or design work.")
+    lines.append(
+        "- Estimates assume **one single-shot** per task using the recommended model."
+    )
+    lines.append(
+        "- If a task fails locally for trivial reasons, fix locally first; only re-prompt if logic is unclear."
+    )
+    lines.append(
+        f"- Prefer **{MODEL_HAIKU}** unless the task clearly needs cross-module reasoning or design work."
+    )
     lines.append(f"- Treat **{MODEL_GROK}** as idea-dump/pseudocode; avoid iteration.")
-    lines.append("- Use **Cursor Plan** only for genuinely ambiguous or multi-stage work.")
+    lines.append(
+        "- Use **Cursor Plan** only for genuinely ambiguous or multi-stage work."
+    )
 
     return "\n".join(lines)
 
@@ -352,9 +388,15 @@ def main() -> int:
     ap = argparse.ArgumentParser(
         description="Analyze a TODO list and recommend models/tokens for each task"
     )
-    ap.add_argument("--input", "-i", dest="input", required=True, help="Path to TODO.md")
-    ap.add_argument("--output", "-o", dest="output", required=True, help="Path to output REPORT.md")
-    ap.add_argument("--verbose", "-v", action="store_true", help="Show verbose progress")
+    ap.add_argument(
+        "--input", "-i", dest="input", required=True, help="Path to TODO.md"
+    )
+    ap.add_argument(
+        "--output", "-o", dest="output", required=True, help="Path to output REPORT.md"
+    )
+    ap.add_argument(
+        "--verbose", "-v", action="store_true", help="Show verbose progress"
+    )
     args = ap.parse_args()
 
     input_path = Path(args.input)
@@ -375,7 +417,7 @@ def main() -> int:
         print(
             f"Error: Input file too large ({file_size:,} bytes). "
             f"Maximum allowed: {MAX_INPUT_FILE_SIZE:,} bytes",
-            file=sys.stderr
+            file=sys.stderr,
         )
         return 1
 
@@ -387,7 +429,7 @@ def main() -> int:
     except UnicodeDecodeError as e:
         print(f"Error: Unable to decode file as UTF-8: {e}", file=sys.stderr)
         return 1
-    except IOError as e:
+    except OSError as e:
         print(f"Error reading input file: {e}", file=sys.stderr)
         return 1
 
@@ -417,14 +459,14 @@ def main() -> int:
     # Create output directory if needed
     try:
         output_path.parent.mkdir(parents=True, exist_ok=True)
-    except IOError as e:
+    except OSError as e:
         print(f"Error creating output directory: {e}", file=sys.stderr)
         return 1
 
     # Write output file
     try:
         output_path.write_text(report, encoding="utf-8")
-    except IOError as e:
+    except OSError as e:
         print(f"Error writing output file: {e}", file=sys.stderr)
         return 1
 

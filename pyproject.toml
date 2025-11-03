@@ -88,6 +88,7 @@ ignore = [
 "scripts/[0-9][0-9]_*.py" = ["T201"]  # Numbered workflow scripts (user-facing CLIs)
 "scripts/dashboard/**" = ["T201"]     # Dashboard scripts need prints for output
 "scripts/tools/**" = ["T201"]         # Utility tools are CLI-oriented
+"todo_agent_planner.py" = ["T201"]    # CLI tool for analyzing TODO lists
 
 # Test files have different requirements
 "scripts/**/tests/**" = [
