@@ -33,11 +33,13 @@ jobs:
               last_ok = datetime.fromisoformat(heartbeat["last_ok"])
           except FileNotFoundError:
               print(f"❌ HEARTBEAT FILE MISSING: {HEARTBEAT_FILE}")
-              print(f"::set-output name=status::missing_file")
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write("status=missing_file\n")
               sys.exit(1)
           except Exception as e:
               print(f"❌ HEARTBEAT FILE CORRUPT: {e}")
-              print(f"::set-output name=status::corrupt_file")
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write("status=corrupt_file\n")
               sys.exit(1)
 
           # Calculate age
@@ -51,13 +53,15 @@ jobs:
 
           if age > timedelta(minutes=MAX_MINUTES):
               print(f"🚨 STALE HEARTBEAT: {age_minutes:.1f} minutes old (threshold: {MAX_MINUTES})")
-              print(f"::set-output name=status::stale")
-              print(f"::set-output name=age::{age_minutes:.1f}")
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write(f"status=stale\n")
+                  f.write(f"age={age_minutes:.1f}\n")
               sys.exit(1)
           else:
               print(f"✅ Heartbeat OK: {age_minutes:.1f} minutes old")
-              print(f"::set-output name=status::ok")
-              print(f"::set-output name=age::{age_minutes:.1f}")
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write("status=ok\n")
+                  f.write(f"age={age_minutes:.1f}\n")
           EOF
 
       - name: Alert on heartbeat failure
