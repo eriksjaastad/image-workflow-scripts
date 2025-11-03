@@ -92,10 +92,42 @@ class SandboxConfig:
             self.projects_dir = self.data_root / "projects"
             self.logs_dir = self.data_root / "file_operations_logs"
 
-        # Create sandbox directories if needed
+        # Create sandbox directories and marker files if needed
         if enabled:
             self.projects_dir.mkdir(parents=True, exist_ok=True)
             self.logs_dir.mkdir(parents=True, exist_ok=True)
+
+            # Create marker files to identify these as intentional sandbox directories
+            self._create_marker_file(self.projects_dir)
+            self._create_marker_file(self.logs_dir)
+
+    def _create_marker_file(self, directory: Path) -> None:
+        """Create a .sandbox_marker file to identify this as a sandbox directory.
+
+        Args:
+            directory: Directory to mark as sandbox
+        """
+        marker = directory / ".sandbox_marker"
+        if not marker.exists():
+            marker.write_text(
+                f"# Sandbox Directory Marker\n"
+                f"# Created: {datetime.now(UTC).isoformat()}\n"
+                f"# This directory contains TEST DATA ONLY\n"
+                f"# Safe to delete via cleanup_sandbox.py\n",
+                encoding="utf-8"
+            )
+
+    @staticmethod
+    def has_marker_file(directory: Path) -> bool:
+        """Check if a directory has a sandbox marker file.
+
+        Args:
+            directory: Directory to check
+
+        Returns:
+            True if directory contains .sandbox_marker file
+        """
+        return (directory / ".sandbox_marker").exists()
 
     def validate_project_id(self, project_id: str) -> bool:
         """Validate that project ID matches sandbox mode requirements.
