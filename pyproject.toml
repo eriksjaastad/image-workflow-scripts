@@ -82,20 +82,20 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# CLI scripts and tools can use print statements
-"scripts/**/run_*.py" = ["T201"]
-"scripts/**/test_*.py" = ["T201", "PT009", "PT027"]  # Prints OK in tests, flexible asserts/fixtures
-"scripts/[0-9][0-9]_*.py" = ["T201"]  # Numbered workflow scripts (user-facing CLIs)
-"scripts/dashboard/**" = ["T201"]     # Dashboard scripts need prints for output
-"scripts/tools/**" = ["T201"]         # Utility tools are CLI-oriented
-"todo_agent_planner.py" = ["T201"]    # CLI tool for analyzing TODO lists
+# CLI tools and workflow scripts can print (user-facing)
+"scripts/tools/**" = ["T201"]          # CLI tools
+"scripts/dashboard/**" = ["T201"]      # Dashboard app
+"scripts/[0-9][0-9]*_*.py" = ["T201"]  # Numbered workflow scripts (00_*, 01_*, etc.)
+
+# Note: scripts/utils/** is NOT listed here
+# This enforces "no prints" in shared utilities/library code
 
 # Test files have different requirements
-"scripts/**/tests/**" = [
+"**/tests/**" = [
   "T201",    # Prints for debugging
-  "PT009",   # Use unittest-style assertions (pytest auto-rewrites them)
-  "PT027",   # Prefer pytest.raises with match (not always needed)
-  "S101",    # Use assert (required for pytest)
+  "PT009",   # unittest-style assertions OK (pytest auto-rewrites)
+  "PT027",   # pytest.raises without match OK
+  "S101",    # assert allowed (required for pytest)
   "PLR2004", # Magic values OK in tests
 ]
 
