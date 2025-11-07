@@ -29,6 +29,63 @@ When adding tasks, include estimated token cost and recommended AI agent:
 
 ## 🎯 Active Tasks (Ordered by Token Cost)
 
+### 🚨 **URGENT: Enable Cloud Backup System (Stops Deadman Switch Email Spam)** 🟡 **MEDIUM TOKEN COST**
+
+**Target Date:** Sunday (after recovery from driving Thursday/Friday)
+
+**Recommended Agent:** Claude Sonnet 4.5 (regular)
+**Estimated Cost:** 5-8k tokens
+
+**Current Problem:**
+- Deadman switch workflow (`.github/workflows/deadman.yml`) runs every 30 minutes checking `ops/heartbeat.json`
+- **Sending failure emails constantly** because nothing is updating the heartbeat
+- Heartbeat was added Oct 30th to monitor cloud backups, but cloud backups were never enabled
+- Result: Monitoring a system that doesn't exist yet = email spam
+
+**What's Already Working:**
+- ✅ Local backups run daily at 2:10 AM → `~/project-data-archives/image-workflow/YYYY-MM-DD/`
+- ✅ Weekly rollup script exists (`scripts/backup/weekly_rollup.py`)
+- ✅ rclone configured with `gbackup` remote pointing to Google Drive
+- ✅ Cron infrastructure in place
+
+**What Needs to Be Done:**
+1. **Enable 3:00 AM cloud upload cron job** (from BACKUP_RUNBOOK line 34)
+   - Upload daily folders to `gbackup:YYYY-MM-DD/`
+   - Verify with `rclone check`
+   - Delete local folder after successful upload
+2. **Add heartbeat update to backup scripts**
+   - Update heartbeat after successful cloud upload
+   - Or run heartbeat update in the backup cron job
+3. **Test the full flow**
+   - Manual test: upload one day's backup
+   - Verify heartbeat updates
+   - Check deadman switch passes
+4. **Monitor first automated run**
+   - Sunday night 3:00 AM backup should upload and update heartbeat
+   - Monday morning: verify no deadman switch emails
+
+**Files to Work With:**
+- `Documents/archives/misc/BACKUP_RUNBOOK.md` - Full backup setup documentation
+- `scripts/backup/daily_backup.py` - Daily local backup (already working)
+- `scripts/tools/update_heartbeat.py` - Heartbeat updater utility
+- Cron job to add (from BACKUP_RUNBOOK line 34):
+  ```bash
+  # Daily cloud upload at 3:00 AM
+  0 3 * * * DAY="$(date +%F)" && rclone copy ~/project-data-archives/image-workflow/"$DAY"/ gbackup:"$DAY"/ --log-file=~/backup.log --log-level INFO && rclone check ~/project-data-archives/image-workflow/"$DAY"/ gbackup:"$DAY"/ --one-way --size-only --log-file=~/backup.log --log-level INFO && rm -rf ~/project-data-archives/image-workflow/"$DAY" && python /path/to/scripts/tools/update_heartbeat.py --notes "Cloud backup completed for $DAY"
+  ```
+
+**Alternative (Temporary Fix):**
+If you want to stop the emails NOW while you're driving:
+- Disable the deadman switch schedule temporarily
+- Re-enable it Sunday when setting up cloud backups
+
+**Why This Matters:**
+- Off-site backups protect against "computer falls in toilet" scenarios
+- Stops email spam (every 30 minutes!)
+- Completes the backup infrastructure started in October
+
+---
+
 ### 📊 Dashboard Enhancements 🟢 **LOW-MEDIUM TOKEN COST**
 
 **Recommended Agent:** Claude Sonnet 4.5 (regular) or GPT-4  
