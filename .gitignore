@@ -149,6 +149,7 @@ workflow*.md
 
 # IDE and Editor Files
 .cursor/
+!.cursorrules
 .vscode/
 !.vscode/settings.json  # Track team settings for linting/formatting
 .idea/
