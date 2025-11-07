@@ -51,7 +51,6 @@ Command-line utilities for maintenance, analysis, and workflow support.
 
 ## 🚨 Monitoring & Operations
 
-- **`update_heartbeat.py`** - Update system heartbeat for deadman switch monitoring
 - **`watchdog_runner.py`** - Run watchdog process monitor
 - **`smoke_test_processor.py`** - Quick smoke test for processor pipeline
 - **`handoff_check.py`** - Check project readiness for handoff
